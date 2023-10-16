@@ -13,4 +13,5 @@ setup(
         "numpy",
         "scipy",
     ],
+    extras_require={"diff": ["numdifftools"]},
 )
