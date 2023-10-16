@@ -64,7 +64,7 @@ class SaddlePointApprox:
     def _spappox_cdf(self, x, t):
         w = np.sign(t) * np.sqrt(2 * (t * x - self.K(t)))
         u = t * np.sqrt(self.d2K(t))
-        retval = sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w + 1 / u)
+        retval = sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
         return np.where(
             ~np.isclose(t, 0),
             retval,
