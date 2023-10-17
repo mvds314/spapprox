@@ -60,19 +60,19 @@ class cumulant_generating_function:
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Derivative(self.K, n=1)
-        return self.dK(t)
+        return self._dK(t)
 
     def d2K(self, t):
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d2K = nd.Derivative(self.K, n=2)
-        return self.dK(t)
+        return self._d2K(t)
 
     def d3K(self, t):
         if self._d3K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Derivative(self.K, n=3)
-        return self.dK(t)
+        return self._d3K(t)
 
 
 def norm(mu=0, sigma=1):
