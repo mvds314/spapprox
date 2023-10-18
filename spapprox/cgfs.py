@@ -43,8 +43,29 @@ except:
 
 
 class cumulant_generating_function:
-    """
+    r"""
     Base class for cumulant generating function of a distribution
+
+    For a random variable :math:`X` with probability density function :math:`f_X(x)`,
+    the cumulant generating function is defined as the logarithm of the moment generating function:
+
+    .. math::
+        K_X(t) = \log \mathbb{E} \left[ e^{tX} \right]
+
+    It satisfies the following properties:
+
+    * :math:`\kappa_n = \frac{d^n}{dt^n} K_X(t) \big|_{t=0}'
+    * :math:`\kappa_1= \mathbb{E} \left[ X \right]`
+    * :math:`\kappa_2= \mathbb{E} \left[ X^2 \right] - \mathbb{E} \left[ X \right]^2= \mathrm{Var} \left[ X \right]`
+    * Central moments are polynomial functions of the cumulants
+    * Moments are polynomial functions of the cumulants
+    * Cumulants are additive for independent random variables
+    * Cumulants are homogeneous, i.e., :math:`\kappa_n(\lambda X) = \lambda^n \kappa_n(X)`
+    * Cumulants are translation invariant, i.e., :math:`\kappa_n(X + c) = \kappa_n(X)`, for :math:`n=2,3,\dots`
+
+    References
+    ----------
+    [1] https://en.wikipedia.org/wiki/Cumulant#Cumulant_generating_function
     """
 
     def __init__(self, K, dK=None, d2K=None, d3K=None):
