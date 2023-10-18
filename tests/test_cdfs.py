@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from pathlib import Path
+import warnings
+
+import numdifftools as nd
 import numpy as np
 import pandas as pd
-import scipy as sp
-import scipy.stats as sps
-from scipy.integrate import quad
-import numdifftools as nd
-
 import pytest
-import warnings
-from pathlib import Path
+import scipy as sp
+from scipy.integrate import quad
+import scipy.stats as sps
+
 from spapprox import cumulant_generating_function, norm
 
 
