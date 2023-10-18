@@ -66,6 +66,7 @@ class cumulant_generating_function:
     References
     ----------
     [1] https://en.wikipedia.org/wiki/Cumulant#Cumulant_generating_function
+    [2] http://www.scholarpedia.org/article/Cumulants
     """
 
     def __init__(self, K, dK=None, d2K=None, d3K=None):
@@ -102,4 +103,67 @@ def norm(mu=0, sigma=1):
         dK=lambda t, mu=mu, sigma=sigma: mu + sigma**2 * t,
         d2K=lambda t, sigma=sigma: sigma**2 + 0 * t,
         d3K=lambda t: 0 * t,
+    )
+
+
+def poisson(lam=1):
+    return cumulant_generating_function(
+        K=lambda t, lam=lam: lam * (np.exp(t) - 1),
+        dK=lambda t, lam=lam: lam * np.exp(t),
+        d2K=lambda t, lam=lam: lam * np.exp(t),
+        d3K=lambda t, lam=lam: lam * np.exp(t),
+    )
+
+
+def bernoulli(p=0.5):
+    return cumulant_generating_function(
+        K=lambda t, p=p: np.log(1 - p + p * np.exp(t)),
+        dK=lambda t, p=p: p * np.exp(t) / (1 - p + p * np.exp(t)),
+        d2K=lambda t, p=p: p**2 * np.exp(2 * t) / (1 - p + p * np.exp(t)) ** 2,
+        d3K=lambda t, p=p: 2 * p**3 * np.exp(3 * t) / (1 - p + p * np.exp(t)) ** 3,
+    )
+
+
+def geometric(p=0.5):
+    return cumulant_generating_function(
+        K=lambda t, p=p: np.log(1 - p) - np.log(1 - p * np.exp(t)),
+        dK=lambda t, p=p: p * np.exp(t) / (1 - p * np.exp(t)),
+        d2K=lambda t, p=p: p**2 * np.exp(2 * t) / (1 - p * np.exp(t)) ** 2,
+        d3K=lambda t, p=p: 2 * p**3 * np.exp(3 * t) / (1 - p * np.exp(t)) ** 3,
+    )
+
+
+def gamma(k=1, theta=1):
+    return cumulant_generating_function(
+        K=lambda t, k=k, theta=theta: k * np.log(1 - theta * t),
+        dK=lambda t, k=k, theta=theta: -k * theta / (1 - theta * t),
+        d2K=lambda t, k=k, theta=theta: k * theta**2 / (1 - theta * t) ** 2,
+        d3K=lambda t, k=k, theta=theta: -2 * k * theta**3 / (1 - theta * t) ** 3,
+    )
+
+
+def exponential(lam=1):
+    return cumulant_generating_function(
+        K=lambda t, lam=lam: lam * t,
+        dK=lambda t, lam=lam: lam,
+        d2K=lambda t: 0 * t,
+        d3K=lambda t: 0 * t,
+    )
+
+
+def chi2(k=1):
+    return cumulant_generating_function(
+        K=lambda t, k=k: -k / 2 * np.log(1 - 2 * t),
+        dK=lambda t, k=k: k / (1 - 2 * t),
+        d2K=lambda t, k=k: 2 * k / (1 - 2 * t) ** 2,
+        d3K=lambda t, k=k: -8 * k / (1 - 2 * t) ** 3,
+    )
+
+
+def student_t(nu=1):
+    return cumulant_generating_function(
+        K=lambda t, nu=nu: nu * np.log(1 - 2 * t / nu),
+        dK=lambda t, nu=nu: -2 * nu / (nu - 2 * t),
+        d2K=lambda t, nu=nu: 4 * nu / (nu - 2 * t) ** 2,
+        d3K=lambda t, nu=nu: -16 * nu / (nu - 2 * t) ** 3,
     )
