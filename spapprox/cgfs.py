@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import numpy as np
+
 try:
     import numdifftools as nd
 
@@ -144,10 +146,10 @@ def gamma(k=1, theta=1):
 
 def exponential(lam=1):
     return cumulant_generating_function(
-        K=lambda t, lam=lam: lam * t,
-        dK=lambda t, lam=lam: lam,
-        d2K=lambda t: 0 * t,
-        d3K=lambda t: 0 * t,
+        K=lambda t, lam=lam: np.log(lam / (lam - t)),
+        dK=lambda t, lam=lam: 1 / (lam - t),
+        d2K=lambda t, lam=lam: 1 / (lam - t) ** 2,
+        d3K=lambda t, lam=lam: 2 / (lam - t) ** 3,
     )
 
 
