@@ -15,6 +15,10 @@ import scipy.stats as sps
 from spapprox import cumulant_generating_function, norm, exponential
 
 
+# TODO: test domain
+# TODO: test numerical differentiation
+
+
 @pytest.mark.parametrize(
     "cgf_to_test,pdf,a,b",
     [(norm(mu=0, sigma=1), sps.norm.pdf, -10, 10), (exponential(lam=1), sps.expon.pdf, 0, 100)],
