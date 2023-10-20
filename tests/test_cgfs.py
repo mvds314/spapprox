@@ -17,9 +17,6 @@ import scipy.stats as sps
 from spapprox import cumulant_generating_function, norm, exponential
 
 
-# TODO: test domain
-
-
 @pytest.mark.parametrize(
     "cgf_to_test,pdf,a,b",
     [
@@ -53,6 +50,15 @@ def test_norm_cgf(cgf_to_test, pdf, a, b):
     assert np.isclose(d2cgf(0.55), cgf_to_test.d2K(0.55))
     d3cgf = nd.Derivative(cgf, n=3)
     assert np.isclose(d3cgf(0.22), cgf_to_test.d3K(0.22))
+
+
+def test_domain():
+    cgf = cumulant_generating_function(
+        K=lambda t: t**4,
+        domain=lambda t: t < 1,
+    )
+    assert cgf.K(0.5) == 0.0625
+    assert cgf.K(1.5) == np.nan
 
 
 if __name__ == "__main__":
