@@ -65,7 +65,7 @@ class cumulant_generating_function:
     def d3K(self, t):
         if self._d3K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._dK = nd.Derivative(self.K, n=3)
+            self._d3K = nd.Derivative(self.K, n=3)
         return self._d3K(t)
 
 
