@@ -4,7 +4,9 @@
 from pathlib import Path
 import warnings
 
-import numdifftools as nd
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", category=DeprecationWarning)
+    import numdifftools as nd
 import numpy as np
 import pandas as pd
 import pytest

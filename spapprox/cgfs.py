@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+import warnings
 import numpy as np
 
 try:
-    import numdifftools as nd
-
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=DeprecationWarning)
+        import numdifftools as nd
     has_numdifftools = True
-except:
+except ImportError:
     has_numdifftools = False
 
 
