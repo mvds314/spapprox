@@ -18,13 +18,13 @@ from spapprox import cumulant_generating_function, norm, exponential
 
 
 # TODO: test domain
-# TODO: test different params
 
 
 @pytest.mark.parametrize(
     "cgf_to_test,pdf,a,b",
     [
         (norm(mu=0, sigma=1), sps.norm.pdf, -10, 10),
+        (norm(mu=1, sigma=0.5), sps.norm(loc=1, scale=0.5).pdf, -10, 10),
         (
             cumulant_generating_function(
                 K=lambda t, mu=0, sigma=1: mu * t + sigma**2 * t**2 / 2
@@ -34,6 +34,7 @@ from spapprox import cumulant_generating_function, norm, exponential
             10,
         ),
         (exponential(lam=1), sps.expon.pdf, 0, 100),
+        (exponential(lam=2), sps.expon(scale=1 / 2).pdf, 0, 100),
         (
             cumulant_generating_function(K=lambda t, lam=1: np.log(lam / (lam - t))),
             sps.expon.pdf,
