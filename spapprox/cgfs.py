@@ -12,6 +12,8 @@ except ImportError:
     has_numdifftools = False
 
 
+# TODO: allow for domain specification
+# TODO: allow for dik0 specification
 class cumulant_generating_function:
     r"""
     Base class for cumulant generating function of a distribution
@@ -67,7 +69,6 @@ class cumulant_generating_function:
         return self._d3K(t)
 
 
-# TODO: create domain
 def norm(mu=0, sigma=1):
     return cumulant_generating_function(
         K=lambda t, mu=mu, sigma=sigma: mu * t + sigma**2 * t**2 / 2,
