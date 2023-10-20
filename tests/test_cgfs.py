@@ -57,8 +57,28 @@ def test_domain():
         K=lambda t: t**4,
         domain=lambda t: t < 1,
     )
-    assert cgf.K(0.5) == 0.0625
-    assert cgf.K(1.5) == np.nan
+    assert np.isclose(cgf.K(0.5), 0.0625)
+    assert np.isnan(cgf.K(1.5))
+    assert np.isclose(cgf.dK(0.5), 0.5)
+    assert np.isnan(cgf.dK(1.5))
+    assert np.isclose(cgf.d2K(0.5), 3)
+    assert np.isnan(cgf.d2K(1.5))
+    assert np.isclose(cgf.d3K(0.5), 12)
+    assert np.isnan(cgf.d3K(1.5))
+    cgf = cumulant_generating_function(
+        K=lambda t: t**4,
+        domain=(1, 2),
+    )
+    assert np.isnan(cgf.K(0.5))
+    assert ~np.isnan(cgf.K(1.5))
+    assert np.isnan(cgf.dK(0.5))
+    assert ~np.isnan(cgf.dK(1.5))
+    assert np.isnan(cgf.d2K(0.5))
+    assert ~np.isnan(cgf.d2K(1.5))
+    assert np.isnan(cgf.d3K(0.5))
+    assert ~np.isnan(cgf.d3K(1.5))
+    # TODO: continue with some array testing here
+    # TODO: continue with some eq stuff testing
 
 
 if __name__ == "__main__":

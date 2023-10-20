@@ -63,13 +63,11 @@ class cumulant_generating_function:
         if domain is None:
             domain = (-np.inf, np.inf)
         if isinstance(domain, tuple):
-            domain = (
-                lambda t, domain=domain: (domain[0] <= t)
+            domain = lambda t, domain=domain: (
+                (domain[0] <= t)
                 & (t <= domain[1])
-                & (
-                    np.isfinite(domain[0] | (domain[0] < t))
-                    & np.isfinite(domain[1] | (t < domain[1]))
-                )
+                & (np.isfinite(domain[0]) | (domain[0] < t))
+                & (np.isfinite(domain[1]) | (t < domain[1]))
             )
         else:
             assert callable(domain), "domain must be a tuple or callable"
@@ -77,28 +75,44 @@ class cumulant_generating_function:
 
     def K(self, t):
         cond = self.domain(t)
-        return np.where(cond, self._K(t), np.nan)
+        if np.isscalar(t):
+            retval = self._K(t) if cond else np.nan
+            return retval if np.isscalar(retval) else retval.item()
+        else:
+            return np.where(cond, self._K(t), np.nan)
 
     def dK(self, t):
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Derivative(self.K, n=1)
         cond = self.domain(t)
-        return np.where(cond, self._dK(t), np.nan)
+        if np.isscalar(t):
+            retval = self._dK(t) if cond else np.nan
+            return retval if np.isscalar(retval) else retval.item()
+        else:
+            return np.where(cond, self._dK(t), np.nan)
 
     def d2K(self, t):
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d2K = nd.Derivative(self.K, n=2)
         cond = self.domain(t)
-        return np.where(cond, self._d2K(t), np.nan)
+        if np.isscalar(t):
+            retval = self._d2K(t) if cond else np.nan
+            return retval if np.isscalar(retval) else retval.item()
+        else:
+            return np.where(cond, self._d2K(t), np.nan)
 
     def d3K(self, t):
         if self._d3K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d3K = nd.Derivative(self.K, n=3)
         cond = self.domain(t)
-        return np.where(cond, self._d3K(t), np.nan)
+        if np.isscalar(t):
+            retval = self._d3K(t) if cond else np.nan
+            return retval if np.isscalar(retval) else retval.item()
+        else:
+            return np.where(cond, self._d3K(t), np.nan)
 
 
 def norm(mu=0, sigma=1):
