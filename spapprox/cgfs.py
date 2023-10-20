@@ -12,7 +12,6 @@ except ImportError:
     has_numdifftools = False
 
 
-# TODO: allow for domain specification
 # TODO: allow for dik0 specification
 class cumulant_generating_function:
     r"""
@@ -39,34 +38,67 @@ class cumulant_generating_function:
     ----------
     [1] https://en.wikipedia.org/wiki/Cumulant#Cumulant_generating_function
     [2] http://www.scholarpedia.org/article/Cumulants
+
+    Parameters
+    ----------
+    K : callable
+        Cumulant generating function
+    dK : callable, optional
+        First derivative of the cumulant generating function
+    d2K : callable, optional
+        Second derivative of the cumulant generating function
+    d3K : callable, optional
+        Third derivative of the cumulant generating function
+    domain : tuple or callable optional
+        Domain of the cumulant generating function, either specified through a tuples with greater (less) equal bound for finite values,
+        or strictly greater (less) bounds if values are infinite. Alternatively, a callable can be provided that returns True if a value
+        is in the domain and False otherwise.
     """
 
-    def __init__(self, K, dK=None, d2K=None, d3K=None):
+    def __init__(self, K, dK=None, d2K=None, d3K=None, domain=None):
         self._K = K
         self._dK = dK
         self._d2K = d2K
         self._d3K = d3K
+        if domain is None:
+            domain = (-np.inf, np.inf)
+        if isinstance(domain, tuple):
+            domain = (
+                lambda t, domain=domain: (domain[0] <= t)
+                & (t <= domain[1])
+                & (
+                    np.isfinite(domain[0] | (domain[0] < t))
+                    & np.isfinite(domain[1] | (t < domain[1]))
+                )
+            )
+        else:
+            assert callable(domain), "domain must be a tuple or callable"
+        self.domain = domain
 
     def K(self, t):
-        return self._K(t)
+        cond = self.domain(t)
+        return np.where(cond, self._K(t), np.nan)
 
     def dK(self, t):
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Derivative(self.K, n=1)
-        return self._dK(t)
+        cond = self.domain(t)
+        return np.where(cond, self._dK(t), np.nan)
 
     def d2K(self, t):
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d2K = nd.Derivative(self.K, n=2)
-        return self._d2K(t)
+        cond = self.domain(t)
+        return np.where(cond, self._d2K(t), np.nan)
 
     def d3K(self, t):
         if self._d3K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d3K = nd.Derivative(self.K, n=3)
-        return self._d3K(t)
+        cond = self.domain(t)
+        return np.where(cond, self._d3K(t), np.nan)
 
 
 def norm(mu=0, sigma=1):
@@ -120,6 +152,7 @@ def exponential(lam=1):
         dK=lambda t, lam=lam: 1 / (lam - t),
         d2K=lambda t, lam=lam: 1 / (lam - t) ** 2,
         d3K=lambda t, lam=lam: 2 / (lam - t) ** 3,
+        domain=lambda t: t < lam,
     )
 
 
