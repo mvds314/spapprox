@@ -12,7 +12,6 @@ except ImportError:
     has_numdifftools = False
 
 
-# TODO: allow for dik0 specification
 class cumulant_generating_function:
     r"""
     Base class for cumulant generating function of a distribution
@@ -55,23 +54,58 @@ class cumulant_generating_function:
         is in the domain and False otherwise.
     """
 
-    def __init__(self, K, dK=None, d2K=None, d3K=None, domain=None):
+    def __init__(
+        self, K, dK=None, d2K=None, d3K=None, K0=None, dK0=None, d2K0=None, d3K0=None, domain=None
+    ):
         self._K = K
         self._dK = dK
         self._d2K = d2K
         self._d3K = d3K
+        self._K0 = K0
+        self._dK0 = dK0
+        self._d2K0 = d2K0
+        self._d3K0 = d3K0
         if domain is None:
             domain = (-np.inf, np.inf)
         if isinstance(domain, tuple):
-            domain = lambda t, domain=domain: (
-                (domain[0] <= t)
-                & (t <= domain[1])
-                & (np.isfinite(domain[0]) | (domain[0] < t))
-                & (np.isfinite(domain[1]) | (t < domain[1]))
-            )
+            domain = lambda t, domain=domain: self._is_in_domain(t, domain)
         else:
             assert callable(domain), "domain must be a tuple or callable"
         self.domain = domain
+
+    @property
+    def K0(self):
+        if self._K0 is None:
+            self._K0 = self.K(0)
+        return self._K0
+
+    @property
+    def dK0(self):
+        if self._dK0 is None:
+            self._dK0 = self.dK(0)
+        return self._dK0
+
+    @property
+    def d2K0(self):
+        if self._d2K0 is None:
+            self._d2K0 = self.d2K(0)
+        return self._d2K0
+
+    @property
+    def d3K0(self):
+        if self._d3K0 is None:
+            self._d3K0 = self.d3K(0)
+        return self._d3K0
+
+    @staticmethod
+    def _is_in_domain(t, domain):
+        if ~np.isscalar(t):
+            t = np.asanyarray(t)
+        val = domain[0] <= t
+        val &= t <= domain[1]
+        val &= np.isfinite(domain[0]) | (domain[0] < t)
+        val &= np.isfinite(domain[1]) | (t < domain[1])
+        return val
 
     def K(self, t):
         cond = self.domain(t)
@@ -79,6 +113,7 @@ class cumulant_generating_function:
             retval = self._K(t) if cond else np.nan
             return retval if np.isscalar(retval) else retval.item()
         else:
+            t = np.asanyarray(t)
             return np.where(cond, self._K(t), np.nan)
 
     def dK(self, t):
@@ -90,6 +125,7 @@ class cumulant_generating_function:
             retval = self._dK(t) if cond else np.nan
             return retval if np.isscalar(retval) else retval.item()
         else:
+            t = np.asanyarray(t)
             return np.where(cond, self._dK(t), np.nan)
 
     def d2K(self, t):
@@ -101,6 +137,7 @@ class cumulant_generating_function:
             retval = self._d2K(t) if cond else np.nan
             return retval if np.isscalar(retval) else retval.item()
         else:
+            t = np.asanyarray(t)
             return np.where(cond, self._d2K(t), np.nan)
 
     def d3K(self, t):
@@ -112,6 +149,7 @@ class cumulant_generating_function:
             retval = self._d3K(t) if cond else np.nan
             return retval if np.isscalar(retval) else retval.item()
         else:
+            t = np.asanyarray(t)
             return np.where(cond, self._d3K(t), np.nan)
 
 

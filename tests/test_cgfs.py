@@ -77,8 +77,13 @@ def test_domain():
     assert ~np.isnan(cgf.d2K(1.5))
     assert np.isnan(cgf.d3K(0.5))
     assert ~np.isnan(cgf.d3K(1.5))
-    # TODO: continue with some array testing here
-    # TODO: continue with some eq stuff testing
+    cgf = cumulant_generating_function(
+        K=lambda t: t**4,
+        domain=(0, 2),
+    )
+    val = cgf.K([-1, 1])
+    assert np.isnan(val[0])
+    assert ~np.isnan(val[1])
 
 
 if __name__ == "__main__":
@@ -86,8 +91,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                # "-k",
-                # "test_example",
+                "-k",
+                "test_domain",
                 "--tb=auto",
                 "--pdb",
             ]
