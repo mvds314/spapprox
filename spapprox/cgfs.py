@@ -55,7 +55,7 @@ class cumulant_generating_function:
     """
 
     def __init__(
-        self, K, dK=None, d2K=None, d3K=None, K0=None, dK0=None, d2K0=None, d3K0=None, domain=None
+        self, K, dK=None, d2K=None, d3K=None, dK0=None, d2K0=None, d3K0=None, domain=None
     ):
         self._K = K
         self._dK = dK
@@ -74,10 +74,19 @@ class cumulant_generating_function:
         self.domain = domain
 
     @property
-    def K0(self):
-        if self._K0 is None:
-            self._K0 = self.K(0)
-        return self._K0
+    def kappa1(self):
+        return self.dK(0)
+
+    @property
+    def mean(self):
+        return self.kappa1
+
+    @property
+    def kappa2(self):
+        return self.d2K(0)
+
+    def variance(self):
+        return self.kappa2
 
     @property
     def dK0(self):
