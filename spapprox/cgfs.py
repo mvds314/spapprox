@@ -169,21 +169,21 @@ class cumulant_generating_function:
             return np.where(cond, self._d3K(t), np.nan)
 
 
-def norm(mu=0, sigma=1):
+def norm(loc=0, scale=1):
     return cumulant_generating_function(
-        K=lambda t, mu=mu, sigma=sigma: mu * t + sigma**2 * t**2 / 2,
-        dK=lambda t, mu=mu, sigma=sigma: mu + sigma**2 * t,
-        d2K=lambda t, sigma=sigma: sigma**2 + 0 * t,
+        K=lambda t, loc=loc, scale=scale: loc * t + scale**2 * t**2 / 2,
+        dK=lambda t, loc=loc, scale=scale: loc + scale**2 * t,
+        d2K=lambda t, scale=scale: scale**2 + 0 * t,
         d3K=lambda t: 0 * t,
     )
 
 
-def poisson(lam=1):
+def poisson(mu=1):
     return cumulant_generating_function(
-        K=lambda t, lam=lam: lam * (np.exp(t) - 1),
-        dK=lambda t, lam=lam: lam * np.exp(t),
-        d2K=lambda t, lam=lam: lam * np.exp(t),
-        d3K=lambda t, lam=lam: lam * np.exp(t),
+        K=lambda t, mu=mu: mu * (np.exp(t) - 1),
+        dK=lambda t, mu=mu: mu * np.exp(t),
+        d2K=lambda t, mu=mu: mu * np.exp(t),
+        d3K=lambda t, mu=mu: mu * np.exp(t),
         domain=lambda t: cumulant_generating_function._is_in_domain(t, ge=0, l=np.inf),
     )
 
@@ -202,13 +202,13 @@ def gamma(a=1, scale=1):
     )
 
 
-def exponential(lam=1):
+def exponential(scale=1):
     return cumulant_generating_function(
-        K=lambda t, lam=lam: np.log(lam / (lam - t)),
-        dK=lambda t, lam=lam: 1 / (lam - t),
-        d2K=lambda t, lam=lam: 1 / (lam - t) ** 2,
-        d3K=lambda t, lam=lam: 2 / (lam - t) ** 3,
-        domain=lambda t: cumulant_generating_function._is_in_domain(t, g=-np.inf, l=lam),
+        K=lambda t, scale=scale: np.log(1 / (1 - scale * t)),
+        dK=lambda t, scale=scale: scale / (1 - scale * t),
+        d2K=lambda t, scale=scale: 1 / (1 / scale - t) ** 2,
+        d3K=lambda t, scale=scale: 2 / (1 / scale - t) ** 3,
+        domain=lambda t: cumulant_generating_function._is_in_domain(t, g=-np.inf, l=1 / scale),
     )
 
 

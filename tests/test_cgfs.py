@@ -21,14 +21,14 @@ from spapprox import cumulant_generating_function, norm, exponential, poisson, g
     "cgf_to_test,cgf,ts",
     [
         (
-            norm(mu=0, sigma=1),
+            norm(loc=0, scale=1),
             lambda t, pdf=sps.norm.pdf: np.log(
                 quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
             ),
             [0.2, 0.55],
         ),
         (
-            norm(mu=1, sigma=0.5),
+            norm(loc=1, scale=0.5),
             lambda t: np.log(
                 quad(
                     lambda x, pdf=sps.norm(loc=1, scale=0.5).pdf: pdf(x) * np.exp(t * x), a=-5, b=5
@@ -38,7 +38,7 @@ from spapprox import cumulant_generating_function, norm, exponential, poisson, g
         ),
         (
             cumulant_generating_function(
-                K=lambda t, mu=0, sigma=1: mu * t + sigma**2 * t**2 / 2
+                K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
             ),
             lambda t, pdf=sps.norm.pdf: np.log(
                 quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
@@ -46,29 +46,29 @@ from spapprox import cumulant_generating_function, norm, exponential, poisson, g
             [0.2, 0.55],
         ),
         (
-            exponential(lam=1),
+            exponential(scale=1),
             lambda t, pdf=sps.expon.pdf: np.log(
                 quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
             ),
             [0.2, 0.55],
         ),
         (
-            exponential(lam=2),
+            exponential(scale=0.5),
             lambda t, pdf=sps.expon(scale=0.5).pdf: np.log(
                 quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
             ),
             [0.2, 0.55],
         ),
         (
-            cumulant_generating_function(K=lambda t, lam=1: np.log(lam / (lam - t))),
+            cumulant_generating_function(K=lambda t: np.log(1 / (1 - t))),
             lambda t, pdf=sps.expon.pdf: np.log(
                 quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
             ),
             [0.2, 0.55],
         ),
         (
-            poisson(lam=1),
-            lambda t, pmf=sps.poisson(mu=1).pmf: np.log(
+            poisson(mu=2),
+            lambda t, pmf=sps.poisson(mu=2).pmf: np.log(
                 np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
             ),
             [0.2, 0.55],
