@@ -14,7 +14,14 @@ import scipy as sp
 from scipy.integrate import quad
 import scipy.stats as sps
 
-from spapprox import cumulant_generating_function, norm, exponential, poisson, gamma, chi2
+from spapprox import (
+    cumulant_generating_function,
+    norm,
+    exponential,
+    poisson,
+    gamma,
+    chi2,
+)
 
 
 @pytest.mark.parametrize(
@@ -81,11 +88,11 @@ from spapprox import cumulant_generating_function, norm, exponential, poisson, g
             [0.2, 0.55],
         ),
         (
-            chi2(df=1),
-            lambda t, pdf=sps.chi2(df=1).pdf: np.log(
+            chi2(df=3),
+            lambda t, pdf=sps.chi2(df=3).pdf: np.log(
                 quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
             ),
-            [0.2, 0.3],
+            [0.2, 0.25],
         ),
     ],
 )
