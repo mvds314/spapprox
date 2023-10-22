@@ -214,12 +214,3 @@ def exponential(scale=1):
 
 def chi2(df=1):
     return gamma(a=df / 2, scale=2)
-
-
-def student_t(nu=1):
-    return cumulant_generating_function(
-        K=lambda t, nu=nu: nu * np.log(1 - 2 * t / nu),
-        dK=lambda t, nu=nu: -2 * nu / (nu - 2 * t),
-        d2K=lambda t, nu=nu: 4 * nu / (nu - 2 * t) ** 2,
-        d3K=lambda t, nu=nu: -16 * nu / (nu - 2 * t) ** 3,
-    )
