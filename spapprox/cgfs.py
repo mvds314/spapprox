@@ -188,13 +188,8 @@ def poisson(lam=1):
     )
 
 
-def geometric(p=0.5):
-    return cumulant_generating_function(
-        K=lambda t, p=p: np.log(1 - p) - np.log(1 - p * np.exp(t)),
-        dK=lambda t, p=p: p * np.exp(t) / (1 - p * np.exp(t)),
-        d2K=lambda t, p=p: p**2 * np.exp(2 * t) / (1 - p * np.exp(t)) ** 2,
-        d3K=lambda t, p=p: 2 * p**3 * np.exp(3 * t) / (1 - p * np.exp(t)) ** 3,
-    )
+# TODO: add binomial
+# TODO: add multinomial
 
 
 def gamma(k=1, theta=1):
