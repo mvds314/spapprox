@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import warnings
 import numpy as np
+import scipy.stats as sps
 
 from .cgfs import CumulantGeneratingFunction
 
@@ -27,12 +27,6 @@ class SaddlePointApprox:
             retval,
             1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
         )
-        # if np.isclose(t, 0):
-        #     1 / 2 + self.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.d2K0, 3 / 2)
-        # else:
-        #     w = np.sign(t) * np.sqrt(2 * (t * x - self.K(t)))
-        #     u = t * np.sqrt(self.dK2(t))
-        #     return sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w + 1 / u)
 
     def pdf(self, x=None, t=None):
         assert x is not None or t is not None
