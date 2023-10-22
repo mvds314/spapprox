@@ -24,7 +24,7 @@ from spapprox import (
 
 
 @pytest.mark.parametrize(
-    "cgf_to_test,cgf,ts",
+    "cgf_to_test,cgf,ts,dist",
     [
         (
             norm(loc=0, scale=1),
@@ -32,6 +32,7 @@ from spapprox import (
                 quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
             ),
             [0.2, 0.55],
+            sps.norm(loc=0, scale=1),
         ),
         (
             norm(loc=1, scale=0.5),
@@ -41,6 +42,7 @@ from spapprox import (
                 )[0]
             ),
             [0.2, 0.55],
+            sps.norm(loc=1, scale=0.5),
         ),
         (
             cumulant_generating_function(
@@ -50,6 +52,7 @@ from spapprox import (
                 quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
             ),
             [0.2, 0.55],
+            sps.norm(loc=0, scale=1),
         ),
         (
             exponential(scale=1),
@@ -57,6 +60,7 @@ from spapprox import (
                 quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
             ),
             [0.2, 0.55],
+            sps.expon(scale=1),
         ),
         (
             exponential(scale=0.5),
@@ -64,6 +68,7 @@ from spapprox import (
                 quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
             ),
             [0.2, 0.55],
+            sps.expon(scale=0.5),
         ),
         (
             cumulant_generating_function(K=lambda t: np.log(1 / (1 - t))),
@@ -71,6 +76,7 @@ from spapprox import (
                 quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
             ),
             [0.2, 0.55],
+            sps.expon(scale=1),
         ),
         (
             gamma(a=2, scale=0.5),
@@ -78,6 +84,7 @@ from spapprox import (
                 quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
             ),
             [0.2, 0.55],
+            sps.gamma(a=2, scale=0.5),
         ),
         (
             chi2(df=3),
@@ -85,6 +92,7 @@ from spapprox import (
                 quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
             ),
             [0.2, 0.25],
+            sps.chi2(df=3),
         ),
         (
             poisson(mu=2),
@@ -92,6 +100,7 @@ from spapprox import (
                 np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
             ),
             [0.2, 0.55],
+            sps.poisson(mu=2),
         ),
         (
             binomial(n=10, p=0.5),
@@ -99,10 +108,11 @@ from spapprox import (
                 np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
             ),
             [0.2, 0.55],
+            sps.binom(n=10, p=0.5),
         ),
     ],
 )
-def test_cgf(cgf_to_test, cgf, ts):
+def test_cgf(cgf_to_test, cgf, ts, dist):
     assert isinstance(cgf_to_test, cumulant_generating_function)
     for t in ts:
         assert np.isclose(cgf(t), cgf_to_test.K(t))
@@ -112,6 +122,8 @@ def test_cgf(cgf_to_test, cgf, ts):
         assert np.isclose(d2cgf(t), cgf_to_test.d2K(t))
         d3cgf = nd.Derivative(cgf, n=3)
         assert np.isclose(d3cgf(t), cgf_to_test.d3K(t))
+    assert np.isclose(cgf_to_test.mean, dist.mean())
+    assert np.isclose(cgf_to_test.variance, dist.var())
 
 
 def test_domain():

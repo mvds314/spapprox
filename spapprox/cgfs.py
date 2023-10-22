@@ -87,8 +87,13 @@ class cumulant_generating_function:
     def kappa2(self):
         return self.d2K(0)
 
+    @property
     def variance(self):
         return self.kappa2
+
+    @property
+    def std(self):
+        return np.sqrt(self.variance)
 
     @property
     def dK0(self):
@@ -231,5 +236,4 @@ def binomial(n=1, p=0.5):
     )
 
 
-# TODO: add binomial
 # TODO: add multinomial
