@@ -13,7 +13,7 @@ from scipy.integrate import quad
 import scipy.stats as sps
 
 from spapprox import (
-    cumulant_generating_function,
+    CumulantGeneratingFunction,
     norm,
     exponential,
     gamma,
@@ -46,7 +46,7 @@ from spapprox import (
             sps.norm(loc=1, scale=0.5),
         ),
         (
-            cumulant_generating_function(
+            CumulantGeneratingFunction(
                 K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
             ),
             lambda t, pdf=sps.norm.pdf: np.log(
@@ -72,7 +72,7 @@ from spapprox import (
             sps.expon(scale=0.5),
         ),
         (
-            cumulant_generating_function(K=lambda t: np.log(1 / (1 - t))),
+            CumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
             exponential(scale=1).K,
             [0.2, 0.55],
             sps.expon(scale=1),
@@ -120,7 +120,7 @@ from spapprox import (
     ],
 )
 def test_cgf(cgf_to_test, cgf, ts, dist):
-    assert isinstance(cgf_to_test, cumulant_generating_function)
+    assert isinstance(cgf_to_test, CumulantGeneratingFunction)
     for t in ts:
         assert np.isclose(cgf(t), cgf_to_test.K(t))
         dcgf = nd.Derivative(cgf_to_test.K, n=1)
@@ -134,7 +134,7 @@ def test_cgf(cgf_to_test, cgf, ts, dist):
 
 
 def test_domain():
-    cgf = cumulant_generating_function(
+    cgf = CumulantGeneratingFunction(
         K=lambda t: t**4,
         domain=lambda t: t < 1,
     )
@@ -146,7 +146,7 @@ def test_domain():
     assert np.isnan(cgf.d2K(1.5))
     assert np.isclose(cgf.d3K(0.5), 12)
     assert np.isnan(cgf.d3K(1.5))
-    cgf = cumulant_generating_function(
+    cgf = CumulantGeneratingFunction(
         K=lambda t: t**4,
         domain=(1, 2),
     )
@@ -158,7 +158,7 @@ def test_domain():
     assert ~np.isnan(cgf.d2K(1.5))
     assert np.isnan(cgf.d3K(0.5))
     assert ~np.isnan(cgf.d3K(1.5))
-    cgf = cumulant_generating_function(
+    cgf = CumulantGeneratingFunction(
         K=lambda t: t**4,
         domain=(0, 2),
     )

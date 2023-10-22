@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import warnings
 import numpy as np
-import pandas as pd
 
 try:
     with warnings.catch_warnings():
@@ -13,7 +12,7 @@ except ImportError:
     has_numdifftools = False
 
 
-class cumulant_generating_function:
+class CumulantGeneratingFunction:
     r"""
     Base class for cumulant generating function of a distribution
 
@@ -175,7 +174,7 @@ class cumulant_generating_function:
 
 
 def norm(loc=0, scale=1):
-    return cumulant_generating_function(
+    return CumulantGeneratingFunction(
         K=lambda t, loc=loc, scale=scale: loc * t + scale**2 * t**2 / 2,
         dK=lambda t, loc=loc, scale=scale: loc + scale**2 * t,
         d2K=lambda t, scale=scale: scale**2 + 0 * t,
@@ -184,22 +183,22 @@ def norm(loc=0, scale=1):
 
 
 def exponential(scale=1):
-    return cumulant_generating_function(
+    return CumulantGeneratingFunction(
         K=lambda t, scale=scale: np.log(1 / (1 - scale * t)),
         dK=lambda t, scale=scale: scale / (1 - scale * t),
         d2K=lambda t, scale=scale: 1 / (1 / scale - t) ** 2,
         d3K=lambda t, scale=scale: 2 / (1 / scale - t) ** 3,
-        domain=lambda t: cumulant_generating_function._is_in_domain(t, g=-np.inf, l=1 / scale),
+        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, g=-np.inf, l=1 / scale),
     )
 
 
 def gamma(a=1, scale=1):
-    return cumulant_generating_function(
+    return CumulantGeneratingFunction(
         K=lambda t, a=a, scale=scale: -a * np.log(1 - scale * t),
         dK=lambda t, a=a, scale=scale: a * scale / (1 - scale * t),
         d2K=lambda t, a=a, scale=scale: a * scale**2 / (1 - scale * t) ** 2,
         d3K=lambda t, a=a, scale=scale: 2 * a * scale**3 / (1 - scale * t) ** 3,
-        domain=lambda t: cumulant_generating_function._is_in_domain(t, g=-np.inf, l=1 / scale),
+        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, g=-np.inf, l=1 / scale),
     )
 
 
@@ -208,7 +207,7 @@ def chi2(df=1):
 
 
 def laplace(loc=0, scale=1):
-    return cumulant_generating_function(
+    return CumulantGeneratingFunction(
         K=lambda t, loc=loc, scale=scale: loc * t - np.log(1 - scale**2 * t**2),
         dK=lambda t, loc=loc, scale=scale: loc + 2 * scale**2 * t / (1 - scale**2 * t**2),
         d2K=lambda t, scale=scale: 2
@@ -225,7 +224,7 @@ def laplace(loc=0, scale=1):
         * t
         * (3 + scale**2 * t**2)
         / (1 - scale**2 * t**2) ** 3,
-        domain=lambda t, scale=scale: cumulant_generating_function._is_in_domain(
+        domain=lambda t, scale=scale: CumulantGeneratingFunction._is_in_domain(
             t, g=-1 / scale, l=1 / scale
         ),
     )
@@ -239,17 +238,17 @@ def laplace(loc=0, scale=1):
 
 
 def poisson(mu=1):
-    return cumulant_generating_function(
+    return CumulantGeneratingFunction(
         K=lambda t, mu=mu: mu * (np.exp(t) - 1),
         dK=lambda t, mu=mu: mu * np.exp(t),
         d2K=lambda t, mu=mu: mu * np.exp(t),
         d3K=lambda t, mu=mu: mu * np.exp(t),
-        domain=lambda t: cumulant_generating_function._is_in_domain(t, ge=0, l=np.inf),
+        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, ge=0, l=np.inf),
     )
 
 
 def binomial(n=1, p=0.5):
-    return cumulant_generating_function(
+    return CumulantGeneratingFunction(
         K=lambda t, n=n, p=p: n * np.log(p * (np.exp(t) - 1) + 1),
         dK=lambda t, n=n, p=p: n * p / ((1 - p) * np.exp(-t) + p),
         d2K=lambda t, n=n, p=p: n * p * (1 - p) * np.exp(-t) / ((1 - p) * np.exp(-t) + p) ** 2,
@@ -258,5 +257,5 @@ def binomial(n=1, p=0.5):
         * (1 - p)
         * ((1 - p) * np.exp(-2 * t) - np.exp(-t) * p)
         / ((1 - p) * np.exp(-t) + p) ** 3,
-        domain=lambda t: cumulant_generating_function._is_in_domain(t, g=-np.inf, l=np.inf),
+        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, g=-np.inf, l=np.inf),
     )
