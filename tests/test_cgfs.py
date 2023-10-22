@@ -18,6 +18,7 @@ from spapprox import (
     exponential,
     gamma,
     chi2,
+    laplace,
     poisson,
     binomial,
 )
@@ -93,6 +94,14 @@ from spapprox import (
             ),
             [0.2, 0.25],
             sps.chi2(df=3),
+        ),
+        (
+            laplace(loc=0, scale=1),
+            lambda t, pdf=sps.laplace(loc=0, scale=1).pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
+            ),
+            [0.2, 0.55, -0.23],
+            sps.laplace(loc=0, scale=1),
         ),
         (
             poisson(mu=2),

@@ -207,8 +207,30 @@ def chi2(df=1):
     return gamma(a=df / 2, scale=2)
 
 
-# TODO: add dgamma
-# TODO: add laplace
+def laplace(loc=0, scale=1):
+    return cumulant_generating_function(
+        K=lambda t, loc=loc, scale=scale: loc * t - np.log(1 - scale**2 * t**2),
+        dK=lambda t, loc=loc, scale=scale: loc + 2 * scale**2 * t / (1 - scale**2 * t**2),
+        d2K=lambda t, scale=scale: 2
+        * scale**2
+        * (1 + scale**2 * t**2)
+        / (1 - scale**2 * t**2) ** 2,
+        # d3K=lambda t, scale=scale: 4
+        # * scale**4
+        # * t
+        # * (2 + scale**2 * t**2)
+        # / (1 - scale**2 * t**2) ** 3,
+        d3K=lambda t, scale=scale: 4
+        * scale**4
+        * t
+        * (3 + scale**2 * t**2)
+        / (1 - scale**2 * t**2) ** 3,
+        domain=lambda t, scale=scale: cumulant_generating_function._is_in_domain(
+            t, g=-1 / scale, l=1 / scale
+        ),
+    )
+
+
 # TODO: add asymmetric laplace
 
 
