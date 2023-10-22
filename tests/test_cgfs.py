@@ -73,9 +73,7 @@ from spapprox import (
         ),
         (
             cumulant_generating_function(K=lambda t: np.log(1 / (1 - t))),
-            lambda t, pdf=sps.expon.pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-            ),
+            exponential(scale=1).K,
             [0.2, 0.55],
             sps.expon(scale=1),
         ),
@@ -125,11 +123,11 @@ def test_cgf(cgf_to_test, cgf, ts, dist):
     assert isinstance(cgf_to_test, cumulant_generating_function)
     for t in ts:
         assert np.isclose(cgf(t), cgf_to_test.K(t))
-        dcgf = nd.Derivative(cgf, n=1)
+        dcgf = nd.Derivative(cgf_to_test.K, n=1)
         assert np.isclose(dcgf(t), cgf_to_test.dK(t))
-        d2cgf = nd.Derivative(cgf, n=2)
+        d2cgf = nd.Derivative(cgf_to_test.K, n=2)
         assert np.isclose(d2cgf(t), cgf_to_test.d2K(t))
-        d3cgf = nd.Derivative(cgf, n=3)
+        d3cgf = nd.Derivative(cgf_to_test.K, n=3)
         assert np.isclose(d3cgf(t), cgf_to_test.d3K(t))
     assert np.isclose(cgf_to_test.mean, dist.mean())
     assert np.isclose(cgf_to_test.variance, dist.var())
