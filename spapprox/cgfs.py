@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import warnings
 import numpy as np
+import pandas as pd
 
 try:
     with warnings.catch_warnings():
@@ -61,14 +62,15 @@ class cumulant_generating_function:
         self._dK = dK
         self._d2K = d2K
         self._d3K = d3K
-        self._K0 = K0
         self._dK0 = dK0
         self._d2K0 = d2K0
         self._d3K0 = d3K0
         if domain is None:
             domain = (-np.inf, np.inf)
         if isinstance(domain, tuple):
-            domain = lambda t, domain=domain: self._is_in_domain(t, domain)
+            domain = lambda t, domain=domain: self._is_in_domain(
+                t, ge=domain[0], le=domain[1], l=np.inf, g=-np.inf
+            )
         else:
             assert callable(domain), "domain must be a tuple or callable"
         self.domain = domain
@@ -107,13 +109,18 @@ class cumulant_generating_function:
         return self._d3K0
 
     @staticmethod
-    def _is_in_domain(t, domain):
+    def _is_in_domain(t, l=None, g=None, le=None, ge=None):
         if ~np.isscalar(t):
             t = np.asanyarray(t)
-        val = domain[0] <= t
-        val &= t <= domain[1]
-        val &= np.isfinite(domain[0]) | (domain[0] < t)
-        val &= np.isfinite(domain[1]) | (t < domain[1])
+        val = True
+        if l is not None:
+            val &= t < l
+        if g is not None:
+            val &= t > g
+        if le is not None:
+            val &= t <= le
+        if ge is not None:
+            val &= t >= ge
         return val
 
     def K(self, t):
@@ -177,6 +184,8 @@ def poisson(lam=1):
         dK=lambda t, lam=lam: lam * np.exp(t),
         d2K=lambda t, lam=lam: lam * np.exp(t),
         d3K=lambda t, lam=lam: lam * np.exp(t),
+        domain=lambda t: pd.api.types.is_integer_dtype(t)
+        & cumulant_generating_function._is_in_domain(t, ge=0, l=np.inf),
     )
 
 
@@ -213,7 +222,7 @@ def exponential(lam=1):
         dK=lambda t, lam=lam: 1 / (lam - t),
         d2K=lambda t, lam=lam: 1 / (lam - t) ** 2,
         d3K=lambda t, lam=lam: 2 / (lam - t) ** 3,
-        domain=lambda t: t < lam,
+        domain=lambda t: cumulant_generating_function._is_in_domain(t, g=-np.inf, l=lam),
     )
 
 
