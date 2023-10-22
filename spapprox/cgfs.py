@@ -231,7 +231,11 @@ def laplace(loc=0, scale=1):
     )
 
 
-# TODO: add asymmetric laplace
+# TODO: add asymmetric laplace?
+
+# TODO: add generalized normal distribution
+
+# TODO: add asymmetric generalized normal distribution
 
 
 def poisson(mu=1):
@@ -256,6 +260,3 @@ def binomial(n=1, p=0.5):
         / ((1 - p) * np.exp(-t) + p) ** 3,
         domain=lambda t: cumulant_generating_function._is_in_domain(t, g=-np.inf, l=np.inf),
     )
-
-
-# TODO: add multinomial
