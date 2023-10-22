@@ -14,42 +14,77 @@ import scipy as sp
 from scipy.integrate import quad
 import scipy.stats as sps
 
-from spapprox import cumulant_generating_function, norm, exponential
+from spapprox import cumulant_generating_function, norm, exponential, poisson
 
 
 @pytest.mark.parametrize(
-    "cgf_to_test,pdf,a,b",
+    "cgf_to_test,cgf,ts",
     [
-        (norm(mu=0, sigma=1), sps.norm.pdf, -10, 10),
-        (norm(mu=1, sigma=0.5), sps.norm(loc=1, scale=0.5).pdf, -10, 10),
+        (
+            norm(mu=0, sigma=1),
+            lambda t, pdf=sps.norm.pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+            ),
+            [0.2, 0.55],
+        ),
+        (
+            norm(mu=1, sigma=0.5),
+            lambda t: np.log(
+                quad(
+                    lambda x, pdf=sps.norm(loc=1, scale=0.5).pdf: pdf(x) * np.exp(t * x), a=-5, b=5
+                )[0]
+            ),
+            [0.2, 0.55],
+        ),
         (
             cumulant_generating_function(
                 K=lambda t, mu=0, sigma=1: mu * t + sigma**2 * t**2 / 2
             ),
-            sps.norm.pdf,
-            -10,
-            10,
+            lambda t, pdf=sps.norm.pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+            ),
+            [0.2, 0.55],
         ),
-        (exponential(lam=1), sps.expon.pdf, 0, 100),
-        (exponential(lam=2), sps.expon(scale=1 / 2).pdf, 0, 100),
+        (
+            exponential(lam=1),
+            lambda t, pdf=sps.expon.pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+            ),
+            [0.2, 0.55],
+        ),
+        (
+            exponential(lam=2),
+            lambda t, pdf=sps.expon(scale=0.5).pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+            ),
+            [0.2, 0.55],
+        ),
         (
             cumulant_generating_function(K=lambda t, lam=1: np.log(lam / (lam - t))),
-            sps.expon.pdf,
-            0,
-            100,
+            lambda t, pdf=sps.expon.pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+            ),
+            [0.2, 0.55],
+        ),
+        (
+            poisson(lam=1),
+            lambda t, pmf=sps.poisson(mu=1).pmf: np.log(
+                np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
+            ),
+            [0.2, 0.55],
         ),
     ],
 )
-def test_norm_cgf(cgf_to_test, pdf, a, b):
+def test_cgf(cgf_to_test, cgf, ts):
     assert isinstance(cgf_to_test, cumulant_generating_function)
-    cgf = lambda t: np.log(quad(lambda x: pdf(x) * np.exp(t * x), a=a, b=b)[0])
-    assert np.isclose(cgf(0.2), cgf_to_test.K(0.2))
-    dcgf = nd.Derivative(cgf, n=1)
-    assert np.isclose(dcgf(0.5), cgf_to_test.dK(0.5))
-    d2cgf = nd.Derivative(cgf, n=2)
-    assert np.isclose(d2cgf(0.55), cgf_to_test.d2K(0.55))
-    d3cgf = nd.Derivative(cgf, n=3)
-    assert np.isclose(d3cgf(0.22), cgf_to_test.d3K(0.22))
+    for t in ts:
+        assert np.isclose(cgf(t), cgf_to_test.K(t))
+        dcgf = nd.Derivative(cgf, n=1)
+        assert np.isclose(dcgf(t), cgf_to_test.dK(t))
+        d2cgf = nd.Derivative(cgf, n=2)
+        assert np.isclose(d2cgf(t), cgf_to_test.d2K(t))
+        d3cgf = nd.Derivative(cgf, n=3)
+        assert np.isclose(d3cgf(t), cgf_to_test.d3K(t))
 
 
 def test_domain():
@@ -92,7 +127,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_domain",
+                "test_continuous_cgf",
                 "--tb=auto",
                 "--pdb",
             ]

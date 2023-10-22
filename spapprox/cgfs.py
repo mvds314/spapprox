@@ -184,8 +184,7 @@ def poisson(lam=1):
         dK=lambda t, lam=lam: lam * np.exp(t),
         d2K=lambda t, lam=lam: lam * np.exp(t),
         d3K=lambda t, lam=lam: lam * np.exp(t),
-        domain=lambda t: pd.api.types.is_integer_dtype(t)
-        & cumulant_generating_function._is_in_domain(t, ge=0, l=np.inf),
+        domain=lambda t: cumulant_generating_function._is_in_domain(t, ge=0, l=np.inf),
     )
 
 

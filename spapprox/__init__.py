@@ -2,4 +2,4 @@
 # -*- coding: utf-8 -*-
 
 from .util import Timer
-from .cgfs import cumulant_generating_function, norm, exponential
+from .cgfs import cumulant_generating_function, norm, exponential, poisson
