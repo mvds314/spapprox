@@ -8,9 +8,7 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=DeprecationWarning)
     import numdifftools as nd
 import numpy as np
-import pandas as pd
 import pytest
-import scipy as sp
 from scipy.integrate import quad
 import scipy.stats as sps
 
@@ -18,9 +16,10 @@ from spapprox import (
     cumulant_generating_function,
     norm,
     exponential,
-    poisson,
     gamma,
     chi2,
+    poisson,
+    binomial,
 )
 
 
@@ -74,13 +73,6 @@ from spapprox import (
             [0.2, 0.55],
         ),
         (
-            poisson(mu=2),
-            lambda t, pmf=sps.poisson(mu=2).pmf: np.log(
-                np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
-            ),
-            [0.2, 0.55],
-        ),
-        (
             gamma(a=2, scale=0.5),
             lambda t, pdf=sps.gamma(a=2, scale=0.5).pdf: np.log(
                 quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
@@ -93,6 +85,20 @@ from spapprox import (
                 quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
             ),
             [0.2, 0.25],
+        ),
+        (
+            poisson(mu=2),
+            lambda t, pmf=sps.poisson(mu=2).pmf: np.log(
+                np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
+            ),
+            [0.2, 0.55],
+        ),
+        (
+            binomial(n=10, p=0.5),
+            lambda t, pmf=sps.binom(n=10, p=0.5).pmf: np.log(
+                np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
+            ),
+            [0.2, 0.55],
         ),
     ],
 )

@@ -178,18 +178,14 @@ def norm(loc=0, scale=1):
     )
 
 
-def poisson(mu=1):
+def exponential(scale=1):
     return cumulant_generating_function(
-        K=lambda t, mu=mu: mu * (np.exp(t) - 1),
-        dK=lambda t, mu=mu: mu * np.exp(t),
-        d2K=lambda t, mu=mu: mu * np.exp(t),
-        d3K=lambda t, mu=mu: mu * np.exp(t),
-        domain=lambda t: cumulant_generating_function._is_in_domain(t, ge=0, l=np.inf),
+        K=lambda t, scale=scale: np.log(1 / (1 - scale * t)),
+        dK=lambda t, scale=scale: scale / (1 - scale * t),
+        d2K=lambda t, scale=scale: 1 / (1 / scale - t) ** 2,
+        d3K=lambda t, scale=scale: 2 / (1 / scale - t) ** 3,
+        domain=lambda t: cumulant_generating_function._is_in_domain(t, g=-np.inf, l=1 / scale),
     )
-
-
-# TODO: add binomial
-# TODO: add multinomial
 
 
 def gamma(a=1, scale=1):
@@ -202,15 +198,38 @@ def gamma(a=1, scale=1):
     )
 
 
-def exponential(scale=1):
+def chi2(df=1):
+    return gamma(a=df / 2, scale=2)
+
+
+# TODO: add dgamma
+# TODO: add laplace
+# TODO: add asymmetric laplace
+
+
+def poisson(mu=1):
     return cumulant_generating_function(
-        K=lambda t, scale=scale: np.log(1 / (1 - scale * t)),
-        dK=lambda t, scale=scale: scale / (1 - scale * t),
-        d2K=lambda t, scale=scale: 1 / (1 / scale - t) ** 2,
-        d3K=lambda t, scale=scale: 2 / (1 / scale - t) ** 3,
-        domain=lambda t: cumulant_generating_function._is_in_domain(t, g=-np.inf, l=1 / scale),
+        K=lambda t, mu=mu: mu * (np.exp(t) - 1),
+        dK=lambda t, mu=mu: mu * np.exp(t),
+        d2K=lambda t, mu=mu: mu * np.exp(t),
+        d3K=lambda t, mu=mu: mu * np.exp(t),
+        domain=lambda t: cumulant_generating_function._is_in_domain(t, ge=0, l=np.inf),
     )
 
 
-def chi2(df=1):
-    return gamma(a=df / 2, scale=2)
+def binomial(n=1, p=0.5):
+    return cumulant_generating_function(
+        K=lambda t, n=n, p=p: n * np.log(p * (np.exp(t) - 1) + 1),
+        dK=lambda t, n=n, p=p: n * p / ((1 - p) * np.exp(-t) + p),
+        d2K=lambda t, n=n, p=p: n * p * (1 - p) * np.exp(-t) / ((1 - p) * np.exp(-t) + p) ** 2,
+        d3K=lambda t, n=n, p=p: n
+        * p
+        * (1 - p)
+        * ((1 - p) * np.exp(-2 * t) - np.exp(-t) * p)
+        / ((1 - p) * np.exp(-t) + p) ** 3,
+        domain=lambda t: cumulant_generating_function._is_in_domain(t, g=-np.inf, l=np.inf),
+    )
+
+
+# TODO: add binomial
+# TODO: add multinomial
