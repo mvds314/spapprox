@@ -192,12 +192,13 @@ def poisson(lam=1):
 # TODO: add multinomial
 
 
-def gamma(k=1, theta=1):
+def gamma(a=1, scale=1):
     return cumulant_generating_function(
-        K=lambda t, k=k, theta=theta: k * np.log(1 - theta * t),
-        dK=lambda t, k=k, theta=theta: -k * theta / (1 - theta * t),
-        d2K=lambda t, k=k, theta=theta: k * theta**2 / (1 - theta * t) ** 2,
-        d3K=lambda t, k=k, theta=theta: -2 * k * theta**3 / (1 - theta * t) ** 3,
+        K=lambda t, a=a, scale=scale: -a * np.log(1 - scale * t),
+        dK=lambda t, a=a, scale=scale: a * scale / (1 - scale * t),
+        d2K=lambda t, a=a, scale=scale: a * scale**2 / (1 - scale * t) ** 2,
+        d3K=lambda t, a=a, scale=scale: 2 * a * scale**3 / (1 - scale * t) ** 3,
+        domain=lambda t: cumulant_generating_function._is_in_domain(t, g=-np.inf, l=1 / scale),
     )
 
 

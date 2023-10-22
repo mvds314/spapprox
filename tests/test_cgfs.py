@@ -14,7 +14,7 @@ import scipy as sp
 from scipy.integrate import quad
 import scipy.stats as sps
 
-from spapprox import cumulant_generating_function, norm, exponential, poisson
+from spapprox import cumulant_generating_function, norm, exponential, poisson, gamma
 
 
 @pytest.mark.parametrize(
@@ -73,6 +73,13 @@ from spapprox import cumulant_generating_function, norm, exponential, poisson
             ),
             [0.2, 0.55],
         ),
+        (
+            gamma(a=2, scale=0.5),
+            lambda t, pdf=sps.gamma(a=2, scale=0.5).pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+            ),
+            [0.2, 0.55],
+        ),
     ],
 )
 def test_cgf(cgf_to_test, cgf, ts):
@@ -127,7 +134,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_continuous_cgf",
+                "test_cgf",
                 "--tb=auto",
                 "--pdb",
             ]
