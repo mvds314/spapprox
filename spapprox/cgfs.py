@@ -127,50 +127,50 @@ class CumulantGeneratingFunction:
             val &= t >= ge
         return val
 
-    def K(self, t):
+    def K(self, t, fillna=np.nan):
         cond = self.domain(t)
         if np.isscalar(t):
-            retval = self._K(t) if cond else np.nan
+            retval = self._K(t) if cond else fillna
             return retval if np.isscalar(retval) else retval.item()
         else:
             t = np.asanyarray(t)
-            return np.where(cond, self._K(t), np.nan)
+            return np.where(cond, self._K(t), fillna)
 
-    def dK(self, t):
+    def dK(self, t, fillna=np.nan):
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Derivative(self.K, n=1)
         cond = self.domain(t)
         if np.isscalar(t):
-            retval = self._dK(t) if cond else np.nan
+            retval = self._dK(t) if cond else fillna
             return retval if np.isscalar(retval) else retval.item()
         else:
             t = np.asanyarray(t)
-            return np.where(cond, self._dK(t), np.nan)
+            return np.where(cond, self._dK(t), fillna)
 
-    def d2K(self, t):
+    def d2K(self, t, fillna=np.nan):
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d2K = nd.Derivative(self.K, n=2)
         cond = self.domain(t)
         if np.isscalar(t):
-            retval = self._d2K(t) if cond else np.nan
+            retval = self._d2K(t) if cond else fillna
             return retval if np.isscalar(retval) else retval.item()
         else:
             t = np.asanyarray(t)
-            return np.where(cond, self._d2K(t), np.nan)
+            return np.where(cond, self._d2K(t), fillna)
 
-    def d3K(self, t):
+    def d3K(self, t, fillna=np.nan):
         if self._d3K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d3K = nd.Derivative(self.K, n=3)
         cond = self.domain(t)
         if np.isscalar(t):
-            retval = self._d3K(t) if cond else np.nan
+            retval = self._d3K(t) if cond else fillna
             return retval if np.isscalar(retval) else retval.item()
         else:
             t = np.asanyarray(t)
-            return np.where(cond, self._d3K(t), np.nan)
+            return np.where(cond, self._d3K(t), fillna)
 
 
 def norm(loc=0, scale=1):

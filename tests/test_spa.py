@@ -51,8 +51,10 @@ def test_normalization(cgf, trange):
     spa = SaddlePointApprox(cgf)
     assert np.isclose(spa.cdf(t=trange[0]), 0, atol=1e-5)
     assert np.isclose(spa.cdf(t=trange[1]), 1, atol=1e-5)
-    # TODO: fix this normalization
-    # assert np.isclose(quad(lambda t: spa.pdf(t=t) * cgf.d2K(t), a=trange[0], b=trange[1])[0], 1)
+    assert np.isclose(
+        quad(lambda t: spa.pdf(t=t, fillna=0) * cgf.d2K(t), a=trange[0], b=trange[1])[0], 1
+    )
+    # TODO: do we need to test more?
 
 
 @pytest.mark.parametrize(
