@@ -77,28 +77,40 @@ def test_normalization(cgf, trange):
     )
 
 
-# TODO: test the discrete distributions
-
 # TODO: test return format of np.where in spa
 
 
-# TODO: do some tests per distribution to test the accuracy of the approximation?
+# TODO: fix the fillna logic
 @pytest.mark.parametrize(
     "cgf,dist,trange",
     [
         (
             exponential(scale=3),
             sps.expon(scale=3),
-            [0, 3],
+            [0, 1 / 3],
         ),
     ],
 )
 def test_expon_spa(cgf, dist, trange):
     spa = SaddlePointApprox(cgf)
-    # t = np.linspace(*trange, 1000)
+    # Test some return types pdf
+    assert np.isscalar(spa.pdf(t=0))
+    assert ~np.isscalar(spa.pdf(t=[0, 0]))
+    assert np.isscalar(spa.pdf(t=1 / 3)) and np.isnan(spa.pdf(t=1 / 3))
+    assert ~np.isscalar(spa.pdf(t=[1 / 3, 1])) and np.isnan(spa.pdf(t=[1, 1 / 3])).all()
+    assert ~np.isscalar(spa.pdf(t=[1 / 3, 1], fillna=0)) and np.allclose(
+        spa.pdf(t=[1, 1 / 3], fillna=10), 10
+    )
+    assert ~np.isscalar(spa.pdf(t=[1 / 3, 0])) and ~np.isnan(spa.pdf(t=[1, 0])).all()
+    # Some tests with the cdf
+    assert np.isscalar(spa.cdf(t=1 / 3)) and np.isnan(spa.cdf(t=1 / 3))
+    assert np.isscalar(spa.cdf(t=1 / 6)) and ~np.isnan(spa.cdf(t=1 / 6))
+    assert np.isscalar(spa.cdf(t=1 / 3), fillna=10) and np.isclose(spa.cdf(t=1 / 3, fillna=10), 10)
+    t = np.linspace(*trange, 1000)[:-1]
     # x = spa.cgf.dK(t)
+    # TODO: test some return type stuff here
     # assert np.allclose(spa.pdf(t=t), dist.pdf(x))
-    # TODO: how are we going to test this?
+    # TODO: how are we going to test this?5
     # TODO: maybe renormalize first!
 
 
@@ -107,8 +119,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                # "-k",
-                # "test_normalization",
+                "-k",
+                "test_expon_spa",
                 "--tb=auto",
                 "--pdb",
             ]

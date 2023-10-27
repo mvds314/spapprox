@@ -178,6 +178,11 @@ def test_return_type():
         assert ~np.isscalar(f([10])) and np.isnan(f([10])).all()
         assert ~np.isscalar(f([10, 10])) and np.isnan(f([10, 10])).all()
         assert ~np.isscalar(f([0, 1])) and np.isnan(f([0, 1])).any() and ~np.isnan(f([0, 1])).all()
+        assert (
+            ~np.isscalar(f([1, 1], fillna=0))
+            and ~np.isnan(f([1, 1], fillna=0)).any()
+            and np.allclose(f([1, 1], fillna=0), 0)
+        )
 
 
 if __name__ == "__main__":
