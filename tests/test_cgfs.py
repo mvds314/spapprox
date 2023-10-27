@@ -136,7 +136,7 @@ def test_cgf(cgf_to_test, cgf, ts, dist):
 def test_domain():
     cgf = CumulantGeneratingFunction(
         K=lambda t: t**4,
-        domain=lambda t: t < 1,
+        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, l=1),
     )
     assert np.isclose(cgf.K(0.5), 0.0625)
     assert np.isnan(cgf.K(1.5))
@@ -167,13 +167,26 @@ def test_domain():
     assert ~np.isnan(val[1])
 
 
+def test_return_type():
+    cgf = CumulantGeneratingFunction(
+        K=lambda t: t**4,
+        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, l=1),
+    )
+    for f in [cgf.K, cgf.dK]:
+        assert np.isscalar(f(10)) and np.isnan(f(10))
+        assert np.isscalar(f(0)) and ~np.isnan(f(0))
+        assert ~np.isscalar(f([10])) and np.isnan(f([10])).all()
+        assert ~np.isscalar(f([10, 10])) and np.isnan(f([10, 10])).all()
+        assert ~np.isscalar(f([0, 1])) and np.isnan(f([0, 1])).any() and ~np.isnan(f([0, 1])).all()
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_cgf",
+                # "-k",
+                # "test_return_type",
                 "--tb=auto",
                 "--pdb",
             ]

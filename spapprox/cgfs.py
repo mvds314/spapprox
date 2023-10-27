@@ -117,6 +117,7 @@ class CumulantGeneratingFunction:
         if ~np.isscalar(t):
             t = np.asanyarray(t)
         val = True
+        t = np.asanyarray(t)
         if l is not None:
             val &= t < l
         if g is not None:
@@ -134,7 +135,10 @@ class CumulantGeneratingFunction:
             return retval if np.isscalar(retval) else retval.item()
         else:
             t = np.asanyarray(t)
-            return np.where(cond, self._K(t), fillna)
+            t = np.where(cond, t, 0)  # prevent outside domain evaluations
+            with warnings.catch_warnings():
+                warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+                return np.where(cond, self._K(t), fillna)
 
     def dK(self, t, fillna=np.nan):
         if self._dK is None:
@@ -146,7 +150,10 @@ class CumulantGeneratingFunction:
             return retval if np.isscalar(retval) else retval.item()
         else:
             t = np.asanyarray(t)
-            return np.where(cond, self._dK(t), fillna)
+            t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+            with warnings.catch_warnings():
+                warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+                return np.where(cond, self._dK(t), fillna)
 
     def d2K(self, t, fillna=np.nan):
         if self._d2K is None:
@@ -158,7 +165,10 @@ class CumulantGeneratingFunction:
             return retval if np.isscalar(retval) else retval.item()
         else:
             t = np.asanyarray(t)
-            return np.where(cond, self._d2K(t), fillna)
+            t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+            with warnings.catch_warnings():
+                warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+                return np.where(cond, self._d2K(t), fillna)
 
     def d3K(self, t, fillna=np.nan):
         if self._d3K is None:
@@ -170,7 +180,10 @@ class CumulantGeneratingFunction:
             return retval if np.isscalar(retval) else retval.item()
         else:
             t = np.asanyarray(t)
-            return np.where(cond, self._d3K(t), fillna)
+            t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+            with warnings.catch_warnings():
+                warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+                return np.where(cond, self._d3K(t), fillna)
 
 
 def norm(loc=0, scale=1):
