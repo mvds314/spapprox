@@ -33,8 +33,13 @@ def test_norm_spa(cgf, dist, trange):
     t = np.linspace(*trange, 1000)
     x = spa.cgf.dK(t)
     # These ones should be exact
-    assert np.allclose(spa.pdf(t=t), dist.pdf(x))
-    assert np.isclose(quad(lambda t: spa.pdf(t=t) * cgf.d2K(t), a=trange[0], b=trange[1])[0], 1)
+    assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
+    assert np.isclose(
+        quad(lambda t: spa.pdf(t=t, normalize_pdf=False) * cgf.d2K(t), a=trange[0], b=trange[1])[
+            0
+        ],
+        1,
+    )
     assert np.isclose(spa.cdf(t=trange[0]), 0, atol=1e-6)
     assert np.isclose(spa.cdf(t=trange[1]), 1, atol=1e-6)
 
@@ -45,6 +50,9 @@ def test_norm_spa(cgf, dist, trange):
         (norm(loc=0.5, scale=3), [-10, 10]),
         (norm(loc=0, scale=1), [-5, 5]),
         (exponential(scale=10), [-1e5, 1 / 10 * 0.99999999]),
+        (gamma(a=2, scale=3), [-1e3, 1 / 3 * 0.99999999]),
+        (chi2(df=3), [-1e4, 1 / 2 * 0.99999999]),
+        (laplace(loc=1, scale=3), [-1 / 3 * 0.99999999, 1 / 3 * 0.99999999]),
     ],
 )
 def test_normalization(cgf, trange):
@@ -52,11 +60,29 @@ def test_normalization(cgf, trange):
     assert np.isclose(spa.cdf(t=trange[0]), 0, atol=1e-5)
     assert np.isclose(spa.cdf(t=trange[1]), 1, atol=1e-5)
     assert np.isclose(
-        quad(lambda t: spa.pdf(t=t, fillna=0) * cgf.d2K(t), a=trange[0], b=trange[1])[0], 1
+        quad(
+            lambda t: spa.pdf(t=t, fillna=0, normalize_pdf=True) * cgf.d2K(t, fillna=0),
+            a=-np.inf,
+            b=np.inf,
+        )[0],
+        1,
     )
-    # TODO: do we need to test more?
+    assert np.isclose(
+        quad(
+            lambda t: spa.pdf(t=t, fillna=0, normalize_pdf=True) * cgf.d2K(t, fillna=0),
+            a=trange[0],
+            b=trange[1],
+        )[0],
+        1,
+    )
 
 
+# TODO: test the discrete distributions
+
+# TODO: test return format of np.where in spa
+
+
+# TODO: do some tests per distribution to test the accuracy of the approximation?
 @pytest.mark.parametrize(
     "cgf,dist,trange",
     [
@@ -69,8 +95,8 @@ def test_normalization(cgf, trange):
 )
 def test_expon_spa(cgf, dist, trange):
     spa = SaddlePointApprox(cgf)
-    t = np.linspace(*trange, 1000)
-    x = spa.cgf.dK(t)
+    # t = np.linspace(*trange, 1000)
+    # x = spa.cgf.dK(t)
     # assert np.allclose(spa.pdf(t=t), dist.pdf(x))
     # TODO: how are we going to test this?
     # TODO: maybe renormalize first!
@@ -81,8 +107,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_normalization",
+                # "-k",
+                # "test_normalization",
                 "--tb=auto",
                 "--pdb",
             ]
