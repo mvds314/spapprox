@@ -89,29 +89,32 @@ def test_normalization(cgf, trange):
 )
 def test_expon_spa(cgf, dist, trange):
     spa = SaddlePointApprox(cgf)
-    # Test some return types pdf
-    assert np.isscalar(spa.pdf(t=0))
-    assert ~np.isscalar(spa.pdf(t=[0, 0]))
-    assert np.isscalar(spa.pdf(t=1 / 3)) and np.isnan(spa.pdf(t=1 / 3))
-    assert ~np.isscalar(spa.pdf(t=[1 / 3, 1])) and np.isnan(spa.pdf(t=[1, 1 / 3])).all()
-    assert ~np.isscalar(spa.pdf(t=[1 / 3, 1], fillna=0)) and np.allclose(
-        spa.pdf(t=[1, 1 / 3], fillna=10), 10
-    )
-    assert ~np.isscalar(spa.pdf(t=[1 / 3, 0])) and ~np.isnan(spa.pdf(t=[1, 0])).all()
-    # Some tests with the cdf
-    assert np.isscalar(spa.cdf(t=1 / 3)) and np.isnan(spa.cdf(t=1 / 3))
-    assert np.isscalar(spa.cdf(t=1 / 6)) and ~np.isnan(spa.cdf(t=1 / 6))
-    assert np.isscalar(spa.cdf(t=1 / 3, fillna=10)) and np.isclose(spa.cdf(t=1 / 3, fillna=10), 10)
-    assert ~np.isscalar(spa.cdf(t=[1 / 3])) and np.isnan(spa.cdf(t=[1 / 3])).all()
-    assert ~np.isscalar(spa.cdf(t=[1 / 6])) and ~np.isnan(spa.cdf(t=[1 / 6]))
-    assert ~np.isscalar(spa.cdf(t=[1 / 3, 1])) and np.isnan(spa.cdf(t=[1, 1 / 3])).all()
-    assert ~np.isscalar(spa.cdf(t=[1 / 3, 1], fillna=0)) and np.allclose(
-        spa.cdf(t=[1, 1 / 3], fillna=10), 10
-    )
+    for f in [
+        spa.pdf,
+        lambda t=None, fillna=np.nan, backend="LR": spa.cdf(t=t, fillna=fillna, backend=backend),
+        lambda t=None, fillna=np.nan, backend="BN": spa.cdf(t=t, fillna=fillna, backend=backend),
+    ]:
+        assert np.isscalar(f(t=0))
+        assert ~np.isscalar(f(t=[0, 0]))
+        assert np.isscalar(f(t=1 / 3)) and np.isnan(f(t=1 / 3))
+        assert ~np.isscalar(f(t=[1 / 3, 1])) and np.isnan(f(t=[1, 1 / 3])).all()
+        assert ~np.isscalar(f(t=[1 / 3, 1], fillna=0)) and np.allclose(
+            f(t=[1, 1 / 3], fillna=10), 10
+        )
+        assert ~np.isscalar(spa.pdf(t=[1 / 3, 0])) and ~np.isnan(spa.pdf(t=[1, 0])).all()
+    # approximation accuracy test
     t = np.linspace(*trange, 1000)[:-1]
     x = spa.cgf.dK(t)
     assert np.allclose(spa.pdf(t=t), dist.pdf(x)), "This should approx be equal"
-    assert np.allclose(spa.cdf(t=t), dist.cdf(x), atol=5e-3), "This should approx be equal"
+    assert np.allclose(
+        spa.cdf(t=t, backend="LR"), dist.cdf(x), atol=5e-3
+    ), "This should approx be equal"
+    assert np.allclose(
+        spa.cdf(t=t, backend="BN"), dist.cdf(x), atol=5e-3
+    ), "This should approx be equal"
+    assert not np.allclose(
+        spa.cdf(t=t, backend="BN"), spa.cdf(t=t, backend="LR")
+    ), "the approximation should not be exactly equal"
 
 
 if __name__ == "__main__":

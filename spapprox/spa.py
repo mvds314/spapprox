@@ -38,7 +38,7 @@ class SaddlePointApprox:
         self._pdf_normalization_cache = pdf_normalization
 
     @type_wrapper(xloc=1)
-    def _spappox_pdf(self, x, t, fillna=np.nan):
+    def _spapprox_pdf(self, x, t, fillna=np.nan):
         t = np.asanyarray(t)
         d2Kt = self.cgf.d2K(t, fillna=fillna)
         with np.errstate(divide="ignore"):
@@ -50,12 +50,72 @@ class SaddlePointApprox:
         return np.where(np.isnan(retval), fillna, retval)
 
     @type_wrapper(xloc=1)
-    def _spappox_cdf(self, x, t, fillna=np.nan):
+    def _spapprox_cdf_LR(self, x, t, fillna=np.nan):
+        r"""
+        Lugannani-Rice saddle point approximation of the cumulative distribution as given by
+
+        .. math::
+            F(x) \approx \Phi(w) + \phi(w) \left(\frac{1}{w} - \frac{1}{u}\right)
+
+        where :math:`\Phi` and :math:`\phi` are the cumulative and probability density
+        of the standard normal distribution, respectively, and :math:`w` and :math:`u`
+        are given by
+
+        .. math::
+            w = \text{sign}(t)\sqrt{2\left(tx - K(t)\right)},
+
+        .. math::
+            u = t\sqrt{K''(t)}.
+
+        For :math:`t = 0`, the approximation is given by
+
+        .. math::
+            F(x) \approx \frac{1}{2} + \frac{K'''(0)}{6\sqrt{2\pi K''(0)^3}}.
+
+        Reference
+        ---------
+        [1] Lugannani, R., & Rice, S. (1980). Saddle point approximation for the distribution of the sum of independent random variables. Advances in applied probability.
+
+        [2] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
+        """
         t = np.asanyarray(t)
         w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
         u = t * np.sqrt(self.cgf.d2K(t))
         with np.errstate(divide="ignore", invalid="ignore"):
             retval = sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
+        retval = np.where(
+            ~np.isclose(t, 0),
+            retval,
+            1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
+        )
+        return np.where(np.isnan(retval), fillna, retval)
+
+    @type_wrapper(xloc=1)
+    def _spapprox_cdf_BN(self, x, t, fillna=np.nan):
+        r"""
+        This is an alternative implementation of the Lugannani-Rice saddle point
+        approximation of the cumulative distribution.
+
+        It is given by
+
+        .. math::
+            F(x) \approx \Phi(w + \log(u/w)/w)
+
+        where :math:`\Phi` is the cumulative distribution of the standard normal.
+
+        References
+        ----------
+        [1] Barndorff-Nielsen, O. E. (1986). Inference on full or partial parameters based on the standardized signed log likelihood ratio. Biometrika.
+
+        [2] Bandorff-Nielsen, O. E. (1990) Approximate interval probabilities. Journal of the Royal Statistical Society. Series B (Methodological).
+
+        [3] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
+        """
+        t = np.asanyarray(t)
+        w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
+        u = t * np.sqrt(self.cgf.d2K(t))
+        with np.errstate(divide="ignore", invalid="ignore"):
+            retval = sps.norm.cdf(w + np.log(u / w) / w)
         retval = np.where(
             ~np.isclose(t, 0),
             retval,
@@ -100,18 +160,19 @@ class SaddlePointApprox:
         if x is None:
             x = self.cgf.dK(t)
         elif t is None:
-            raise NotImplementedError()
+            t = self._solve_t(x)
         wrapper = PandasWrapper(x)
-        y = np.asanyarray(self._spappox_pdf(np.asanyarray(x), np.asanyarray(t)))
+        y = np.asanyarray(self._spapprox_pdf(np.asanyarray(x), np.asanyarray(t)))
         if normalize_pdf:
             y *= 1 / self._pdf_normalization
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
 
-    def cdf(self, x=None, t=None, fillna=np.nan):
+    def cdf(self, x=None, t=None, fillna=np.nan, backend="LR"):
         r"""
         Saddle point approximation of the cumulative distribution function.
-        Given by
+
+        The standard Lugannani-Rice approximation is given by
 
         .. math::
             F(x) \approx \Phi(w) + \phi(w) \left(\frac{1}{w} - \frac{1}{u}\right)
@@ -132,6 +193,13 @@ class SaddlePointApprox:
             F(x) \approx \frac{1}{2} + \frac{K'''(0)}{6\sqrt{2\pi K''(0)^3}}.
 
 
+        The alternative Barndorff-Nielsen approximation is given by
+
+        .. math::
+            F(x) \approx \Phi(w + \log(u/w)/w)
+
+        where :math:`\Phi` is the cumulative distribution of the standard normal.
+
         Parameters
         ----------
         x : array_like, optional (either x or t must be provided)
@@ -141,16 +209,33 @@ class SaddlePointApprox:
             computed using numerical root finding.
         fillna : float, optional
             The value to replace NaNs with.
+        backend : str, optional
+            The backend to use for the computation. Either 'LR' for Lugannani-Rice approximation
+            or 'BN' for Barndorff-Nielsen approximation. Default is 'LR'.
         """
         assert x is not None or t is not None
         if x is None:
             x = self.cgf.dK(t)
         elif t is None:
-            raise NotImplementedError()
+            t = self._solve_t(x)
         wrapper = PandasWrapper(x)
-        y = np.asanyarray(self._spappox_cdf(np.asanyarray(x), np.asanyarray(t)))
+        if backend == "LR":
+            y = np.asanyarray(self._spapprox_cdf_LR(np.asanyarray(x), np.asanyarray(t)))
+        elif backend == "BN":
+            y = np.asanyarray(self._spapprox_cdf_BN(np.asanyarray(x), np.asanyarray(t)))
+        else:
+            raise ValueError("backend must be either 'LR' or 'BN'")
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
+
+    def _solve_t(self, x):
+        """
+        Solve the saddle point equation for t as given by
+
+        .. math::
+            x = K'(t).
+        """
+        raise NotImplementedError()
 
 
 # TODO: implement the inversion
