@@ -77,10 +77,6 @@ def test_normalization(cgf, trange):
     )
 
 
-# TODO: test return format of np.where in spa
-
-
-# TODO: fix the fillna logic
 @pytest.mark.parametrize(
     "cgf,dist,trange",
     [
@@ -106,12 +102,16 @@ def test_expon_spa(cgf, dist, trange):
     assert np.isscalar(spa.cdf(t=1 / 3)) and np.isnan(spa.cdf(t=1 / 3))
     assert np.isscalar(spa.cdf(t=1 / 6)) and ~np.isnan(spa.cdf(t=1 / 6))
     assert np.isscalar(spa.cdf(t=1 / 3, fillna=10)) and np.isclose(spa.cdf(t=1 / 3, fillna=10), 10)
+    assert ~np.isscalar(spa.cdf(t=[1 / 3])) and np.isnan(spa.cdf(t=[1 / 3])).all()
+    assert ~np.isscalar(spa.cdf(t=[1 / 6])) and ~np.isnan(spa.cdf(t=[1 / 6]))
+    assert ~np.isscalar(spa.cdf(t=[1 / 3, 1])) and np.isnan(spa.cdf(t=[1, 1 / 3])).all()
+    assert ~np.isscalar(spa.cdf(t=[1 / 3, 1], fillna=0)) and np.allclose(
+        spa.cdf(t=[1, 1 / 3], fillna=10), 10
+    )
     t = np.linspace(*trange, 1000)[:-1]
-    # x = spa.cgf.dK(t)
-    # TODO: test some return type stuff here
-    # assert np.allclose(spa.pdf(t=t), dist.pdf(x))
-    # TODO: how are we going to test this?5
-    # TODO: maybe renormalize first!
+    x = spa.cgf.dK(t)
+    assert np.allclose(spa.pdf(t=t), dist.pdf(x)), "This should approx be equal"
+    assert np.allclose(spa.cdf(t=t), dist.cdf(x), atol=5e-3), "This should approx be equal"
 
 
 if __name__ == "__main__":

@@ -54,7 +54,8 @@ class SaddlePointApprox:
         t = np.asanyarray(t)
         w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
         u = t * np.sqrt(self.cgf.d2K(t))
-        retval = sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            retval = sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
         retval = np.where(
             ~np.isclose(t, 0),
             retval,
