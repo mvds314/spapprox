@@ -11,6 +11,8 @@ try:
 except ImportError:
     has_numdifftools = False
 
+from .util import type_wrapper
+
 
 class CumulantGeneratingFunction:
     r"""
@@ -128,62 +130,50 @@ class CumulantGeneratingFunction:
             val &= t >= ge
         return val
 
+    @type_wrapper(xloc=1)
     def K(self, t, fillna=np.nan):
         cond = self.domain(t)
-        if np.isscalar(t):
-            retval = self._K(t) if cond else fillna
-            return retval if np.isscalar(retval) else retval.item()
-        else:
-            t = np.asanyarray(t)
-            t = np.where(cond, t, 0)  # prevent outside domain evaluations
-            with warnings.catch_warnings():
-                warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-                return np.where(cond, self._K(t), fillna)
+        t = np.asanyarray(t)
+        t = np.where(cond, t, 0)  # prevent outside domain evaluations
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            return np.where(cond, self._K(t), fillna)
 
+    @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan):
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Derivative(self.K, n=1)
         cond = self.domain(t)
-        if np.isscalar(t):
-            retval = self._dK(t) if cond else fillna
-            return retval if np.isscalar(retval) else retval.item()
-        else:
-            t = np.asanyarray(t)
-            t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
-            with warnings.catch_warnings():
-                warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-                return np.where(cond, self._dK(t), fillna)
+        t = np.asanyarray(t)
+        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            return np.where(cond, self._dK(t), fillna)
 
+    @type_wrapper(xloc=1)
     def d2K(self, t, fillna=np.nan):
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d2K = nd.Derivative(self.K, n=2)
         cond = self.domain(t)
-        if np.isscalar(t):
-            retval = self._d2K(t) if cond else fillna
-            return retval if np.isscalar(retval) else retval.item()
-        else:
-            t = np.asanyarray(t)
-            t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
-            with warnings.catch_warnings():
-                warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-                return np.where(cond, self._d2K(t), fillna)
+        t = np.asanyarray(t)
+        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            return np.where(cond, self._d2K(t), fillna)
 
+    @type_wrapper(xloc=1)
     def d3K(self, t, fillna=np.nan):
         if self._d3K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d3K = nd.Derivative(self.K, n=3)
         cond = self.domain(t)
-        if np.isscalar(t):
-            retval = self._d3K(t) if cond else fillna
-            return retval if np.isscalar(retval) else retval.item()
-        else:
-            t = np.asanyarray(t)
-            t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
-            with warnings.catch_warnings():
-                warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-                return np.where(cond, self._d3K(t), fillna)
+        t = np.asanyarray(t)
+        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            return np.where(cond, self._d3K(t), fillna)
 
 
 def norm(loc=0, scale=1):

@@ -9,9 +9,6 @@ setup(
     license="BSD",
     keywords="statistics",
     packages=["spapprox"],
-    install_requires=[
-        "numpy",
-        "scipy",
-    ],
+    install_requires=["numpy", "scipy", "pandas", "statsmodels"],
     extras_require={"diff": ["numdifftools"]},
 )

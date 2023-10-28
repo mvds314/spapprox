@@ -105,7 +105,7 @@ def test_expon_spa(cgf, dist, trange):
     # Some tests with the cdf
     assert np.isscalar(spa.cdf(t=1 / 3)) and np.isnan(spa.cdf(t=1 / 3))
     assert np.isscalar(spa.cdf(t=1 / 6)) and ~np.isnan(spa.cdf(t=1 / 6))
-    assert np.isscalar(spa.cdf(t=1 / 3), fillna=10) and np.isclose(spa.cdf(t=1 / 3, fillna=10), 10)
+    assert np.isscalar(spa.cdf(t=1 / 3, fillna=10)) and np.isclose(spa.cdf(t=1 / 3, fillna=10), 10)
     t = np.linspace(*trange, 1000)[:-1]
     # x = spa.cgf.dK(t)
     # TODO: test some return type stuff here
@@ -119,8 +119,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_expon_spa",
+                # "-k",
+                # "test_expon_spa",
                 "--tb=auto",
                 "--pdb",
             ]
