@@ -11,7 +11,25 @@ from statsmodels.tools.validation import PandasWrapper
 
 class SaddlePointApprox:
     """
-    https://en.wikipedia.org/wiki/Saddlepoint_approximation_method
+    Given the cumulant generating function of a random variable, this class
+    provides the saddle point approximation of the probability density function
+    and the cumulative distribution function.
+
+    Parameters
+    ----------
+    cgf : CumulantGeneratingFunction
+        The cumulant generating function of the random variable.
+    pdf_normalization : float, optional
+        The normalization constant of the probability density function. If not
+        provided, it will be computed using numerical integration.
+
+    References
+    ----------
+    [1] https://en.wikipedia.org/wiki/Saddlepoint_approximation_method
+
+    [2] Butler, R. W. (2007). Saddlepoint approximations with applications.
+
+    [3] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
     """
 
     def __init__(self, cgf, pdf_normalization=None):
@@ -55,6 +73,28 @@ class SaddlePointApprox:
         return self._pdf_normalization_cache
 
     def pdf(self, x=None, t=None, normalize_pdf=True, fillna=np.nan):
+        r"""
+        Saddle point approximation of the probability density function.
+        Given by
+
+        .. math::
+            f(x) \approx \frac{1}{\sqrt{2\pi K''(t)}} \exp\left(K(t) - tx\right)
+
+        where :math:`t` is the solution of the saddle point equation.
+
+        Parameters
+        ----------
+        x : array_like, optional (either x or t must be provided)
+            The values at which to evaluate the probability density function.
+        t : array_like, optional (either x or t must be provided)
+            Solution of the saddle point equation. If not provided, it will be
+            computed using numerical root finding.
+        normalize_pdf : bool, optional
+            Whether to normalize the probability density function. Default is
+            True.
+        fillna : float, optional
+            The value to replace NaNs with.
+        """
         assert x is not None or t is not None
         if x is None:
             x = self.cgf.dK(t)
@@ -68,6 +108,39 @@ class SaddlePointApprox:
         return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
 
     def cdf(self, x=None, t=None, fillna=np.nan):
+        r"""
+        Saddle point approximation of the cumulative distribution function.
+        Given by
+
+        .. math::
+            F(x) \approx \Phi(w) + \phi(w) \left(\frac{1}{w} - \frac{1}{u}\right)
+
+        where :math:`\Phi` and :math:`\phi` are the cumulative and probability density
+        of the standard normal distribution, respectively, and :math:`w` and :math:`u`
+        are given by
+
+        .. math::
+            w = \text{sign}(t)\sqrt{2\left(tx - K(t)\right)},
+
+        .. math::
+            u = t\sqrt{K''(t)}.
+
+        For :math:`t = 0`, the approximation is given by
+
+        .. math::
+            F(x) \approx \frac{1}{2} + \frac{K'''(0)}{6\sqrt{2\pi K''(0)^3}}.
+
+
+        Parameters
+        ----------
+        x : array_like, optional (either x or t must be provided)
+            The values at which to evaluate the cumulative distribution function.
+        t : array_like, optional (either x or t must be provided)
+            Solution of the saddle point equation. If not provided, it will be
+            computed using numerical root finding.
+        fillna : float, optional
+            The value to replace NaNs with.
+        """
         assert x is not None or t is not None
         if x is None:
             x = self.cgf.dK(t)
