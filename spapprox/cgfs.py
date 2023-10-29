@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 import warnings
 import numpy as np
+import scipy.optimize as spo
+from functools import reduce
 
 try:
     with warnings.catch_warnings():
@@ -12,6 +14,9 @@ except ImportError:
     has_numdifftools = False
 
 from .util import type_wrapper
+
+# Fibonacci sequence
+fib = lambda n: reduce(lambda x, n: [x[1], x[0] + x[1]], range(n), [0, 1])[0]
 
 
 class CumulantGeneratingFunction:
@@ -57,10 +62,20 @@ class CumulantGeneratingFunction:
     """
 
     def __init__(
-        self, K, dK=None, d2K=None, d3K=None, dK0=None, d2K0=None, d3K0=None, domain=None
+        self,
+        K,
+        dK=None,
+        dK_inv=None,
+        d2K=None,
+        d3K=None,
+        dK0=None,
+        d2K0=None,
+        d3K0=None,
+        domain=None,
     ):
         self._K = K
         self._dK = dK
+        self._dK_inv = dK_inv
         self._d2K = d2K
         self._d3K = d3K
         self._dK0 = dK0
@@ -150,6 +165,117 @@ class CumulantGeneratingFunction:
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             return np.where(cond, self._dK(t), fillna)
+
+    @type_wrapper(xloc=1)
+    def dK_inv(self, x, t0=None, **kwargs):
+        """
+        Inverse of the derivative of the cumulant generating function.
+
+        .. math::
+            x = K'(t).
+        """
+        if self._dK_inv is not None:
+            y = self._dK_inv(x)
+        else:
+            if len(x.shape) == 0:  # Then it is a scalar "array"
+                x = x.tolist()
+                kwargs["x0"] = 0 if t0 is None else t0
+                kwargs.setdefault("fprime", lambda t: self.d2K(t))
+                kwargs.setdefault("fprime", lambda t: self.d2K(t))
+                kwargs.setdefault("fprime2", lambda t: self.d3K(t))
+                bracket_methods = ["bisect", "brentq", "brenth", "ridder", "toms748"]
+                if "method" in kwargs:
+                    methods = [kwargs["method"]]
+                else:
+                    methods = [
+                        "halley",
+                        "newton",
+                        "secant",
+                        "bisect",
+                        "brentq",
+                        "brenth",
+                        "ridder",
+                        "toms748",
+                    ]
+                for method in methods:
+                    kwargs["method"] = method
+                    if method in bracket_methods and "bracket" not in kwargs:
+                        # find valid lb and ub
+                        lb = next(
+                            -1 * 0.9**i
+                            for i in range(10000)
+                            if ~np.isnan(self.dK(-1 * 0.9**i))
+                        )
+                        ub = next(
+                            1 * 0.9**i for i in range(10000) if ~np.isnan(self.dK(1 * 0.9**i))
+                        )
+                        dKlb = self.dK(lb)
+                        dKub = self.dK(ub)
+                        assert lb < ub and dKlb < dKub, "dK is assumed to be increasing"
+                        lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
+                        ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
+                        lb_scaling = next(lb_scalings)
+                        ub_scaling = next(ub_scalings)
+                        while x < dKlb:
+                            lb_new = lb / lb_scaling
+                            if ~np.isnan(self.dK(lb_new)):
+                                lb = lb_new
+                                dKlb = self.dK(lb)
+                                break
+                            try:
+                                lb_scaling = next(lb_scalings)
+                            except StopIteration:
+                                raise Exception("Could not find valid lb")
+                        while x > dKub:
+                            ub_new = ub / ub_scaling
+                            if ~np.isnan(self.dK(ub_new)):
+                                ub = ub_new
+                                dKub = self.dK(ub)
+                                continue
+                            try:
+                                ub_scaling = next(ub_scalings)
+                            except StopIteration:
+                                raise Exception("Could not find valid ub")
+                        assert self.dK(lb) < x < self.dK(ub)
+                        kwargs["bracket"] = [lb, ub]
+                    res = spo.root_scalar(lambda t, x=x: self.dK(t) - x, **kwargs)
+                    if res.converged:
+                        break
+                else:
+                    raise Exception("Failed to solve the saddle point equation.")
+                y = np.asanyarray(res.root)
+            else:
+                kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
+                kwargs.setdefault("jac", lambda t: np.diag(self.d2K(t)))
+                if "method" in kwargs:
+                    methods = [kwargs["method"]]
+                else:
+                    methods = [
+                        "hybr",
+                        "lm",
+                        "broyden1",
+                        "broyden2",
+                        "anderson",
+                        "linearmixing",
+                        "diagbroyden",
+                        "excitingmixing",
+                        "krylov",
+                        "df-sane",
+                    ]
+                for method in methods:
+                    kwargs["method"] = method
+                    res = spo.root(lambda t, x=x: self.dK(t) - x, **kwargs)
+                    if res.success:
+                        y = np.asanyarray(res.x)
+                        break
+                else:
+                    return np.asanyarray(
+                        [
+                            self.dK_inv(xx, t0=None if t0 is None else t0[i])
+                            for i, xx in enumerate(x)
+                        ]
+                    )
+        return y
 
     @type_wrapper(xloc=1)
     def d2K(self, t, fillna=np.nan):

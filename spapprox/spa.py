@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
+import scipy.optimize as spo
 import scipy.stats as sps
 from scipy.integrate import quad
+
 
 from .cgfs import CumulantGeneratingFunction
 from .util import type_wrapper
@@ -133,7 +135,7 @@ class SaddlePointApprox:
             )[0]
         return self._pdf_normalization_cache
 
-    def pdf(self, x=None, t=None, normalize_pdf=True, fillna=np.nan):
+    def pdf(self, x=None, t=None, normalize_pdf=True, fillna=np.nan, **solver_kwargs):
         r"""
         Saddle point approximation of the probability density function.
         Given by
@@ -160,7 +162,7 @@ class SaddlePointApprox:
         if x is None:
             x = self.cgf.dK(t)
         elif t is None:
-            t = self._solve_t(x)
+            t = self.cgf.dK_inv(x, **solver_kwargs)
         wrapper = PandasWrapper(x)
         y = np.asanyarray(self._spapprox_pdf(np.asanyarray(x), np.asanyarray(t)))
         if normalize_pdf:
@@ -168,7 +170,7 @@ class SaddlePointApprox:
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
 
-    def cdf(self, x=None, t=None, fillna=np.nan, backend="LR"):
+    def cdf(self, x=None, t=None, fillna=np.nan, backend="LR", **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function.
 
@@ -217,7 +219,7 @@ class SaddlePointApprox:
         if x is None:
             x = self.cgf.dK(t)
         elif t is None:
-            t = self._solve_t(x)
+            t = self.cgf.dK_inv(x, **solver_kwargs)
         wrapper = PandasWrapper(x)
         if backend == "LR":
             y = np.asanyarray(self._spapprox_cdf_LR(np.asanyarray(x), np.asanyarray(t)))
@@ -228,14 +230,18 @@ class SaddlePointApprox:
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
 
-    def _solve_t(self, x):
+    def fit_saddle_point_eqn(self, t_range):
         """
-        Solve the saddle point equation for t as given by
-
-        .. math::
-            x = K'(t).
+        Evaluate the saddle point equation to the given range of values.
+        And use interpolation to solve the saddle point equation.
         """
         raise NotImplementedError()
 
 
-# TODO: implement the inversion
+# TODO: test the inversion
+
+# TODO: implement cdf interpolation
+
+# TODO: do we also need cdf interpolation for the saddle point approximation?
+
+# TODO: then continue with the applications: sum of random variables, approximation of the mean, bootstrap in the transformed domain, etc.
