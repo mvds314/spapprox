@@ -42,6 +42,11 @@ def test_norm_spa(cgf, dist, trange):
     )
     assert np.isclose(spa.cdf(t=trange[0]), 0, atol=1e-6)
     assert np.isclose(spa.cdf(t=trange[1]), 1, atol=1e-6)
+    # Test investion saddle point
+    spa.fit_saddle_point_eqn(num=10000)
+    for t in [-2, -1, 1 / 6]:
+        x = spa.cgf.dK(t)
+        assert np.isclose(spa.cgf.dK(spa._dK_inv(x)), x, atol=1e-3)
 
 
 @pytest.mark.parametrize(
@@ -115,10 +120,11 @@ def test_expon_spa(cgf, dist, trange):
     assert not np.allclose(
         spa.cdf(t=t, backend="BN"), spa.cdf(t=t, backend="LR")
     ), "the approximation should not be exactly equal"
-    # TODO: do some more testing here
+    # Test investion saddle point
     spa.fit_saddle_point_eqn(num=10000)
-    x = spa.cgf.dK(-2)
-    assert np.isclose(spa.cgf.dK(spa._dK_inv(x)), x, atol=1e-3)
+    for t in [-2, -1, 1 / 6]:
+        x = spa.cgf.dK(t)
+        assert np.isclose(spa.cgf.dK(spa._dK_inv(x)), x, atol=1e-3)
 
 
 if __name__ == "__main__":
