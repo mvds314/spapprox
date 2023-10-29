@@ -233,17 +233,24 @@ class SaddlePointApprox:
         """
         Evaluate the saddle point equation to the given range of values.
         And use linear interpolation to solve the saddle point equation, form now onwards.
+
+        If t_range is not provided, it will be assumed that the cumulant generating
+        function is defined in a neighborhood of zero. The range will be computed
+        by scaling iteratively, until we little mass for higher or lower values of x.
         """
         if t_range is None:
+            # Determine initial range
             lb = next(-1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(-1 * 0.9**i)))
             ub = next(1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(1 * 0.9**i)))
             cdf_lb = self.cdf(x=self.cgf.dK(lb), t=lb, fillna=np.nan)
             cdf_ub = self.cdf(x=self.cgf.dK(ub), t=ub, fillna=np.nan)
             assert lb < ub and cdf_lb < cdf_ub, "dK is assumed to be increasing"
+            # Define scaling factors
             lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
             ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
             lb_scaling = next(lb_scalings)
             ub_scaling = next(ub_scalings)
+            # find lb through iterative scaling
             while not np.isclose(cdf_lb, 0, atol=atol, rtol=rtol):
                 lb_new = lb / lb_scaling
                 x_new = self.cgf.dK(lb_new)
@@ -255,6 +262,7 @@ class SaddlePointApprox:
                     lb_scaling = next(lb_scalings)
                 except StopIteration:
                     raise Exception("Could not find valid lb")
+            # find ub through iterative scaling
             while not np.isclose(cdf_ub, 1, atol=atol, rtol=rtol):
                 ub_new = ub / ub_scaling
                 x_new = self.cgf.dK(ub_new)
@@ -268,10 +276,10 @@ class SaddlePointApprox:
                     raise Exception("Could not find valid ub")
             assert lb <= 0 <= ub
             t_range = [lb, ub]
+        # Solve saddle point equation
         x_range = np.linspace(*self.cgf.dK(t_range), num=num)
         self._x_cache = x_range
         self._t_cache = self.cgf._dK_inv(x_range, **solver_kwargs)
-        # self._dK_inv_cache = self.cgf.dK(trange), trange
 
     def _dK_inv(self, x, **solver_kwargs):
         """ """
