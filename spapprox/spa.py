@@ -237,10 +237,8 @@ class SaddlePointApprox:
         raise NotImplementedError()
 
 
-# TODO: test the inversion
+# TODO: Implement fit saddle point eqn
 
 # TODO: implement cdf interpolation
-
-# TODO: do we also need cdf interpolation for the saddle point approximation?
 
 # TODO: then continue with the applications: sum of random variables, approximation of the mean, bootstrap in the transformed domain, etc.
