@@ -6,7 +6,7 @@ from scipy.integrate import quad
 
 
 from .cgfs import CumulantGeneratingFunction
-from .util import type_wrapper
+from .util import type_wrapper, fib
 from statsmodels.tools.validation import PandasWrapper
 
 
@@ -161,7 +161,7 @@ class SaddlePointApprox:
         if x is None:
             x = self.cgf.dK(t)
         elif t is None:
-            t = self.cgf.dK_inv(x, **solver_kwargs)
+            t = self._dK_inv(x, **solver_kwargs)
         wrapper = PandasWrapper(x)
         y = np.asanyarray(self._spapprox_pdf(np.asanyarray(x), np.asanyarray(t)))
         if normalize_pdf:
@@ -218,7 +218,7 @@ class SaddlePointApprox:
         if x is None:
             x = self.cgf.dK(t)
         elif t is None:
-            t = self.cgf.dK_inv(x, **solver_kwargs)
+            t = self._dK_inv(x, **solver_kwargs)
         wrapper = PandasWrapper(x)
         if backend == "LR":
             y = np.asanyarray(self._spapprox_cdf_LR(np.asanyarray(x), np.asanyarray(t)))
@@ -229,12 +229,56 @@ class SaddlePointApprox:
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
 
-    def fit_saddle_point_eqn(self, t_range):
+    def fit_saddle_point_eqn(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
         """
         Evaluate the saddle point equation to the given range of values.
-        And use interpolation to solve the saddle point equation.
+        And use linear interpolation to solve the saddle point equation, form now onwards.
         """
-        raise NotImplementedError()
+        if t_range is None:
+            lb = next(-1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(-1 * 0.9**i)))
+            ub = next(1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(1 * 0.9**i)))
+            cdf_lb = self.cdf(x=self.cgf.dK(lb), t=lb, fillna=np.nan)
+            cdf_ub = self.cdf(x=self.cgf.dK(ub), t=ub, fillna=np.nan)
+            assert lb < ub and cdf_lb < cdf_ub, "dK is assumed to be increasing"
+            lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
+            ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
+            lb_scaling = next(lb_scalings)
+            ub_scaling = next(ub_scalings)
+            while not np.isclose(cdf_lb, 0, atol=atol, rtol=rtol):
+                lb_new = lb / lb_scaling
+                x_new = self.cgf.dK(lb_new)
+                if not np.isnan(x_new):
+                    lb = lb_new
+                    cdf_lb = self.cdf(x=x_new, t=lb, fillna=np.nan)
+                    continue
+                try:
+                    lb_scaling = next(lb_scalings)
+                except StopIteration:
+                    raise Exception("Could not find valid lb")
+            while not np.isclose(cdf_ub, 1, atol=atol, rtol=rtol):
+                ub_new = ub / ub_scaling
+                x_new = self.cgf.dK(ub_new)
+                if not np.isnan(x_new):
+                    ub = ub_new
+                    cdf_ub = self.cdf(x=x_new, t=ub, fillna=np.nan)
+                    continue
+                try:
+                    ub_scaling = next(ub_scalings)
+                except StopIteration:
+                    raise Exception("Could not find valid ub")
+            assert lb <= 0 <= ub
+            t_range = [lb, ub]
+        x_range = np.linspace(*self.cgf.dK(t_range), num=num)
+        self._x_cache = x_range
+        self._t_cache = self.cgf._dK_inv(x_range, **solver_kwargs)
+        # self._dK_inv_cache = self.cgf.dK(trange), trange
+
+    def _dK_inv(self, x, **solver_kwargs):
+        """ """
+        if hasattr(self, "_x_cache") and hasattr(self, "_t_cache"):
+            return np.interp(x, self._x_cache, self._t_cache)
+        else:
+            return self.cgf.dK_inv(x, **solver_kwargs)
 
 
 # TODO: Implement fit saddle point eqn

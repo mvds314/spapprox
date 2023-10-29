@@ -242,7 +242,6 @@ def test_dKinv(cgf, ts):
     assert np.allclose(cgf.dK_inv(cgf.dK(ts[:1])), ts[:1])
     assert np.allclose(cgf.dK_inv(cgf.dK(ts)), ts)
     assert np.allclose(cgf.dK_inv(cgf.dK(ts)), [cgf.dK_inv(cgf.dK(t)) for t in ts])
-    # TODO: continue here with some testing
 
 
 if __name__ == "__main__":

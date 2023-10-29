@@ -5,6 +5,7 @@ import time
 import functools as ft
 import numpy as np
 from statsmodels.tools.validation import PandasWrapper
+from functools import reduce
 
 
 class Timer:
@@ -22,6 +23,10 @@ class Timer:
         return False
 
 
+# Fibonacci sequence
+fib = lambda n: reduce(lambda x, n: [x[1], x[0] + x[1]], range(n), [0, 1])[0]
+
+
 def type_wrapper(xloc=0):
     def decorator(f):
         @ft.wraps(f)
@@ -31,5 +36,7 @@ def type_wrapper(xloc=0):
             args = tuple(np.asanyarray(x) if i == xloc else a for i, a in enumerate(args))
             y = np.asanyarray(f(*args, **kwargs))
             return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
+
         return wrapped
+
     return decorator

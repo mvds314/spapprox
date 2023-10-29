@@ -115,6 +115,10 @@ def test_expon_spa(cgf, dist, trange):
     assert not np.allclose(
         spa.cdf(t=t, backend="BN"), spa.cdf(t=t, backend="LR")
     ), "the approximation should not be exactly equal"
+    # TODO: do some more testing here
+    spa.fit_saddle_point_eqn(num=10000)
+    x = spa.cgf.dK(-2)
+    assert np.isclose(spa.cgf.dK(spa._dK_inv(x)), x, atol=1e-3)
 
 
 if __name__ == "__main__":
