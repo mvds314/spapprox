@@ -13,10 +13,7 @@ try:
 except ImportError:
     has_numdifftools = False
 
-from .util import type_wrapper
-
-# Fibonacci sequence
-fib = lambda n: reduce(lambda x, n: [x[1], x[0] + x[1]], range(n), [0, 1])[0]
+from .util import type_wrapper, fib
 
 
 class CumulantGeneratingFunction:
@@ -218,19 +215,21 @@ class CumulantGeneratingFunction:
                         ub_scaling = next(ub_scalings)
                         while x < dKlb:
                             lb_new = lb / lb_scaling
-                            if ~np.isnan(self.dK(lb_new)):
+                            dKlb_new = self.dK(lb_new)
+                            if ~np.isnan(dKlb_new):
                                 lb = lb_new
-                                dKlb = self.dK(lb)
-                                break
+                                dKlb = dKlb_new
+                                continue
                             try:
                                 lb_scaling = next(lb_scalings)
                             except StopIteration:
                                 raise Exception("Could not find valid lb")
                         while x > dKub:
                             ub_new = ub / ub_scaling
-                            if ~np.isnan(self.dK(ub_new)):
+                            dKub_new = self.dK(ub_new)
+                            if ~np.isnan(dKub_new):
                                 ub = ub_new
-                                dKub = self.dK(ub)
+                                dKub = dKub_new
                                 continue
                             try:
                                 ub_scaling = next(ub_scalings)
