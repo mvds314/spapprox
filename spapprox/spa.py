@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
-import scipy.optimize as spo
 import scipy.stats as sps
 from scipy.integrate import quad
 

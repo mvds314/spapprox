@@ -306,6 +306,7 @@ def norm(loc=0, scale=1):
     return CumulantGeneratingFunction(
         K=lambda t, loc=loc, scale=scale: loc * t + scale**2 * t**2 / 2,
         dK=lambda t, loc=loc, scale=scale: loc + scale**2 * t,
+        dK_inv=lambda x, loc=loc, scale=scale: (x - loc) / scale**2,
         d2K=lambda t, scale=scale: scale**2 + 0 * t,
         d3K=lambda t: 0 * t,
     )
@@ -315,6 +316,7 @@ def exponential(scale=1):
     return CumulantGeneratingFunction(
         K=lambda t, scale=scale: np.log(1 / (1 - scale * t)),
         dK=lambda t, scale=scale: scale / (1 - scale * t),
+        dK_inv=lambda x, scale=scale: (1 - scale / x) / scale,
         d2K=lambda t, scale=scale: 1 / (1 / scale - t) ** 2,
         d3K=lambda t, scale=scale: 2 / (1 / scale - t) ** 3,
         domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, g=-np.inf, l=1 / scale),
@@ -325,6 +327,7 @@ def gamma(a=1, scale=1):
     return CumulantGeneratingFunction(
         K=lambda t, a=a, scale=scale: -a * np.log(1 - scale * t),
         dK=lambda t, a=a, scale=scale: a * scale / (1 - scale * t),
+        dK_inv=lambda x, a=a, scale=scale: (1 - a * scale / x) / scale,
         d2K=lambda t, a=a, scale=scale: a * scale**2 / (1 - scale * t) ** 2,
         d3K=lambda t, a=a, scale=scale: 2 * a * scale**3 / (1 - scale * t) ** 3,
         domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, g=-np.inf, l=1 / scale),
@@ -339,15 +342,12 @@ def laplace(loc=0, scale=1):
     return CumulantGeneratingFunction(
         K=lambda t, loc=loc, scale=scale: loc * t - np.log(1 - scale**2 * t**2),
         dK=lambda t, loc=loc, scale=scale: loc + 2 * scale**2 * t / (1 - scale**2 * t**2),
+        dK_inv=lambda x, loc=loc, scale=scale: (scale - np.sqrt(scale**2 + (x - loc) ** 2))
+        / (-scale * (x - loc)),
         d2K=lambda t, scale=scale: 2
         * scale**2
         * (1 + scale**2 * t**2)
         / (1 - scale**2 * t**2) ** 2,
-        # d3K=lambda t, scale=scale: 4
-        # * scale**4
-        # * t
-        # * (2 + scale**2 * t**2)
-        # / (1 - scale**2 * t**2) ** 3,
         d3K=lambda t, scale=scale: 4
         * scale**4
         * t
@@ -370,6 +370,7 @@ def poisson(mu=1):
     return CumulantGeneratingFunction(
         K=lambda t, mu=mu: mu * (np.exp(t) - 1),
         dK=lambda t, mu=mu: mu * np.exp(t),
+        dK_inv=lambda x, mu=mu: np.log(x / mu),
         d2K=lambda t, mu=mu: mu * np.exp(t),
         d3K=lambda t, mu=mu: mu * np.exp(t),
         domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, ge=0, l=np.inf),
@@ -380,6 +381,7 @@ def binomial(n=1, p=0.5):
     return CumulantGeneratingFunction(
         K=lambda t, n=n, p=p: n * np.log(p * (np.exp(t) - 1) + 1),
         dK=lambda t, n=n, p=p: n * p / ((1 - p) * np.exp(-t) + p),
+        dk_inv=lambda x, n=n, p=p: np.log((x - n) / (n * p)),
         d2K=lambda t, n=n, p=p: n * p * (1 - p) * np.exp(-t) / ((1 - p) * np.exp(-t) + p) ** 2,
         d3K=lambda t, n=n, p=p: n
         * p

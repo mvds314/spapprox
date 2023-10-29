@@ -186,98 +186,57 @@ def test_return_type():
 
 
 @pytest.mark.parametrize(
-    "cgf,ts,dist",
+    "cgf,ts",
     [
-        # (
-        #     norm(loc=0, scale=1),
-        #     lambda t, pdf=sps.norm.pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0, scale=1),
-        # ),
-        # (
-        #     norm(loc=1, scale=0.5),
-        #     lambda t: np.log(
-        #         quad(
-        #             lambda x, pdf=sps.norm(loc=1, scale=0.5).pdf: pdf(x) * np.exp(t * x), a=-5, b=5
-        #         )[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.norm(loc=1, scale=0.5),
-        # ),
-        # (
-        #     CumulantGeneratingFunction(
-        #         K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
-        #     ),
-        #     lambda t, pdf=sps.norm.pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0, scale=1),
-        # ),
+        (
+            norm(loc=0, scale=1),
+            [0.2, 0.55],
+        ),
+        (
+            norm(loc=1, scale=0.5),
+            [0.2, 0.55],
+        ),
+        (
+            CumulantGeneratingFunction(
+                K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
+            ),
+            [0.2, 0.55],
+        ),
         (
             exponential(scale=1),
             [0.2, 0.55, 0.95],
-            sps.expon(scale=1),
         ),
-        # (
-        #     exponential(scale=0.5),
-        #     lambda t, pdf=sps.expon(scale=0.5).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.expon(scale=0.5),
-        # ),
-        # (
-        #     CumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
-        #     exponential(scale=1).K,
-        #     [0.2, 0.55],
-        #     sps.expon(scale=1),
-        # ),
-        # (
-        #     gamma(a=2, scale=0.5),
-        #     lambda t, pdf=sps.gamma(a=2, scale=0.5).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.gamma(a=2, scale=0.5),
-        # ),
-        # (
-        #     chi2(df=3),
-        #     lambda t, pdf=sps.chi2(df=3).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-        #     ),
-        #     [0.2, 0.25],
-        #     sps.chi2(df=3),
-        # ),
-        # (
-        #     laplace(loc=0, scale=1),
-        #     lambda t, pdf=sps.laplace(loc=0, scale=1).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
-        #     ),
-        #     [0.2, 0.55, -0.23],
-        #     sps.laplace(loc=0, scale=1),
-        # ),
-        # (
-        #     poisson(mu=2),
-        #     lambda t, pmf=sps.poisson(mu=2).pmf: np.log(
-        #         np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.poisson(mu=2),
-        # ),
-        # (
-        #     binomial(n=10, p=0.5),
-        #     lambda t, pmf=sps.binom(n=10, p=0.5).pmf: np.log(
-        #         np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.binom(n=10, p=0.5),
-        # ),
+        (
+            exponential(scale=0.5),
+            [0.2, 0.55, 0.95],
+        ),
+        (
+            CumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
+            [0.2, 0.55, 0.95],
+        ),
+        (
+            gamma(a=2, scale=0.5),
+            [0.2, 0.55],
+        ),
+        (
+            chi2(df=3),
+            [0.2, 0.25],
+        ),
+        (
+            laplace(loc=0, scale=1),
+            [0.2, 0.55, -0.23],
+        ),
+        (
+            poisson(mu=2),
+            [0.2, 0.55],
+        ),
+        (
+            binomial(n=10, p=0.5),
+            [0.2, 0.55],
+        ),
     ],
 )
-def test_dKinv(cgf, ts, dist):
+def test_dKinv(cgf, ts):
     for t in ts:
         assert np.isclose(cgf.dK_inv(cgf.dK(t)), t)
     assert np.allclose(cgf.dK_inv(cgf.dK(ts[:1])), ts[:1])
@@ -291,8 +250,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_dKinv",
+                # "-k",
+                # "test_dKinv",
                 "--tb=auto",
                 "--pdb",
             ]
