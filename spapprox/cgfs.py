@@ -379,7 +379,7 @@ def binomial(n=1, p=0.5):
     return CumulantGeneratingFunction(
         K=lambda t, n=n, p=p: n * np.log(p * (np.exp(t) - 1) + 1),
         dK=lambda t, n=n, p=p: n * p / ((1 - p) * np.exp(-t) + p),
-        dK_inv=lambda x, n=n, p=p: np.log((x - n) / (n * p)),
+        dK_inv=lambda x, n=n, p=p: -np.log((n * p / x - p) / (1 - p)),
         d2K=lambda t, n=n, p=p: n * p * (1 - p) * np.exp(-t) / ((1 - p) * np.exp(-t) + p) ** 2,
         d3K=lambda t, n=n, p=p: n
         * p
