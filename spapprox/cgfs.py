@@ -177,7 +177,6 @@ class CumulantGeneratingFunction:
                 x = x.tolist()
                 kwargs["x0"] = 0 if t0 is None else t0
                 kwargs.setdefault("fprime", lambda t: self.d2K(t))
-                kwargs.setdefault("fprime", lambda t: self.d2K(t))
                 kwargs.setdefault("fprime2", lambda t: self.d3K(t))
                 bracket_methods = ["bisect", "brentq", "brenth", "ridder", "toms748"]
                 if "method" in kwargs:
@@ -267,7 +266,7 @@ class CumulantGeneratingFunction:
                         y = np.asanyarray(res.x)
                         break
                 else:
-                    return np.asanyarray(
+                    y = np.asanyarray(
                         [
                             self.dK_inv(xx, t0=None if t0 is None else t0[i])
                             for i, xx in enumerate(x)

@@ -47,6 +47,10 @@ def test_norm_spa(cgf, dist, trange):
     for t in [-2, -1, 1 / 6]:
         x = spa.cgf.dK(t)
         assert np.isclose(spa.cgf.dK(spa._dK_inv(x)), x, atol=1e-3)
+    # Test investion ppf
+    for q in [0.05, 0.1, 0.3, 0.5, 0.9, 0.95]:
+        np.isclose(spa.cdf(x=spa.ppf(q)), q, atol=1e-4)
+    # TODO: put some tests here
 
 
 @pytest.mark.parametrize(
@@ -125,6 +129,10 @@ def test_expon_spa(cgf, dist, trange):
     for t in [-2, -1, 1 / 6]:
         x = spa.cgf.dK(t)
         assert np.isclose(spa.cgf.dK(spa._dK_inv(x)), x, atol=1e-3)
+    # Test investion ppf
+    for q in [0.05, 0.1, 0.3, 0.5, 0.9, 0.95]:
+        np.isclose(spa.cdf(x=spa.ppf(q)), q, atol=1e-4)
+    # TODO: put some tests here
 
 
 if __name__ == "__main__":
