@@ -129,10 +129,20 @@ def test_expon_spa(cgf, dist, trange):
     for t in [-2, -1, 1 / 6]:
         x = spa.cgf.dK(t)
         assert np.isclose(spa.cgf.dK(spa._dK_inv(x)), x, atol=1e-3)
+    qs = [0.05, 0.1, 0.3, 0.5, 0.9, 0.95]
     # Test investion ppf
-    for q in [0.05, 0.1, 0.3, 0.5, 0.9, 0.95]:
-        np.isclose(spa.cdf(x=spa.ppf(q)), q, atol=1e-4)
-    # TODO: put some tests here
+    for q in qs:
+        assert np.isclose(spa.cdf(x=spa.ppf(q)), q, atol=1e-4)
+    assert np.allclose(spa.cdf(x=spa.ppf(qs)), qs, atol=1e-4)
+    # Same tests but then with ppf fitted
+    spa.fit_ppf()
+    spa2 = SaddlePointApprox(cgf)
+    for q in qs:
+        assert np.isclose(spa.cdf(x=spa.ppf(q)), q, atol=1e-4)
+    spa2 = SaddlePointApprox(cgf)
+    assert np.allclose(spa.cdf(x=spa.ppf(qs)), qs, atol=1e-4)
+    assert ~np.allclose(spa.ppf(qs), spa2.ppf(qs), atol=1e-4)
+    # TODO: fix these tests
 
 
 if __name__ == "__main__":
