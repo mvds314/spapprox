@@ -416,6 +416,4 @@ class SaddlePointApprox:
             return self.cgf.dK_inv(x, **solver_kwargs)
 
 
-# TODO: implement cdf interpolation
-
 # TODO: then continue with the applications: sum of random variables, approximation of the mean, bootstrap in the transformed domain, etc.
