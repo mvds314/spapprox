@@ -407,6 +407,14 @@ class SaddlePointApprox:
             )
         self._cdf_cache = self.cdf(t=self._t_cache)
 
+    def clear_cache(self):
+        """
+        Clear any information stored from fit functions
+        """
+        for attr in ["_x_cache", "_t_cache", "_cdf_cache"]:
+            if hasattr(self, attr):
+                delattr(self, attr)
+
     @type_wrapper(xloc=1)
     def _dK_inv(self, x, **solver_kwargs):
         """ """
