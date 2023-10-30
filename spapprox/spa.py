@@ -81,9 +81,9 @@ class SaddlePointApprox:
         [2] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
         """
         t = np.asanyarray(t)
-        w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
-        u = t * np.sqrt(self.cgf.d2K(t))
         with np.errstate(divide="ignore", invalid="ignore"):
+            w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
+            u = t * np.sqrt(self.cgf.d2K(t))
             retval = sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
         retval = np.where(
             ~np.isclose(t, 0),
@@ -114,9 +114,9 @@ class SaddlePointApprox:
         [3] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
         """
         t = np.asanyarray(t)
-        w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
-        u = t * np.sqrt(self.cgf.d2K(t))
         with np.errstate(divide="ignore", invalid="ignore"):
+            w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
+            u = t * np.sqrt(self.cgf.d2K(t))
             retval = sps.norm.cdf(w + np.log(u / w) / w)
         retval = np.where(
             ~np.isclose(t, 0),
