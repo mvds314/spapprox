@@ -45,7 +45,7 @@ class SaddlePointApprox:
         d2Kt = self.cgf.d2K(t, fillna=fillna)
         with np.errstate(divide="ignore"):
             retval = np.where(
-                ~np.isclose(d2Kt, 0, atol=1e-6) & ~np.isnan(d2Kt),
+                ~np.isclose(d2Kt, 0) & ~np.isnan(d2Kt),
                 np.exp(self.cgf.K(t) - t * x) * np.sqrt(np.divide(1, 2 * np.pi * d2Kt)),
                 fillna,
             )
@@ -86,7 +86,7 @@ class SaddlePointApprox:
         with np.errstate(divide="ignore", invalid="ignore"):
             retval = sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
         retval = np.where(
-            ~np.isclose(t, 0, atol=1e-6),
+            ~np.isclose(t, 0),
             retval,
             1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
         )
@@ -119,7 +119,7 @@ class SaddlePointApprox:
         with np.errstate(divide="ignore", invalid="ignore"):
             retval = sps.norm.cdf(w + np.log(u / w) / w)
         retval = np.where(
-            ~np.isclose(t, 0, atol=1e-6),
+            ~np.isclose(t, 0),
             retval,
             1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
         )
