@@ -231,7 +231,7 @@ class SaddlePointApprox:
         return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
 
     @type_wrapper(xloc=1)
-    def ppf(self, q, fillna=np.nan, t0=None, **kwargs):
+    def ppf(self, q, fillna=np.nan, t0=None, ttol=1e-4, **kwargs):
         r"""
         Percent point function computed as the inverse of the saddle point
         approximation of the cumulative distribution function.
@@ -243,8 +243,8 @@ class SaddlePointApprox:
         fillna : float, optional
             The value to replace NaNs with.
         """
-        assert (0 <= q <= 1).all()
-        if hasattr(self, "_cdf_cache") and hasattr(self, "_x_cache"):
+        assert np.all((0 <= np.asanyarray(q)) & (np.asanyarray(q) <= 1))
+        if hasattr(self, "_cdf_cache") and hasattr(self, "_t_cache"):
             t = np.interp(q, self._cdf_cache, self._t_cache)
         else:
             if len(q.shape) == 0:  # Then it is a scalar "array"
@@ -311,7 +311,7 @@ class SaddlePointApprox:
                         assert cdf_lb <= q <= cdf_ub
                         kwargs["bracket"] = [lb, ub]
                     res = spo.root_scalar(lambda t: self.cdf(t=t) - q, **kwargs)
-                    if res.converged:
+                    if res.converged and np.isclose(self.cdf(t=res.root), q, atol=ttol):
                         break
                 else:
                     raise Exception("Failed to solve the saddle point equation.")
@@ -335,8 +335,9 @@ class SaddlePointApprox:
                     ]
                 for method in methods:
                     kwargs["method"] = method
-                    res = spo.root(lambda t, q=q: self.cdf(t=t) - q, **kwargs)
-                    if res.success:
+                    with np.errstate(invalid="ignore"):
+                        res = spo.root(lambda t, q=q: self.cdf(t=t) - q, **kwargs)
+                    if res.success and np.allclose(self.cdf(t=res.x), q, atol=ttol):
                         t = np.asanyarray(res.x)
                         break
                 else:
@@ -344,6 +345,48 @@ class SaddlePointApprox:
                         [self.ppf(qq, t0=None if t0 is None else t0[i]) for i, qq in enumerate(q)]
                     )
         return self.cgf.dK(t)
+
+    def infer_t_range(self, atol=1e-4, rtol=1e-4):
+        """
+        Infers a suitable range for so that it covers roughly the entire probability mass
+        """
+        # Determine initial range
+        lb = next(-1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(-1 * 0.9**i)))
+        ub = next(1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(1 * 0.9**i)))
+        cdf_lb = self.cdf(x=self.cgf.dK(lb), t=lb, fillna=np.nan)
+        cdf_ub = self.cdf(x=self.cgf.dK(ub), t=ub, fillna=np.nan)
+        assert lb < ub and cdf_lb < cdf_ub, "cdf is assumed to be increasing"
+        # Define scaling factors
+        lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
+        ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
+        lb_scaling = next(lb_scalings)
+        ub_scaling = next(ub_scalings)
+        # find lb through iterative scaling
+        while not np.isclose(cdf_lb, 0, atol=atol, rtol=rtol):
+            lb_new = lb / lb_scaling
+            x_new = self.cgf.dK(lb_new)
+            if not np.isnan(x_new):
+                lb = lb_new
+                cdf_lb = self.cdf(x=x_new, t=lb, fillna=np.nan)
+                continue
+            try:
+                lb_scaling = next(lb_scalings)
+            except StopIteration:
+                raise Exception("Could not find valid lb")
+        # find ub through iterative scaling
+        while not np.isclose(cdf_ub, 1, atol=atol, rtol=rtol):
+            ub_new = ub / ub_scaling
+            x_new = self.cgf.dK(ub_new)
+            if not np.isnan(x_new):
+                ub = ub_new
+                cdf_ub = self.cdf(x=x_new, t=ub, fillna=np.nan)
+                continue
+            try:
+                ub_scaling = next(ub_scalings)
+            except StopIteration:
+                raise Exception("Could not find valid ub")
+        assert lb <= 0 <= ub
+        return [lb, ub]
 
     def fit_saddle_point_eqn(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
         """
@@ -355,57 +398,26 @@ class SaddlePointApprox:
         by scaling iteratively, until we little mass for higher or lower values of x.
         """
         if t_range is None:
-            # Determine initial range
-            lb = next(-1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(-1 * 0.9**i)))
-            ub = next(1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(1 * 0.9**i)))
-            cdf_lb = self.cdf(x=self.cgf.dK(lb), t=lb, fillna=np.nan)
-            cdf_ub = self.cdf(x=self.cgf.dK(ub), t=ub, fillna=np.nan)
-            assert lb < ub and cdf_lb < cdf_ub, "cdf is assumed to be increasing"
-            # Define scaling factors
-            lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
-            ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
-            lb_scaling = next(lb_scalings)
-            ub_scaling = next(ub_scalings)
-            # find lb through iterative scaling
-            while not np.isclose(cdf_lb, 0, atol=atol, rtol=rtol):
-                lb_new = lb / lb_scaling
-                x_new = self.cgf.dK(lb_new)
-                if not np.isnan(x_new):
-                    lb = lb_new
-                    cdf_lb = self.cdf(x=x_new, t=lb, fillna=np.nan)
-                    continue
-                try:
-                    lb_scaling = next(lb_scalings)
-                except StopIteration:
-                    raise Exception("Could not find valid lb")
-            # find ub through iterative scaling
-            while not np.isclose(cdf_ub, 1, atol=atol, rtol=rtol):
-                ub_new = ub / ub_scaling
-                x_new = self.cgf.dK(ub_new)
-                if not np.isnan(x_new):
-                    ub = ub_new
-                    cdf_ub = self.cdf(x=x_new, t=ub, fillna=np.nan)
-                    continue
-                try:
-                    ub_scaling = next(ub_scalings)
-                except StopIteration:
-                    raise Exception("Could not find valid ub")
-            assert lb <= 0 <= ub
-            t_range = [lb, ub]
+            if hasattr(self, "_t_cache"):
+                t_range = [self._t_cache[0], self._t_cache[-1]]
+            else:
+                t_range = self.infer_t_range(atol=atol, rtol=rtol)
         # Solve saddle point equation
-        x_range = np.linspace(*self.cgf.dK(t_range), num=num)
-        self._x_cache = x_range
-        self._t_cache = self.cgf._dK_inv(x_range, **solver_kwargs)
+        self._x_cache = np.linspace(*self.cgf.dK(t_range), num=num)
+        self._t_cache = self.cgf._dK_inv(self._x_cache, **solver_kwargs)
 
     def fit_ppf(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
         """
         Fit the inverse of the cumulative distribution function using linear interpolation.
         """
-        if not hasattr(self, "_x_cache") or not hasattr(self, "_t_cache"):
-            self.fit_saddle_point_eqn(
-                t_range=t_range, atol=atol, rtol=rtol, num=num, **solver_kwargs
-            )
-        self._cdf_cache = self.cdf(t=self._t_cache)
+        if not hasattr(self, "_x_cache"):
+            if hasattr(self, "_t_cache"):
+                t_range = [self._t_cache[0], self._t_cache[-1]]
+            else:
+                t_range = self.infer_t_range(atol=atol, rtol=rtol)
+            x_range = np.linspace(*self.cgf.dK(t_range), num=num)
+        self._cdf_cache = self.cdf(x=x_range)
+        self._t_cache = self.cgf.dK_inv(x_range)
 
     def clear_cache(self):
         """
