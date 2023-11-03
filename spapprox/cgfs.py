@@ -125,6 +125,56 @@ class CumulantGeneratingFunction:
             self._d3K0 = self.d3K(0)
         return self._d3K0
 
+    def __add__(self, other):
+        """
+        We use the following properties of the cumulant generating function
+        for independent random variables :math:`X` and :math:`Y`:
+
+        .. math::
+            K_{aX+bY}(t) = K_X(at) + K_Y(bt)
+
+        .. math::
+            K_{X+c}(t) = K_X(t) +ct
+
+        """
+        if isinstance(other, (int, float)):
+            return CumulantGeneratingFunction(
+                lambda t: self.K(t) + other * t,
+                dK=lambda t: self.dK(t) + other,
+                d2K=lambda t: self.d2K(t),
+                d3K=lambda t: self.d3K(t),
+                domain=lambda t: self.domain(t),
+            )
+        elif isinstance(other, CumulantGeneratingFunction):
+            return CumulantGeneratingFunction(
+                lambda t: self.K(t) + other.K(t),
+                dK=lambda t: self.dK(t) + other.dK(t),
+                d2K=lambda t: self.d2K(t) + other.d2K(t),
+                d3K=lambda t: self.d3K(t) + other.d3K(t),
+                domain=lambda t: self.domain(t) & other.domain(t),
+            )
+        else:
+            raise ValueError("Can only add a scalar or another CumulantGeneratingFunction")
+
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __mul__(self, other):
+        if isinstance(other, (int, float)):
+            return CumulantGeneratingFunction(
+                lambda t: self.K(other * t),
+                dK=lambda t: other * self.dK(other * t),
+                dK_inv=lambda x: self.dK_inv(x / other) / other,
+                d2K=lambda t: other**2 * self.d2K(other * t),
+                d3K=lambda t: other**3 * self.d3K(other * t),
+                domain=lambda t: self.domain(t),
+            )
+        else:
+            raise ValueError("Can only multiply with a scalar")
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
     @staticmethod
     def _is_in_domain(t, l=None, g=None, le=None, ge=None):
         if ~np.isscalar(t):
