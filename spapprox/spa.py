@@ -436,4 +436,5 @@ class SaddlePointApprox:
             return self.cgf.dK_inv(x, **solver_kwargs)
 
 
+# TODO: make example sum of approximation of the mean, i.e., the parametric bootstrap
 # TODO: then continue with the applications: sum of random variables, approximation of the mean, bootstrap in the transformed domain, etc.
