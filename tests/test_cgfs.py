@@ -21,6 +21,7 @@ from spapprox import (
     laplace,
     poisson,
     binomial,
+    sample_mean,
 )
 
 
@@ -39,7 +40,10 @@ from spapprox import (
             norm(loc=1, scale=0.5),
             lambda t: np.log(
                 quad(
-                    lambda x, pdf=sps.norm(loc=1, scale=0.5).pdf: pdf(x) * np.exp(t * x), a=-5, b=5
+                    lambda x, pdf=sps.norm(loc=1, scale=0.5).pdf: pdf(x)
+                    * np.exp(t * x),
+                    a=-5,
+                    b=5,
                 )[0]
             ),
             [0.2, 0.55],
@@ -117,6 +121,14 @@ from spapprox import (
             [0.2, 0.55],
             sps.binom(n=10, p=0.5),
         ),
+        (
+            sample_mean(norm(2, 1), 25),
+            lambda t, pdf=sps.norm(loc=2, scale=0.2).pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
+            ),
+            [0.2, 0.55, -0.23],
+            sps.norm(loc=2, scale=0.2),
+        ),
     ],
 )
 def test_cgf(cgf_to_test, cgf, ts, dist):
@@ -177,7 +189,11 @@ def test_return_type():
         assert np.isscalar(f(0)) and ~np.isnan(f(0))
         assert ~np.isscalar(f([10])) and np.isnan(f([10])).all()
         assert ~np.isscalar(f([10, 10])) and np.isnan(f([10, 10])).all()
-        assert ~np.isscalar(f([0, 1])) and np.isnan(f([0, 1])).any() and ~np.isnan(f([0, 1])).all()
+        assert (
+            ~np.isscalar(f([0, 1]))
+            and np.isnan(f([0, 1])).any()
+            and ~np.isnan(f([0, 1])).all()
+        )
         assert (
             ~np.isscalar(f([1, 1], fillna=0))
             and ~np.isnan(f([1, 1], fillna=0)).any()
@@ -234,6 +250,10 @@ def test_return_type():
             binomial(n=10, p=0.5),
             [0.2, 0.55],
         ),
+        (
+            sample_mean(norm(2, 1), 25),
+            [0.2, 0.55, -0.23],
+        ),
     ],
 )
 def test_dKinv(cgf, ts):
@@ -241,7 +261,9 @@ def test_dKinv(cgf, ts):
         assert np.isclose(cgf.dK_inv(cgf.dK(t)), t)
     assert np.allclose(cgf.dK_inv(cgf.dK(ts[:1])), ts[:1])
     assert np.allclose(cgf.dK_inv(cgf.dK(ts)), ts)
-    assert np.allclose(cgf.dK_inv(cgf.dK(ts)), [cgf.dK_inv(cgf.dK(t)) for t in ts])
+    assert np.allclose(
+        cgf.dK_inv(cgf.dK(ts)), [cgf.dK_inv(cgf.dK(t)) for t in ts]
+    )
 
 
 if __name__ == "__main__":
@@ -250,7 +272,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 # "-k",
-                # "test_dKinv",
+                # "test_cgf",
                 "--tb=auto",
                 "--pdb",
             ]

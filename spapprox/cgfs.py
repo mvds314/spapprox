@@ -155,7 +155,9 @@ class CumulantGeneratingFunction:
                 domain=lambda t: self.domain(t) & other.domain(t),
             )
         else:
-            raise ValueError("Can only add a scalar or another CumulantGeneratingFunction")
+            raise ValueError(
+                "Can only add a scalar or another CumulantGeneratingFunction"
+            )
 
     def __radd__(self, other):
         return self.__add__(other)
@@ -198,19 +200,27 @@ class CumulantGeneratingFunction:
         t = np.asanyarray(t)
         t = np.where(cond, t, 0)  # prevent outside domain evaluations
         with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            warnings.filterwarnings(
+                action="ignore", message="All-NaN slice encountered"
+            )
             return np.where(cond, self._K(t), fillna)
 
     @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan):
         if self._dK is None:
-            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
+            assert (
+                has_numdifftools
+            ), "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Derivative(self.K, n=1)
         cond = self.domain(t)
         t = np.asanyarray(t)
-        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        t = np.where(
+            cond, t, 0
+        )  # numdifftolls doesn't work if any evaluetes to NaN
         with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            warnings.filterwarnings(
+                action="ignore", message="All-NaN slice encountered"
+            )
             return np.where(cond, self._dK(t), fillna)
 
     @type_wrapper(xloc=1)
@@ -229,7 +239,13 @@ class CumulantGeneratingFunction:
                 kwargs["x0"] = 0 if t0 is None else t0
                 kwargs.setdefault("fprime", lambda t: self.d2K(t))
                 kwargs.setdefault("fprime2", lambda t: self.d3K(t))
-                bracket_methods = ["bisect", "brentq", "brenth", "ridder", "toms748"]
+                bracket_methods = [
+                    "bisect",
+                    "brentq",
+                    "brenth",
+                    "ridder",
+                    "toms748",
+                ]
                 if "method" in kwargs:
                     methods = [kwargs["method"]]
                 else:
@@ -253,11 +269,15 @@ class CumulantGeneratingFunction:
                             if ~np.isnan(self.dK(-1 * 0.9**i))
                         )
                         ub = next(
-                            1 * 0.9**i for i in range(10000) if ~np.isnan(self.dK(1 * 0.9**i))
+                            1 * 0.9**i
+                            for i in range(10000)
+                            if ~np.isnan(self.dK(1 * 0.9**i))
                         )
                         dKlb = self.dK(lb)
                         dKub = self.dK(ub)
-                        assert lb < ub and dKlb < dKub, "dK is assumed to be increasing"
+                        assert (
+                            lb < ub and dKlb < dKub
+                        ), "dK is assumed to be increasing"
                         lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
                         ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
                         lb_scaling = next(lb_scalings)
@@ -286,14 +306,20 @@ class CumulantGeneratingFunction:
                                 raise Exception("Could not find valid ub")
                         assert self.dK(lb) < x < self.dK(ub)
                         kwargs["bracket"] = [lb, ub]
-                    res = spo.root_scalar(lambda t, x=x: self.dK(t) - x, **kwargs)
+                    res = spo.root_scalar(
+                        lambda t, x=x: self.dK(t) - x, **kwargs
+                    )
                     if res.converged:
                         break
                 else:
-                    raise Exception("Failed to solve the saddle point equation.")
+                    raise Exception(
+                        "Failed to solve the saddle point equation."
+                    )
                 y = np.asanyarray(res.root)
             else:
-                kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
+                kwargs["x0"] = (
+                    np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
+                )
                 kwargs.setdefault("jac", lambda t: np.diag(self.d2K(t)))
                 if "method" in kwargs:
                     methods = [kwargs["method"]]
@@ -328,25 +354,37 @@ class CumulantGeneratingFunction:
     @type_wrapper(xloc=1)
     def d2K(self, t, fillna=np.nan):
         if self._d2K is None:
-            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
+            assert (
+                has_numdifftools
+            ), "Numdifftools is required if derivatives are not provided"
             self._d2K = nd.Derivative(self.K, n=2)
         cond = self.domain(t)
         t = np.asanyarray(t)
-        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        t = np.where(
+            cond, t, 0
+        )  # numdifftolls doesn't work if any evaluetes to NaN
         with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            warnings.filterwarnings(
+                action="ignore", message="All-NaN slice encountered"
+            )
             return np.where(cond, self._d2K(t), fillna)
 
     @type_wrapper(xloc=1)
     def d3K(self, t, fillna=np.nan):
         if self._d3K is None:
-            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
+            assert (
+                has_numdifftools
+            ), "Numdifftools is required if derivatives are not provided"
             self._d3K = nd.Derivative(self.K, n=3)
         cond = self.domain(t)
         t = np.asanyarray(t)
-        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        t = np.where(
+            cond, t, 0
+        )  # numdifftolls doesn't work if any evaluetes to NaN
         with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            warnings.filterwarnings(
+                action="ignore", message="All-NaN slice encountered"
+            )
             return np.where(cond, self._d3K(t), fillna)
 
 
@@ -367,7 +405,9 @@ def exponential(scale=1):
         dK_inv=lambda x, scale=scale: (1 - scale / x) / scale,
         d2K=lambda t, scale=scale: 1 / (1 / scale - t) ** 2,
         d3K=lambda t, scale=scale: 2 / (1 / scale - t) ** 3,
-        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, g=-np.inf, l=1 / scale),
+        domain=lambda t: CumulantGeneratingFunction._is_in_domain(
+            t, g=-np.inf, l=1 / scale
+        ),
     )
 
 
@@ -377,8 +417,13 @@ def gamma(a=1, scale=1):
         dK=lambda t, a=a, scale=scale: a * scale / (1 - scale * t),
         dK_inv=lambda x, a=a, scale=scale: (1 - a * scale / x) / scale,
         d2K=lambda t, a=a, scale=scale: a * scale**2 / (1 - scale * t) ** 2,
-        d3K=lambda t, a=a, scale=scale: 2 * a * scale**3 / (1 - scale * t) ** 3,
-        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, g=-np.inf, l=1 / scale),
+        d3K=lambda t, a=a, scale=scale: 2
+        * a
+        * scale**3
+        / (1 - scale * t) ** 3,
+        domain=lambda t: CumulantGeneratingFunction._is_in_domain(
+            t, g=-np.inf, l=1 / scale
+        ),
     )
 
 
@@ -388,9 +433,13 @@ def chi2(df=1):
 
 def laplace(loc=0, scale=1):
     return CumulantGeneratingFunction(
-        K=lambda t, loc=loc, scale=scale: loc * t - np.log(1 - scale**2 * t**2),
-        dK=lambda t, loc=loc, scale=scale: loc + 2 * scale**2 * t / (1 - scale**2 * t**2),
-        dK_inv=lambda x, loc=loc, scale=scale: (scale - np.sqrt(scale**2 + (x - loc) ** 2))
+        K=lambda t, loc=loc, scale=scale: loc * t
+        - np.log(1 - scale**2 * t**2),
+        dK=lambda t, loc=loc, scale=scale: loc
+        + 2 * scale**2 * t / (1 - scale**2 * t**2),
+        dK_inv=lambda x, loc=loc, scale=scale: (
+            scale - np.sqrt(scale**2 + (x - loc) ** 2)
+        )
         / (-scale * (x - loc)),
         d2K=lambda t, scale=scale: 2
         * scale**2
@@ -404,6 +453,19 @@ def laplace(loc=0, scale=1):
         domain=lambda t, scale=scale: CumulantGeneratingFunction._is_in_domain(
             t, g=-1 / scale, l=1 / scale
         ),
+    )
+
+
+def sample_mean(cgf, sample_size):
+    assert isinstance(cgf, CumulantGeneratingFunction)
+    assert isinstance(sample_size, int) and sample_size > 0
+    return CumulantGeneratingFunction(
+        lambda t, n=sample_size, cgf=cgf: n * cgf.K(t / n),
+        dK=lambda t, n=sample_size, cgf=cgf: cgf.dK(t / n),
+        dK_inv=lambda x, n=sample_size, cgf=cgf: n * cgf.dK_inv(x),
+        d2K=lambda t, n=sample_size, cgf=cgf: cgf.d2K(t / n) / n,
+        d3K=lambda t, n=sample_size, cgf=cgf: cgf.d3K(t / n) / n**2,
+        domain=lambda t, n=sample_size, cgf=cgf: cgf.domain(t / n),
     )
 
 
@@ -421,7 +483,9 @@ def poisson(mu=1):
         dK_inv=lambda x, mu=mu: np.log(x / mu),
         d2K=lambda t, mu=mu: mu * np.exp(t),
         d3K=lambda t, mu=mu: mu * np.exp(t),
-        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, ge=0, l=np.inf),
+        domain=lambda t: CumulantGeneratingFunction._is_in_domain(
+            t, ge=0, l=np.inf
+        ),
     )
 
 
@@ -430,11 +494,17 @@ def binomial(n=1, p=0.5):
         K=lambda t, n=n, p=p: n * np.log(p * (np.exp(t) - 1) + 1),
         dK=lambda t, n=n, p=p: n * p / ((1 - p) * np.exp(-t) + p),
         dK_inv=lambda x, n=n, p=p: -np.log((n * p / x - p) / (1 - p)),
-        d2K=lambda t, n=n, p=p: n * p * (1 - p) * np.exp(-t) / ((1 - p) * np.exp(-t) + p) ** 2,
+        d2K=lambda t, n=n, p=p: n
+        * p
+        * (1 - p)
+        * np.exp(-t)
+        / ((1 - p) * np.exp(-t) + p) ** 2,
         d3K=lambda t, n=n, p=p: n
         * p
         * (1 - p)
         * ((1 - p) * np.exp(-2 * t) - np.exp(-t) * p)
         / ((1 - p) * np.exp(-t) + p) ** 3,
-        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, g=-np.inf, l=np.inf),
+        domain=lambda t: CumulantGeneratingFunction._is_in_domain(
+            t, g=-np.inf, l=np.inf
+        ),
     )

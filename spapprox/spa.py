@@ -6,7 +6,7 @@ import scipy.optimize as spo
 from scipy.integrate import quad
 
 
-from .cgfs import CumulantGeneratingFunction
+from .cgfs import CumulantGeneratingFunction, sample_mean
 from .util import type_wrapper, fib
 from statsmodels.tools.validation import PandasWrapper
 
@@ -46,7 +46,8 @@ class SaddlePointApprox:
         with np.errstate(divide="ignore"):
             retval = np.where(
                 ~np.isclose(d2Kt, 0) & ~np.isnan(d2Kt),
-                np.exp(self.cgf.K(t) - t * x) * np.sqrt(np.divide(1, 2 * np.pi * d2Kt)),
+                np.exp(self.cgf.K(t) - t * x)
+                * np.sqrt(np.divide(1, 2 * np.pi * d2Kt)),
                 fillna,
             )
         return np.where(np.isnan(retval), fillna, retval)
@@ -88,7 +89,11 @@ class SaddlePointApprox:
         retval = np.where(
             ~np.isclose(t, 0),
             retval,
-            1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
+            1 / 2
+            + self.cgf.d3K0
+            / 6
+            / np.sqrt(2 * np.pi)
+            / np.power(self.cgf.d2K0, 3 / 2),
         )
         return np.where(np.isnan(retval), fillna, retval)
 
@@ -121,21 +126,36 @@ class SaddlePointApprox:
         retval = np.where(
             ~np.isclose(t, 0),
             retval,
-            1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
+            1 / 2
+            + self.cgf.d3K0
+            / 6
+            / np.sqrt(2 * np.pi)
+            / np.power(self.cgf.d2K0, 3 / 2),
         )
         return np.where(np.isnan(retval), fillna, retval)
 
     @property
     def _pdf_normalization(self):
-        if not hasattr(self, "_pdf_normalization_cache") or self._pdf_normalization_cache is None:
+        if (
+            not hasattr(self, "_pdf_normalization_cache")
+            or self._pdf_normalization_cache is None
+        ):
             self._pdf_normalization_cache = quad(
-                lambda t: self.pdf(t=t, normalize_pdf=False, fillna=0) * self.cgf.d2K(t, fillna=0),
+                lambda t: self.pdf(t=t, normalize_pdf=False, fillna=0)
+                * self.cgf.d2K(t, fillna=0),
                 a=-np.inf,
                 b=np.inf,
             )[0]
         return self._pdf_normalization_cache
 
-    def pdf(self, x=None, t=None, normalize_pdf=True, fillna=np.nan, **solver_kwargs):
+    def pdf(
+        self,
+        x=None,
+        t=None,
+        normalize_pdf=True,
+        fillna=np.nan,
+        **solver_kwargs
+    ):
         r"""
         Saddle point approximation of the probability density function.
         Given by
@@ -164,13 +184,17 @@ class SaddlePointApprox:
         elif t is None:
             t = self._dK_inv(x, **solver_kwargs)
         wrapper = PandasWrapper(x)
-        y = np.asanyarray(self._spapprox_pdf(np.asanyarray(x), np.asanyarray(t)))
+        y = np.asanyarray(
+            self._spapprox_pdf(np.asanyarray(x), np.asanyarray(t))
+        )
         if normalize_pdf:
             y *= 1 / self._pdf_normalization
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
 
-    def cdf(self, x=None, t=None, fillna=np.nan, backend="LR", **solver_kwargs):
+    def cdf(
+        self, x=None, t=None, fillna=np.nan, backend="LR", **solver_kwargs
+    ):
         r"""
         Saddle point approximation of the cumulative distribution function.
 
@@ -222,9 +246,13 @@ class SaddlePointApprox:
             t = self._dK_inv(x, **solver_kwargs)
         wrapper = PandasWrapper(x)
         if backend == "LR":
-            y = np.asanyarray(self._spapprox_cdf_LR(np.asanyarray(x), np.asanyarray(t)))
+            y = np.asanyarray(
+                self._spapprox_cdf_LR(np.asanyarray(x), np.asanyarray(t))
+            )
         elif backend == "BN":
-            y = np.asanyarray(self._spapprox_cdf_BN(np.asanyarray(x), np.asanyarray(t)))
+            y = np.asanyarray(
+                self._spapprox_cdf_BN(np.asanyarray(x), np.asanyarray(t))
+            )
         else:
             raise ValueError("backend must be either 'LR' or 'BN'")
         y = np.where(np.isnan(y), fillna, y)
@@ -250,7 +278,13 @@ class SaddlePointApprox:
             if len(q.shape) == 0:  # Then it is a scalar "array"
                 q = q.tolist()
                 kwargs["x0"] = 0 if t0 is None else t0
-                bracket_methods = ["bisect", "brentq", "brenth", "ridder", "toms748"]
+                bracket_methods = [
+                    "bisect",
+                    "brentq",
+                    "brenth",
+                    "ridder",
+                    "toms748",
+                ]
                 if "method" in kwargs:
                     methods = [kwargs["method"]]
                 else:
@@ -277,9 +311,15 @@ class SaddlePointApprox:
                             for i in range(10000)
                             if ~np.isnan(self.cgf.dK(1 * 0.9**i))
                         )
-                        cdf_lb = self.cdf(x=self.cgf.dK(lb), t=lb, fillna=np.nan)
-                        cdf_ub = self.cdf(x=self.cgf.dK(ub), t=ub, fillna=np.nan)
-                        assert lb < ub and cdf_lb < cdf_ub, "cdf is assumed to be increasing"
+                        cdf_lb = self.cdf(
+                            x=self.cgf.dK(lb), t=lb, fillna=np.nan
+                        )
+                        cdf_ub = self.cdf(
+                            x=self.cgf.dK(ub), t=ub, fillna=np.nan
+                        )
+                        assert (
+                            lb < ub and cdf_lb < cdf_ub
+                        ), "cdf is assumed to be increasing"
                         lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
                         ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
                         lb_scaling = next(lb_scalings)
@@ -310,14 +350,22 @@ class SaddlePointApprox:
                                 raise Exception("Could not find valid ub")
                         assert cdf_lb <= q <= cdf_ub
                         kwargs["bracket"] = [lb, ub]
-                    res = spo.root_scalar(lambda t: self.cdf(t=t) - q, **kwargs)
-                    if res.converged and np.isclose(self.cdf(t=res.root), q, atol=ttol):
+                    res = spo.root_scalar(
+                        lambda t: self.cdf(t=t) - q, **kwargs
+                    )
+                    if res.converged and np.isclose(
+                        self.cdf(t=res.root), q, atol=ttol
+                    ):
                         break
                 else:
-                    raise Exception("Failed to solve the saddle point equation.")
+                    raise Exception(
+                        "Failed to solve the saddle point equation."
+                    )
                 t = np.asanyarray(res.root)
             else:
-                kwargs["x0"] = np.zeros(q.shape) if t0 is None else np.asanayarray(t0)
+                kwargs["x0"] = (
+                    np.zeros(q.shape) if t0 is None else np.asanayarray(t0)
+                )
                 if "method" in kwargs:
                     methods = [kwargs["method"]]
                 else:
@@ -336,13 +384,20 @@ class SaddlePointApprox:
                 for method in methods:
                     kwargs["method"] = method
                     with np.errstate(invalid="ignore"):
-                        res = spo.root(lambda t, q=q: self.cdf(t=t) - q, **kwargs)
-                    if res.success and np.allclose(self.cdf(t=res.x), q, atol=ttol):
+                        res = spo.root(
+                            lambda t, q=q: self.cdf(t=t) - q, **kwargs
+                        )
+                    if res.success and np.allclose(
+                        self.cdf(t=res.x), q, atol=ttol
+                    ):
                         t = np.asanyarray(res.x)
                         break
                 else:
                     t = np.asanyarray(
-                        [self.ppf(qq, t0=None if t0 is None else t0[i]) for i, qq in enumerate(q)]
+                        [
+                            self.ppf(qq, t0=None if t0 is None else t0[i])
+                            for i, qq in enumerate(q)
+                        ]
                     )
         return self.cgf.dK(t)
 
@@ -351,8 +406,16 @@ class SaddlePointApprox:
         Infers a suitable range for so that it covers roughly the entire probability mass
         """
         # Determine initial range
-        lb = next(-1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(-1 * 0.9**i)))
-        ub = next(1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(1 * 0.9**i)))
+        lb = next(
+            -1 * 0.9**i
+            for i in range(10000)
+            if ~np.isnan(self.cgf.dK(-1 * 0.9**i))
+        )
+        ub = next(
+            1 * 0.9**i
+            for i in range(10000)
+            if ~np.isnan(self.cgf.dK(1 * 0.9**i))
+        )
         cdf_lb = self.cdf(x=self.cgf.dK(lb), t=lb, fillna=np.nan)
         cdf_ub = self.cdf(x=self.cgf.dK(ub), t=ub, fillna=np.nan)
         assert lb < ub and cdf_lb < cdf_ub, "cdf is assumed to be increasing"
@@ -388,7 +451,9 @@ class SaddlePointApprox:
         assert lb <= 0 <= ub
         return [lb, ub]
 
-    def fit_saddle_point_eqn(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
+    def fit_saddle_point_eqn(
+        self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs
+    ):
         """
         Evaluate the saddle point equation to the given range of values.
         And use linear interpolation to solve the saddle point equation, form now onwards.
@@ -436,5 +501,36 @@ class SaddlePointApprox:
             return self.cgf.dK_inv(x, **solver_kwargs)
 
 
-# TODO: make example sum of approximation of the mean, i.e., the parametric bootstrap
-# TODO: then continue with the applications: sum of random variables, approximation of the mean, bootstrap in the transformed domain, etc.
+class SaddlePointApproxMean(SaddlePointApprox):
+    r"""
+    Given the cumulant generating function of a random variable, this class
+    provides the saddle point approximation of the sample mean of the random variable.
+
+    Given :math:`n` i.i.d. random variables :math:`X_1, \ldots, X_n` with
+    cumulant generating function :math:`K`, the cumulant generating function :math:`K_n`
+    of the sample mean :math:`\bar{X}` is given by
+
+    .. math::
+        K_{\bar{X}}(t) = \sum_{i=1}^n 1/n*K_i(t)= \sum_{i=1}^n K_i(t/n) = n K(t/n).
+
+    Parameters
+    ----------
+    cgf : CumulantGeneratingFunction
+        The cumulant generating function of the random variable.
+    sample_size : int
+        The sample size on which the sample mean is to be estimated.
+    pdf_normalization : float, optional
+        The normalization constant of the probability density function. If not
+        provided, it will be computed using numerical integration.
+    """
+
+    def __init__(self, cgf, sample_size, pdf_normalization=None):
+        assert isinstance(cgf, CumulantGeneratingFunction)
+        self.sample_size = sample_size
+        cgf = sample_mean(cgf, sample_size)
+        super().__init__(cgf, pdf_normalization=pdf_normalization)
+
+
+# TODO: then continue with the applications: nonparametric bootstrap
+# TODO: jacknife stuff
+# TODO: conditional distributions

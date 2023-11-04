@@ -5,4 +5,5 @@ from .util import Timer
 from .cgfs import CumulantGeneratingFunction
 from .cgfs import norm, exponential, gamma, chi2, laplace
 from .cgfs import poisson, binomial
-from .spa import SaddlePointApprox
+from .cgfs import sample_mean
+from .spa import SaddlePointApprox, SaddlePointApproxMean

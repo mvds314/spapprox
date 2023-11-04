@@ -18,15 +18,21 @@ if False:
     cgfX2 = spa.norm(loc=0, scale=1)
     # we know the sum of normal dists should be normal again
     sum_dist = sps.norm(0, np.sqrt(2))
-elif True:
+    cgf = cgfX1 + cgfX2
+elif False:
     # Sum of two gamma distributions with same scale param should be gamma as well
     cgfX1 = spa.gamma(a=1, scale=1)
     cgfX2 = spa.gamma(a=2, scale=1)
     # In this case, we know that the result should be Gamma(a=6,scale=1)
     sum_dist = sps.gamma(a=3, scale=1)
-
-
-cgf = cgfX1 + cgfX2
+    cgf = cgfX1 + cgfX2
+elif True:
+    # Sum of two gamma distributions with same scale param should be gamma as well
+    cgfX1 = spa.gamma(a=1, scale=1)
+    cgfX2 = spa.gamma(a=2, scale=1)
+    # In this case, we know that the result should be Gamma(a=6,scale=1)
+    sum_dist = sps.gamma(a=3, scale=1, loc=3)
+    cgf = cgfX1 + cgfX2 + 3
 
 spa = spa.SaddlePointApprox(cgf)
 
