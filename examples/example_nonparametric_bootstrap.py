@@ -7,6 +7,8 @@ import spapprox as spa
 
 plt.close("all")
 
+# TODO: fix this example
+
 # Consider the bootstrapped sample mean
 # Can we approximate its distribution?
 
@@ -16,7 +18,8 @@ spa_mean = spa.SaddlePointApprox(cgf)
 
 fig, axs = plt.subplots(1, 2, facecolor="w")
 
-t = np.linspace(-3, 3, num=1000)
+# TODO: fix the return type, maybe add to unittest
+t = np.linspace(cgf.dK_inv(x.min() + 1e-6)[0], cgf.dK_inv(x.max() - 1e-6)[0], num=1000)
 x = spa_mean.cgf.dK(t)
 ax = axs[0]
 ax.plot(x, spa_mean.pdf(t=t), label="Saddle point approximation")

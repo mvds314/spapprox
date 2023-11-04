@@ -472,6 +472,6 @@ class SaddlePointApproxMean(SaddlePointApprox):
         super().__init__(cgf, pdf_normalization=pdf_normalization)
 
 
-# TODO: then continue with the applications: nonparametric bootstrap
+# TODO: then continue with the applications: nonparametric bootstrap -> fix the example, fix return type emprical cgf
 # TODO: jacknife stuff
 # TODO: conditional distributions

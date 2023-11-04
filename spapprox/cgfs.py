@@ -446,8 +446,6 @@ def empirical(x):
         dK=lambda t, x=x: (x*np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x)))).mean(axis=1)/(np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1))
         )
     
-
-
 # TODO: add asymmetric laplace?
 
 # TODO: add generalized normal distribution
