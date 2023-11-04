@@ -4,6 +4,10 @@ UNDER CONSTRUCTION
 
 This module includes code for saddle point approximation
 
+Saddle point approximations can be used to approximate distributions when you know their cumulant generating function.
+
+We follow the approach outlined in: Ronald W Butler (2007): "Saddlepoint Approximations with Applications"
+
 ```python
 import numpy as np
 #TODO: put example here
