@@ -141,6 +141,7 @@ class CumulantGeneratingFunction:
             return CumulantGeneratingFunction(
                 lambda t: self.K(t) + other * t,
                 dK=lambda t: self.dK(t) + other,
+                dK_inv=lambda x: self.dK_inv(x - other),
                 d2K=lambda t: self.d2K(t),
                 d3K=lambda t: self.d3K(t),
                 domain=lambda t: self.domain(t),
