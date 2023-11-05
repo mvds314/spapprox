@@ -441,10 +441,21 @@ def empirical(x):
     """
     Given a vector :math`x` with observations, draw one of then with equal probability.
     """
-    return CumulantGeneratingFunction(
-        lambda t, x=x: np.log(np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1)),
-        dK=lambda t, x=x: (x*np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x)))).mean(axis=1)/(np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1))
-        )
+    @type_wrapper(xloc=0)
+    def K(t, x=x):
+        if len(t.shape) == 0:
+           y=np.log(np.exp(t * x).mean()) 
+        else:
+            y=np.log(np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1))
+        return y.tolist if len(t.shape)==1 else y
+    @type_wrapper(xloc=0)
+    def dK(t, x=x):
+        if len(t.shape) == 0:
+           y=(x*np.exp(t * x)).mean()/(np.exp(t * x).mean())
+        else:
+            y=(x*np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x)))).mean(axis=1)/(np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1))
+        return y.tolist if len(t.shape)==1 else y
+    return CumulantGeneratingFunction(K, dK=dK)
     
 # TODO: add asymmetric laplace?
 

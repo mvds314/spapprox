@@ -185,22 +185,34 @@ def test_domain():
     assert ~np.isnan(val[1])
 
 
-def test_return_type():
-    cgf = CumulantGeneratingFunction(
-        K=lambda t: t**4,
-        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, l=1),
-    )
+@pytest.mark.parametrize(
+    "cgf",
+    [
+        CumulantGeneratingFunction(
+            K=lambda t: t**4,
+            domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, l=1),
+        ),
+        empirical(np.arange(10)),
+    ],
+)
+def test_return_type(cgf):
     for f in [cgf.K, cgf.dK]:
-        assert np.isscalar(f(10)) and np.isnan(f(10))
+        assert np.isscalar(f(10))
+        assert ~np.isscalar(f([10]))
+        assert ~np.isscalar(f([10, 10]))
+        if not cgf.domain(10):
+            assert np.isnan(f(10))
+            assert np.isnan(f([10])).all()
+            assert np.isnan(f([10, 10])).all()
         assert np.isscalar(f(0)) and ~np.isnan(f(0))
-        assert ~np.isscalar(f([10])) and np.isnan(f([10])).all()
-        assert ~np.isscalar(f([10, 10])) and np.isnan(f([10, 10])).all()
-        assert ~np.isscalar(f([0, 1])) and np.isnan(f([0, 1])).any() and ~np.isnan(f([0, 1])).all()
-        assert (
-            ~np.isscalar(f([1, 1], fillna=0))
-            and ~np.isnan(f([1, 1], fillna=0)).any()
-            and np.allclose(f([1, 1], fillna=0), 0)
-        )
+        assert ~np.isscalar(f([0, 1]))
+        if not cgf.domain(1):
+            assert np.isnan(f([0, 1])).any() and ~np.isnan(f([0, 1])).all()
+            assert (
+                ~np.isscalar(f([1, 1], fillna=0))
+                and ~np.isnan(f([1, 1], fillna=0)).any()
+                and np.allclose(f([1, 1], fillna=0), 0)
+            )
 
 
 @pytest.mark.parametrize(
@@ -272,7 +284,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 # "-k",
-                # "test_cgf",
+                # "test_return_type",
                 "--tb=auto",
                 "--pdb",
             ]
