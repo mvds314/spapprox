@@ -12,14 +12,13 @@ plt.close("all")
 # Consider the bootstrapped sample mean
 # Can we approximate its distribution?
 
-x = np.random.randint(3, size=25)
-cgf = spa.empirical(x)
+sample = np.random.randint(3, size=25)
+cgf = spa.empirical(sample)
 spa_mean = spa.SaddlePointApprox(cgf)
 
 fig, axs = plt.subplots(1, 2, facecolor="w")
 
-# TODO: fix the return type, maybe add to unittest
-t = np.linspace(cgf.dK_inv(x.min() + 1e-6)[0], cgf.dK_inv(x.max() - 1e-6)[0], num=1000)
+t = np.linspace(cgf.dK_inv(sample.min() + 1e-6), cgf.dK_inv(sample.max() - 1e-6), num=1000)
 x = spa_mean.cgf.dK(t)
 ax = axs[0]
 ax.plot(x, spa_mean.pdf(t=t), label="Saddle point approximation")
