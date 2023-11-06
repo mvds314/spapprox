@@ -166,8 +166,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_expon_spa",
+                # "-k",
+                # "test_expon_spa",
                 "--tb=auto",
                 "--pdb",
             ]
