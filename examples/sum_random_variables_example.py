@@ -34,18 +34,18 @@ elif True:
     sum_dist = sps.gamma(a=3, scale=1, loc=3)
     cgf = cgfX1 + cgfX2 + 3
 
-spa = spa.SaddlePointApprox(cgf)
+approx = spa.SaddlePointApprox(cgf)
 
 fig, axs = plt.subplots(1, 2, facecolor="w")
 
 t = np.linspace(-3, 0.5, num=1000)
 x = cgf.dK(t)
 ax = axs[0]
-ax.plot(x, spa.pdf(t=t), label="Saddle point approximation")
+ax.plot(x, approx.pdf(t=t), label="Saddle point approximation")
 ax.plot(x, sum_dist.pdf(x), label="pdf")
 ax.legend()
 
 ax = axs[1]
-ax.plot(x, spa.cdf(t=t), label="Saddle point approximation")
-ax.plot(x, sum_dist.cdf(x), label="pdf")
+ax.plot(x, approx.cdf(t=t), label="Saddle point approximation")
+ax.plot(x, sum_dist.cdf(x), label="cdf")
 ax.legend()

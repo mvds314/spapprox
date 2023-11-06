@@ -33,5 +33,5 @@ ax.legend()
 
 ax = axs[1]
 ax.plot(x, spa_mean.cdf(t=t), label="Saddle point approximation")
-ax.plot(x, sum_dist.cdf(x), label="pdf")
+ax.plot(x, sum_dist.cdf(x), label="cdf")
 ax.legend()
