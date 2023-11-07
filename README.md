@@ -14,11 +14,12 @@ As he puts it:
 
 For a random variable $X$, cumulant generating function $K(t)$ is given by:
 $$K(t) = \log\text{E} \exp(t X).$$
-Simply put, it contains all information about the random variable's moments, particularly $K'(0)=E X$.
+Roughly, it contains all information about the random variable's moments, particularly $K'(0)=E X$.
 For common distributions (normal, exponential, gamma etc.), the cumulant generating function is known.
-Some are implemented as part of this software, you can also find them on, say Wikepdia.
-Now, it's not always easy to find the distribution of say the sum of (independent) random variables, as you can can't simply sum
-the distribution functions. You can, however, simply sum the cumulant generating functions!
+Some are implemented as part of this software, others you can find on, e.g., Wikepdia.
+
+Why is this useful? Now, it's not always straigtforward to find the distribution of, e.g., the sum of (independent) random variables, as you can can't simply sum
+the distribution functions. You can, however, sum their cumulant generating functions!
 The saddle point approximation can, subsequently be used to approximate the pdf and cdf given the cumulant generating function.
 
 Altogether, applications include:
