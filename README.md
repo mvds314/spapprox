@@ -35,7 +35,16 @@ To be implemented are:
 
 ```python
 import numpy as np
-#TODO: put example here
+import scipy.stats as sps
+import spapprox as spa
+
+cgf_normal = spa.norm(loc=0, scale=1)
+spa_normal = spa.SaddlePointApprox(cgf_normal)
+
+t = np.linspace(-3, 3)
+x = cgf_normal.dK(t)
+spa_normal.pdf(t=t)
+sps.norm.pdf(x)
 ```
 
 ## Installation
