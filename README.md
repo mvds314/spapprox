@@ -31,7 +31,11 @@ To be implemented are:
 * Approximating conditional distributions
 * Approximating the distirbution of the quotient of random variables
 
-## Installation
+## Basic example
+
+To understand what is going on, it is helpful to read the [Wikipedia page](https://en.wikipedia.org/wiki/Saddlepoint_approximation_method) on the saddle point approximation.
+The basic steps to use this package are, define the cumulant generating function in terms of the class in this packages, feed it to the saddle point approximation class, evaluate the pdf or cdf.
+It's also useful to understand what the saddle point equation is: it's an equation you have to solve to solve for $t$ given $x$.
 
 ```python
 import numpy as np
