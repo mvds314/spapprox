@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import scipy.stats as sps
 import matplotlib.pyplot as plt
 import spapprox as spa
 from statsmodels.distributions import ECDF
@@ -11,7 +10,15 @@ plt.close("all")
 # Consider the bootstrapped sample mean
 # Can we approximate its distribution?
 
-sample = np.random.normal(0, 1, 1000)
+# Toggle one of the examples below
+if False:
+    sample = np.random.normal(0, 1, 1000)
+    normalize_pdf = True
+    t = np.linspace(-50, 50, num=100)
+elif True:
+    sample = np.random.gamma(3, 2, 1000)
+    t = np.linspace(-25, 10, num=100)
+    normalize_pdf = True  # This one is not really implemented well
 cgf = spa.empirical(sample)
 spa_mean = spa.SaddlePointApproxMean(cgf, 100)
 
@@ -20,14 +27,13 @@ with spa.util.Timer("Initializing saddle point approximation"):
     cgf = spa.empirical(sample)
     spa_mean = spa.SaddlePointApproxMean(cgf, 100)
     # Initial evaluation takes most time
-    spa_mean.pdf(t=0)
+    spa_mean.pdf(t=0, normalize_pdf=normalize_pdf)
     spa_mean.cdf(t=0)
 
 
 with spa.util.Timer("Bootstrapping with saddle point approximation"):
-    t = np.linspace(-50, 50, num=100)
     x = spa_mean.cgf.dK(t)
-    ypdf = spa_mean.pdf(t=t, x=x, normalize_pdf=True)
+    ypdf = spa_mean.pdf(t=t, x=x, normalize_pdf=normalize_pdf)
     ycdf = spa_mean.cdf(t=t, x=x)
 
 with spa.util.Timer("Bootstrapping"):

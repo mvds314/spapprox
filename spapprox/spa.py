@@ -128,10 +128,11 @@ class SaddlePointApprox:
     @property
     def _pdf_normalization(self):
         if not hasattr(self, "_pdf_normalization_cache") or self._pdf_normalization_cache is None:
+            a, b = self.infer_t_range()
             val = quad(
                 lambda t: self.pdf(t=t, normalize_pdf=False, fillna=0) * self.cgf.d2K(t, fillna=0),
-                a=-np.inf,
-                b=np.inf,
+                a=a,
+                b=b,
             )[0]
             assert not np.isnan(val) and np.isfinite(
                 val
