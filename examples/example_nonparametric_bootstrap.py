@@ -15,10 +15,15 @@ if False:
     sample = np.random.normal(0, 1, 1000)
     normalize_pdf = True
     t = np.linspace(-50, 50, num=100)
-elif True:
+elif False:
     sample = np.random.gamma(3, 2, 1000)
     t = np.linspace(-25, 10, num=100)
     normalize_pdf = True  # This one is not really implemented well
+elif True:
+    sample = np.random.laplace(3, 2, 1000)
+    t = np.linspace(-15, 15, num=100)
+    normalize_pdf = True  # This one is not really implemented well
+
 cgf = spa.empirical(sample)
 spa_mean = spa.SaddlePointApproxMean(cgf, 100)
 
