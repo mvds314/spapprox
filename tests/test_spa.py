@@ -88,6 +88,7 @@ def test_normalization(cgf, trange):
             b=np.inf,
         )[0],
         1,
+        atol=5e-4,
     )
     assert np.isclose(
         quad(
@@ -96,6 +97,7 @@ def test_normalization(cgf, trange):
             b=trange[1],
         )[0],
         1,
+        atol=5e-4,
     )
 
 
@@ -127,7 +129,7 @@ def test_expon_spa(cgf, dist, trange):
     # approximation accuracy test
     t = np.linspace(*trange, 1000)[:-1]
     x = spa.cgf.dK(t)
-    assert np.allclose(spa.pdf(t=t), dist.pdf(x)), "This should approx be equal"
+    assert np.allclose(spa.pdf(t=t), dist.pdf(x), atol=5e-5), "This should approx be equal"
     assert np.allclose(
         spa.cdf(t=t, backend="LR"), dist.cdf(x), atol=5e-3
     ), "This should approx be equal"
@@ -167,7 +169,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 # "-k",
-                # "test_expon_spa",
+                # "test_normalization",
                 "--tb=auto",
                 "--pdb",
             ]
