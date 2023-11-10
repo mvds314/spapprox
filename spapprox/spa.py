@@ -477,6 +477,9 @@ class SaddlePointApproxMean(SaddlePointApprox):
         super().__init__(cgf, pdf_normalization=pdf_normalization)
 
 
+# TODO: implement Dirichlet bootstrap
+# TODO: implement multivariate saddle point approximations
 # TODO: implement other bootstraps
 # TODO: jacknife stuff
 # TODO: conditional distributions
+# TODO: approximation for discrete distributions
