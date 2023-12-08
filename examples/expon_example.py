@@ -12,7 +12,7 @@ plt.close("all")
 
 # https://en.wikipedia.org/wiki/Cumulant
 cgf = spa.exponential(scale=1)
-approx = spa.SaddlePointApprox(cgf)
+approx = spa.UnivariateSaddlePointApprox(cgf)
 
 fig, axs = plt.subplots(1, 2, facecolor="w")
 t = 0.8

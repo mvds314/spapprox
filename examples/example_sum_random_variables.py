@@ -34,7 +34,7 @@ elif True:
     sum_dist = sps.gamma(a=3, scale=1, loc=3)
     cgf = cgfX1 + cgfX2 + 3
 
-approx = spa.SaddlePointApprox(cgf)
+approx = spa.UnivariateSaddlePointApprox(cgf)
 
 fig, axs = plt.subplots(1, 2, facecolor="w")
 

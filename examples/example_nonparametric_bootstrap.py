@@ -29,8 +29,8 @@ elif True:
 
 
 with spa.util.Timer("Initializing saddle point approximation"):
-    cgf = spa.empirical(sample)
-    spa_mean = spa.SaddlePointApproxMean(cgf, subsample_size)
+    cgf = spa.univariate_empirical(sample)
+    spa_mean = spa.UnivariateSaddlePointApproxMean(cgf, subsample_size)
     # Initial evaluation takes most time
     spa_mean.pdf(t=0, normalize_pdf=normalize_pdf)
     spa_mean.cdf(t=0)

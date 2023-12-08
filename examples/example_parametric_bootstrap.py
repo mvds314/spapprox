@@ -20,7 +20,7 @@ elif True:
     cgf = spa.gamma(a=3, scale=1) + 3
     sum_dist = sps.gamma(loc=3, a=25 * 3, scale=1 / n)
 
-spa_mean = spa.SaddlePointApproxMean(cgf, n)
+spa_mean = spa.UnivariateSaddlePointApproxMean(cgf, n)
 
 fig, axs = plt.subplots(1, 2, facecolor="w")
 

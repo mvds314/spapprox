@@ -13,7 +13,7 @@ plt.close("all")
 
 # https://en.wikipedia.org/wiki/Cumulant
 cgf_normal = spa.norm(loc=0, scale=1)
-spa_normal = spa.SaddlePointApprox(cgf_normal)
+spa_normal = spa.UnivariateSaddlePointApprox(cgf_normal)
 
 fig, axs = plt.subplots(1, 2, facecolor="w")
 t = np.linspace(-3, 3)
