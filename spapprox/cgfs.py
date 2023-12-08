@@ -427,6 +427,161 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         return super().d3K(t, fillna=fillna)
 
 
+class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
+    r"""
+    Class for cumulant generating function of a multivariate distribution
+
+    For a random vector :math:`X` with probability density function :math:`f_X(x)`,
+    the cumulant generating function is defined as the logarithm of the moment generating function:
+
+    .. math::
+        K_X(t) = \log \mathbb{E} \left[ e^{<t,X>} \right],
+    where :math:`<t,X>` is the inner product of :math:`t` and :math:`X`.
+
+    References
+    ----------
+    [1] https://en.wikipedia.org/wiki/Cumulant#Cumulant_generating_function
+
+    Parameters
+    ----------
+    K : callable
+        Cumulant generating function
+    dim : int, optional
+        Dimension of the random vector
+    dK : callable, optional
+        First derivative of the cumulant generating function
+    d2K : callable, optional
+        Second derivative of the cumulant generating function
+    d3K : callable, optional
+        Third derivative of the cumulant generating function
+    domain : tuple or callable optional
+        Domain of the cumulant generating function, either specified through a tuples with greater (less) equal bound for finite values,
+        or strictly greater (less) bounds if values are infinite. Alternatively, a callable can be provided that returns True if a value
+        is in the domain and False otherwise.
+    """
+
+    def __init__(
+        self,
+        K,
+        dim=2,
+        dK=None,
+        dK_inv=None,
+        d2K=None,
+        d3K=None,
+        dK0=None,
+        d2K0=None,
+        d3K0=None,
+        domain=None,
+    ):
+        assert isinstance(dim, int) and dim > 0, "dimimension must be an integer greater than 0"
+        self.dim = dim
+        if domain is None:
+            domain = [(-np.inf, np.inf) for _ in range(dim)]
+        if isinstance(domain, list):
+            domain = lambda t, domain=domain: all(
+                self._is_in_domain(ti, ge=domi[0], le=domi[1], l=np.inf, g=-np.inf)
+                for ti, domi in zip(t, domain)
+            )
+        else:
+            assert callable(domain), "domain must be a tuple or callable"
+        super().__init__(
+            K, dK=dK, dK_inv=dK_inv, d2K=d2K, d3K=d3K, domain=domain, dK0=dK0, d2K0=d2K0, d3K0=d3K0
+        )
+
+    def __add__(self, other):
+        """
+        We use the following properties of the cumulant generating function
+        for independent random variables :math:`X` and :math:`Y`:
+
+        .. math::
+            K_{aX+bY}(t) = K_X(at) + K_Y(bt)
+
+        .. math::
+            K_{X+c}(t) = K_X(t) +ct
+
+        """
+        if isinstance(other, (int, float)):
+            return MultivariateCumulantGeneratingFunction(
+                lambda t: self.K(t) + np.sum(other * t),
+                dim=self.dim,
+                dK=lambda t: self.dK(t) + other * np.ones(self.dim),
+                dK_inv=lambda x: self.dK_inv(x - other),
+                d2K=lambda t: self.d2K(t),
+                d3K=lambda t: self.d3K(t),
+                domain=lambda t: self.domain(t),
+            )
+        elif isinstance(other, UnivariateCumulantGeneratingFunction):
+            raise NotImplementedError("This is a special case of multiplication")
+            return MultivariateCumulantGeneratingFunction(
+                lambda t: self.K(t) + other.K(t),
+                dim=self.dim,
+                dK=lambda t: self.dK(t) + other.dK(t),
+                d2K=lambda t: self.d2K(t) + other.d2K(t),
+                d3K=lambda t: self.d3K(t) + other.d3K(t),
+                domain=lambda t: self.domain(t) & other.domain(t),
+            )
+        elif isinstance(other, MultivariateCumulantGeneratingFunction):
+            assert self.dim == other.dim, "Dimensions must be equal"
+            # TODO: add them assuming independence
+            raise NotImplementedError()
+        else:
+            raise ValueError("Can only add a scalar or another CumulantGeneratingFunction")
+
+    def __mul__(self, other):
+        if isinstance(other, (int, float)):
+            return MultivariateCumulantGeneratingFunction(
+                lambda t: self.K(other * t),
+                dK=lambda t: other * self.dK(other * t),
+                dK_inv=lambda x: self.dK_inv(x / other) / other,
+                d2K=lambda t: other**2 * self.d2K(other * t),
+                d3K=lambda t: other**3 * self.d3K(other * t),
+                domain=lambda t: self.domain(t),
+            )
+        elif isinstance(other, np.ndarray):
+            # TODO: check dimensions and look up in book
+            assert other.shape == (self.dim,), "Dimension must be equal"
+            return MultivariateCumulantGeneratingFunction(
+                lambda t: self.K(other * t),
+                dK=lambda t: other * self.dK(other * t),
+                dK_inv=lambda x: self.dK_inv(x / other) / other,
+                d2K=lambda t: other**2 * self.d2K(other * t),
+                d3K=lambda t: other**3 * self.d3K(other * t),
+                domain=lambda t: self.domain(t),
+            )
+        else:
+            raise ValueError("Can only multiply with a scalar")
+
+    # TODO: now check dimensions everywhere
+    # TODO: also provide the correlation matrix through the jacobian
+    @type_wrapper(xloc=1)
+    def dK(self, t, fillna=np.nan):
+        if self._dK is None:
+            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
+            self._dK = nd.Derivative(self.K, n=1)
+        return super().dK(t, fillna=fillna)
+
+    @type_wrapper(xloc=1)
+    def dK_inv(self, x, t0=None, **kwargs):
+        """
+        Inverse of the derivative of the cumulant generating function.
+
+        .. math::
+            x = K'(t).
+        """
+        # TODO: maybe implement a generic solver, is this the gradient or the innerproduct with the gradient
+        raise NotImplementedError()
+
+    # TODO: where is the second derivative?
+
+    @type_wrapper(xloc=1)
+    def d3K(self, t, fillna=np.nan):
+        # TODO: I'm not sure what this is supposed to be
+        if self._d3K is None:
+            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
+            self._d3K = nd.Derivative(self.K, n=3)
+        return super().d3K(t, fillna=fillna)
+
+
 def norm(loc=0, scale=1):
     return UnivariateCumulantGeneratingFunction(
         K=lambda t, loc=loc, scale=scale: loc * t + scale**2 * t**2 / 2,
