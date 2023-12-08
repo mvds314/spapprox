@@ -208,6 +208,22 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             K, dK=dK, dK_inv=dK_inv, d2K=d2K, d3K=d3K, domain=domain, dK0=dK0, d2K0=d2K0, d3K0=d3K0
         )
 
+    @staticmethod
+    def _is_in_domain(t, l=None, g=None, le=None, ge=None):
+        if ~np.isscalar(t):
+            t = np.asanyarray(t)
+        val = True
+        t = np.asanyarray(t)
+        if l is not None:
+            val &= t < l
+        if g is not None:
+            val &= t > g
+        if le is not None:
+            val &= t <= le
+        if ge is not None:
+            val &= t >= ge
+        return val
+
     def __add__(self, other):
         """
         We use the following properties of the cumulant generating function
