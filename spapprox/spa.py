@@ -11,9 +11,9 @@ from .util import type_wrapper, fib
 from statsmodels.tools.validation import PandasWrapper
 
 
-class SaddlePointApprox:
+class UnivariateSaddlePointApprox:
     """
-    Given the cumulant generating function of a random variable, this class
+    Given the cumulant generating function of a univariate random variable, this class
     provides the saddle point approximation of the probability density function
     and the cumulative distribution function.
 
@@ -447,9 +447,9 @@ class SaddlePointApprox:
             return self.cgf.dK_inv(x, **solver_kwargs)
 
 
-class SaddlePointApproxMean(SaddlePointApprox):
+class UnivariateSaddlePointApproxMean(UnivariateSaddlePointApprox):
     r"""
-    Given the cumulant generating function of a random variable, this class
+    Given the cumulant generating function of a univariate random variable, this class
     provides the saddle point approximation of the sample mean of the random variable.
 
     Given :math:`n` i.i.d. random variables :math:`X_1, \ldots, X_n` with
@@ -461,7 +461,7 @@ class SaddlePointApproxMean(SaddlePointApprox):
 
     Parameters
     ----------
-    cgf : CumulantGeneratingFunction
+    cgf : UnivariateCumulantGeneratingFunction
         The cumulant generating function of the random variable.
     sample_size : int
         The sample size on which the sample mean is to be estimated.

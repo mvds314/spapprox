@@ -17,7 +17,7 @@ from spapprox import (
     laplace,
     poisson,
     binomial,
-    SaddlePointApprox,
+    UnivariateSaddlePointApprox,
 )
 
 
@@ -29,7 +29,7 @@ from spapprox import (
     ],
 )
 def test_norm_spa(cgf, dist, trange):
-    spa = SaddlePointApprox(cgf)
+    spa = UnivariateSaddlePointApprox(cgf)
     t = np.linspace(*trange, 1000)
     x = spa.cgf.dK(t)
     # These ones should be exact
@@ -78,7 +78,7 @@ def test_norm_spa(cgf, dist, trange):
     ],
 )
 def test_normalization(cgf, trange):
-    spa = SaddlePointApprox(cgf)
+    spa = UnivariateSaddlePointApprox(cgf)
     assert np.isclose(spa.cdf(t=trange[0]), 0, atol=1e-5)
     assert np.isclose(spa.cdf(t=trange[1]), 1, atol=1e-5)
     assert np.isclose(
@@ -112,7 +112,7 @@ def test_normalization(cgf, trange):
     ],
 )
 def test_expon_spa(cgf, dist, trange):
-    spa = SaddlePointApprox(cgf)
+    spa = UnivariateSaddlePointApprox(cgf)
     for f in [
         spa.pdf,
         lambda t=None, fillna=np.nan, backend="LR": spa.cdf(t=t, fillna=fillna, backend=backend),
