@@ -13,7 +13,7 @@ from scipy.integrate import quad
 import scipy.stats as sps
 
 from spapprox import (
-    CumulantGeneratingFunction,
+    UnivariateCumulantGeneratingFunction,
     norm,
     exponential,
     gamma,
@@ -21,8 +21,8 @@ from spapprox import (
     laplace,
     poisson,
     binomial,
-    sample_mean,
-    empirical,
+    univariate_sample_mean,
+    univariate_empirical,
 )
 
 
@@ -50,7 +50,7 @@ from spapprox import (
             sps.norm(loc=1, scale=0.5),
         ),
         (
-            CumulantGeneratingFunction(
+            UnivariateCumulantGeneratingFunction(
                 K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
             ),
             lambda t, pdf=sps.norm.pdf: np.log(
@@ -76,7 +76,7 @@ from spapprox import (
             sps.expon(scale=0.5),
         ),
         (
-            CumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
+            UnivariateCumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
             exponential(scale=1).K,
             [0.2, 0.55],
             sps.expon(scale=1),
@@ -122,7 +122,7 @@ from spapprox import (
             sps.binom(n=10, p=0.5),
         ),
         (
-            sample_mean(norm(2, 1), 25),
+            univariate_sample_mean(norm(2, 1), 25),
             lambda t, pdf=sps.norm(loc=2, scale=0.2).pdf: np.log(
                 quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
             ),
@@ -130,7 +130,7 @@ from spapprox import (
             sps.norm(loc=2, scale=0.2),
         ),
         (
-            empirical(np.arange(10)),
+            univariate_empirical(np.arange(10)),
             lambda t, x=np.arange(10): np.log(np.sum([np.exp(t * x) / len(x)])),
             [0.2, 0.55, -0.23],
             np.arange(10),
@@ -138,7 +138,7 @@ from spapprox import (
     ],
 )
 def test_cgf(cgf_to_test, cgf, ts, dist):
-    assert isinstance(cgf_to_test, CumulantGeneratingFunction)
+    assert isinstance(cgf_to_test, UnivariateCumulantGeneratingFunction)
     for t in ts:
         assert np.isclose(cgf(t), cgf_to_test.K(t))
         dcgf = nd.Derivative(cgf_to_test.K, n=1)
@@ -152,9 +152,9 @@ def test_cgf(cgf_to_test, cgf, ts, dist):
 
 
 def test_domain():
-    cgf = CumulantGeneratingFunction(
+    cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
-        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, l=1),
+        domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(t, l=1),
     )
     assert np.isclose(cgf.K(0.5), 0.0625)
     assert np.isnan(cgf.K(1.5))
@@ -164,7 +164,7 @@ def test_domain():
     assert np.isnan(cgf.d2K(1.5))
     assert np.isclose(cgf.d3K(0.5), 12)
     assert np.isnan(cgf.d3K(1.5))
-    cgf = CumulantGeneratingFunction(
+    cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
         domain=(1, 2),
     )
@@ -176,7 +176,7 @@ def test_domain():
     assert ~np.isnan(cgf.d2K(1.5))
     assert np.isnan(cgf.d3K(0.5))
     assert ~np.isnan(cgf.d3K(1.5))
-    cgf = CumulantGeneratingFunction(
+    cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
         domain=(0, 2),
     )
@@ -188,11 +188,11 @@ def test_domain():
 @pytest.mark.parametrize(
     "cgf",
     [
-        CumulantGeneratingFunction(
+        UnivariateCumulantGeneratingFunction(
             K=lambda t: t**4,
-            domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, l=1),
+            domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(t, l=1),
         ),
-        empirical(np.arange(10)),
+        univariate_empirical(np.arange(10)),
     ],
 )
 def test_return_type(cgf):
@@ -227,7 +227,7 @@ def test_return_type(cgf):
             [0.2, 0.55],
         ),
         (
-            CumulantGeneratingFunction(
+            UnivariateCumulantGeneratingFunction(
                 K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
             ),
             [0.2, 0.55],
@@ -241,7 +241,7 @@ def test_return_type(cgf):
             [0.2, 0.55, 0.95],
         ),
         (
-            CumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
+            UnivariateCumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
             [0.2, 0.55, 0.95],
         ),
         (
@@ -265,7 +265,7 @@ def test_return_type(cgf):
             [0.2, 0.55],
         ),
         (
-            sample_mean(norm(2, 1), 25),
+            univariate_sample_mean(norm(2, 1), 25),
             [0.2, 0.55, -0.23],
         ),
     ],

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from abc import ABC, abstractmethod
 import warnings
 import numpy as np
 import scipy.optimize as spo
@@ -15,11 +16,137 @@ except ImportError:
 from .util import type_wrapper, fib
 
 
-class CumulantGeneratingFunction:
+class CumulantGeneratingFunction(ABC):
     r"""
     Base class for cumulant generating function of a distribution
+    """
 
-    For a random variable :math:`X` with probability density function :math:`f_X(x)`,
+    def __init__(
+        self,
+        K,
+        dK=None,
+        dK_inv=None,
+        d2K=None,
+        d3K=None,
+        dK0=None,
+        d2K0=None,
+        d3K0=None,
+        domain=None,
+    ):
+        self._K = K
+        self._dK = dK
+        self._dK_inv = dK_inv
+        self._d2K = d2K
+        self._d3K = d3K
+        self._dK0 = dK0
+        self._d2K0 = d2K0
+        self._d3K0 = d3K0
+        assert domain is None or callable(domain), "domain must be a None or callable"
+        self.domain = domain
+
+    @property
+    def kappa1(self):
+        return self.dK(0)
+
+    @property
+    def mean(self):
+        return self.kappa1
+
+    @property
+    def kappa2(self):
+        return self.d2K(0)
+
+    @property
+    def variance(self):
+        return self.kappa2
+
+    @property
+    def std(self):
+        return np.sqrt(self.variance)
+
+    @property
+    def dK0(self):
+        if self._dK0 is None:
+            self._dK0 = self.dK(0)
+        return self._dK0
+
+    @property
+    def d2K0(self):
+        if self._d2K0 is None:
+            self._d2K0 = self.d2K(0)
+        return self._d2K0
+
+    @property
+    def d3K0(self):
+        if self._d3K0 is None:
+            self._d3K0 = self.d3K(0)
+        return self._d3K0
+
+    def __add__(self, other):
+        raise NotImplementedError()
+
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __mul__(self, other):
+        raise NotImplementedError()
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    @type_wrapper(xloc=1)
+    def K(self, t, fillna=np.nan):
+        assert self.domain is not None, "domain must be specified"
+        cond = self.domain(t)
+        t = np.asanyarray(t)
+        t = np.where(cond, t, 0)  # prevent outside domain evaluations
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            return np.where(cond, self._K(t), fillna)
+
+    @type_wrapper(xloc=1)
+    def dK(self, t, fillna=np.nan):
+        assert self._dK is not None, "dK must be specified"
+        assert self.domain is not None, "domain must be specified"
+        cond = self.domain(t)
+        t = np.asanyarray(t)
+        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            return np.where(cond, self._dK(t), fillna)
+
+    @type_wrapper(xloc=1)
+    def dK_inv(self, x, t0=None, **kwargs):
+        raise NotImplementedError()
+
+    @type_wrapper(xloc=1)
+    def d2K(self, t, fillna=np.nan):
+        assert self._d2K is not None, "d2K must be specified"
+        assert self.domain is not None, "domain must be specified"
+        cond = self.domain(t)
+        t = np.asanyarray(t)
+        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            return np.where(cond, self._d2K(t), fillna)
+
+    @type_wrapper(xloc=1)
+    def d3K(self, t, fillna=np.nan):
+        assert self._d3K is not None, "d3K must be specified"
+        assert self.domain is not None, "domain must be specified"
+        cond = self.domain(t)
+        t = np.asanyarray(t)
+        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            return np.where(cond, self._d3K(t), fillna)
+
+
+class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
+    r"""
+    Class for cumulant generating function of a univariate distribution
+
+    For a univariate random variable :math:`X` with probability density function :math:`f_X(x)`,
     the cumulant generating function is defined as the logarithm of the moment generating function:
 
     .. math::
@@ -69,14 +196,6 @@ class CumulantGeneratingFunction:
         d3K0=None,
         domain=None,
     ):
-        self._K = K
-        self._dK = dK
-        self._dK_inv = dK_inv
-        self._d2K = d2K
-        self._d3K = d3K
-        self._dK0 = dK0
-        self._d2K0 = d2K0
-        self._d3K0 = d3K0
         if domain is None:
             domain = (-np.inf, np.inf)
         if isinstance(domain, tuple):
@@ -85,45 +204,9 @@ class CumulantGeneratingFunction:
             )
         else:
             assert callable(domain), "domain must be a tuple or callable"
-        self.domain = domain
-
-    @property
-    def kappa1(self):
-        return self.dK(0)
-
-    @property
-    def mean(self):
-        return self.kappa1
-
-    @property
-    def kappa2(self):
-        return self.d2K(0)
-
-    @property
-    def variance(self):
-        return self.kappa2
-
-    @property
-    def std(self):
-        return np.sqrt(self.variance)
-
-    @property
-    def dK0(self):
-        if self._dK0 is None:
-            self._dK0 = self.dK(0)
-        return self._dK0
-
-    @property
-    def d2K0(self):
-        if self._d2K0 is None:
-            self._d2K0 = self.d2K(0)
-        return self._d2K0
-
-    @property
-    def d3K0(self):
-        if self._d3K0 is None:
-            self._d3K0 = self.d3K(0)
-        return self._d3K0
+        super().__init__(
+            K, dK=dK, dK_inv=dK_inv, d2K=d2K, d3K=d3K, domain=domain, dK0=dK0, d2K0=d2K0, d3K0=d3K0
+        )
 
     def __add__(self, other):
         """
@@ -138,7 +221,7 @@ class CumulantGeneratingFunction:
 
         """
         if isinstance(other, (int, float)):
-            return CumulantGeneratingFunction(
+            return UnivariateCumulantGeneratingFunction(
                 lambda t: self.K(t) + other * t,
                 dK=lambda t: self.dK(t) + other,
                 dK_inv=lambda x: self.dK_inv(x - other),
@@ -146,8 +229,8 @@ class CumulantGeneratingFunction:
                 d3K=lambda t: self.d3K(t),
                 domain=lambda t: self.domain(t),
             )
-        elif isinstance(other, CumulantGeneratingFunction):
-            return CumulantGeneratingFunction(
+        elif isinstance(other, UnivariateCumulantGeneratingFunction):
+            return UnivariateCumulantGeneratingFunction(
                 lambda t: self.K(t) + other.K(t),
                 dK=lambda t: self.dK(t) + other.dK(t),
                 d2K=lambda t: self.d2K(t) + other.d2K(t),
@@ -155,14 +238,13 @@ class CumulantGeneratingFunction:
                 domain=lambda t: self.domain(t) & other.domain(t),
             )
         else:
-            raise ValueError("Can only add a scalar or another CumulantGeneratingFunction")
-
-    def __radd__(self, other):
-        return self.__add__(other)
+            raise ValueError(
+                "Can only add a scalar or another UnivariateCumulantGeneratingFunction"
+            )
 
     def __mul__(self, other):
         if isinstance(other, (int, float)):
-            return CumulantGeneratingFunction(
+            return UnivariateCumulantGeneratingFunction(
                 lambda t: self.K(other * t),
                 dK=lambda t: other * self.dK(other * t),
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
@@ -172,9 +254,6 @@ class CumulantGeneratingFunction:
             )
         else:
             raise ValueError("Can only multiply with a scalar")
-
-    def __rmul__(self, other):
-        return self.__mul__(other)
 
     @staticmethod
     def _is_in_domain(t, l=None, g=None, le=None, ge=None):
@@ -193,25 +272,11 @@ class CumulantGeneratingFunction:
         return val
 
     @type_wrapper(xloc=1)
-    def K(self, t, fillna=np.nan):
-        cond = self.domain(t)
-        t = np.asanyarray(t)
-        t = np.where(cond, t, 0)  # prevent outside domain evaluations
-        with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, self._K(t), fillna)
-
-    @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan):
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Derivative(self.K, n=1)
-        cond = self.domain(t)
-        t = np.asanyarray(t)
-        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
-        with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, self._dK(t), fillna)
+        return super().dK(t, fillna=fillna)
 
     @type_wrapper(xloc=1)
     def dK_inv(self, x, t0=None, **kwargs):
@@ -336,28 +401,18 @@ class CumulantGeneratingFunction:
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d2K = nd.Derivative(self.K, n=2)
-        cond = self.domain(t)
-        t = np.asanyarray(t)
-        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
-        with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, self._d2K(t), fillna)
+        return super().d2K(t, fillna=fillna)
 
     @type_wrapper(xloc=1)
     def d3K(self, t, fillna=np.nan):
         if self._d3K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d3K = nd.Derivative(self.K, n=3)
-        cond = self.domain(t)
-        t = np.asanyarray(t)
-        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
-        with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, self._d3K(t), fillna)
+        return super().d3K(t, fillna=fillna)
 
 
 def norm(loc=0, scale=1):
-    return CumulantGeneratingFunction(
+    return UnivariateCumulantGeneratingFunction(
         K=lambda t, loc=loc, scale=scale: loc * t + scale**2 * t**2 / 2,
         dK=lambda t, loc=loc, scale=scale: loc + scale**2 * t,
         dK_inv=lambda x, loc=loc, scale=scale: (x - loc) / scale**2,
@@ -367,24 +422,28 @@ def norm(loc=0, scale=1):
 
 
 def exponential(scale=1):
-    return CumulantGeneratingFunction(
+    return UnivariateCumulantGeneratingFunction(
         K=lambda t, scale=scale: np.log(1 / (1 - scale * t)),
         dK=lambda t, scale=scale: scale / (1 - scale * t),
         dK_inv=lambda x, scale=scale: (1 - scale / x) / scale,
         d2K=lambda t, scale=scale: 1 / (1 / scale - t) ** 2,
         d3K=lambda t, scale=scale: 2 / (1 / scale - t) ** 3,
-        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, g=-np.inf, l=1 / scale),
+        domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(
+            t, g=-np.inf, l=1 / scale
+        ),
     )
 
 
 def gamma(a=1, scale=1):
-    return CumulantGeneratingFunction(
+    return UnivariateCumulantGeneratingFunction(
         K=lambda t, a=a, scale=scale: -a * np.log(1 - scale * t),
         dK=lambda t, a=a, scale=scale: a * scale / (1 - scale * t),
         dK_inv=lambda x, a=a, scale=scale: (1 - a * scale / x) / scale,
         d2K=lambda t, a=a, scale=scale: a * scale**2 / (1 - scale * t) ** 2,
         d3K=lambda t, a=a, scale=scale: 2 * a * scale**3 / (1 - scale * t) ** 3,
-        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, g=-np.inf, l=1 / scale),
+        domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(
+            t, g=-np.inf, l=1 / scale
+        ),
     )
 
 
@@ -393,7 +452,7 @@ def chi2(df=1):
 
 
 def laplace(loc=0, scale=1):
-    return CumulantGeneratingFunction(
+    return UnivariateCumulantGeneratingFunction(
         K=lambda t, loc=loc, scale=scale: loc * t - np.log(1 - scale**2 * t**2),
         dK=lambda t, loc=loc, scale=scale: loc + 2 * scale**2 * t / (1 - scale**2 * t**2),
         dK_inv=lambda x, loc=loc, scale=scale: (scale - np.sqrt(scale**2 + (x - loc) ** 2))
@@ -407,15 +466,15 @@ def laplace(loc=0, scale=1):
         * t
         * (3 + scale**2 * t**2)
         / (1 - scale**2 * t**2) ** 3,
-        domain=lambda t, scale=scale: CumulantGeneratingFunction._is_in_domain(
+        domain=lambda t, scale=scale: UnivariateCumulantGeneratingFunction._is_in_domain(
             t, g=-1 / scale, l=1 / scale
         ),
     )
 
 
-def sample_mean(cgf, sample_size):
+def univariate_sample_mean(cgf, sample_size):
     """
-    Given the cumulant generating function of a random variable, this class
+    Given the cumulant generating function of a univariate random variable, this class
     provides the saddle point approximation of the sample mean of the random variable.
 
     Given :math:`n` i.i.d. random variables :math:`X_1, \ldots, X_n` with
@@ -425,9 +484,9 @@ def sample_mean(cgf, sample_size):
     .. math::
         K_{\bar{X}}(t) = \sum_{i=1}^n 1/n*K_i(t)= \sum_{i=1}^n K_i(t/n) = n K(t/n).
     """
-    assert isinstance(cgf, CumulantGeneratingFunction)
+    assert isinstance(cgf, UnivariateCumulantGeneratingFunction)
     assert isinstance(sample_size, int) and sample_size > 0
-    return CumulantGeneratingFunction(
+    return UnivariateCumulantGeneratingFunction(
         lambda t, n=sample_size, cgf=cgf: n * cgf.K(t / n),
         dK=lambda t, n=sample_size, cgf=cgf: cgf.dK(t / n),
         dK_inv=lambda x, n=sample_size, cgf=cgf: n * cgf.dK_inv(x),
@@ -437,26 +496,33 @@ def sample_mean(cgf, sample_size):
     )
 
 
-def empirical(x):
+def univariate_empirical(x):
     """
-    Given a vector :math`x` with observations, draw one of then with equal probability.
+    Given a vector :math`x` with observations of a univariate random variable,
+    draw one of then with equal probability.
     """
+
     @type_wrapper(xloc=0)
     def K(t, x=x):
         if len(t.shape) == 0:
-           y=np.log(np.exp(t * x).mean()) 
+            y = np.log(np.exp(t * x).mean())
         else:
-            y=np.log(np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1))
-        return y.tolist() if len(t.shape)==1 else y
+            y = np.log(np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1))
+        return y.tolist() if len(t.shape) == 1 else y
+
     @type_wrapper(xloc=0)
     def dK(t, x=x):
         if len(t.shape) == 0:
-           y=(x*np.exp(t * x)).mean()/(np.exp(t * x).mean())
+            y = (x * np.exp(t * x)).mean() / (np.exp(t * x).mean())
         else:
-            y=(x*np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x)))).mean(axis=1)/(np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1))
-        return y.tolist() if len(t.shape)==1 else y
-    return CumulantGeneratingFunction(K, dK=dK)
-    
+            y = (x * np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x)))).mean(axis=1) / (
+                np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1)
+            )
+        return y.tolist() if len(t.shape) == 1 else y
+
+    return UnivariateCumulantGeneratingFunction(K, dK=dK)
+
+
 # TODO: add asymmetric laplace?
 
 # TODO: add generalized normal distribution
@@ -465,18 +531,18 @@ def empirical(x):
 
 
 def poisson(mu=1):
-    return CumulantGeneratingFunction(
+    return UnivariateCumulantGeneratingFunction(
         K=lambda t, mu=mu: mu * (np.exp(t) - 1),
         dK=lambda t, mu=mu: mu * np.exp(t),
         dK_inv=lambda x, mu=mu: np.log(x / mu),
         d2K=lambda t, mu=mu: mu * np.exp(t),
         d3K=lambda t, mu=mu: mu * np.exp(t),
-        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, ge=0, l=np.inf),
+        domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(t, ge=0, l=np.inf),
     )
 
 
 def binomial(n=1, p=0.5):
-    return CumulantGeneratingFunction(
+    return UnivariateCumulantGeneratingFunction(
         K=lambda t, n=n, p=p: n * np.log(p * (np.exp(t) - 1) + 1),
         dK=lambda t, n=n, p=p: n * p / ((1 - p) * np.exp(-t) + p),
         dK_inv=lambda x, n=n, p=p: -np.log((n * p / x - p) / (1 - p)),
@@ -486,5 +552,7 @@ def binomial(n=1, p=0.5):
         * (1 - p)
         * ((1 - p) * np.exp(-2 * t) - np.exp(-t) * p)
         / ((1 - p) * np.exp(-t) + p) ** 3,
-        domain=lambda t: CumulantGeneratingFunction._is_in_domain(t, g=-np.inf, l=np.inf),
+        domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(
+            t, g=-np.inf, l=np.inf
+        ),
     )

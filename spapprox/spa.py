@@ -6,7 +6,7 @@ import scipy.optimize as spo
 from scipy.integrate import quad
 
 
-from .cgfs import CumulantGeneratingFunction, sample_mean
+from .cgfs import UnivariateCumulantGeneratingFunction, univariate_sample_mean
 from .util import type_wrapper, fib
 from statsmodels.tools.validation import PandasWrapper
 
@@ -19,7 +19,7 @@ class SaddlePointApprox:
 
     Parameters
     ----------
-    cgf : CumulantGeneratingFunction
+    cgf : UnivariateCumulantGeneratingFunction
         The cumulant generating function of the random variable.
     pdf_normalization : float, optional
         The normalization constant of the probability density function. If not
@@ -35,7 +35,7 @@ class SaddlePointApprox:
     """
 
     def __init__(self, cgf, pdf_normalization=None):
-        assert isinstance(cgf, CumulantGeneratingFunction)
+        assert isinstance(cgf, UnivariateCumulantGeneratingFunction)
         self.cgf = cgf
         self._pdf_normalization_cache = pdf_normalization
 
@@ -471,9 +471,9 @@ class SaddlePointApproxMean(SaddlePointApprox):
     """
 
     def __init__(self, cgf, sample_size, pdf_normalization=None):
-        assert isinstance(cgf, CumulantGeneratingFunction)
+        assert isinstance(cgf, UnivariateCumulantGeneratingFunction)
         self.sample_size = sample_size
-        cgf = sample_mean(cgf, sample_size)
+        cgf = univariate_sample_mean(cgf, sample_size)
         super().__init__(cgf, pdf_normalization=pdf_normalization)
 
 
