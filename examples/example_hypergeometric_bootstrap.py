@@ -9,6 +9,14 @@ from statsmodels.distributions import ECDF
 
 plt.close("all")
 
+# TODO: plan
+# Follow the Davison 1997 Bootstrapping book
+# Implement empirical saddlepoint approx
+# Implement 9.33, i.e., the 1 dim M estimators
+# Go to more dimensions, with the U transformation page 472
+# What is next?
+
+
 # Consider the bootstrapped sample mean
 # Can we approximate its distribution?
 
