@@ -493,40 +493,47 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     def cor(self):
         return sm.stats.moment_helpers.cov2corr(self.cov)
 
-#TODO: continue here, and check this class fully
-
     @property
     def variance(self):
         return np.diag(self.cov)
 
     def __add__(self, other):
-        """
+        r"""
         We use the following properties of the cumulant generating function
         for independent random variables :math:`X` and :math:`Y`:
 
         .. math::
-            K_{aX+bY}(t) = K_X(at) + K_Y(bt)
-
-        .. math::
             K_{X+c}(t) = K_X(t) +ct
 
+        Note, when add a univariate random variable :math:`Y`, i.e., in terms of its
+        cumulant generating function, we add a univariate random varible
+        independent of everything else,
+
+        .. math::
+            correlation(X_i,Y)=0, \forall i
+        but the variable will have full correlation with itself so that
+
+        ..math::
+            covariance(X_i+Y, X_j+Y) = covariance(X_i,X_j) + variance(Y)
         """
+        #TODO: insert some references
         if isinstance(other, (int, float)):
+            return (np.ones(self.dim)*other)*self
+        elif isinstance(other, np.ndarray):
             return MultivariateCumulantGeneratingFunction(
                 lambda t: self.K(t) + np.sum(other * t),
                 dim=self.dim,
-                dK=lambda t: self.dK(t) + other * np.ones(self.dim),
+                dK=lambda t: self.dK(t) + other,
                 dK_inv=lambda x: self.dK_inv(x - other),
                 d2K=lambda t: self.d2K(t),
                 d3K=lambda t: self.d3K(t),
                 domain=lambda t: self.domain(t),
             )
         elif isinstance(other, UnivariateCumulantGeneratingFunction):
-            # Note, we add them assuming independence, to each component we add a univariate random varibles independent of everything else
             return MultivariateCumulantGeneratingFunction(
                 lambda t: self.K(t) + np.sum([other.K(ti) for ti in t]),
                 dim=self.dim,
-                dK=lambda t: self.dK(t) + [other.dK(ti) for ti in t],
+                dK=lambda t: self.dK(t) + np.array([other.dK(ti) for ti in t]),
                 d2K=lambda t: self.d2K(t) + np.diag([other.d2K(ti) for ti in t]),
                 d3K=lambda t: self.d3K(t)
                 + np.array(
@@ -554,6 +561,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             raise ValueError("Can only add a scalar or another CumulantGeneratingFunction")
 
     def __mul__(self, other):
+        r"""
+        We use the following properties of the cumulant generating function
+        for independent random variables :math:`X` and :math:`Y`:
+
+         .. math::
+            K_{aX+bY}(t) = K_X(at) + K_Y(bt)
+        """
         if isinstance(other, (int, float)):
             return MultivariateCumulantGeneratingFunction(
                 lambda t: self.K(other * t),
@@ -578,7 +592,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                             for j in range(self.dim)
                         ]
                         for k in range(self.dim)
-                    ]
+                    ]  
                 ):A*self.d3K(other * t),
                 domain=lambda t: self.domain(t),
             )
@@ -586,6 +600,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             assert other.shape[1] == self.dim, "Dimension must be equal"
             assert np.allclose(self.d2K0-np.diag(self.d2K0),0), "Only linear transformation of indepdent variables are possible"
             # TODO: check dimensions and look up in book
+            #TODO: make special lin transformed class
             return MultivariateCumulantGeneratingFunction(
                 lambda t: np.sum([self.K(otheri * t[i]) for i,otheri in enumerate(other)]),
                 dK=lambda t: other * self.dK(other * t),
@@ -603,7 +618,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         assert t.shape[0]==self.dim, "Dimensions do not match"
         return super().K(t,fillna=fillna)
     
-    # TODO: now check dimensions everywhere
     @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan):
         t = np.asanyarray(t)
@@ -648,6 +662,11 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             self._d3K = nd.Derivative(self.K, n=3)
         return super().d3K(t, fillna=fillna)
 
+#TODO: write some tests first for the albove, using normal distribution
+#TODO: add other multivriate variates: Lintransformed,
+#TODO: Maybe also independent and bivariate one
+#TODO:: what kind of special structure would that require?
+#TODO: can we construct a conditional cgf, or does that always go through the saddlepoint approximation?
 
 def norm(loc=0, scale=1):
     return UnivariateCumulantGeneratingFunction(
