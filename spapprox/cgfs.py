@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import warnings
 import numpy as np
 import scipy.optimize as spo
+import statsmodels.api as sm
 
 try:
     with warnings.catch_warnings():
@@ -72,9 +73,10 @@ class CumulantGeneratingFunction(ABC):
     def kappa2(self):
         return self.d2K(0)
 
+    @abstractmethod
     @property
     def variance(self):
-        return self.kappa2
+        raise NotImplementedError()
 
     @property
     def std(self):
@@ -223,6 +225,10 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         super().__init__(
             K, dK=dK, dK_inv=dK_inv, d2K=d2K, d3K=d3K, domain=domain, dK0=dK0, d2K0=d2K0, d3K0=d3K0
         )
+
+    @property
+    def variance(self):
+        return self.kappa2
 
     def __add__(self, other):
         """
@@ -410,7 +416,6 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             self._d3K = nd.Derivative(self.K, n=3)
         return super().d3K(t, fillna=fillna)
 
-
 class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     r"""
     Class for cumulant generating function of a multivariate distribution
@@ -479,6 +484,20 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         super().__init__(
             K, dK=dK, dK_inv=dK_inv, d2K=d2K, d3K=d3K, domain=domain, dK0=dK0, d2K0=d2K0, d3K0=d3K0
         )
+
+    @property
+    def cov(self):
+        return self.d2K0
+
+    @property
+    def cor(self):
+        return sm.stats.moment_helpers.cov2corr(self.cov)
+
+#TODO: continue here, and check this class fully
+
+    @property
+    def variance(self):
+        return np.diag(self.cov)
 
     def __add__(self, other):
         """
@@ -578,10 +597,17 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             raise ValueError("Can only multiply with a scalar")
 
+    @type_wrapper(xloc=1)
+    def K(self, t, fillna=np.nan):
+        t = np.asanyarray(t)
+        assert t.shape[0]==self.dim, "Dimensions do not match"
+        return super().K(t,fillna=fillna)
+    
     # TODO: now check dimensions everywhere
-    # TODO: also provide the correlation matrix through the jacobian
     @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan):
+        t = np.asanyarray(t)
+        assert t.shape[0]==self.dim, "Dimensions do not match"
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Derivative(self.K, n=1)
@@ -595,14 +621,28 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         .. math::
             x = K'(t).
         """
+        t = np.asanyarray(t)
+        assert t.shape[0]==self.dim, "Dimensions do not match"
         # TODO: maybe implement a generic solver, is this the gradient or the innerproduct with the gradient
         raise NotImplementedError()
 
-    # TODO: where is the second derivative?
+    @type_wrapper(xloc=1)
+    def d2K(self, t, fillna=np.nan):
+        """
+        This is supposed to be the Hessian, i.e., the matrix with second order partial derivatives.
+        """
+        t = np.asanyarray(t)
+        assert t.shape[0]==self.dim, "Dimensions do not match"
+        if self._d2K is None:
+            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
+            self._d2K = nd.Derivative(self.K, n=2)
+        return super().d2K(t, fillna=fillna)
 
     @type_wrapper(xloc=1)
     def d3K(self, t, fillna=np.nan):
         # TODO: I'm not sure what this is supposed to be
+        t = np.asanyarray(t)
+        assert t.shape[0]==self.dim, "Dimensions do not match"
         if self._d3K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d3K = nd.Derivative(self.K, n=3)
