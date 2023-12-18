@@ -185,6 +185,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     ----------
     [1] https://en.wikipedia.org/wiki/Cumulant#Cumulant_generating_function
     [2] http://www.scholarpedia.org/article/Cumulants
+    [3] Bertsekas, Tsitsiklis (2000) - Introduction to probability
 
     Parameters
     ----------
@@ -241,6 +242,9 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         .. math::
             K_{X+c}(t) = K_X(t) +ct
 
+        References
+        ----------
+        [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
         """
         if isinstance(other, (int, float)):
             return UnivariateCumulantGeneratingFunction(
@@ -265,6 +269,11 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
 
     def __mul__(self, other):
+        """
+        References
+        ----------
+        [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
+        """
         if isinstance(other, (int, float)):
             return UnivariateCumulantGeneratingFunction(
                 lambda t: self.K(other * t),
@@ -438,6 +447,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     References
     ----------
     [1] https://en.wikipedia.org/wiki/Cumulant#Cumulant_generating_function
+    [2] Bertsekas, Tsitsiklis (2000) - Introduction to probability
 
     Parameters
     ----------
@@ -515,6 +525,10 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
         ..math::
             covariance(X_i+Y, X_j+Y) = covariance(X_i,X_j) + variance(Y)
+        
+        References
+        ----------
+        [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
         """
         #TODO: insert some references
         if isinstance(other, (int, float)):
@@ -567,6 +581,10 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
          .. math::
             K_{aX+bY}(t) = K_X(at) + K_Y(bt)
+
+        References
+        ----------
+        [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
         """
         if isinstance(other, (int, float)):
             return MultivariateCumulantGeneratingFunction(
@@ -599,10 +617,11 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         elif isinstance(other, np.ndarray) and len(other.shape)==2:
             assert other.shape[1] == self.dim, "Dimension must be equal"
             assert np.allclose(self.d2K0-np.diag(self.d2K0),0), "Only linear transformation of indepdent variables are possible"
-            # TODO: check dimensions and look up in book
-            #TODO: make special lin transformed class
+            # TODO: Can we find a reference for this? It's probably written down somewhere
+            # TODO: make special lin transformed class
             return MultivariateCumulantGeneratingFunction(
-                lambda t: np.sum([self.K(otheri * t[i]) for i,otheri in enumerate(other)]),
+                lambda t: np.sum([self.K(col * t[i]) for i,col in enumerate(other.T)]),
+                #TODO: continue here and fix the other ones
                 dK=lambda t: other * self.dK(other * t),
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
                 d2K=lambda t: other**2 * self.d2K(other * t),
