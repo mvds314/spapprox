@@ -288,6 +288,18 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan):
+        """
+        Note, the current implementation uses numerical differentiation, but
+        an alternative way would be to use the following result:
+
+        .. math::
+            K'(t)=\frac{E X\exp{tX}}{K(t)},
+        where :math:`K(t)` is the cumulant generating function of :math:`X`.
+
+        References
+        ----------
+        [1] Ganesh, O'Connell (2004) - Big Quesues in Probability and Statistics
+        """
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Derivative(self.K, n=1)
@@ -639,6 +651,19 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     
     @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan):
+        """
+        Note, the current implementation uses numerical differentiation, but
+        an alternative way would be to use the following result:
+
+        .. math::
+            K'(t)=\frac{E X\exp{<t,X>}}{K(t)},
+        where :math:`K(t)` is the cumulant generating function of :math:`X`.
+
+        References
+        ----------
+        [1] Ganesh, O'Connell (2004) - Big Quesues in Probability and Statistics
+        """
+        if self._dK is None:
         t = np.asanyarray(t)
         assert t.shape[0]==self.dim, "Dimensions do not match"
         if self._dK is None:
