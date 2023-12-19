@@ -293,8 +293,9 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         an alternative way would be to use the following result:
 
         .. math::
-            K'(t)=\frac{E X\exp{tX}}{K(t)},
-        where :math:`K(t)` is the cumulant generating function of :math:`X`.
+            K'(t)=\frac{E X\exp{tX}}{M(t)},
+        where :math:`K(t)` is the cumulant generating function, and :math:`M(t)`
+        is the moment generating function of :math:`X`.
 
         References
         ----------
@@ -656,8 +657,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         an alternative way would be to use the following result:
 
         .. math::
-            K'(t)=\frac{E X\exp{<t,X>}}{K(t)},
-        where :math:`K(t)` is the cumulant generating function of :math:`X`.
+            \frac{\partial}{\partial t_i} K(t)=\frac{E X_i\exp{<t,X>}}{M(t)},
+        where :math:`K(t)` is the cumulant generating function, and :math:`M(t)`
+        is the moment generating function of :math:`X`.
 
         References
         ----------
