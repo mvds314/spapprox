@@ -73,8 +73,8 @@ class CumulantGeneratingFunction(ABC):
     def kappa2(self):
         return self.d2K(0)
 
-    @abstractmethod
     @property
+    @abstractmethod
     def variance(self):
         raise NotImplementedError()
 
