@@ -19,7 +19,7 @@ from .util import type_wrapper, fib
 
 class CumulantGeneratingFunction(ABC):
     r"""
-    Base class for cumulant generating function of a distribution
+    Base class for the cumulant generating function of a distribution
     """
 
     def __init__(
@@ -160,6 +160,7 @@ class CumulantGeneratingFunction(ABC):
             return np.where(cond, self._d3K(t), fillna)
 
 
+# TODO: give this one loc and scale params
 class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     r"""
     Class for cumulant generating function of a univariate distribution
@@ -168,7 +169,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     the cumulant generating function is defined as the logarithm of the moment generating function:
 
     .. math::
-        K_X(t) = \log \mathbb{E} \left[ e^{tX} \right]
+        K_X(t) = \log \mathbb{E} \left[ e^{tX} \right].
 
     It satisfies the following properties:
 
@@ -184,7 +185,9 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     References
     ----------
     [1] https://en.wikipedia.org/wiki/Cumulant#Cumulant_generating_function
+
     [2] http://www.scholarpedia.org/article/Cumulants
+
     [3] Bertsekas, Tsitsiklis (2000) - Introduction to probability
 
     Parameters
@@ -237,7 +240,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         for independent random variables :math:`X` and :math:`Y`:
 
         .. math::
-            K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct
+            K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct.
 
         References
         ----------
@@ -271,7 +274,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         for independent random variables :math:`X` and :math:`Y`:
 
         .. math::
-            K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct
+            K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct.
 
         References
         ----------
@@ -291,12 +294,12 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan):
-        """
+        r"""
         Note, the current implementation uses numerical differentiation, but
         an alternative way would be to use the following result:
 
         .. math::
-            K'(t)=\frac{E X\exp{tX}}{M(t)},
+            K'(t)=\frac{\mathbb{E}\left[ Xe^{tX}\right]}{M(t)},
         where :math:`K(t)` is the cumulant generating function, and :math:`M(t)`
         is the moment generating function of :math:`X`.
 
@@ -311,11 +314,23 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @type_wrapper(xloc=1)
     def dK_inv(self, x, t0=None, **kwargs):
-        """
+        r"""
         Inverse of the derivative of the cumulant generating function.
+        It solves:
 
         .. math::
             x = K'(t).
+
+        Note that the inverse equals of :math:`K(t)`, and all its
+        derivatives are given by the Legendre-Fenchel transform :math:`K^*(x)`
+        (and all its derivatives):
+
+        .. math::
+            K^*(x) = \sup_t \left\{<t,x>-K(t)\right\}
+
+        References
+        ----------
+        [1] McCullagh (1985) - Tensor methdos in statistics
         """
         if self._dK_inv is not None:
             y = self._dK_inv(x)
@@ -429,6 +444,19 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @type_wrapper(xloc=1)
     def d2K(self, t, fillna=np.nan):
+        """
+        Note that higher order derivatives can sometimes
+        be found if a generating polynomial exists, i.e.,
+        a polynomial that relatates :math:`K(t)` with its
+        derivatives.
+
+        For example, the gamma distribution has generating
+        polynomial :math:`rK''-(K')^2`.
+
+        References
+        ----------
+        [1] Pistone, Wynn (1999) - Finitely generated cumulants.
+        """
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d2K = nd.Derivative(self.K, n=2)
@@ -442,6 +470,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         return super().d3K(t, fillna=fillna)
 
 
+# TODO: give this one loc and scale params
 class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     r"""
     Class for cumulant generating function of a multivariate distribution
@@ -459,13 +488,16 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         \frac{\partial^m}{\partial^i t_i} K_X(t),
     and where in the denominator we multiply over :math:`i` combinations that sum up to m,
     are supposed to take the form of numpy arrays with m indices.
-    By doing so, the first derivatives, becomes the gradient, the second the Hessian, and the the third, and array with matrices, etc.
+    By doing so, the first derivatives, becomes the gradient, the second the Hessian, and the the third, an array with matrices, etc.
 
     References
     ----------
     [1] https://en.wikipedia.org/wiki/Cumulant#Cumulant_generating_function
+
     [2] Bertsekas, Tsitsiklis (2000) - Introduction to probability
+
     [3] McCullagh (1995) - Tensor methods in statistics
+
     [4] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
 
     Parameters
@@ -526,31 +558,33 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     def variance(self):
         return np.diag(self.cov)
 
-    # TODO: continue here and check the documentation
     def __add__(self, other):
         r"""
         We use the following properties of the cumulant generating function
-        for independent random variables :math:`X` and :math:`Y`:
+        for independent random vectors :math:`X` and :math:`Y`:
 
         .. math::
-            K_{AX+b}(t) = K_X(A^Tt)+ <b,t>
+            K_{AX+BY+c}(t) = K_X(A^Tt)+ K_Y(B^Tt) +<c,t>
 
         Note, when add a univariate random variable :math:`Y`, i.e., in terms of its
         cumulant generating function, we add a univariate random varible
         independent of everything else,
 
         .. math::
-            correlation(X_i,Y)=0, \forall i
+            \text{correlation}(X_i,Y)=0, \forall i
         but the variable will have full correlation with itself.
+        Consequently:
 
         ..math::
-            covariance(X_i+Y, X_j+Y) = covariance(X_i,X_j) + variance(Y)
+            \text{covariance(X_i+Y, X_j+Y)} = covariance(X_i,X_j) + variance(Y).
 
         References
         ----------
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
+
+        [2] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
         """
-        # TODO: insert some references
+        # TODO: double check this
         if isinstance(other, (int, float)):
             return (np.ones(self.dim) * other) * self
         elif isinstance(other, np.ndarray):
@@ -600,12 +634,15 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         for independent random variables :math:`X` and :math:`Y`:
 
          .. math::
-            K_{aX+bY}(t) = K_X(at) + K_Y(bt)
+            K_{AX}(t) = K_X(A^Tt)
 
         References
         ----------
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
+
+        [2] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
         """
+        # TODO: double check this
         if isinstance(other, (int, float)):
             return MultivariateCumulantGeneratingFunction(
                 lambda t: self.K(other * t),
@@ -641,8 +678,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             assert np.allclose(
                 self.d2K0 - np.diag(self.d2K0), 0
             ), "Only linear transformation of indepdent variables are possible"
-            # TODO: Can we find a reference for this? It's probably written down somewhere
-            # TODO: make special lin transformed class
             return MultivariateCumulantGeneratingFunction(
                 lambda t: np.sum([self.K(col * t[i]) for i, col in enumerate(other.T)]),
                 # TODO: continue here and fix the other ones
@@ -654,6 +689,10 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
         else:
             raise ValueError("Can only multiply with a scalar")
+
+    def stack(self, other):
+        # TODO: implement this
+        raise NotImplementedError()
 
     @type_wrapper(xloc=1)
     def K(self, t, fillna=np.nan):
@@ -688,6 +727,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         Inverse of the derivative of the cumulant generating function.
 
+        It solves:
+
         .. math::
             x = K'(t).
         """
@@ -719,10 +760,11 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         return super().d3K(t, fillna=fillna)
 
 
+# TODO: add affine transformation parameters (maybe through  loc and scale?)
 # TODO: write some tests first for the albove, using normal distribution
-# TODO: add other multivriate variates: Lintransformed,
-# TODO: Maybe also independent and bivariate one
-# TODO:: what kind of special structure would that require?
+# TODO: add stacking functionality
+# TODO: add some slicing, so that we can extract the marginals
+# TODO: implement multivariate saddlepoint approximation
 # TODO: can we construct a conditional cgf, or does that always go through the saddlepoint approximation?
 
 
