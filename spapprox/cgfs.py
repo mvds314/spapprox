@@ -172,7 +172,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     It satisfies the following properties:
 
-    * :math:`\kappa_n = \frac{d^n}{dt^n} K_X(t) \big|_{t=0}'
+    * :math:`\kappa_n = \frac{d^n}{dt^n} K_X(t) \big|_{t=0}`
     * :math:`\kappa_1= \mathbb{E} \left[ X \right]`
     * :math:`\kappa_2= \mathbb{E} \left[ X^2 \right] - \mathbb{E} \left[ X \right]^2= \mathrm{Var} \left[ X \right]`
     * Central moments are polynomial functions of the cumulants
@@ -237,10 +237,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         for independent random variables :math:`X` and :math:`Y`:
 
         .. math::
-            K_{aX+bY}(t) = K_X(at) + K_Y(bt)
-
-        .. math::
-            K_{X+c}(t) = K_X(t) +ct
+            K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct
 
         References
         ----------
@@ -270,6 +267,12 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     def __mul__(self, other):
         """
+        We use the following properties of the cumulant generating function
+        for independent random variables :math:`X` and :math:`Y`:
+
+        .. math::
+            K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct
+
         References
         ----------
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
@@ -454,7 +457,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     .. math::
         \frac{\partial^m}{\partial^i t_i} K_X(t),
-    and where in the denominator we multiply over :math:`i` combinations that sum up to m
+    and where in the denominator we multiply over :math:`i` combinations that sum up to m,
     are supposed to take the form of numpy arrays with m indices.
     By doing so, the first derivatives, becomes the gradient, the second the Hessian, and the the third, and array with matrices, etc.
 
@@ -462,6 +465,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     ----------
     [1] https://en.wikipedia.org/wiki/Cumulant#Cumulant_generating_function
     [2] Bertsekas, Tsitsiklis (2000) - Introduction to probability
+    [3] McCullagh (1995) - Tensor methods in statistics
+    [4] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
 
     Parameters
     ----------
@@ -521,13 +526,14 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     def variance(self):
         return np.diag(self.cov)
 
+    # TODO: continue here and check the documentation
     def __add__(self, other):
         r"""
         We use the following properties of the cumulant generating function
         for independent random variables :math:`X` and :math:`Y`:
 
         .. math::
-            K_{X+c}(t) = K_X(t) +ct
+            K_{AX+b}(t) = K_X(A^Tt)+ <b,t>
 
         Note, when add a univariate random variable :math:`Y`, i.e., in terms of its
         cumulant generating function, we add a univariate random varible
@@ -535,7 +541,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
         .. math::
             correlation(X_i,Y)=0, \forall i
-        but the variable will have full correlation with itself so that
+        but the variable will have full correlation with itself.
 
         ..math::
             covariance(X_i+Y, X_j+Y) = covariance(X_i,X_j) + variance(Y)
@@ -685,8 +691,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         .. math::
             x = K'(t).
         """
-        t = np.asanyarray(t)
-        assert t.shape[0] == self.dim, "Dimensions do not match"
+        x = np.asanyarray(x)
+        assert x.shape[0] == self.dim, "Dimensions do not match"
         # TODO: maybe implement a generic solver, is this the gradient or the innerproduct with the gradient
         raise NotImplementedError()
 
