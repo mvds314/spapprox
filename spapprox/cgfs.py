@@ -702,7 +702,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan):
-        """
+        r"""
         Note, the current implementation uses numerical differentiation, but
         an alternative way would be to use the following result:
 
@@ -830,7 +830,7 @@ def laplace(loc=0, scale=1):
 
 
 def univariate_sample_mean(cgf, sample_size):
-    """
+    r"""
     Given the cumulant generating function of a univariate random variable, this class
     provides the saddle point approximation of the sample mean of the random variable.
 
