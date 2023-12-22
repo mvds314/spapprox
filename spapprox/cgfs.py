@@ -20,11 +20,21 @@ from .util import type_wrapper, fib
 class CumulantGeneratingFunction(ABC):
     r"""
     Base class for the cumulant generating function of a distribution
+
+    The cumulant generating function :math:`K(t)` (and, optionally, its derivates) of
+    a random variable (or vector) :math:`X` should be provided.
+
+    Alternatively, the cumulant generalized of the standardized random
+    variable (vector) can be provided together with loc and scale params.
+    For for a random vector those would be a matrix for the scale,
+    and a vector for the loc.
     """
 
     def __init__(
         self,
         K,
+        loc=0,
+        scale=1,
         dK=None,
         dK_inv=None,
         d2K=None,
@@ -44,6 +54,8 @@ class CumulantGeneratingFunction(ABC):
         self._d3K0 = d3K0
         assert domain is None or callable(domain), "domain must be a None or callable"
         self.domain = domain
+        self.loc = loc
+        self.scale = scale
 
     @staticmethod
     def _is_in_domain(t, l=None, g=None, le=None, ge=None):
@@ -82,24 +94,28 @@ class CumulantGeneratingFunction(ABC):
     def std(self):
         return np.sqrt(self.variance)
 
+    # TODO: maybe this implementation is too slow, double cache it with scale and such?
     @property
     def dK0(self):
         if self._dK0 is None:
             self._dK0 = self.dK(0)
-        return self._dK0
+        if not hasattr(self, '_dK0_cache'):
+            self._dK0_cache = np.dot(np.transpose(self.scale), self._dK0) + self.loc
+        return self._dK0_cache
 
     @property
     def d2K0(self):
         if self._d2K0 is None:
             self._d2K0 = self.d2K(0)
-        return self._d2K0
+        return np.dot(np.transpose(np.power(self.scale, 2)), self._dK0)
 
     @property
     def d3K0(self):
         if self._d3K0 is None:
             self._d3K0 = self.d3K(0)
-        return self._d3K0
+        return np.dot(np.transpose(np.power(self.scale, 3)), self._dK0)
 
+    # TODO: should we consider a default implementation here?
     def __add__(self, other):
         raise NotImplementedError()
 
@@ -603,8 +619,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dim=self.dim,
                 dK=lambda t: self.dK(t) + np.array([other.dK(ti) for ti in t]),
                 d2K=lambda t: self.d2K(t) + np.diag([other.d2K(ti) for ti in t]),
-                d3K=lambda t: self.d3K(t)
-                + np.array(
+                d3K=lambda t: self.d3K(t) + np.array(
                     [
                         [
                             [other.d3K(t[i]) if i == j == k else 0 for i in range(self.dim)]
