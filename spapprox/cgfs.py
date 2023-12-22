@@ -19,15 +19,15 @@ from .util import type_wrapper, fib
 
 class CumulantGeneratingFunction(ABC):
     r"""
-    Base class for the cumulant generating function of a distribution
+     Base class for the cumulant generating function of a distribution
 
-    The cumulant generating function :math:`K(t)` (and, optionally, its derivates) of
-    a random variable (or vector) :math:`X` should be provided.
+     The cumulant generating function :math:`K(t)` (and, optionally, its derivates) of
+     a random variable (or vector) :math:`X` should be provided.
 
-    Alternatively, the cumulant generalized of the standardized random
-    variable (vector) can be provided together with loc and scale params.
-    For for a random vector those would be a matrix for the scale,
-    and a vector for the loc.
+     Alternatively, the cumulant generalized of the standardized random
+     variable (vector) can be provided together with loc and scale params.
+    for a random vector those would be a matrix for the scale,
+     and a vector for the loc.
     """
 
     def __init__(
@@ -74,6 +74,28 @@ class CumulantGeneratingFunction(ABC):
         return val
 
     @property
+    def loc(self):
+        return self._loc
+
+    @loc.setter
+    def loc(self, loc):
+        for att in ["_dK0_cache"]:
+            if hasattr(self, att):
+                delattr(self, att)
+        self._loc = np.asanyarray(loc)
+
+    @property
+    def scale(self):
+        return self._scale
+
+    @scale.setter
+    def scale(self, scale):
+        for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
+            if hasattr(self, att):
+                delattr(self, att)
+        self._scale = np.asanyarray(scale)
+
+    @property
     def kappa1(self):
         return self.dK(0)
 
@@ -94,34 +116,39 @@ class CumulantGeneratingFunction(ABC):
     def std(self):
         return np.sqrt(self.variance)
 
-    # TODO: maybe this implementation is too slow, double cache it with scale and such?
     @property
     def dK0(self):
         if self._dK0 is None:
-            self._dK0 = self.dK(0)
-        if not hasattr(self, '_dK0_cache'):
-            self._dK0_cache = np.dot(np.transpose(self.scale), self._dK0) + self.loc
+            self._dK0 = self.dK(0, loc=0, scale=1)
+        if not hasattr(self, "_dK0_cache"):
+            self._dK0_cache = self.scale.T.dot(self._dK0) + self.loc
         return self._dK0_cache
 
     @property
     def d2K0(self):
         if self._d2K0 is None:
-            self._d2K0 = self.d2K(0)
-        return np.dot(np.transpose(np.power(self.scale, 2)), self._dK0)
+            self._d2K0 = self.d2K(0, loc=0, scale=1)
+        if not hasattr(self, "_d2K0_cache"):
+            self._d2K0_cache = np.power(self.scale.T, 2).dot(self._d2K0)
+        return self._d2K0_cache
 
     @property
     def d3K0(self):
         if self._d3K0 is None:
-            self._d3K0 = self.d3K(0)
-        return np.dot(np.transpose(np.power(self.scale, 3)), self._dK0)
+            self._d3K0 = self.d3K(0, loc=0, scale=1)
+        if not hasattr(self, "_d3K0_cache"):
+            self._d3K0_cache = np.power(self.scale.T, 3).dot(self._d3K0)
+        return self._d3K0_cache
 
     # TODO: should we consider a default implementation here?
+    @abstractmethod
     def __add__(self, other):
         raise NotImplementedError()
 
     def __radd__(self, other):
         return self.__add__(other)
 
+    @abstractmethod
     def __mul__(self, other):
         raise NotImplementedError()
 
@@ -129,17 +156,21 @@ class CumulantGeneratingFunction(ABC):
         return self.__mul__(other)
 
     @type_wrapper(xloc=1)
-    def K(self, t, fillna=np.nan):
+    def K(self, t, fillna=np.nan, loc=None, scale=None):
+        loc = self.loc if loc is None else np.asanyarray(loc)
+        scale = self.scale if scale is None else np.asanyarray(scale)
         assert self.domain is not None, "domain must be specified"
         cond = self.domain(t)
         t = np.asanyarray(t)
         t = np.where(cond, t, 0)  # prevent outside domain evaluations
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, self._K(t), fillna)
+            return np.where(cond, self._K(scale.T.dot(t)) + loc.dot(t), fillna)
 
     @type_wrapper(xloc=1)
-    def dK(self, t, fillna=np.nan):
+    def dK(self, t, fillna=np.nan, loc=None, scale=None):
+        loc = self.loc if loc is None else np.asanyarray(loc)
+        scale = self.scale if scale is None else np.asanyarray(scale)
         assert self._dK is not None, "dK must be specified"
         assert self.domain is not None, "domain must be specified"
         cond = self.domain(t)
@@ -147,14 +178,16 @@ class CumulantGeneratingFunction(ABC):
         t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, self._dK(t), fillna)
+            return np.where(cond, scale.T.dot(self._dK(scale.T.dot(t))) + loc, fillna)
 
     @type_wrapper(xloc=1)
-    def dK_inv(self, x, t0=None, **kwargs):
+    def dK_inv(self, x, t0=None, loc=None, scale=None, **kwargs):
         raise NotImplementedError()
 
     @type_wrapper(xloc=1)
-    def d2K(self, t, fillna=np.nan):
+    def d2K(self, t, fillna=np.nan, loc=None, scale=None):
+        loc = self.loc if loc is None else np.asanyarray(loc)
+        scale = self.scale if scale is None else np.asanyarray(scale)
         assert self._d2K is not None, "d2K must be specified"
         assert self.domain is not None, "domain must be specified"
         cond = self.domain(t)
@@ -162,10 +195,12 @@ class CumulantGeneratingFunction(ABC):
         t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, self._d2K(t), fillna)
+            return np.where(cond, np.power(scale.T, 2).dot(self._d2K(scale.T.dot(t))), fillna)
 
     @type_wrapper(xloc=1)
     def d3K(self, t, fillna=np.nan):
+        loc = self.loc if loc is None else np.asanyarray(loc)
+        scale = self.scale if scale is None else np.asanyarray(scale)
         assert self._d3K is not None, "d3K must be specified"
         assert self.domain is not None, "domain must be specified"
         cond = self.domain(t)
@@ -173,10 +208,10 @@ class CumulantGeneratingFunction(ABC):
         t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, self._d3K(t), fillna)
+            return np.where(cond, np.power(scale.T, 3).dot(self._d3K(scale.T.dot(t))), fillna)
 
 
-# TODO: give this one loc and scale params
+# TODO: continue here, and give this one the loc and scale params
 class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     r"""
     Class for cumulant generating function of a univariate distribution
@@ -243,7 +278,15 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             assert callable(domain), "domain must be a tuple or callable"
         super().__init__(
-            K, dK=dK, dK_inv=dK_inv, d2K=d2K, d3K=d3K, domain=domain, dK0=dK0, d2K0=d2K0, d3K0=d3K0
+            K,
+            dK=dK,
+            dK_inv=dK_inv,
+            d2K=d2K,
+            d3K=d3K,
+            domain=domain,
+            dK0=dK0,
+            d2K0=d2K0,
+            d3K0=d3K0,
         )
 
     @property
@@ -283,6 +326,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             raise ValueError(
                 "Can only add a scalar or another UnivariateCumulantGeneratingFunction"
             )
+        super().__add__(other)
 
     def __mul__(self, other):
         """
@@ -307,6 +351,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
         else:
             raise ValueError("Can only multiply with a scalar")
+        super().__mul__(other)
 
     @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan):
@@ -559,7 +604,15 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             assert callable(domain), "domain must be a tuple or callable"
         super().__init__(
-            K, dK=dK, dK_inv=dK_inv, d2K=d2K, d3K=d3K, domain=domain, dK0=dK0, d2K0=d2K0, d3K0=d3K0
+            K,
+            dK=dK,
+            dK_inv=dK_inv,
+            d2K=d2K,
+            d3K=d3K,
+            domain=domain,
+            dK0=dK0,
+            d2K0=d2K0,
+            d3K0=d3K0,
         )
 
     @property
@@ -619,7 +672,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dim=self.dim,
                 dK=lambda t: self.dK(t) + np.array([other.dK(ti) for ti in t]),
                 d2K=lambda t: self.d2K(t) + np.diag([other.d2K(ti) for ti in t]),
-                d3K=lambda t: self.d3K(t) + np.array(
+                d3K=lambda t: self.d3K(t)
+                + np.array(
                     [
                         [
                             [other.d3K(t[i]) if i == j == k else 0 for i in range(self.dim)]
@@ -642,6 +696,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
         else:
             raise ValueError("Can only add a scalar or another CumulantGeneratingFunction")
+        super().__add__(other)
 
     def __mul__(self, other):
         r"""
@@ -704,6 +759,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
         else:
             raise ValueError("Can only multiply with a scalar")
+        super().__mul__(other)
 
     def stack(self, other):
         # TODO: implement this
