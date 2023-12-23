@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 import warnings
 import numpy as np
+import pandas as pd
 import scipy.optimize as spo
 import statsmodels.api as sm
 
@@ -19,15 +20,51 @@ from .util import type_wrapper, fib
 
 class CumulantGeneratingFunction(ABC):
     r"""
-     Base class for the cumulant generating function of a distribution
+    Base class for the cumulant generating function of a random variable (or vector) :math:`X`
 
-     The cumulant generating function :math:`K(t)` (and, optionally, its derivates) of
-     a random variable (or vector) :math:`X` should be provided.
+    The cumulant generating function :math:`K(t)` (and, optionally, its derivates) of
+    a random variable (or vector) :math:`X` should be provided as callable.
 
-     Alternatively, the cumulant generalized of the standardized random
-     variable (vector) can be provided together with loc and scale params.
-    for a random vector those would be a matrix for the scale,
-     and a vector for the loc.
+    If location and scale parameters are provided, the passed callables should correspond to
+    the standardized random variable (vector) :math`Z`, i.e., :math:`X=\text{scale}\times Z + \text{loc}`.
+
+    The class contains logic to:
+    * compute and evaluate derivatives
+    * compute the inverse of the derivative
+    * apply a location and or scale
+    * add other random variables (or vectors)
+
+    Parameters
+    ----------
+    K : callable
+      Cumulant generating function, maps t to K(t), and is able to handle vector valued input
+    loc : float, or array_like (only for random vectors) optional
+      Location parameter of the distribution. If provided, the provided :math:`K` corresponds to the cumulant
+      generating function of the standardized random variable :math:`Z`, and :math:`x=\text{scale}\times Z + \text{loc}`.
+    scale : float, or matrix (only for random vectors) optional
+      Scale parameter of the distribution. If provided, the provided :math:`K` corresponds to the cumulant
+      generating function of the standardized random variable :math:`Z`, and :math:`x=\text{scale}\times Z + \text{loc}`.
+    dK : callable, optional
+      Derivative of the cumulant generating function, maps t to K'(t), and is able to handle vector valued input.
+      If not provided, numerical differentiation is used.
+    d2K : callable, optional
+      Second derivative of the cumulant generating function, maps t to K''(t), and is able to handle vector valued input.
+      If not provided, numerical differentiation is used.
+    d3K : callable, optional
+      Third derivative of the cumulant generating function, maps t to K'''(t), and is able to handle vector valued input.
+      If not provided, numerical differentiation is used.
+    dK0 : float, or array_like (of for random vectors) optional
+      If provided, the derivative of the cumulant generating function at 0, i.e., :math:`K'(0)`.
+      If not provided, it is computed and cached once needed.
+    d2K0 : float, or array_like (of for random vectors) optional
+      If provided, the second derivative of the cumulant generating function at 0, i.e., :math:`K''(0)`.
+      If not provided, it is computed and cached once needed.
+    d3K0 : float, or array_like (of for random vectors) optional
+      If provided, the third derivative of the cumulant generating function at 0, i.e., :math:`K'''(0)`.
+      If not provided, it is computed and cached once needed.
+    domain : tuple or callable optional
+      If provided, the callable should return True if a value is in the domain and False otherwise.
+      If not provided, the domain is assumed to be :math:`(-\infty, \infty)`.
     """
 
     def __init__(
@@ -57,6 +94,7 @@ class CumulantGeneratingFunction(ABC):
         self.loc = loc
         self.scale = scale
 
+    # TODO: make a separate class for the domain
     @staticmethod
     def _is_in_domain(t, l=None, g=None, le=None, ge=None):
         if ~np.isscalar(t):
@@ -142,15 +180,21 @@ class CumulantGeneratingFunction(ABC):
 
     # TODO: should we consider a default implementation here?
     @abstractmethod
-    def __add__(self, other):
+    def add(self, other, inplace=False):
         raise NotImplementedError()
+
+    def __add__(self, other):
+        return self.add(other, inplace=False)
 
     def __radd__(self, other):
         return self.__add__(other)
 
     @abstractmethod
-    def __mul__(self, other):
+    def mul(self, other, inplace=False):
         raise NotImplementedError()
+
+    def __mul__(self, other):
+        return self.mul(other, inplace=False)
 
     def __rmul__(self, other):
         return self.__mul__(other)
@@ -198,7 +242,7 @@ class CumulantGeneratingFunction(ABC):
             return np.where(cond, np.power(scale.T, 2).dot(self._d2K(scale.T.dot(t))), fillna)
 
     @type_wrapper(xloc=1)
-    def d3K(self, t, fillna=np.nan):
+    def d3K(self, t, fillna=np.nan, loc=None, scale=None):
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
         assert self._d3K is not None, "d3K must be specified"
@@ -260,6 +304,8 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     def __init__(
         self,
         K,
+        loc=0,
+        scale=1,
         dK=None,
         dK_inv=None,
         d2K=None,
@@ -279,6 +325,8 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             assert callable(domain), "domain must be a tuple or callable"
         super().__init__(
             K,
+            loc=loc,
+            scale=scale,
             dK=dK,
             dK_inv=dK_inv,
             d2K=d2K,
@@ -289,11 +337,26 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             d3K0=d3K0,
         )
 
+    @CumulantGeneratingFunction.loc.setter
+    def loc(self, loc):
+        assert pd.api.types.is_number(loc) or (
+            isinstance(loc, np.ndarray) and len(loc) == 0
+        ), "loc should be a scalar"
+        CumulantGeneratingFunction.loc.setter(self, loc)
+
+    @CumulantGeneratingFunction.scale.setter
+    def scale(self, scale):
+        assert pd.api.types.is_number(scale) or (
+            isinstance(scale, np.ndarray) and len(scale) == 0
+        ), "scale should be a scalar"
+        CumulantGeneratingFunction.loc.setter(self, scale)
+
     @property
     def variance(self):
         return self.kappa2
 
-    def __add__(self, other):
+    # TODO:continue here: should we change things in place?
+    def add(self, other, inplace=False):
         """
         We use the following properties of the cumulant generating function
         for independent random variables :math:`X` and :math:`Y`:
@@ -301,20 +364,43 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         .. math::
             K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct.
 
+        Parameters
+        ----------
+        other : int, float or UnivariateCumulantGeneratingFunction
+            Object to add
+        inplace : bool, optional
+            Whether to change the current object or create a new one. Now matter what is chosen,
+            the results is always returned.
+
         References
         ----------
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
         """
-        if isinstance(other, (int, float)):
-            return UnivariateCumulantGeneratingFunction(
-                lambda t: self.K(t) + other * t,
-                dK=lambda t: self.dK(t) + other,
-                dK_inv=lambda x: self.dK_inv(x - other),
-                d2K=lambda t: self.d2K(t),
-                d3K=lambda t: self.d3K(t),
-                domain=lambda t: self.domain(t),
-            )
+        if isinstance(other, (int, float)) and inplace:
+            if inplace:
+                self.loc = self.loc + other
+                if hasattr(self, "_dK0_cache"):
+                    delattr(self, "_dK0_cache")
+                return self
+            else:
+                # TODO: continue here
+                return UnivariateCumulantGeneratingFunction(
+                    self._K,
+                    loc=self.loc + other,
+                    scale=self.scale,
+                    dK=self._dK,
+                    dK_inv=self._dK_inv,
+                    d2K=self._d2K,
+                    d3K=self._d3K,
+                    dK0=self._dK0,
+                    d2K0=self._d2K0,
+                    d3K0=self._d3K0,
+                    # TODO: what to put here?
+                    domain=lambda t: self.domain(t - other),
+                )
+        # TODO: continue here with this function
         elif isinstance(other, UnivariateCumulantGeneratingFunction):
+            # TODO: inser loc and scale into the lambda expressions?
             return UnivariateCumulantGeneratingFunction(
                 lambda t: self.K(t) + other.K(t),
                 dK=lambda t: self.dK(t) + other.dK(t),
