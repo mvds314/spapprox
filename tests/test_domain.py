@@ -2,15 +2,9 @@
 # -*- coding: utf-8 -*-
 
 from pathlib import Path
-import warnings
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", category=DeprecationWarning)
-    import numdifftools as nd
 import numpy as np
 import pytest
-from scipy.integrate import quad
-import scipy.stats as sps
 
 from spapprox import Domain
 
