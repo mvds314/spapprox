@@ -379,15 +379,15 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     t, scale=ss
                 )
                 + other.K(t, scale=so),
-                dK=lambda t, ss=self.scale, so=other.scale, ls=self.loc, loco=other.loc: self.dK(
+                dK=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.dK(
                     t, loc=ls, scale=ss
                 )
                 + other.dK(t, loc=lo, scale=so),
-                d2K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, loco=other.loc: self.d2K(
+                d2K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.d2K(
                     t, scale=ss, loc=ls
                 )
                 + other.d2K(t, scale=so, loc=lo),
-                d3K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, loco=other.loc: self.d3K(
+                d3K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.d3K(
                     t, scale=ss, loc=ls
                 )
                 + other.d3K(t, scale=so, loc=lo),
@@ -412,8 +412,8 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         if isinstance(other, (int, float)):
             if inplace:
-                self.loc = scale * self.loc
-                self.scale = scale * self.scale
+                self.loc = other * self.loc
+                self.scale = other * self.scale
                 for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
                     if hasattr(self, att):
                         delattr(self, att)
@@ -508,9 +508,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     if method in bracket_methods and "bracket" not in kwargs:
                         # find valid lb and ub
                         lb = next(
-                            -1 * 0.9**i
-                            for i in range(10000)
-                            if ~np.isnan(self.dK(-1 * 0.9**i))
+                            -1 * 0.9**i for i in range(10000) if ~np.isnan(self.dK(-1 * 0.9**i))
                         )
                         ub = next(
                             1 * 0.9**i for i in range(10000) if ~np.isnan(self.dK(1 * 0.9**i))
@@ -815,7 +813,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
                 d2K=lambda t: np.atleast_2d(other).T.dot(np.atleast_2d(other))
                 * (self.d2K(other * t)),
-                d3K=lambda t, A=np.array(
+                d3K=lambda t,
+                A=np.array(
                     [
                         [
                             [other[i] * other[j] * other[k] for i in range(self.dim)]
@@ -823,8 +822,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ]
                         for k in range(self.dim)
                     ]
-                ): A
-                * self.d3K(other * t),
+                ): A * self.d3K(other * t),
                 domain=lambda t: self.domain(t),
             )
         elif isinstance(other, np.ndarray) and len(other.shape) == 2:
