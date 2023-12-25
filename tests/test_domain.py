@@ -32,6 +32,23 @@ def test_domain_1D():
     assert all(dom.is_in_domain([2, 2]))
 
 
+def test_trans_domain_1D():
+    # Addtion
+    dom = Domain(l=3, g=-1, le=2)
+    assert 3 not in dom
+    assert -0.9 in dom
+    dom = dom + 1
+    assert 3 in dom
+    assert -0.9 not in dom
+    assert 4 not in dom
+    # Scaling
+    dom = 2 * Domain(l=3, g=-1, le=2)
+    assert 4 in dom
+    assert 4.1 not in dom
+    assert -2 not in dom
+    assert -2.01 not in dom
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(
