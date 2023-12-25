@@ -10,23 +10,41 @@ import statsmodels.api as sm
 from .util import type_wrapper
 
 
-# TODO: how can we extend this to a multidimensional setting?
+# TODO: implement for dim>1
 class Domain:
     """
     Represents the domain of a function.
     For a value to be in the domain, it should satisfy all the specied contraints:
     less, greater, less-equal, and greater-equal.
+
+    The specified bounds should satisfy: :math:`g>ge>le>l`.
     """
 
     def __init__(self, dim=1, l=None, g=None, le=None, ge=None):
+        assert pd.api.types.is_integer(dim) and dim > 0, "Dimension should be a positive integer"
         self.dim = dim
+        if dim == 1:
+            assert all(
+                x is None or np.isscalar(x) for x in [l, le, g, ge]
+            ), "Bounds should be scalars in dim 1."
+            specified_bounds = [x for x in [l, le, g, ge] if x is not None]
+            if len(specified_bounds) > 1:
+                assert all(
+                    specified_bounds[i] > specified_bounds[i + 1]
+                    for i in range(len(specified_bounds) - 1)
+                ), "Bounds should satisfy: g>ge>le>l"
+        else:
+            assert all(
+                x is None or np.isscalar(x) or len(x) == dim for x in [l, le, g, ge]
+            ), "Bounds should be scalars in dim 1."
+            raise NotImplementedError("Higher dimensions not supported yet")
         self.l = l
         self.g = g
         self.le = le
         self.ge = ge
 
     def __contains__(self, t):
-        return all(self.is_in_domain(t))
+        return np.all(self.is_in_domain(t))
 
     def __add__(self, other):
         assert pd.api.types.is_number(other), "Can only add a scalar"
