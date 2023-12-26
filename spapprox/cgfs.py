@@ -3,42 +3,44 @@
 import numpy as np
 
 from .cgf_base import UnivariateCumulantGeneratingFunction
+from .domain import Domain
 from .util import type_wrapper
 
 
 def norm(loc=0, scale=1):
     return UnivariateCumulantGeneratingFunction(
-        K=lambda t, loc=loc, scale=scale: loc * t + scale**2 * t**2 / 2,
-        dK=lambda t, loc=loc, scale=scale: loc + scale**2 * t,
-        dK_inv=lambda x, loc=loc, scale=scale: (x - loc) / scale**2,
-        d2K=lambda t, scale=scale: scale**2 + 0 * t,
-        d3K=lambda t: 0 * t,
+        K=lambda t: t**2 / 2,
+        dK=lambda t: t,
+        dK_inv=lambda x: x,
+        d2K=lambda t: np.ones(t.shape),
+        d3K=lambda t: np.zeros(t.shape),
+        loc=loc,
+        scale=scale,
     )
 
 
-def exponential(scale=1):
+def exponential(loc=0, scale=1):
     return UnivariateCumulantGeneratingFunction(
-        K=lambda t, scale=scale: np.log(1 / (1 - scale * t)),
-        dK=lambda t, scale=scale: scale / (1 - scale * t),
-        dK_inv=lambda x, scale=scale: (1 - scale / x) / scale,
-        d2K=lambda t, scale=scale: 1 / (1 / scale - t) ** 2,
-        d3K=lambda t, scale=scale: 2 / (1 / scale - t) ** 3,
-        domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(
-            t, g=-np.inf, l=1 / scale
-        ),
+        K=lambda t: np.log(1 / (1 - t)),
+        dK=lambda t: 1 / (1 - t),
+        dK_inv=lambda x: 1 - 1 / x,
+        d2K=lambda t: 1 / (1 - t) ** 2,
+        d3K=lambda t: 2 / (1 - t) ** 3,
+        domain=Domain(l=1),
+        loc=loc,
+        scale=scale,
     )
 
 
 def gamma(a=1, scale=1):
     return UnivariateCumulantGeneratingFunction(
-        K=lambda t, a=a, scale=scale: -a * np.log(1 - scale * t),
-        dK=lambda t, a=a, scale=scale: a * scale / (1 - scale * t),
-        dK_inv=lambda x, a=a, scale=scale: (1 - a * scale / x) / scale,
-        d2K=lambda t, a=a, scale=scale: a * scale**2 / (1 - scale * t) ** 2,
-        d3K=lambda t, a=a, scale=scale: 2 * a * scale**3 / (1 - scale * t) ** 3,
-        domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(
-            t, g=-np.inf, l=1 / scale
-        ),
+        K=lambda t, a=a: -a * np.log(1 - t),
+        dK=lambda t, a=a: a / (1 - t),
+        dK_inv=lambda x, a=a: (1 - a / x),
+        d2K=lambda t, a=a: a / (1 - t) ** 2,
+        d3K=lambda t, a=a: 2 * a / (1 - t) ** 3,
+        domain=Domain(l=1),
+        scale=scale,
     )
 
 
@@ -48,22 +50,14 @@ def chi2(df=1):
 
 def laplace(loc=0, scale=1):
     return UnivariateCumulantGeneratingFunction(
-        K=lambda t, loc=loc, scale=scale: loc * t - np.log(1 - scale**2 * t**2),
-        dK=lambda t, loc=loc, scale=scale: loc + 2 * scale**2 * t / (1 - scale**2 * t**2),
-        dK_inv=lambda x, loc=loc, scale=scale: (scale - np.sqrt(scale**2 + (x - loc) ** 2))
-        / (-scale * (x - loc)),
-        d2K=lambda t, scale=scale: 2
-        * scale**2
-        * (1 + scale**2 * t**2)
-        / (1 - scale**2 * t**2) ** 2,
-        d3K=lambda t, scale=scale: 4
-        * scale**4
-        * t
-        * (3 + scale**2 * t**2)
-        / (1 - scale**2 * t**2) ** 3,
-        domain=lambda t, scale=scale: UnivariateCumulantGeneratingFunction._is_in_domain(
-            t, g=-1 / scale, l=1 / scale
-        ),
+        K=lambda t: -np.log(1 - t**2),
+        dK=lambda t: 2 * t / (1 - t**2),
+        dK_inv=lambda x: (1 - np.sqrt(1 + x**2)) / (-1 * x),
+        d2K=lambda t: 2 * (1 + t**2) / (1 - t**2) ** 2,
+        d3K=lambda t: 4 * t * (3 + t**2) / (1 - t**2) ** 3,
+        domain=Domain(g=-1, l=1),
+        loc=loc,
+        scale=scale,
     )
 
 
@@ -87,7 +81,7 @@ def univariate_sample_mean(cgf, sample_size):
         dK_inv=lambda x, n=sample_size, cgf=cgf: n * cgf.dK_inv(x),
         d2K=lambda t, n=sample_size, cgf=cgf: cgf.d2K(t / n) / n,
         d3K=lambda t, n=sample_size, cgf=cgf: cgf.d3K(t / n) / n**2,
-        domain=lambda t, n=sample_size, cgf=cgf: cgf.domain(t / n),
+        domain=sample_size * cgf.domain,
     )
 
 
@@ -132,7 +126,7 @@ def poisson(mu=1):
         dK_inv=lambda x, mu=mu: np.log(x / mu),
         d2K=lambda t, mu=mu: mu * np.exp(t),
         d3K=lambda t, mu=mu: mu * np.exp(t),
-        domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(t, ge=0, l=np.inf),
+        domain=Domain(ge=0),
     )
 
 
@@ -147,7 +141,4 @@ def binomial(n=1, p=0.5):
         * (1 - p)
         * ((1 - p) * np.exp(-2 * t) - np.exp(-t) * p)
         / ((1 - p) * np.exp(-t) + p) ** 3,
-        domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(
-            t, g=-np.inf, l=np.inf
-        ),
     )
