@@ -318,14 +318,14 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @CumulantGeneratingFunction.loc.setter
     def loc(self, loc):
         assert pd.api.types.is_number(loc) or (
-            isinstance(loc, np.ndarray) and len(loc) == 0
+            isinstance(loc, np.ndarray) and len(loc.shape) == 0
         ), "loc should be a scalar"
         CumulantGeneratingFunction.loc.fset(self, loc)
 
     @CumulantGeneratingFunction.scale.setter
     def scale(self, scale):
         assert pd.api.types.is_number(scale) or (
-            isinstance(scale, np.ndarray) and len(scale) == 0
+            isinstance(scale, np.ndarray) and len(scale.shape) == 0
         ), "scale should be a scalar"
         CumulantGeneratingFunction.scale.fset(self, scale)
 
@@ -353,7 +353,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         ----------
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
         """
-        if isinstance(other, (int, float)) and inplace:
+        if isinstance(other, (int, float)):
             if inplace:
                 self.loc = self.loc + other
                 if hasattr(self, "_dK0_cache"):
@@ -833,8 +833,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
                 d2K=lambda t: np.atleast_2d(other).T.dot(np.atleast_2d(other))
                 * (self.d2K(other * t)),
-                d3K=lambda t,
-                A=np.array(
+                d3K=lambda t, A=np.array(
                     [
                         [
                             [other[i] * other[j] * other[k] for i in range(self.dim)]
@@ -842,7 +841,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ]
                         for k in range(self.dim)
                     ]
-                ): A * self.d3K(other * t),
+                ): A
+                * self.d3K(other * t),
                 domain=lambda t: self.domain(t),
             )
         elif isinstance(other, np.ndarray) and len(other.shape) == 2:
