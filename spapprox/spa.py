@@ -419,7 +419,7 @@ class UnivariateSaddlePointApprox:
                 t_range = self.infer_t_range(atol=atol, rtol=rtol)
         # Solve saddle point equation
         self._x_cache = np.linspace(*self.cgf.dK(t_range), num=num)
-        self._t_cache = self.cgf._dK_inv(self._x_cache, **solver_kwargs)
+        self._t_cache = self.cgf.dK_inv(self._x_cache, **solver_kwargs)
 
     def fit_ppf(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000):
         """
