@@ -284,9 +284,7 @@ class UnivariateSaddlePointApprox:
                             if ~np.isnan(self.cgf.dK(-1 * 0.9**i))
                         )
                         ub = next(
-                            1 * 0.9**i
-                            for i in range(10000)
-                            if ~np.isnan(self.cgf.dK(1 * 0.9**i))
+                            1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(1 * 0.9**i))
                         )
                         cdf_lb = self.cdf(x=self.cgf.dK(lb), t=lb, fillna=np.nan)
                         cdf_ub = self.cdf(x=self.cgf.dK(ub), t=ub, fillna=np.nan)
@@ -321,7 +319,10 @@ class UnivariateSaddlePointApprox:
                                 raise Exception("Could not find valid ub")
                         assert cdf_lb <= q <= cdf_ub
                         kwargs["bracket"] = [lb, ub]
-                    res = spo.root_scalar(lambda t: self.cdf(t=t) - q, **kwargs)
+                    try:
+                        res = spo.root_scalar(lambda t: self.cdf(t=t) - q, **kwargs)
+                    except Exception:
+                        continue
                     if res.converged and np.isclose(self.cdf(t=res.root), q, atol=ttol):
                         break
                 else:
@@ -347,7 +348,10 @@ class UnivariateSaddlePointApprox:
                 for method in methods:
                     kwargs["method"] = method
                     with np.errstate(invalid="ignore"):
-                        res = spo.root(lambda t, q=q: self.cdf(t=t) - q, **kwargs)
+                        try:
+                            res = spo.root(lambda t, q=q: self.cdf(t=t) - q, **kwargs)
+                        except Exception:
+                            continue
                     if res.success and np.allclose(self.cdf(t=res.x), q, atol=ttol):
                         t = np.asanyarray(res.x)
                         break

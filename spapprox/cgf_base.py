@@ -559,7 +559,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         res = spo.root_scalar(
                             lambda t, x=x: self.dK(t, loc=0, scale=1) - x, **kwargs
                         )
-                    except:
+                    except Exception:
                         continue
                     if res.converged:
                         break
@@ -588,7 +588,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     kwargs["method"] = method
                     try:
                         res = spo.root(lambda t, x=x: self.dK(t, loc=0, scale=1) - x, **kwargs)
-                    except:
+                    except Exception:
                         continue
                     if res.success:
                         y = np.asanyarray(res.x)
@@ -833,7 +833,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
                 d2K=lambda t: np.atleast_2d(other).T.dot(np.atleast_2d(other))
                 * (self.d2K(other * t)),
-                d3K=lambda t, A=np.array(
+                d3K=lambda t,
+                A=np.array(
                     [
                         [
                             [other[i] * other[j] * other[k] for i in range(self.dim)]
@@ -841,8 +842,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ]
                         for k in range(self.dim)
                     ]
-                ): A
-                * self.d3K(other * t),
+                ): A * self.d3K(other * t),
                 domain=lambda t: self.domain(t),
             )
         elif isinstance(other, np.ndarray) and len(other.shape) == 2:
