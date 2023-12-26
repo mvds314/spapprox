@@ -152,7 +152,7 @@ class CumulantGeneratingFunction(ABC):
         if self._d2K0 is None:
             self._d2K0 = self.d2K(0, loc=0, scale=1)
         if not hasattr(self, "_d2K0_cache"):
-            self._d2K0_cache = np.power(self.scale.T, 2).dot(self._d2K0)
+            self._d2K0_cache = np.dot(np.power(self.scale.T, 2), self._d2K0)
         return self._d2K0_cache
 
     @property
@@ -160,7 +160,7 @@ class CumulantGeneratingFunction(ABC):
         if self._d3K0 is None:
             self._d3K0 = self.d3K(0, loc=0, scale=1)
         if not hasattr(self, "_d3K0_cache"):
-            self._d3K0_cache = np.power(self.scale.T, 3).dot(self._d3K0)
+            self._d3K0_cache = np.dot(np.power(self.scale.T, 3), self._d3K0)
         return self._d3K0_cache
 
     # TODO: should we consider a default implementation here?
@@ -190,8 +190,8 @@ class CumulantGeneratingFunction(ABC):
         scale = self.scale if scale is None else np.asanyarray(scale)
         t = np.asanyarray(t)
         tt = scale.T.dot(t)
-        cond = tt in self.domain
-        t = np.where(cond, t, 0)  # prevent outside domain evaluations
+        cond = self.domain.is_in_domain(tt)
+        tt = np.where(cond, tt, 0)  # prevent outside domain evaluations
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             return np.where(cond, self._K(tt) + loc.dot(t), fillna)
@@ -203,14 +203,17 @@ class CumulantGeneratingFunction(ABC):
         assert self._dK is not None, "dK must be specified"
         t = np.asanyarray(t)
         tt = scale.T.dot(t)
-        cond = tt in self.domain
-        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        cond = self.domain.is_in_domain(tt)
+        tt = np.where(cond, tt, 0)  # numdifftolls doesn't work if any evaluetes to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             return np.where(cond, scale.T.dot(self._dK(tt)) + loc, fillna)
 
     @type_wrapper(xloc=1)
-    def dK_inv(self, x, t0=None, loc=None, scale=None, **kwargs):
+    def dK_inv(self, x, loc=None, scale=None, fillna=np.nan):
+        """
+        Default implementation
+        """
         raise NotImplementedError()
 
     @type_wrapper(xloc=1)
@@ -220,24 +223,24 @@ class CumulantGeneratingFunction(ABC):
         assert self._d2K is not None, "d2K must be specified"
         t = np.asanyarray(t)
         tt = scale.T.dot(t)
-        cond = tt in self.domain
-        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        cond = self.domain.is_in_domain(tt)
+        tt = np.where(cond, tt, 0)  # numdifftolls doesn't work if any evaluetes to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, np.power(scale.T, 2).dot(self._d2K(tt)), fillna)
+            return np.where(cond, np.dot(np.power(scale.T, 2), self._d2K(tt)), fillna)
 
     @type_wrapper(xloc=1)
     def d3K(self, t, fillna=np.nan, loc=None, scale=None):
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
         assert self._d3K is not None, "d3K must be specified"
-        cond = t in self.domain
         t = np.asanyarray(t)
         tt = scale.T.dot(t)
-        t = np.where(cond, t, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        cond = tt in self.domain
+        tt = np.where(cond, tt, 0)  # numdifftolls doesn't work if any evaluetes to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, np.power(scale.T, 3).dot(self._d3K(tt)), fillna)
+            return np.where(cond, np.dot(np.power(scale.T, 3), self._d3K(tt)), fillna)
 
 
 # TODO: continue here, and give this one the loc and scale params
@@ -317,20 +320,19 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         assert pd.api.types.is_number(loc) or (
             isinstance(loc, np.ndarray) and len(loc) == 0
         ), "loc should be a scalar"
-        CumulantGeneratingFunction.loc.setter(loc)
+        CumulantGeneratingFunction.loc.fset(self, loc)
 
     @CumulantGeneratingFunction.scale.setter
     def scale(self, scale):
         assert pd.api.types.is_number(scale) or (
             isinstance(scale, np.ndarray) and len(scale) == 0
         ), "scale should be a scalar"
-        CumulantGeneratingFunction.loc.setter(scale)
+        CumulantGeneratingFunction.scale.fset(self, scale)
 
     @property
     def variance(self):
         return self.kappa2
 
-    # TODO:continue here: should we change things in place?
     def add(self, other, inplace=False):
         """
         We use the following properties of the cumulant generating function
@@ -371,7 +373,6 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     d3K0=self._d3K0,
                     domain=self.domain,
                 )
-        # TODO: continue here
         elif isinstance(other, UnivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for UniariateCumulantGeneratingFunction"
             return UnivariateCumulantGeneratingFunction(
@@ -436,7 +437,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             raise ValueError("Can only multiply with a scalar")
 
     @type_wrapper(xloc=1)
-    def dK(self, t, fillna=np.nan):
+    def dK(self, t, loc=None, scale=None, fillna=np.nan):
         r"""
         Note, the current implementation uses numerical differentiation, but
         an alternative way would be to use the following result:
@@ -452,11 +453,11 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._dK = nd.Derivative(self.K, n=1)
-        return super().dK(t, fillna=fillna)
+            self._dK = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=1)
+        return super().dK(t, loc=loc, scale=scale, fillna=fillna)
 
     @type_wrapper(xloc=1)
-    def dK_inv(self, x, t0=None, **kwargs):
+    def dK_inv(self, x, t0=None, loc=None, scale=None, fillna=np.nan, **kwargs):
         r"""
         Inverse of the derivative of the cumulant generating function.
         It solves:
@@ -475,14 +476,20 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         ----------
         [1] McCullagh (1985) - Tensor methdos in statistics
         """
+        # Handle scaling
+        loc = self.loc if loc is None else np.asanyarray(loc)
+        scale = self.scale if scale is None else np.asanyarray(scale)
+        x = np.asanyarray((x - loc) / scale)
         if self._dK_inv is not None:
-            y = self._dK_inv(x)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+                y = self._dK_inv(x)
         else:
             if len(x.shape) == 0:  # Then it is a scalar "array"
                 x = x.tolist()
                 kwargs["x0"] = 0 if t0 is None else t0
-                kwargs.setdefault("fprime", lambda t: self.d2K(t))
-                kwargs.setdefault("fprime2", lambda t: self.d3K(t))
+                kwargs.setdefault("fprime", lambda t: self.d2K(t, loc=0, scale=1))
+                kwargs.setdefault("fprime2", lambda t: self.d3K(t, loc=0, scale=1))
                 bracket_methods = [
                     "bisect",
                     "brentq",
@@ -508,13 +515,17 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     if method in bracket_methods and "bracket" not in kwargs:
                         # find valid lb and ub
                         lb = next(
-                            -1 * 0.9**i for i in range(10000) if ~np.isnan(self.dK(-1 * 0.9**i))
+                            -1 * 0.9**i
+                            for i in range(10000)
+                            if ~np.isnan(self.dK(-1 * 0.9**i, loc=0, scale=1))
                         )
                         ub = next(
-                            1 * 0.9**i for i in range(10000) if ~np.isnan(self.dK(1 * 0.9**i))
+                            1 * 0.9**i
+                            for i in range(10000)
+                            if ~np.isnan(self.dK(1 * 0.9**i, loc=0, scale=1))
                         )
-                        dKlb = self.dK(lb)
-                        dKub = self.dK(ub)
+                        dKlb = self.dK(lb, loc=0, scale=1)
+                        dKub = self.dK(ub, loc=0, scale=1)
                         assert lb < ub and dKlb < dKub, "dK is assumed to be increasing"
                         lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
                         ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
@@ -533,7 +544,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                                 raise Exception("Could not find valid lb")
                         while x > dKub:
                             ub_new = ub / ub_scaling
-                            dKub_new = self.dK(ub_new)
+                            dKub_new = self.dK(ub_new, loc=0, scale=1)
                             if ~np.isnan(dKub_new):
                                 ub = ub_new
                                 dKub = dKub_new
@@ -541,10 +552,15 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                             try:
                                 ub_scaling = next(ub_scalings)
                             except StopIteration:
-                                raise Exception("Could not find valid ub")
-                        assert self.dK(lb) < x < self.dK(ub)
+                                raise Exception("Coucld not find valid ub")
+                        assert self.dK(lb, loc=0, scale=1) < x < self.dK(ub, loc=0, scale=1)
                         kwargs["bracket"] = [lb, ub]
-                    res = spo.root_scalar(lambda t, x=x: self.dK(t) - x, **kwargs)
+                    try:
+                        res = spo.root_scalar(
+                            lambda t, x=x: self.dK(t, loc=0, scale=1) - x, **kwargs
+                        )
+                    except:
+                        continue
                     if res.converged:
                         break
                 else:
@@ -552,7 +568,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 y = np.asanyarray(res.root)
             else:
                 kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
-                kwargs.setdefault("jac", lambda t: np.diag(self.d2K(t)))
+                kwargs.setdefault("jac", lambda t: np.diag(self.d2K(t, loc=0, scale=1)))
                 if "method" in kwargs:
                     methods = [kwargs["method"]]
                 else:
@@ -570,21 +586,25 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     ]
                 for method in methods:
                     kwargs["method"] = method
-                    res = spo.root(lambda t, x=x: self.dK(t) - x, **kwargs)
+                    try:
+                        res = spo.root(lambda t, x=x: self.dK(t, loc=0, scale=1) - x, **kwargs)
+                    except:
+                        continue
                     if res.success:
                         y = np.asanyarray(res.x)
                         break
                 else:
                     y = np.asanyarray(
                         [
-                            self.dK_inv(xx, t0=None if t0 is None else t0[i])
+                            self.dK_inv(xx, loc=0, scale=1, t0=None if t0 is None else t0[i])
                             for i, xx in enumerate(x)
                         ]
                     )
-        return y
+        cond = self.domain.is_in_domain(y)
+        return np.where(cond, y / scale, fillna)
 
     @type_wrapper(xloc=1)
-    def d2K(self, t, fillna=np.nan):
+    def d2K(self, t, loc=None, scale=None, fillna=np.nan):
         """
         Note that higher order derivatives can sometimes
         be found if a generating polynomial exists, i.e.,
@@ -600,15 +620,15 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._d2K = nd.Derivative(self.K, n=2)
-        return super().d2K(t, fillna=fillna)
+            self._d2K = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=2)
+        return super().d2K(t, loc=loc, scale=scale, fillna=fillna)
 
     @type_wrapper(xloc=1)
-    def d3K(self, t, fillna=np.nan):
+    def d3K(self, t, loc=None, scale=None, fillna=np.nan):
         if self._d3K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._d3K = nd.Derivative(self.K, n=3)
-        return super().d3K(t, fillna=fillna)
+            self._d3K = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=3)
+        return super().d3K(t, loc=loc, scale=scale, fillna=fillna)
 
 
 # TODO: give this one loc and scale params
@@ -813,8 +833,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
                 d2K=lambda t: np.atleast_2d(other).T.dot(np.atleast_2d(other))
                 * (self.d2K(other * t)),
-                d3K=lambda t,
-                A=np.array(
+                d3K=lambda t, A=np.array(
                     [
                         [
                             [other[i] * other[j] * other[k] for i in range(self.dim)]
@@ -822,7 +841,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ]
                         for k in range(self.dim)
                     ]
-                ): A * self.d3K(other * t),
+                ): A
+                * self.d3K(other * t),
                 domain=lambda t: self.domain(t),
             )
         elif isinstance(other, np.ndarray) and len(other.shape) == 2:

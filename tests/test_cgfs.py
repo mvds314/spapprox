@@ -14,6 +14,7 @@ import scipy.stats as sps
 
 from spapprox import (
     UnivariateCumulantGeneratingFunction,
+    Domain,
     norm,
     exponential,
     gamma,
@@ -154,7 +155,7 @@ def test_cgf(cgf_to_test, cgf, ts, dist):
 def test_domain():
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
-        domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(t, l=1),
+        domain=Domain(l=1),
     )
     assert np.isclose(cgf.K(0.5), 0.0625)
     assert np.isnan(cgf.K(1.5))
@@ -166,7 +167,7 @@ def test_domain():
     assert np.isnan(cgf.d3K(1.5))
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
-        domain=(1, 2),
+        domain=Domain(g=1, l=2),
     )
     assert np.isnan(cgf.K(0.5))
     assert ~np.isnan(cgf.K(1.5))
@@ -178,7 +179,7 @@ def test_domain():
     assert ~np.isnan(cgf.d3K(1.5))
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
-        domain=(0, 2),
+        domain=Domain(g=0, l=2),
     )
     val = cgf.K([-1, 1])
     assert np.isnan(val[0])
@@ -190,7 +191,7 @@ def test_domain():
     [
         UnivariateCumulantGeneratingFunction(
             K=lambda t: t**4,
-            domain=lambda t: UnivariateCumulantGeneratingFunction._is_in_domain(t, l=1),
+            domain=Domain(l=1),
         ),
         univariate_empirical(np.arange(10)),
     ],
@@ -200,13 +201,13 @@ def test_return_type(cgf):
         assert np.isscalar(f(10))
         assert ~np.isscalar(f([10]))
         assert ~np.isscalar(f([10, 10]))
-        if not cgf.domain(10):
+        if 10 not in cgf.domain:
             assert np.isnan(f(10))
             assert np.isnan(f([10])).all()
             assert np.isnan(f([10, 10])).all()
         assert np.isscalar(f(0)) and ~np.isnan(f(0))
         assert ~np.isscalar(f([0, 1]))
-        if not cgf.domain(1):
+        if 1 not in cgf.domain:
             assert np.isnan(f([0, 1])).any() and ~np.isnan(f([0, 1])).all()
             assert (
                 ~np.isscalar(f([1, 1], fillna=0))
@@ -283,8 +284,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                # "-k",
-                # "test_return_type",
+                "-k",
+                "test_dKinv",
                 "--tb=auto",
                 "--pdb",
             ]
