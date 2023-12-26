@@ -243,7 +243,6 @@ class CumulantGeneratingFunction(ABC):
             return np.where(cond, np.dot(np.power(scale.T, 3), self._d3K(tt)), fillna)
 
 
-# TODO: continue here, and give this one the loc and scale params
 class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     r"""
     Class for cumulant generating function of a univariate distribution
@@ -631,7 +630,9 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         return super().d3K(t, loc=loc, scale=scale, fillna=fillna)
 
 
+# TODO: compare correctness current implementation and write some unittests
 # TODO: give this one loc and scale params
+# TODO: extend domain
 class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     r"""
     Class for cumulant generating function of a multivariate distribution
@@ -683,6 +684,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         self,
         K,
         dim=2,
+        loc=0,
+        scale=1,
         dK=None,
         dK_inv=None,
         d2K=None,
@@ -694,17 +697,10 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     ):
         assert isinstance(dim, int) and dim > 0, "dimimension must be an integer greater than 0"
         self.dim = dim
-        if domain is None:
-            domain = [(-np.inf, np.inf) for _ in range(dim)]
-        if isinstance(domain, list):
-            domain = lambda t, domain=domain: all(
-                self._is_in_domain(ti, ge=domi[0], le=domi[1], l=np.inf, g=-np.inf)
-                for ti, domi in zip(t, domain)
-            )
-        else:
-            assert callable(domain), "domain must be a tuple or callable"
         super().__init__(
             K,
+            loc=loc,
+            scale=scale,
             dK=dK,
             dK_inv=dK_inv,
             d2K=d2K,
@@ -714,6 +710,20 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             d2K0=d2K0,
             d3K0=d3K0,
         )
+
+    @CumulantGeneratingFunction.loc.setter
+    def loc(self, loc):
+        assert pd.api.types.is_number(loc) or (
+            isinstance(loc, np.ndarray) and len(loc.shape) == 1 and len(loc) == self.dim
+        ), "loc should be a scalar"
+        CumulantGeneratingFunction.loc.fset(self, loc)
+
+    @CumulantGeneratingFunction.scale.setter
+    def scale(self, scale):
+        assert pd.api.types.is_number(scale) or (
+            isinstance(scale, np.ndarray) and len(scale.shape) == 1 and len(scale) == self.dim
+        ), "scale should be a scalar"
+        CumulantGeneratingFunction.scale.fset(self, scale)
 
     @property
     def cov(self):
@@ -833,7 +843,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
                 d2K=lambda t: np.atleast_2d(other).T.dot(np.atleast_2d(other))
                 * (self.d2K(other * t)),
-                d3K=lambda t, A=np.array(
+                d3K=lambda t,
+                A=np.array(
                     [
                         [
                             [other[i] * other[j] * other[k] for i in range(self.dim)]
@@ -841,8 +852,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ]
                         for k in range(self.dim)
                     ]
-                ): A
-                * self.d3K(other * t),
+                ): A * self.d3K(other * t),
                 domain=lambda t: self.domain(t),
             )
         elif isinstance(other, np.ndarray) and len(other.shape) == 2:
@@ -907,6 +917,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         x = np.asanyarray(x)
         assert x.shape[0] == self.dim, "Dimensions do not match"
         # TODO: maybe implement a generic solver, is this the gradient or the innerproduct with the gradient
+        # TODO: maybe copy the multivariate approach from the univariate case
         raise NotImplementedError()
 
     @type_wrapper(xloc=1)
@@ -932,9 +943,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         return super().d3K(t, fillna=fillna)
 
 
-# TODO: add affine transformation parameters (maybe through  loc and scale?)
+# TODO: implement multivariate saddlepoint approximation
 # TODO: write some tests first for the albove, using normal distribution
+# TODO: add affine transformation parameters (maybe through  loc and scale?)
 # TODO: add stacking functionality
 # TODO: add some slicing, so that we can extract the marginals
-# TODO: implement multivariate saddlepoint approximation
 # TODO: can we construct a conditional cgf, or does that always go through the saddlepoint approximation?
