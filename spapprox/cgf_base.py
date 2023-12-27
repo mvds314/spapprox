@@ -662,6 +662,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     [4] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
 
+    [5] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
+
     Parameters
     ----------
     K : callable
@@ -737,6 +739,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     def variance(self):
         return np.diag(self.cov)
 
+    def __getitem__(self, item):
+        """
+        Just set the other components to zero
+        See Kolassa (2006) - Series approximation methods in statistics, Chapter 6.8
+        """
+
     def add(self, other, inplace=True):
         r"""
         We use the following properties of the cumulant generating function
@@ -762,6 +770,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
 
         [2] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
+
+        [3] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
         """
         raise NotImplementedError()
         # TODO: double check this
@@ -822,6 +832,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
 
         [2] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
+
+        [3] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
         """
         raise NotImplementedError()
         # TODO: double check this
@@ -843,7 +855,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
                 d2K=lambda t: np.atleast_2d(other).T.dot(np.atleast_2d(other))
                 * (self.d2K(other * t)),
-                d3K=lambda t, A=np.array(
+                d3K=lambda t,
+                A=np.array(
                     [
                         [
                             [other[i] * other[j] * other[k] for i in range(self.dim)]
@@ -851,8 +864,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ]
                         for k in range(self.dim)
                     ]
-                ): A
-                * self.d3K(other * t),
+                ): A * self.d3K(other * t),
                 domain=lambda t: self.domain(t),
             )
         elif isinstance(other, np.ndarray) and len(other.shape) == 2:
@@ -934,6 +946,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @type_wrapper(xloc=1)
     def d3K(self, t, fillna=np.nan):
+        """
+        See Kolassa 2006, Chapter 6 for some insights
+        """
         # TODO: I'm not sure what this is supposed to be
         t = np.asanyarray(t)
         assert t.shape[0] == self.dim, "Dimensions do not match"

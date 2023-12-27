@@ -481,6 +481,21 @@ class UnivariateSaddlePointApproxMean(UnivariateSaddlePointApprox):
         super().__init__(cgf, pdf_normalization=pdf_normalization)
 
 
+class MultivariateSaddlePointApprox:
+    """
+    See the Kolasse book on how to remove singularities
+    DasGupta claims the multidimensional case is too notationally comples
+
+    References
+    ----------
+    [1] Kolassa (2006) - Series approximations in statistics
+    [2] DasGupta (2008) - Asymptotic theory of statistics and probability, Chapter 14.9
+    [3] Reid (1988) - Saddlepoint methods and statistical inference
+    """
+
+    pass
+
+
 # TODO: implement Dirichlet bootstrap
 # TODO: implement multivariate saddle point approximations
 # TODO: implement other bootstraps
