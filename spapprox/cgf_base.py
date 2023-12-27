@@ -843,8 +843,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
                 d2K=lambda t: np.atleast_2d(other).T.dot(np.atleast_2d(other))
                 * (self.d2K(other * t)),
-                d3K=lambda t,
-                A=np.array(
+                d3K=lambda t, A=np.array(
                     [
                         [
                             [other[i] * other[j] * other[k] for i in range(self.dim)]
@@ -852,7 +851,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ]
                         for k in range(self.dim)
                     ]
-                ): A * self.d3K(other * t),
+                ): A
+                * self.d3K(other * t),
                 domain=lambda t: self.domain(t),
             )
         elif isinstance(other, np.ndarray) and len(other.shape) == 2:
@@ -941,6 +941,26 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d3K = nd.Derivative(self.K, n=3)
         return super().d3K(t, fillna=fillna)
+
+    @classmethod
+    def from_univariate(cls, *cgfs):
+        """
+        Create a multivariate cgf from a list of univariate cgfs.
+        """
+        assert (
+            len(cgfs) > 1
+        ), "at least 2 Univariate cumulant generating functions should be supplied"
+        assert all(
+            isinstance(cgf, UnivariateCumulantGeneratingFunction) for cgf in cgfs
+        ), "All cgfs must be univariate"
+        return cls(
+            lambda t, cgfs=cgfs: np.sum([cgf.K(ti) for ti, cgf in zip(t, cgfs)]),
+            dim=len(cgfs),
+            loc=0,
+            scale=1,
+            dK=lambda t, cgfs=cgfs: np.array([cgf.dK(ti) for ti, cgf in zip(t, cgfs)]),
+            d2K=lambda t, cgfs=cgfs: np.diag([cgf.d2K(ti) for ti, cgf in zip(t, cgfs)]),
+        )
 
 
 # TODO: implement multivariate saddlepoint approximation
