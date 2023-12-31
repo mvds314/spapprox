@@ -30,6 +30,15 @@ def test_domain_1D():
     assert [-1, 3] not in dom
     assert 2 in dom
     assert all(dom.is_in_domain([2, 2]))
+    # Test At <= a and Bt<b bounds
+    dom = Domain(A=np.array([[1]]), a=np.array([2]))
+    assert 1 in dom
+    assert len(dom.is_in_domain([1, 1])) == 2 and all(dom.is_in_domain([2, 2]))
+    assert len(dom.is_in_domain([3, 3])) == 2 and not any(dom.is_in_domain([3, 3]))
+    dom = Domain(A=np.array([[1]]), a=np.array([2]), B=np.array([[2]]), b=np.array([1]))
+    assert 1 not in dom
+    assert len(dom.is_in_domain([0.1, 0.1])) == 2 and all(dom.is_in_domain([0.2, 0.2]))
+    assert len(dom.is_in_domain([0.5, 0.5])) == 2 and not any(dom.is_in_domain([0.5, 0.5]))
 
 
 def test_trans_domain_1D():
@@ -41,6 +50,13 @@ def test_trans_domain_1D():
     assert 3 in dom
     assert -0.9 not in dom
     assert 4 not in dom
+    # Test transformation with A, B
+    dom = Domain(l=3, g=-1, le=2, A=[[1]], a=[1])
+    assert 2 not in dom
+    dom = dom + 1
+    assert 2 in dom
+    with pytest.raises(ValueError):
+        dom.mul(2 * np.ones(1))
     # Scaling
     dom = 2 * Domain(l=3, g=-1, le=2)
     assert 4 in dom
@@ -55,7 +71,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 # "-k",
-                # "test_return_type",
+                # "test_trans_domain_1D",
                 "--tb=auto",
                 "--pdb",
             ]
