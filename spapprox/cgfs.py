@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
+import statsmodels.api as sm
 
-from .cgf_base import UnivariateCumulantGeneratingFunction
+from .cgf_base import UnivariateCumulantGeneratingFunction, MultivariateCumulantGeneratingFunction
 from .domain import Domain
 from .util import type_wrapper
 
@@ -16,6 +17,67 @@ def norm(loc=0, scale=1):
         d3K=lambda t: np.zeros(t.shape),
         loc=loc,
         scale=scale,
+    )
+
+
+def multivariate_norm(loc=None, scale=None, dim=None, cov=None):
+    """
+    Multivariate normal distribution with mean vector `loc` and covariance matrix `scale`.
+    Scale can also be a vector of standard deviations.
+
+    Parameters
+    ----------
+    loc: array_like, or float
+       location vector
+    scale: matrix, array_like, or float
+       scale matrix. Whan an array is provided, it is interpreted as a vector of standard deviations.
+    dim: int
+       dimension of the multivariate normal distribution. When not specified, it is either
+       inferred or defaults to 2 if, loc and scale can be scalars.
+    cov: matrix, array_like, or float
+       can be used instead of scale to provide the covariance matrix. The scale equals
+       the Cholesky decomposition of the covariance matrix.
+
+    References
+    ----------
+    [1] Butler (2007) - Saddlepoint Approximations with Applications
+    """
+    # Initiliaze
+    if cov is not None:
+        assert scale is None, "Cannot specify both scale and cov"
+        scale = np.linalg.cholesky(cov)
+    if loc is not None:
+        loc = np.asanyarray(loc)
+    if scale is not None:
+        scale = np.asanyarray(scale)
+    # Infer dimension
+    if dim is None:
+        if loc is not None and len(loc.shape) > 0:
+            dim = loc.shape[0]
+        elif scale is not None and len(scale.shape) > 0:
+            dim = scale.shape[0]
+        else:
+            dim = 2
+    # Validate input
+    assert (
+        loc is None or len(loc.shape) == 0 or (len(loc.shape) == 1 and loc.shape[0] == dim)
+    ), "loc has wrong shape"
+    assert (
+        scale is None
+        or len(scale.shape) == 0
+        or (len(scale.shape) == 1 and scale.shape[0] == dim)
+        or (len(scale.shape) == 2 and scale.shape[1] == dim)
+    ), "scale has wrong shape"
+    # Return
+    return MultivariateCumulantGeneratingFunction(
+        K=lambda t: np.linalg.norm(t) ** 2 / 2,
+        dim=dim,
+        dK=lambda t: t,
+        dK_inv=lambda x: x,
+        d2K=lambda t: np.ones(t.shape),
+        d3K=lambda t: np.zeros(t.shape),
+        loc=loc if loc is None or len(loc.shape) > 0 else loc.tolist(),
+        scale=scale if scale is None or len(scale.shape) > 0 else scale.tolist(),
     )
 
 

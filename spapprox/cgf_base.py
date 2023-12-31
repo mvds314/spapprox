@@ -699,6 +699,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     ):
         assert isinstance(dim, int) and dim > 0, "dimimension must be an integer greater than 0"
         self.dim = dim
+        if domain is None:
+            domain = Domain(dim=dim)
         super().__init__(
             K,
             loc=loc,
