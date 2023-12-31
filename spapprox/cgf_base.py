@@ -191,10 +191,10 @@ class CumulantGeneratingFunction(ABC):
         t = np.asanyarray(t)
         tt = scale.T.dot(t)
         cond = self.domain.is_in_domain(tt)
-        tt = np.where(cond, tt, 0)  # prevent outside domain evaluations
+        tt = np.where(cond, tt.T, 0).T  # prevent outside domain evaluations
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, self._K(tt) + loc.dot(t), fillna)
+            return np.where(cond, self._K(tt) + np.sum(loc * t), fillna)
 
     @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan, loc=None, scale=None):
@@ -204,7 +204,7 @@ class CumulantGeneratingFunction(ABC):
         t = np.asanyarray(t)
         tt = scale.T.dot(t)
         cond = self.domain.is_in_domain(tt)
-        tt = np.where(cond, tt, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        tt = np.where(cond, tt.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             return np.where(cond, scale.T.dot(self._dK(tt)) + loc, fillna)
@@ -224,7 +224,7 @@ class CumulantGeneratingFunction(ABC):
         t = np.asanyarray(t)
         tt = scale.T.dot(t)
         cond = self.domain.is_in_domain(tt)
-        tt = np.where(cond, tt, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        tt = np.where(cond, tt.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             return np.where(cond, np.dot(np.power(scale.T, 2), self._d2K(tt)), fillna)
@@ -237,7 +237,7 @@ class CumulantGeneratingFunction(ABC):
         t = np.asanyarray(t)
         tt = scale.T.dot(t)
         cond = tt in self.domain
-        tt = np.where(cond, tt, 0)  # numdifftolls doesn't work if any evaluetes to NaN
+        tt = np.where(cond, tt.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             return np.where(cond, np.dot(np.power(scale.T, 3), self._d3K(tt)), fillna)
@@ -857,8 +857,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
                 d2K=lambda t: np.atleast_2d(other).T.dot(np.atleast_2d(other))
                 * (self.d2K(other * t)),
-                d3K=lambda t,
-                A=np.array(
+                d3K=lambda t, A=np.array(
                     [
                         [
                             [other[i] * other[j] * other[k] for i in range(self.dim)]
@@ -866,7 +865,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ]
                         for k in range(self.dim)
                     ]
-                ): A * self.d3K(other * t),
+                ): A
+                * self.d3K(other * t),
                 domain=lambda t: self.domain(t),
             )
         elif isinstance(other, np.ndarray) and len(other.shape) == 2:
@@ -915,7 +915,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         assert t.shape[0] == self.dim, "Dimensions do not match"
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._dK = nd.Derivative(self.K, n=1)
+            self._dK = nd.Gradient(self.K)
         return super().dK(t, fillna=fillna)
 
     @type_wrapper(xloc=1)
@@ -937,13 +937,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @type_wrapper(xloc=1)
     def d2K(self, t, fillna=np.nan):
         """
-        This is supposed to be the Hessian, i.e., the matrix with second order partial derivatives.
+        This is the Hessian, i.e., the matrix with second order partial derivatives.
         """
         t = np.asanyarray(t)
         assert t.shape[0] == self.dim, "Dimensions do not match"
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._d2K = nd.Derivative(self.K, n=2)
+            self._d2K = nd.Hessian(self.K)
         return super().d2K(t, fillna=fillna)
 
     @type_wrapper(xloc=1)
