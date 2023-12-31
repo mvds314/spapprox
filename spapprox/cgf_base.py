@@ -194,7 +194,14 @@ class CumulantGeneratingFunction(ABC):
         tt = np.where(cond, tt.T, 0).T  # prevent outside domain evaluations
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, self._K(tt) + np.sum(loc * t), fillna)
+            val = self._K(tt)
+            if np.isscalar(val):
+                val += np.sum(loc * t)
+            elif pd.api.types.is_array_like(val) and len(val.shape) == 1:
+                val += loc.dot(t)
+            else:
+                raise RuntimeError("Only scalar and vector valued return values are supported")
+            return np.where(cond, val, fillna)
 
     @type_wrapper(xloc=1)
     def dK(self, t, fillna=np.nan, loc=None, scale=None):
