@@ -163,20 +163,32 @@ class Domain:
                 A = np.full((0, self.dim), 0)
                 a = np.full(0, 0)
                 if self.le is not None:
-                    A = np.vstack(A, other)
-                    a = np.append(a, other.dot(self.le))
+                    A = np.vstack((A, other))
+                    a = np.append(
+                        a,
+                        other.dot(np.full(self.dim, self.le) if np.isscalar(self.le) else self.le),
+                    )
                 if self.ge is not None:
-                    A = np.vstack(A, -other)
-                    a = np.append(a, -other.dot(self.ge))
+                    A = np.vstack((A, -other))
+                    a = np.append(
+                        a,
+                        -other.dot(
+                            np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
+                        ),
+                    )
             if self.l is not None or self.g is not None:
                 B = np.full((0, self.dim), 0)
                 b = np.full(0, 0)
                 if self.l is not None:
-                    B = np.vstack(B, other)
-                    b = np.append(b, other.dot(self.l))
+                    B = np.vstack((B, other))
+                    b = np.append(
+                        b, other.dot(np.full(self.dim, self.l) if np.isscalar(self.l) else self.l)
+                    )
                 if self.g is not None:
-                    B = np.vstack(B, -other)
-                    b = np.append(b, -other.dot(self.g))
+                    B = np.vstack((B, -other))
+                    b = np.append(
+                        b, -other.dot(np.full(self.dim, self.g) if np.isscalar(self.g) else self.g)
+                    )
             l = None
             g = None
             le = None

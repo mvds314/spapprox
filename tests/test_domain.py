@@ -126,6 +126,47 @@ def test_trans_domain_1D():
         dom.mul(2 * np.ones(1))
 
 
+def test_trans_domain_nD():
+    # Addtion
+    dom = Domain(l=3, g=-1, le=2, dim=3)
+    assert [3, 2, 1] not in dom
+    assert -0.9 * np.ones(3) in dom
+    dom = dom + 1
+    assert [3, 2, 1] in dom
+    assert -0.9 * np.ones(3) not in dom
+    # Scaling
+    dom = 2 * Domain(l=3, g=-1, le=2, dim=3)
+    assert [4, 0, 0] in dom
+    assert [4.1, 0, 0] not in dom
+    assert [0, -2, 0] not in dom
+    assert [0, -2.01, 0] not in dom
+    # Scaling with vector
+    with pytest.raises(AssertionError):
+        Domain(l=3, g=-1, le=2, dim=3).mul(2 * np.ones(1))
+    dom = Domain(l=3, g=-1, le=2, dim=3).mul(2 * np.ones(3))
+    assert [4, 0, 0] in dom
+    assert [4.1, 0, 0] not in dom
+    assert [0, -2, 0] not in dom
+    assert [0, -2.01, 0] not in dom
+    # Test transformation with A, B
+    dom = Domain(l=3, ge=-1, le=2, A=[[1, 2, 3]], a=[1], dim=3)
+    assert [2, 0, 0] not in dom
+    dom = dom + 1
+    assert [2, 0, 0] in dom
+    assert [0, 1, 0] in dom
+    # Test multiplication ldot
+    with pytest.raises(AssertionError):
+        Domain(l=3, ge=-1, le=2, A=[[1, 2, 3]], a=[1], dim=3).ldot(np.ones(3))
+    with pytest.raises(ValueError):
+        Domain(l=3, ge=-1, le=2, dim=3).ldot(np.ones(2))
+    dom = Domain(l=3, ge=-1, le=2, dim=3)
+    assert [3, 0, 0] not in dom
+    dom = dom.ldot(np.ones(3))
+    assert [3, 0, 0] in dom
+    dom = Domain(l=3, ge=-1, le=2, dim=3).ldot(np.ones((1, 3)))
+    assert [3, 0, 0] in dom
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(
