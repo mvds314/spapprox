@@ -2,11 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from pathlib import Path
-import warnings
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", category=DeprecationWarning)
-    import numdifftools as nd
 import numpy as np
 import pandas as pd
 
@@ -15,9 +11,9 @@ from scipy.integrate import dblquad, quad
 import scipy.stats as sps
 
 from spapprox import (
-    UnivariateCumulantGeneratingFunction,
+    # UnivariateCumulantGeneratingFunction,
     MultivariateCumulantGeneratingFunction,
-    Domain,
+    # Domain,
     norm,
     multivariate_norm,
     # exponential,
@@ -46,9 +42,11 @@ def test_2d_from_uniform():
     # K = lambda t, pdf=sps.multivariate_normal(mean=np.zeros(2), cov=np.eye(2)).pdf: np.log(
     #     dblquad(lambda x, y: pdf([x, y]) * np.exp(np.dot([x, y], t)), -6, 6, -6, 6)[0]
     # ) #Takes too long
-    K = lambda t, pdfx=sps.norm().pdf, pdfy=sps.norm().pdf: np.log(
-        quad(lambda x: pdfx(x) * np.exp(x * t[0]), -6, 6)[0]
-        * quad(lambda y: pdfy(y) * np.exp(y * t[1]), -6, 6)[0]
+    K = (
+        lambda t, pdfx=sps.norm().pdf, pdfy=sps.norm().pdf: np.log(
+            quad(lambda x: pdfx(x) * np.exp(x * t[0]), -6, 6)[0]
+            * quad(lambda y: pdfy(y) * np.exp(y * t[1]), -6, 6)[0]
+        )
     )
     mcgf_int = MultivariateCumulantGeneratingFunction(K, dim=2)
     assert np.isscalar(mcgf_int.K([1, 2]))

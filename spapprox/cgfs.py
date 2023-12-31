@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
-import statsmodels.api as sm
 
 from .cgf_base import UnivariateCumulantGeneratingFunction, MultivariateCumulantGeneratingFunction
 from .domain import Domain
