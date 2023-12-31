@@ -38,13 +38,17 @@ class Domain:
         else:
             assert all(
                 x is None or np.isscalar(x) or len(x) == dim for x in [l, le, g, ge]
-            ), "Bounds should be scalars in dim 1."
-            specified_bounds = [x for x in [l, le, g, ge] if x is not None]
+            ), "Bounds should be scalars or have matching dim"
+            specified_bounds = [np.asanyarray(x) for x in [l, le, g, ge] if x is not None]
             if len(specified_bounds) > 1:
                 assert all(
                     np.all(specified_bounds[i] > specified_bounds[i + 1])
                     for i in range(len(specified_bounds) - 1)
                 ), "Bounds should satisfy: g>ge>le>l"
+                l = np.asanyarray(l) if l is not None and not np.isscalar(l) else l
+                g = np.asanyarray(g) if g is not None and not np.isscalar(g) else g
+                le = np.asanyarray(le) if le is not None and not np.isscalar(le) else le
+                ge = np.asanyarray(ge) if ge is not None and not np.isscalar(ge) else ge
         self.l = l
         self.g = g
         self.le = le
@@ -56,7 +60,7 @@ class Domain:
             a = np.asanyarray(a)
             assert len(A.shape) == 2, "A should be a matrix"
             assert len(a.shape) == 1, "a should be a vector"
-            assert A.shape == (len(a), self.dim)
+            assert A.shape == (len(a), self.dim), "Shape of A should match dimension and bound"
         else:
             assert a is None, "A and a should both be specified"
         self.A = A
@@ -67,7 +71,7 @@ class Domain:
             b = np.asanyarray(b)
             assert len(B.shape) == 2, "B should be a matrix"
             assert len(b.shape) == 1, "b should be a vector"
-            assert B.shape == (len(b), self.dim)
+            assert B.shape == (len(b), self.dim), "Shape of B should match dimension and bound"
         else:
             assert b is None, "B and b should both be specified"
         self.B = B
@@ -269,20 +273,24 @@ class Domain:
     def is_in_domain(self, t):
         if self.dim == 1:
             val = np.full(t.shape, True)
+            t = np.expand_dims(t, axis=len(t.shape))
         else:
-            val = np.full(t.shape[1:], True)
-        if self.dim == 1:
-            t = np.expand_dims(t, axis=0)
+            assert len(t.shape) in [1, 2], "Only vectors or lists of vectors are supported"
+            assert t.shape[-1] == self.dim, "Shape does not match with dimension"
+            if len(t.shape) == 1:
+                val = True
+            else:
+                val = np.full(t.shape[0], True)
         if self.l is not None:
-            val &= np.all(t < self.l, axis=0)
+            val &= np.all(t < self.l, axis=len(t.shape) - 1)
         if self.g is not None:
-            val &= np.all(t > self.g, axis=0)
+            val &= np.all(t > self.g, axis=len(t.shape) - 1)
         if self.le is not None:
-            val &= np.all(t <= self.le, axis=0)
+            val &= np.all(t <= self.le, axis=len(t.shape) - 1)
         if self.ge is not None:
-            val &= np.all(t >= self.ge, axis=0)
+            val &= np.all(t >= self.ge, axis=len(t.shape) - 1)
         if self.A is not None:
-            val &= np.all(self.A.dot(t) <= self.a, axis=0)
+            val &= np.all((self.A.dot(t.T) <= self.a).T, len(t.shape) - 1)
         if self.B is not None:
-            val &= np.all(self.B.dot(t) < self.b, axis=0)
+            val &= np.all((self.B.dot(t.T) < self.b).T, axis=len(t.shape) - 1)
         return val

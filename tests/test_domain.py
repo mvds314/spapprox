@@ -4,6 +4,7 @@
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from spapprox import Domain
@@ -30,15 +31,75 @@ def test_domain_1D():
     assert [-1, 3] not in dom
     assert 2 in dom
     assert all(dom.is_in_domain([2, 2]))
-    # Test At <= a and Bt<b bounds
+    # Test At <= a
     dom = Domain(A=np.array([[1]]), a=np.array([2]))
     assert 1 in dom
     assert len(dom.is_in_domain([1, 1])) == 2 and all(dom.is_in_domain([2, 2]))
     assert len(dom.is_in_domain([3, 3])) == 2 and not any(dom.is_in_domain([3, 3]))
+    # Test At <= a and Bt<b bounds
     dom = Domain(A=np.array([[1]]), a=np.array([2]), B=np.array([[2]]), b=np.array([1]))
     assert 1 not in dom
     assert len(dom.is_in_domain([0.1, 0.1])) == 2 and all(dom.is_in_domain([0.2, 0.2]))
     assert len(dom.is_in_domain([0.5, 0.5])) == 2 and not any(dom.is_in_domain([0.5, 0.5]))
+    # Test combined bounds
+    dom = Domain(l=2, A=np.array([[1]]), a=np.array([2]))
+    assert 1 in dom
+    assert 2 not in dom
+    res = dom.is_in_domain([1, 2])
+    assert pd.api.types.is_array_like(res) and len(res) == 2 and all(res == [True, False])
+
+
+def test_domain_nD():
+    # Basic example
+    dom = Domain(dim=3)
+    with pytest.raises(AssertionError):
+        1 in dom
+    assert [1, 1, 1] in dom
+    assert np.isscalar(dom.is_in_domain([1, 1, 1]))
+    res = dom.is_in_domain([[1, 1, 1], [2, 2, 2]])
+    assert not np.isscalar(res) and len(res) == 2 and all(res)
+    # Should raise Errors
+    with pytest.raises(AssertionError):
+        Domain(l=1, g=[0, 0, 2], dim=3)
+    with pytest.raises(AssertionError):
+        Domain(g=[0, 0], dim=3)
+    with pytest.raises(AssertionError):
+        Domain(le=[1, 3, 3], g=2, dim=3)
+    # Some tests with actual bounds
+    dom = Domain(l=3, g=-1, le=2, dim=3)
+    assert [3, 3, 3] not in dom
+    assert [[3, 0, 0], [0, 0, 0]] not in dom
+    assert [[0, 0, 0], [0, 0, 0]] in dom
+    res = dom.is_in_domain([0, 0, 0])
+    assert np.isscalar(res) and res
+    res = dom.is_in_domain([[3, 0, 0], [0, 0, 0]])
+    assert pd.api.types.is_array_like(res) and all(res == [False, True])
+    # Test At <= a
+    with pytest.raises(AssertionError):
+        Domain(A=np.array([[1]]), a=np.array([2]), dim=3)
+    dom = Domain(A=np.array([[1, 2, 3]]), a=np.array([2]), dim=3)
+    assert np.zeros(3) in dom
+    assert np.zeros((2, 3)) in dom
+    res = dom.is_in_domain([0.5, 0, 0.5])
+    assert np.isscalar(res) and res
+    res = dom.is_in_domain([[0.5, 0, 0.5], [0.5, 1e-4, 0.5]])
+    assert pd.api.types.is_array_like(res) and len(res) == 2 and all(res == [True, False])
+    # Test Bt<b bounds
+    with pytest.raises(AssertionError):
+        Domain(B=np.array([[1]]), b=np.array([2]), dim=3)
+    dom = Domain(B=np.array([[1, 2, 3]]), b=np.array([2]), dim=3)
+    assert np.zeros(3) in dom
+    assert np.zeros((2, 3)) in dom
+    res = dom.is_in_domain([0.5, 0, 0.5])
+    assert np.isscalar(res) and not res
+    res = dom.is_in_domain([[0.5, 0, 0.5], [0.5, -1e-4, 0.5]])
+    assert pd.api.types.is_array_like(res) and len(res) == 2 and all(res == [False, True])
+    # Test combined bounds
+    dom = Domain(l=0.5, A=np.array([[1, 2, 3]]), a=np.array([2]), dim=3)
+    assert [0.5, 0, 0.5] not in dom
+    assert [0.4, 0, 0.4] in dom
+    res = dom.is_in_domain([[0.5, 0, 0.5], [0.4, 0, 0.4]])
+    assert pd.api.types.is_array_like(res) and len(res) == 2 and all(res == [False, True])
 
 
 def test_trans_domain_1D():
@@ -50,6 +111,12 @@ def test_trans_domain_1D():
     assert 3 in dom
     assert -0.9 not in dom
     assert 4 not in dom
+    # Scaling
+    dom = 2 * Domain(l=3, g=-1, le=2)
+    assert 4 in dom
+    assert 4.1 not in dom
+    assert -2 not in dom
+    assert -2.01 not in dom
     # Test transformation with A, B
     dom = Domain(l=3, g=-1, le=2, A=[[1]], a=[1])
     assert 2 not in dom
@@ -57,12 +124,6 @@ def test_trans_domain_1D():
     assert 2 in dom
     with pytest.raises(ValueError):
         dom.mul(2 * np.ones(1))
-    # Scaling
-    dom = 2 * Domain(l=3, g=-1, le=2)
-    assert 4 in dom
-    assert 4.1 not in dom
-    assert -2 not in dom
-    assert -2.01 not in dom
 
 
 if __name__ == "__main__":
@@ -71,7 +132,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 # "-k",
-                # "test_trans_domain_1D",
+                # "test_domain_1D",
                 "--tb=auto",
                 "--pdb",
             ]
