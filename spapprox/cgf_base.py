@@ -244,7 +244,17 @@ class CumulantGeneratingFunction(ABC):
         tt = np.where(cond, tt.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, np.dot(np.power(scale.T, 2), self._d2K(tt)), fillna)
+            y = np.dot(np.power(scale.T, 2), self._d2K(tt))
+            if np.isscalar(cond):
+                if cond:
+                    return y
+                elif np.isscalar(y):
+                    return fillna
+                else:
+                    return np.fill(np.asanyarray(y).shape, fillna)
+            else:
+                y[~cond] = fillna
+                return y
 
     @type_wrapper(xloc=1)
     def d3K(self, t, fillna=np.nan, loc=None, scale=None):

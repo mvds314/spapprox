@@ -70,6 +70,10 @@ def test_2d_from_uniform():
         assert pd.api.types.is_array_like(val) and len(val.shape) == 2 and val.shape == (2, 2)
         assert np.allclose(val, mcgf_from_univ.d2K(t))
         assert np.allclose(val, mcgf_int.d2K(t), atol=1e-3)
+    # import pdb
+
+    # pdb.set_trace()
+    assert np.allclose(mcgf.d2K(ts), np.array([mcgf.d2K(t) for t in ts]))
     # A bit more vectorized tests
     # What to do with the third derivative?
     # Do we need to test other things?

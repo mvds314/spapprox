@@ -73,9 +73,9 @@ def multivariate_norm(loc=None, scale=None, dim=None, cov=None):
         dim=dim,
         dK=lambda t: t,
         dK_inv=lambda x: x,
-        d2K=lambda t: np.kron(np.ones(t.shape[:-2]), np.eye(dim)).reshape(
-            (*t.shape[:-2], dim, dim)
-        ),
+        d2K=lambda t: np.tile(np.eye(dim), (t.shape[0], 1, 1))
+        if len(t.shape) == 2
+        else np.eye(dim),
         d3K=lambda t: np.zeros(t.shape),
         loc=loc if loc is None or len(loc.shape) > 0 else loc.tolist(),
         scale=scale if scale is None or len(scale.shape) > 0 else scale.tolist(),
