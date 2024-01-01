@@ -84,10 +84,14 @@ def test_2d_from_uniform():
     assert np.allclose(mcgf_from_univ.d2K(ts), val)
     assert np.allclose(mcgf_int.d2K(ts), val, atol=1e-3)
 
-    # What to do with the third derivative?
-    # Do we need to test other things?
-    # Seperate test for transformations
 
+# TODO: test with transformations
+
+# TODO: look at 1D case if there are more sensible tests?
+
+# TODO: implement slicing and test that
+
+# TODO: decide on third derivative
 
 if __name__ == "__main__":
     if True:
