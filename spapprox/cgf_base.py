@@ -198,7 +198,7 @@ class CumulantGeneratingFunction(ABC):
             if np.isscalar(val):
                 val += np.sum(loc * t)
             elif pd.api.types.is_array_like(val) and len(val.shape) == 1:
-                val += loc.dot(t)
+                val += loc.dot(t.T)
             else:
                 raise RuntimeError("Only scalar and vector valued return values are supported")
             return np.where(cond, val, fillna)
@@ -214,7 +214,17 @@ class CumulantGeneratingFunction(ABC):
         tt = np.where(cond, tt.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            return np.where(cond, scale.T.dot(self._dK(tt)) + loc, fillna)
+            y = np.add(scale.T.dot(self._dK(tt)), loc)
+            if np.isscalar(cond):
+                if cond:
+                    return y
+                elif np.isscalar(y):
+                    return fillna
+                else:
+                    return np.fill(np.asanyarray(y).shape, fillna)
+            else:
+                y[~cond] = fillna
+                return y
 
     @type_wrapper(xloc=1)
     def dK_inv(self, x, loc=None, scale=None, fillna=np.nan):
@@ -900,7 +910,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @type_wrapper(xloc=1)
     def K(self, t, fillna=np.nan):
         t = np.asanyarray(t)
-        assert t.shape[0] == self.dim, "Dimensions do not match"
+        assert t.shape[-1] == self.dim, "Dimensions do not match"
         return super().K(t, fillna=fillna)
 
     @type_wrapper(xloc=1)
@@ -919,7 +929,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         [1] Ganesh, O'Connell (2004) - Big Quesues in Probability and Statistics
         """
         t = np.asanyarray(t)
-        assert t.shape[0] == self.dim, "Dimensions do not match"
+        assert t.shape[-1] == self.dim, "Dimensions do not match"
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Gradient(self.K)
@@ -936,7 +946,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             x = K'(t).
         """
         x = np.asanyarray(x)
-        assert x.shape[0] == self.dim, "Dimensions do not match"
+        assert x.shape[-1] == self.dim, "Dimensions do not match"
         # TODO: maybe implement a generic solver, is this the gradient or the innerproduct with the gradient
         # TODO: maybe copy the multivariate approach from the univariate case
         raise NotImplementedError()
@@ -947,7 +957,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         This is the Hessian, i.e., the matrix with second order partial derivatives.
         """
         t = np.asanyarray(t)
-        assert t.shape[0] == self.dim, "Dimensions do not match"
+        assert t.shape[-1] == self.dim, "Dimensions do not match"
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d2K = nd.Hessian(self.K)
@@ -960,7 +970,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         # TODO: I'm not sure what this is supposed to be
         t = np.asanyarray(t)
-        assert t.shape[0] == self.dim, "Dimensions do not match"
+        assert t.shape[-1] == self.dim, "Dimensions do not match"
         if self._d3K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d3K = nd.Derivative(self.K, n=3)

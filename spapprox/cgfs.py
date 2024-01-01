@@ -69,7 +69,7 @@ def multivariate_norm(loc=None, scale=None, dim=None, cov=None):
     ), "scale has wrong shape"
     # Return
     return MultivariateCumulantGeneratingFunction(
-        K=lambda t: np.linalg.norm(t) ** 2 / 2,
+        K=lambda t: np.sum(t * t, axis=-1) / 2,
         dim=dim,
         dK=lambda t: t,
         dK_inv=lambda x: x,

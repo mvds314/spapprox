@@ -42,28 +42,30 @@ def test_2d_from_uniform():
     # K = lambda t, pdf=sps.multivariate_normal(mean=np.zeros(2), cov=np.eye(2)).pdf: np.log(
     #     dblquad(lambda x, y: pdf([x, y]) * np.exp(np.dot([x, y], t)), -6, 6, -6, 6)[0]
     # ) #Takes too long
-    K = (
-        lambda t, pdfx=sps.norm().pdf, pdfy=sps.norm().pdf: np.log(
-            quad(lambda x: pdfx(x) * np.exp(x * t[0]), -6, 6)[0]
-            * quad(lambda y: pdfy(y) * np.exp(y * t[1]), -6, 6)[0]
-        )
+    K = lambda t, pdfx=sps.norm().pdf, pdfy=sps.norm().pdf: np.log(
+        quad(lambda x: pdfx(x) * np.exp(x * t[0]), -6, 6)[0]
+        * quad(lambda y: pdfy(y) * np.exp(y * t[1]), -6, 6)[0]
     )
     mcgf_int = MultivariateCumulantGeneratingFunction(K, dim=2)
     assert np.isscalar(mcgf_int.K([1, 2]))
     # Compare the implementations
-    for t in [[1, 2], [0, 0], [1, 0], [0, 1]]:
+    ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
+    for t in ts:
         val = mcgf.K(t)
         assert np.isscalar(val)
         assert np.allclose(val, mcgf_from_univ.K(t))
         assert np.allclose(val, mcgf_int.K(t), atol=1e-3)
+    assert np.allclose(mcgf.K(ts), [mcgf.K(t) for t in ts])
+    assert np.allclose(mcgf.K(ts), [mcgf.K(t) for t in ts])
     # Test the derivatives
-    for t in [[1, 2], [0, 0], [1, 0], [0, 1]]:
+    for t in ts:
         val = mcgf.dK(t)
         assert pd.api.types.is_array_like(val) and len(val.shape) == 1 and len(val) == 2
         assert np.allclose(val, mcgf_from_univ.dK(t))
         assert np.allclose(val, mcgf_int.dK(t), atol=1e-3)
+    assert np.allclose(mcgf.dK(ts), [mcgf.dK(t) for t in ts])
     # Test the second derivatives
-    for t in [[1, 2], [0, 0], [1, 0], [0, 1]]:
+    for t in ts:
         val = mcgf.d2K(t)
         assert pd.api.types.is_array_like(val) and len(val.shape) == 2 and val.shape == (2, 2)
         assert np.allclose(val, mcgf_from_univ.d2K(t))
