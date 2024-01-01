@@ -197,6 +197,8 @@ class CumulantGeneratingFunction(ABC):
             val = self._K(tt)
             if np.isscalar(val):
                 val += np.sum(loc * t)
+            elif pd.api.types.is_array_like(val) and len(val.shape) == 1 and len(t.shape) == 1:
+                val += np.dot(loc, t.T)
             elif pd.api.types.is_array_like(val) and len(val.shape) == 1:
                 val += np.sum((loc * t).T, axis=0)
             else:
