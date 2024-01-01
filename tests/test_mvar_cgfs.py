@@ -25,6 +25,7 @@ from spapprox import (
     # univariate_sample_mean,
     # univariate_empirical,
 )
+from spapprox.util import type_wrapper
 
 
 def test_2d_from_uniform():
@@ -46,6 +47,7 @@ def test_2d_from_uniform():
         quad(lambda x: pdfx(x) * np.exp(x * t[0]), -6, 6)[0]
         * quad(lambda y: pdfy(y) * np.exp(y * t[1]), -6, 6)[0]
     )
+    K = type_wrapper()(np.vectorize(K, signature="(n)->()"))
     mcgf_int = MultivariateCumulantGeneratingFunction(K, dim=2)
     assert np.isscalar(mcgf_int.K([1, 2]))
     # Compare the implementations
@@ -55,25 +57,31 @@ def test_2d_from_uniform():
         assert np.isscalar(val)
         assert np.allclose(val, mcgf_from_univ.K(t))
         assert np.allclose(val, mcgf_int.K(t), atol=1e-3)
-    assert np.allclose(mcgf.K(ts), [mcgf.K(t) for t in ts])
-    assert np.allclose(mcgf.K(ts), [mcgf.K(t) for t in ts])
+    val = [mcgf.K(t) for t in ts]
+    assert np.allclose(mcgf.K(ts), val)
+    assert np.allclose(mcgf_from_univ.K(ts), val)
+    assert np.allclose(mcgf_int.K(ts), val, atol=1e-3)
     # Test the derivatives
     for t in ts:
         val = mcgf.dK(t)
         assert pd.api.types.is_array_like(val) and len(val.shape) == 1 and len(val) == 2
         assert np.allclose(val, mcgf_from_univ.dK(t))
         assert np.allclose(val, mcgf_int.dK(t), atol=1e-3)
-    assert np.allclose(mcgf.dK(ts), [mcgf.dK(t) for t in ts])
+    val = [mcgf.dK(t) for t in ts]
+    assert np.allclose(mcgf.dK(ts), val)
+    # assert np.allclose(mcgf_from_univ.dK(ts), val)
+    # assert np.allclose(mcgf_int.dK(ts), val)
     # Test the second derivatives
     for t in ts:
         val = mcgf.d2K(t)
         assert pd.api.types.is_array_like(val) and len(val.shape) == 2 and val.shape == (2, 2)
         assert np.allclose(val, mcgf_from_univ.d2K(t))
         assert np.allclose(val, mcgf_int.d2K(t), atol=1e-3)
-    # import pdb
+    val = np.array([mcgf.d2K(t) for t in ts])
+    assert np.allclose(mcgf.d2K(ts), val)
+    # assert np.allclose(mcgf_from_univ.d2K(ts), val)
+    # assert np.allclose(mcgf_int.d2K(ts), val)
 
-    # pdb.set_trace()
-    assert np.allclose(mcgf.d2K(ts), np.array([mcgf.d2K(t) for t in ts]))
     # A bit more vectorized tests
     # What to do with the third derivative?
     # Do we need to test other things?

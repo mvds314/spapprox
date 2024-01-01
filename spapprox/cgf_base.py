@@ -198,7 +198,7 @@ class CumulantGeneratingFunction(ABC):
             if np.isscalar(val):
                 val += np.sum(loc * t)
             elif pd.api.types.is_array_like(val) and len(val.shape) == 1:
-                val += loc.dot(t.T)
+                val += np.sum((loc * t).T, axis=0)
             else:
                 raise RuntimeError("Only scalar and vector valued return values are supported")
             return np.where(cond, val, fillna)
@@ -998,12 +998,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             isinstance(cgf, UnivariateCumulantGeneratingFunction) for cgf in cgfs
         ), "All cgfs must be univariate"
         return cls(
-            lambda t, cgfs=cgfs: np.sum([cgf.K(ti) for ti, cgf in zip(t, cgfs)]),
+            lambda t, cgfs=cgfs: np.sum([cgf.K(ti) for ti, cgf in zip(t.T, cgfs)], axis=0),
             dim=len(cgfs),
             loc=0,
             scale=1,
-            dK=lambda t, cgfs=cgfs: np.array([cgf.dK(ti) for ti, cgf in zip(t, cgfs)]),
-            d2K=lambda t, cgfs=cgfs: np.diag([cgf.d2K(ti) for ti, cgf in zip(t, cgfs)]),
+            dK=lambda t, cgfs=cgfs: np.array([cgf.dK(ti) for ti, cgf in zip(t.T, cgfs)]),
+            d2K=lambda t, cgfs=cgfs: np.diag([cgf.d2K(ti) for ti, cgf in zip(t.T, cgfs)]),
         )
 
 
