@@ -223,6 +223,7 @@ class CumulantGeneratingFunction(ABC):
                 else:
                     return np.fill(np.asanyarray(y).shape, fillna)
             else:
+                y = y.astype(np.float64)
                 y[~cond] = fillna
                 return y
 
@@ -253,6 +254,7 @@ class CumulantGeneratingFunction(ABC):
                 else:
                     return np.fill(np.asanyarray(y).shape, fillna)
             else:
+                y = y.astype(np.float64)
                 y[~cond] = fillna
                 return y
 
@@ -657,9 +659,6 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         return super().d3K(t, loc=loc, scale=scale, fillna=fillna)
 
 
-# TODO: compare correctness current implementation and write some unittests
-# TODO: give this one loc and scale params
-# TODO: extend domain
 class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     r"""
     Class for cumulant generating function of a multivariate distribution
@@ -884,7 +883,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
                 d2K=lambda t: np.atleast_2d(other).T.dot(np.atleast_2d(other))
                 * (self.d2K(other * t)),
-                d3K=lambda t, A=np.array(
+                d3K=lambda t,
+                A=np.array(
                     [
                         [
                             [other[i] * other[j] * other[k] for i in range(self.dim)]
@@ -892,8 +892,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ]
                         for k in range(self.dim)
                     ]
-                ): A
-                * self.d3K(other * t),
+                ): A * self.d3K(other * t),
                 domain=lambda t: self.domain(t),
             )
         elif isinstance(other, np.ndarray) and len(other.shape) == 2:
@@ -942,7 +941,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         assert t.shape[-1] == self.dim, "Dimensions do not match"
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._dK = nd.Gradient(self.K)
+            self._dK = np.vectorize(nd.Gradient(self.K), signature="(n)->(n)")
         return super().dK(t, fillna=fillna)
 
     @type_wrapper(xloc=1)
@@ -970,7 +969,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         assert t.shape[-1] == self.dim, "Dimensions do not match"
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._d2K = nd.Hessian(self.K)
+            self._d2K = np.vectorize(nd.Hessian(self.K), signature="(n)->(n,n)")
         return super().d2K(t, fillna=fillna)
 
     @type_wrapper(xloc=1)
@@ -1002,14 +1001,15 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             dim=len(cgfs),
             loc=0,
             scale=1,
-            dK=lambda t, cgfs=cgfs: np.array([cgf.dK(ti) for ti, cgf in zip(t.T, cgfs)]),
-            d2K=lambda t, cgfs=cgfs: np.diag([cgf.d2K(ti) for ti, cgf in zip(t.T, cgfs)]),
+            dK=lambda t, cgfs=cgfs: np.array([cgf.dK(ti) for ti, cgf in zip(t.T, cgfs)]).T,
+            d2K=lambda t, cgfs=cgfs: np.apply_along_axis(
+                np.diag, 0, np.array([cgf.d2K(ti) for ti, cgf in zip(t.T, cgfs)])
+            ).swapaxes(0, -1),
         )
 
 
 # TODO: implement multivariate saddlepoint approximation
 # TODO: write some tests first for the albove, using normal distribution
-# TODO: add affine transformation parameters (maybe through  loc and scale?)
 # TODO: add stacking functionality
 # TODO: add some slicing, so that we can extract the marginals
 # TODO: can we construct a conditional cgf, or does that always go through the saddlepoint approximation?

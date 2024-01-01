@@ -57,7 +57,7 @@ def test_2d_from_uniform():
         assert np.isscalar(val)
         assert np.allclose(val, mcgf_from_univ.K(t))
         assert np.allclose(val, mcgf_int.K(t), atol=1e-3)
-    val = [mcgf.K(t) for t in ts]
+    val = np.array([mcgf.K(t) for t in ts])
     assert np.allclose(mcgf.K(ts), val)
     assert np.allclose(mcgf_from_univ.K(ts), val)
     assert np.allclose(mcgf_int.K(ts), val, atol=1e-3)
@@ -67,10 +67,11 @@ def test_2d_from_uniform():
         assert pd.api.types.is_array_like(val) and len(val.shape) == 1 and len(val) == 2
         assert np.allclose(val, mcgf_from_univ.dK(t))
         assert np.allclose(val, mcgf_int.dK(t), atol=1e-3)
-    val = [mcgf.dK(t) for t in ts]
+    val = np.array([mcgf.dK(t) for t in ts])
     assert np.allclose(mcgf.dK(ts), val)
-    # assert np.allclose(mcgf_from_univ.dK(ts), val)
-    # assert np.allclose(mcgf_int.dK(ts), val)
+    assert np.allclose(mcgf_from_univ.dK(ts), val)
+    mcgf_int.dK(ts)
+    assert np.allclose(mcgf_int.dK(ts), val, atol=1e-3)
     # Test the second derivatives
     for t in ts:
         val = mcgf.d2K(t)
@@ -79,10 +80,10 @@ def test_2d_from_uniform():
         assert np.allclose(val, mcgf_int.d2K(t), atol=1e-3)
     val = np.array([mcgf.d2K(t) for t in ts])
     assert np.allclose(mcgf.d2K(ts), val)
-    # assert np.allclose(mcgf_from_univ.d2K(ts), val)
-    # assert np.allclose(mcgf_int.d2K(ts), val)
+    mcgf_from_univ.d2K(ts)
+    assert np.allclose(mcgf_from_univ.d2K(ts), val)
+    assert np.allclose(mcgf_int.d2K(ts), val, atol=1e-3)
 
-    # A bit more vectorized tests
     # What to do with the third derivative?
     # Do we need to test other things?
     # Seperate test for transformations
@@ -93,8 +94,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_2d_from_uniform",
+                # "-k",
+                # "test_2d_from_uniform",
                 "--tb=auto",
                 "--pdb",
             ]
