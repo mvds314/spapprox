@@ -174,6 +174,12 @@ class CumulantGeneratingFunction(ABC):
     def __radd__(self, other):
         return self.__add__(other)
 
+    def __sub__(self, other):
+        return self.add(-1 * other, inplace=False)
+
+    def __rsub__(self, other):
+        return self.mul(-1, inplace=False).add(other, inplace=False)
+
     @abstractmethod
     def mul(self, other, inplace=False):
         raise NotImplementedError()
@@ -803,8 +809,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
         [3] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
         """
-        raise NotImplementedError()
-        # TODO: double check this
         if isinstance(other, (int, float)):
             return (np.ones(self.dim) * other) * self
         elif isinstance(other, np.ndarray):
@@ -847,7 +851,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
         else:
             raise ValueError("Can only add a scalar or another CumulantGeneratingFunction")
-        super().__add__(other)
 
     def mul(self, other, inplace=False):
         r"""
@@ -885,8 +888,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK_inv=lambda x: self.dK_inv(x / other) / other,
                 d2K=lambda t: np.atleast_2d(other).T.dot(np.atleast_2d(other))
                 * (self.d2K(other * t)),
-                d3K=lambda t,
-                A=np.array(
+                d3K=lambda t, A=np.array(
                     [
                         [
                             [other[i] * other[j] * other[k] for i in range(self.dim)]
@@ -894,7 +896,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ]
                         for k in range(self.dim)
                     ]
-                ): A * self.d3K(other * t),
+                ): A
+                * self.d3K(other * t),
                 domain=lambda t: self.domain(t),
             )
         elif isinstance(other, np.ndarray) and len(other.shape) == 2:

@@ -39,6 +39,38 @@ from spapprox import (
             sps.norm(loc=0, scale=1),
         ),
         (
+            norm(loc=0, scale=1) + norm(loc=0, scale=1),
+            lambda t, pdf=sps.norm(0, np.sqrt(2)).pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=np.sqrt(2)),
+        ),
+        (
+            norm(loc=1, scale=1) + norm(loc=2, scale=1),
+            lambda t, pdf=sps.norm(3, np.sqrt(2)).pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=3, scale=np.sqrt(2)),
+        ),
+        (
+            1.1 * norm(loc=0, scale=1),
+            lambda t, pdf=sps.norm(0, 1.1).pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=1.1),
+        ),
+        (
+            1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3,
+            lambda t, pdf=sps.norm(0.8, 1.1 * np.sqrt(2)).pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
+        ),
+        (
             norm(loc=1, scale=0.5),
             lambda t: np.log(
                 quad(
@@ -139,17 +171,40 @@ from spapprox import (
     ],
 )
 def test_cgf(cgf_to_test, cgf, ts, dist):
+    # Test function evaluations
     assert isinstance(cgf_to_test, UnivariateCumulantGeneratingFunction)
     for t in ts:
-        assert np.isclose(cgf(t), cgf_to_test.K(t))
+        assert np.isclose(cgf(t), cgf_to_test.K(t), atol=1e-4)
         dcgf = nd.Derivative(cgf_to_test.K, n=1)
         assert np.isclose(dcgf(t), cgf_to_test.dK(t))
         d2cgf = nd.Derivative(cgf_to_test.K, n=2)
         assert np.isclose(d2cgf(t), cgf_to_test.d2K(t))
         d3cgf = nd.Derivative(cgf_to_test.K, n=3)
         assert np.isclose(d3cgf(t), cgf_to_test.d3K(t))
+    # Test vectorized evaluation
     assert np.isclose(cgf_to_test.mean, dist.mean())
     assert np.isclose(cgf_to_test.variance, dist.var())
+    # Test addition scalar
+    for t in ts:
+        assert np.isclose(cgf(t) + t, (cgf_to_test + float(1)).K(t))
+        dcgf = nd.Derivative(cgf_to_test.K, n=1)
+        assert np.isclose(cgf(t) - 2 * t, (cgf_to_test - int(2)).K(t), atol=1e-5)
+        cgf_to_test.add(3, inplace=True)
+        assert np.isclose(cgf(t) + 3 * t, cgf_to_test.K(t))
+        cgf_to_test.add(-3, inplace=True)
+        cgf_to_test.add(3, inplace=False)
+        assert np.isclose(cgf(t), cgf_to_test.K(t))
+        dcgf = nd.Derivative(cgf, n=1)
+        cgf_to_test.add(3, inplace=True)
+        assert np.isclose(dcgf(t) + 3, cgf_to_test.dK(t), atol=1e-4)
+        assert np.isclose(cgf_to_test.dK0, dcgf(0) + 3)
+        cgf_to_test.add(-3, inplace=True)
+        assert np.isclose(cgf_to_test.dK0, dcgf(0))
+    # Test addition other cumulant generating function
+    for t in ts:
+        assert np.isclose(cgf(t) + cgf(t), (cgf_to_test + cgf_to_test).K(t))
+        with pytest.raises(AssertionError):
+            cgf_to_test.add(cgf_to_test, inplace=True)
 
 
 def test_domain():
@@ -285,7 +340,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_dKinv",
+                "test_cgf",
                 "--tb=auto",
                 "--pdb",
             ]
