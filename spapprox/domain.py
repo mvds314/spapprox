@@ -27,9 +27,9 @@ class Domain:
         # Validate bound constraints
         if dim == 1:
             assert all(
-                x is None or np.isscalar(x) for x in [l, le, g, ge]
+                x is None or np.isscalar(x) for x in [l, le, ge, g]
             ), "Bounds should be scalars in dim 1."
-            specified_bounds = [x for x in [l, le, g, ge] if x is not None]
+            specified_bounds = [x for x in [l, le, ge, g] if x is not None]
             if len(specified_bounds) > 1:
                 assert all(
                     specified_bounds[i] > specified_bounds[i + 1]
@@ -37,12 +37,18 @@ class Domain:
                 ), "Bounds should satisfy: g>ge>le>l"
         else:
             assert all(
-                x is None or np.isscalar(x) or len(x) == dim for x in [l, le, g, ge]
+                x is None or np.isscalar(x) or len(x) == dim for x in [l, le, ge, g]
             ), "Bounds should be scalars or have matching dim"
-            specified_bounds = [np.asanyarray(x) for x in [l, le, g, ge] if x is not None]
+            specified_bounds = [np.asanyarray(x) for x in [l, le, ge, g] if x is not None]
             if len(specified_bounds) > 1:
                 assert all(
-                    np.all(specified_bounds[i] > specified_bounds[i + 1])
+                    np.all(
+                        np.where(
+                            np.isinf(specified_bounds[i]) & np.isinf(specified_bounds[i + 1]),
+                            True,
+                            specified_bounds[i] > specified_bounds[i + 1],
+                        )
+                    )
                     for i in range(len(specified_bounds) - 1)
                 ), "Bounds should satisfy: g>ge>le>l"
                 l = np.asanyarray(l) if l is not None and not np.isscalar(l) else l
@@ -85,11 +91,7 @@ class Domain:
         Translation of the domain by :math:`\beta`.
 
         If :math:`x` is in the domain of :math:`\tilde x`, where :math:`\tilde x=x+\beta`.
-
-        In the multivariate case, multiplication by a vector is implemented as component wise
-        multiplication.
         """
-        raise NotImplementedError("Test this one again")
         assert other is not None
         if pd.api.types.is_number(other):
             a = None if self.a is None else self.a + self.A.dot(np.full(self.dim, other))
@@ -119,42 +121,83 @@ class Domain:
     def __radd__(self, other):
         return self.__add__(other)
 
+    def __sub__(self, other):
+        return self.add(-1 * other)
+
+    def __rsub__(self, other):
+        return (-1 * self).__add__(other)
+
     def mul(self, other):
         r"""
         Left side multiplication by a factor :math:`\alpha`.
         It stretches the domain by a factor :math:`\alpha`.
 
-        If :math:`x` is in the domain of :math:`\tilde x`, where :math:`\alpha \tilde x= x`.
+        If :math:`x` is in the domain of :math:`\tilde x`, where :math:`\tilde x= \alpha  x`.
 
         In the multivariate case, multiplication by a vector is implemented as component wise
         multiplication.
         """
         # TODO: sign is not implemented correctly
-        raise NotImplementedError("Sign is not yet implemented correctly, also test this")
+        # raise NotImplementedError("Sign is not yet implemented correctly, also test this")
         assert other is not None
         if pd.api.types.is_number(other):
-            A = self.A
-            B = self.B
-            a = None if self.a is None else self.a * other
-            b = None if self.b is None else self.b * other
-            l = self.l * other if self.l is not None else None
-            g = self.g * other if self.g is not None else None
-            le = self.le * other if self.le is not None else None
-            ge = self.ge * other if self.ge is not None else None
+            assert not np.isclose(other, 0), "Cannot multiply with zero"
+            A = None if self.A is None else self.A * np.sign(other)
+            B = None if self.B is None else self.B * np.sign(other)
+            a = None if self.a is None else self.a * np.abs(other)
+            b = None if self.b is None else self.b * np.abs(other)
+            if other > 0:
+                l = self.l * other if self.l is not None else None
+                g = self.g * other if self.g is not None else None
+                le = self.le * other if self.le is not None else None
+                ge = self.ge * other if self.ge is not None else None
+            else:
+                g = self.l * other if self.l is not None else None
+                l = self.g * other if self.g is not None else None
+                ge = self.le * other if self.le is not None else None
+                le = self.ge * other if self.ge is not None else None
         elif isinstance(other, np.ndarray) and len(other.shape) == 0:
             return self.mul(other.tolist())
         elif self.dim > 1 and pd.api.types.is_array_like(other):
             other = np.asanyarray(other)
+            assert not np.any(np.isclose(other, 0)), "Cannot multiply with zero"
             assert len(other.shape) == 1 and len(other) == self.dim, "Invalid shape"
             # Divide each row of A by other
             A = None if self.A is None else np.divide(self.A, other)
             B = None if self.B is None else np.divide(self.B, other)
             a = self.a
             b = self.b
-            l = self.l * other if self.l is not None else None
-            g = self.g * other if self.g is not None else None
-            le = self.le * other if self.le is not None else None
-            ge = self.ge * other if self.ge is not None else None
+            sgncond = np.sign(other) > 0
+            if np.all(sgncond):  # all positive
+                l = self.l * other if self.l is not None else None
+                g = self.g * other if self.g is not None else None
+                le = self.le * other if self.le is not None else None
+                ge = self.ge * other if self.ge is not None else None
+            elif not np.any(sgncond):  # all negative
+                g = self.l * other if self.l is not None else None
+                l = self.g * other if self.g is not None else None
+                ge = self.le * other if self.le is not None else None
+                le = self.ge * other if self.ge is not None else None
+            else:
+                raise NotImplementedError("Logic with setting to inf is not correct, as it leads to violation of g>ge>le>l")
+                if self.g is not None or self.l is not None:
+                    l = np.full(self.dim, np.inf) if self.l is None else self.l
+                    g = np.full(self.dim, -np.inf) if self.g is None else self.g
+                    l, g = np.where(sgncond, l * other, g * other), np.where(
+                        sgncond, g * other, l * other
+                    )
+                else:
+                    g = None
+                    l = None
+                if self.ge is not None or self.le is not None:
+                    le = np.full(self.dim, np.inf) if self.le is None else self.le
+                    ge = np.full(self.dim, -np.inf) if self.ge is None else self.ge
+                    le, ge = np.where(sgncond, le * other, ge * other), np.where(
+                        sgncond, ge * other, le * other
+                    )
+                else:
+                    ge = None
+                    le = None
         else:
             raise ValueError(
                 "Can only multiply with a scalar or a vector of length dim (when dim>1)."

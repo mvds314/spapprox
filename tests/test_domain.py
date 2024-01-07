@@ -117,6 +117,12 @@ def test_trans_domain_1D():
     assert 4.1 not in dom
     assert -2 not in dom
     assert -2.01 not in dom
+    # Negative scaling
+    dom = -2 * Domain(l=3, g=-1, le=2)
+    assert -4 in dom
+    assert -4.1 not in dom
+    assert 2 not in dom
+    assert 2.01 not in dom
     # Test transformation with A, B
     dom = Domain(l=3, g=-1, le=2, A=[[1]], a=[1])
     assert 2 not in dom
@@ -124,6 +130,10 @@ def test_trans_domain_1D():
     assert 2 in dom
     with pytest.raises(ValueError):
         dom.mul(2 * np.ones(1))
+    assert 4 not in dom
+    assert 4 in dom.mul(2)
+    assert -4 not in dom.mul(-1)
+    assert -4 in dom.mul(-2)
 
 
 def test_trans_domain_nD():
@@ -135,6 +145,8 @@ def test_trans_domain_nD():
     assert [3, 2, 1] in dom
     assert -0.9 * np.ones(3) not in dom
     # Scaling
+    with pytest.raises(AssertionError):
+        Domain(l=3, g=-1, le=2, dim=3).mul(0)
     dom = 2 * Domain(l=3, g=-1, le=2, dim=3)
     assert [4, 0, 0] in dom
     assert [4.1, 0, 0] not in dom
@@ -143,9 +155,18 @@ def test_trans_domain_nD():
     # Scaling with vector
     with pytest.raises(AssertionError):
         Domain(l=3, g=-1, le=2, dim=3).mul(2 * np.ones(1))
+    with pytest.raises(AssertionError):
+        Domain(l=3, g=-1, le=2, dim=3).mul(np.zeros(3))
     dom = Domain(l=3, g=-1, le=2, dim=3).mul(2 * np.ones(3))
     assert [4, 0, 0] in dom
     assert [4.1, 0, 0] not in dom
+    assert [0, -2, 0] not in dom
+    assert [0, -2.01, 0] not in dom
+    dom = Domain(l=3, g=-1, le=2, dim=3).mul(np.array([-2, 2, 2]))
+    assert [4, 0, 0] not in dom
+    assert [-4, 0, 0] in dom
+    assert [4.1, 0, 0] in dom
+    assert [-4.1, 0, 0] not in dom
     assert [0, -2, 0] not in dom
     assert [0, -2.01, 0] not in dom
     # Test transformation with A, B
@@ -176,8 +197,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                # "-k",
-                # "test_domain_1D",
+                "-k",
+                "test_trans_domain_nD",
                 "--tb=auto",
                 "--pdb",
             ]
