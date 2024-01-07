@@ -179,12 +179,15 @@ class Domain:
                 ge = self.le * other if self.le is not None else None
                 le = self.ge * other if self.ge is not None else None
             else:
-                raise NotImplementedError("Logic with setting to inf is not correct, as it leads to violation of g>ge>le>l")
+                raise NotImplementedError(
+                    "Logic with setting to inf is not correct, as it leads to violation of g>ge>le>l"
+                )
                 if self.g is not None or self.l is not None:
                     l = np.full(self.dim, np.inf) if self.l is None else self.l
                     g = np.full(self.dim, -np.inf) if self.g is None else self.g
-                    l, g = np.where(sgncond, l * other, g * other), np.where(
-                        sgncond, g * other, l * other
+                    l, g = (
+                        np.where(sgncond, l * other, g * other),
+                        np.where(sgncond, g * other, l * other),
                     )
                 else:
                     g = None
@@ -192,8 +195,9 @@ class Domain:
                 if self.ge is not None or self.le is not None:
                     le = np.full(self.dim, np.inf) if self.le is None else self.le
                     ge = np.full(self.dim, -np.inf) if self.ge is None else self.ge
-                    le, ge = np.where(sgncond, le * other, ge * other), np.where(
-                        sgncond, ge * other, le * other
+                    le, ge = (
+                        np.where(sgncond, le * other, ge * other),
+                        np.where(sgncond, ge * other, le * other),
                     )
                 else:
                     ge = None
@@ -406,23 +410,23 @@ class Domain:
     @type_wrapper(xloc=1)
     def is_in_domain(self, t):
         if self.dim == 1:
-            val = np.full(t.shape, True)
+            val = np.full(t.shape, pd.notnull(t))
             t = np.expand_dims(t, axis=len(t.shape))
         else:
             assert len(t.shape) in [1, 2], "Only vectors or lists of vectors are supported"
             assert t.shape[-1] == self.dim, "Shape does not match with dimension"
             if len(t.shape) == 1:
-                val = True
+                val = pd.notnull(t).all()
             else:
-                val = np.full(t.shape[0], True)
+                val = pd.notnull(t).all(axis=1)
         if self.l is not None:
-            val &= np.all(t < self.l, axis=len(t.shape) - 1)
+            val &= np.all((t < self.l) | np.isna(self.l), axis=len(t.shape) - 1)
         if self.g is not None:
-            val &= np.all(t > self.g, axis=len(t.shape) - 1)
+            val &= np.all((t > self.g) | np.isna(self.g), axis=len(t.shape) - 1)
         if self.le is not None:
-            val &= np.all(t <= self.le, axis=len(t.shape) - 1)
+            val &= np.all((t <= self.le) | np.isna(self.le), axis=len(t.shape) - 1)
         if self.ge is not None:
-            val &= np.all(t >= self.ge, axis=len(t.shape) - 1)
+            val &= np.all((t >= self.ge) | np.isna(self.ge), axis=len(t.shape) - 1)
         if self.A is not None:
             val &= np.all((self.A.dot(t.T) <= self.a).T, len(t.shape) - 1)
         if self.B is not None:
