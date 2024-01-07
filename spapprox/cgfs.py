@@ -19,7 +19,7 @@ def norm(loc=0, scale=1):
     )
 
 
-def multivariate_norm(loc=None, scale=None, dim=None, cov=None):
+def multivariate_norm(loc=0, scale=None, dim=None, cov=None):
     """
     Multivariate normal distribution with mean vector `loc` and covariance matrix `scale`.
     Scale can also be a vector of standard deviations.
@@ -41,14 +41,17 @@ def multivariate_norm(loc=None, scale=None, dim=None, cov=None):
     ----------
     [1] Butler (2007) - Saddlepoint Approximations with Applications
     """
-    # Initiliaze
-    if cov is not None:
+    # Initiliaze scale
+    if cov is None and scale is None:
+        scale = 1
+    elif cov is not None:
         assert scale is None, "Cannot specify both scale and cov"
         scale = np.linalg.cholesky(cov)
-    if loc is not None:
-        loc = np.asanyarray(loc)
-    if scale is not None:
-        scale = np.asanyarray(scale)
+    assert scale is not None
+    scale = np.asanyarray(scale)
+    # Initialize loc
+    assert loc is not None
+    loc = np.asanyarray(loc)
     # Infer dimension
     if dim is None:
         if loc is not None and len(loc.shape) > 0:

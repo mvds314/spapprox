@@ -81,10 +81,13 @@ class Domain:
         return np.all(self.is_in_domain(t))
 
     def add(self, other):
-        if other is not None and pd.api.types.is_number(other):
+        assert other is not None
+        if pd.api.types.is_number(other):
             a = None if self.a is None else self.a + self.A.dot(np.full(self.dim, other))
             b = None if self.b is None else self.b + self.B.dot(np.full(self.dim, other))
-        elif other is not None and pd.api.types.is_array_like(other) and len(other) == self.dim:
+        elif isinstance(other, np.ndarray) and len(other.shape) == 0:
+            return self.add(other.tolist())
+        elif pd.api.types.is_array_like(other) and len(other) == self.dim:
             a = None if self.a is None else self.a + self.A.dot(other)
             b = None if self.b is None else self.b + self.B.dot(other)
         else:
@@ -111,7 +114,8 @@ class Domain:
         """
         Left side multiplication
         """
-        if other is not None and pd.api.types.is_number(other):
+        assert other is not None
+        if pd.api.types.is_number(other):
             A = self.A
             B = self.B
             a = None if self.a is None else self.a * other
@@ -120,7 +124,9 @@ class Domain:
             g = self.g * other if self.g is not None else None
             le = self.le * other if self.le is not None else None
             ge = self.ge * other if self.ge is not None else None
-        elif other is not None and self.dim > 1 and pd.api.types.is_array_like(other):
+        elif isinstance(other, np.ndarray) and len(other.shape) == 0:
+            return self.mul(other.tolist())
+        elif self.dim > 1 and pd.api.types.is_array_like(other):
             other = np.asanyarray(other)
             assert len(other.shape) == 1 and len(other) == self.dim, "Invalid shape"
             # Divide each row of A by other
@@ -153,6 +159,7 @@ class Domain:
         Note sure how useful this is.
         """
         assert self.dim > 1, "dot product only supporeted for dim>1"
+        assert other is not None
         other = np.asanyarray(other)
         if len(other.shape) == 1 and len(other) == self.dim:
             return self.ldot(np.expand_dims(other, axis=0))
@@ -201,7 +208,9 @@ class Domain:
         """
         Intersect with another domain, i.e., the result should be in both.
         """
-        assert isinstance(other, Domain), "Can only intersect with another Domain"
+        assert other is not None and isinstance(
+            other, Domain
+        ), "Can only intersect with another Domain"
         assert self.dim == other.dim, "Dimensions should match"
         if self.l is not None and other.l is not None:
             if self.dim == 1 or (
