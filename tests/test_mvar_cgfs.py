@@ -147,13 +147,8 @@ def test_addition():
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     # Add multivariate cumulant genering function
-    mcgf1 = multivariate_norm(loc=np.ones(2), scale=1)
-    import pdb
-
-    pdb.set_trace()
-    mcgf1.cov
-
-    +norm(loc=0, scale=1)
+    assert False, "Continue here once addition univariate is implemented properly"
+    mcgf1 = multivariate_norm(loc=np.ones(2), scale=1) + norm(loc=0, scale=1)
     mcgf2 = multivariate_norm(loc=np.ones(2), cov=np.array([[np.sqrt(2), 1], [1, np.sqrt(2)]]))
     assert mcgf1.dim == mcgf2.dim == 2
     for t in [[1, 2]]:
@@ -185,7 +180,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_statistics",
+                "test_addition",
                 "--tb=auto",
                 "--pdb",
             ]

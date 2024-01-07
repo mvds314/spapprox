@@ -849,30 +849,17 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 )
         elif isinstance(other, UnivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for UnivariateCumulantGeneratingFunction"
-            return self.add(
-                MultivariateCumulantGeneratingFunction.from_univariate(
-                    *[other for _ in range(self.dim)]
-                ),
-                inplace=False,
+            raise NotImplementedError(
+                "fix this logic, after domain ldot and ldotinv is implemented correctly"
             )
-            # Note
-            # return MultivariateCumulantGeneratingFunction(
-            #     lambda t: self.K(t) + np.sum([other.K(ti) for ti in t]),
-            #     dim=self.dim,
-            #     dK=lambda t: self.dK(t) + np.array([other.dK(ti) for ti in t]),
-            #     d2K=lambda t: self.d2K(t) + np.diag([other.d2K(ti) for ti in t]),
-            #     d3K=lambda t: self.d3K(t)
-            #     + np.array(
-            #         [
-            #             [
-            #                 [other.d3K(t[i]) if i == j == k else 0 for i in range(self.dim)]
-            #                 for j in range(self.dim)
-            #             ]
-            #             for k in range(self.dim)
-            #         ]
-            #     ),
-            #     domain=self.domain.intersect(other.domain),
-            # )
+            return MultivariateCumulantGeneratingFunction(
+                lambda t: self.K(t) + other.K(np.sum(t)),
+                dim=self.dim,
+                dK=lambda t: self.dK(t) + other.dK(np.sum(t)),
+                d2K=lambda t: self.d2K(t) + other.d2K(np.sum(t)),
+                d3K=lambda t: self.d3K(t) + other.d3K(np.sum(t)),
+                domain=self.domain.intersect(Domain()),
+            )
         elif isinstance(other, MultivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for MultivariateCumulantGeneratingFunction"
             assert self.dim == other.dim, "Dimensions must be equal"

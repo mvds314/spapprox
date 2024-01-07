@@ -81,6 +81,15 @@ class Domain:
         return np.all(self.is_in_domain(t))
 
     def add(self, other):
+        r"""
+        Translation of the domain by :math:`\beta`.
+
+        If :math:`x` is in the domain of :math:`\tilde x`, where :math:`\tilde x=x+\beta`.
+
+        In the multivariate case, multiplication by a vector is implemented as component wise
+        multiplication.
+        """
+        raise NotImplementedError("Test this one again")
         assert other is not None
         if pd.api.types.is_number(other):
             a = None if self.a is None else self.a + self.A.dot(np.full(self.dim, other))
@@ -91,7 +100,7 @@ class Domain:
             a = None if self.a is None else self.a + self.A.dot(other)
             b = None if self.b is None else self.b + self.B.dot(other)
         else:
-            raise ValueError("Can only add a scalar or a vector of length dim")
+            raise ValueError("Can only add a scalar or a vector (of length dim)")
         return Domain(
             l=self.l + other if self.l is not None else None,
             g=self.g + other if self.g is not None else None,
@@ -111,9 +120,17 @@ class Domain:
         return self.__add__(other)
 
     def mul(self, other):
+        r"""
+        Left side multiplication by a factor :math:`\alpha`.
+        It stretches the domain by a factor :math:`\alpha`.
+
+        If :math:`x` is in the domain of :math:`\tilde x`, where :math:`\alpha \tilde x= x`.
+
+        In the multivariate case, multiplication by a vector is implemented as component wise
+        multiplication.
         """
-        Left side multiplication
-        """
+        # TODO: sign is not implemented correctly
+        raise NotImplementedError("Sign is not yet implemented correctly, also test this")
         assert other is not None
         if pd.api.types.is_number(other):
             A = self.A
@@ -140,7 +157,7 @@ class Domain:
             ge = self.ge * other if self.ge is not None else None
         else:
             raise ValueError(
-                "Can only multiply with a scalar or a vector of length dim when dim>1"
+                "Can only multiply with a scalar or a vector of length dim (when dim>1)."
             )
         return Domain(l=l, g=g, le=le, ge=ge, A=A, a=a, B=B, b=b, dim=self.dim)
 
@@ -150,6 +167,7 @@ class Domain:
     def __rmul__(self, other):
         return self.__mul__(other)
 
+    # TODO: review ldot logic
     def ldot(self, other):
         """
         Left side dot product.
@@ -158,12 +176,64 @@ class Domain:
 
         Note sure how useful this is.
         """
-        assert self.dim > 1, "dot product only supporeted for dim>1"
+        raise NotImplementedError("Distinguish between ldot and ldot inv")
         assert other is not None
         other = np.asanyarray(other)
-        if len(other.shape) == 1 and len(other) == self.dim:
+        if self.dim == 1:
+            if len(other.shape) <= 1:
+                raise NotImplementedError("This type of ldot is not implemented")
+            elif len(other.shape) == 2 and other.shape[1] == self.dim:
+                assert self.A is None and self.a is None, "Cannot transform with a matrix twice"
+                assert self.B is None and self.b is None, "Cannot transform with a matrix twice"
+                if self.le is not None or self.ge is not None:
+                    A = np.full((0, self.dim), 0)
+                    a = np.full(0, 0)
+                    if self.le is not None:
+                        A = np.vstack((A, other))
+                        a = np.append(
+                            a,
+                            other.dot(
+                                np.full(self.dim, self.le) if np.isscalar(self.le) else self.le
+                            ),
+                        )
+                    if self.ge is not None:
+                        A = np.vstack((A, -other))
+                        a = np.append(
+                            a,
+                            -other.dot(
+                                np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
+                            ),
+                        )
+                if self.l is not None or self.g is not None:
+                    B = np.full((0, self.dim), 0)
+                    b = np.full(0, 0)
+                    if self.l is not None:
+                        B = np.vstack((B, other))
+                        b = np.append(
+                            b,
+                            other.dot(
+                                np.full(self.dim, self.l) if np.isscalar(self.l) else self.l
+                            ),
+                        )
+                    if self.g is not None:
+                        B = np.vstack((B, -other))
+                        b = np.append(
+                            b,
+                            -other.dot(
+                                np.full(self.dim, self.g) if np.isscalar(self.g) else self.g
+                            ),
+                        )
+                l = None
+                g = None
+                le = None
+                ge = None
+            else:
+                raise ValueError("Invalid shape")
+        elif len(other.shape) == 1 and len(other) == self.dim:
             return self.ldot(np.expand_dims(other, axis=0))
         elif len(other.shape) == 2 and other.shape[1] == self.dim:
+            # why can't we transform twice.
+            # just increase the dimension and map to the old setting
             assert self.A is None and self.a is None, "Cannot transform with a matrix twice"
             assert self.B is None and self.b is None, "Cannot transform with a matrix twice"
             if self.le is not None or self.ge is not None:

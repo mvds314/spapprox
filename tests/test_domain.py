@@ -159,13 +159,17 @@ def test_trans_domain_nD():
         Domain(l=3, ge=-1, le=2, A=[[1, 2, 3]], a=[1], dim=3).ldot(np.ones(3))
     with pytest.raises(ValueError):
         Domain(l=3, ge=-1, le=2, dim=3).ldot(np.ones(2))
-    dom = Domain(l=3, ge=-1, le=2, dim=3)
+    assert False, "Properly test ldot and ldotinv here"
+    dom = Domain(l=3, ge=-1, le=2, dim=3)  # add mul here
     assert [3, 0, 0] not in dom
     dom = dom.ldot(np.ones(3))
     assert [3, 0, 0] in dom
     dom = Domain(l=3, ge=-1, le=2, dim=3).ldot(np.ones((1, 3)))
     assert [3, 0, 0] in dom
 
+
+# Note ldot is not tested properly -> look into this
+# Then continue with the adding a univariate function case
 
 if __name__ == "__main__":
     if True:
