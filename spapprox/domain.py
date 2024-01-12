@@ -290,10 +290,6 @@ class Domain:
                                 np.full(self.dim, self.g) if np.isscalar(self.g) else self.g
                             ),
                         )
-                l = None
-                g = None
-                le = None
-                ge = None
             else:
                 raise ValueError("Invalid shape")
         elif len(other.shape) == 1 and len(other) == self.dim:
@@ -333,13 +329,9 @@ class Domain:
                     b = np.append(
                         b, -other.dot(np.full(self.dim, self.g) if np.isscalar(self.g) else self.g)
                     )
-            l = None
-            g = None
-            le = None
-            ge = None
         else:
             raise ValueError("Invalid shape")
-        return Domain(l=l, g=g, le=le, ge=ge, A=A, a=a, B=B, b=b, dim=self.dim)
+        return Domain(l=None, g=None, le=None, ge=None, A=A, a=a, B=B, b=b, dim=self.dim)
 
     def ldotinv(self, other):
         """
