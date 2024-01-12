@@ -341,66 +341,25 @@ class Domain:
             raise ValueError("Invalid shape")
         return Domain(l=l, g=g, le=le, ge=ge, A=A, a=a, B=B, b=b, dim=self.dim)
 
-    # TODO: review ldotinv logic
     def ldotinv(self, other):
         """
         Left side inverse dot product.
         This leads to the domain :math:`y`, where :math:`Cy=x`.
         """
-        raise NotImplementedError("Implement ldotinv logic")
+        # Initialize
         assert other is not None
         other = np.asanyarray(other)
+        # Handle edge cases
         if not self.has_bounds and not self.has_ineq_constraints:
             return Domain(dim=other.shape[1])
-        if self.has_strict_bounds:
-            B = np.full((0, self.dim), 0) if self.B is None else self.B
-            b = np.full(0, 0) if self.b is None else self.b
-            if self.l is not None:
-                B = np.vstack((B, other))
-                b = np.append(
-                    b,
-                    other.dot(np.full(self.dim, self.l) if np.isscalar(self.l) else self.l),
-                )
-            if self.g is not None:
-                B = np.vstack((B, -other))
-                b = np.append(
-                    b,
-                    -other.dot(np.full(self.dim, self.g) if np.isscalar(self.g) else self.g),
-                )
-        elif self.B is not None:
-            B = self.B
-            b = self.b
-        else:
-            B = None
-            b = None
-
-        if self.has_inclusive_bounds:
-            A = np.full((0, self.dim), 0) if self.A is None else self.A
-            a = np.full(0, 0) if self.a is None else self.a
-            if self.le is not None:
-                A = np.vstack((A, other))
-                a = np.append(
-                    a,
-                    other.dot(np.full(self.dim, self.le) if np.isscalar(self.le) else self.le),
-                )
-            if self.ge is not None:
-                A = np.vstack((A, -other))
-                a = np.append(
-                    a,
-                    -other.dot(np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge),
-                )
-
-        # TODO: continue here
-
         if self.dim == 1:
             if len(other.shape) <= 1:
-                raise NotImplementedError("This type of ldot is not implemented")
+                raise NotImplementedError("This type of ldotinv is not implemented")
             elif len(other.shape) == 2 and other.shape[1] == self.dim:
-                assert self.A is None and self.a is None, "Cannot transform with a matrix twice"
-                assert self.B is None and self.b is None, "Cannot transform with a matrix twice"
-                if self.le is not None or self.ge is not None:
-                    A = np.full((0, self.dim), 0)
-                    a = np.full(0, 0)
+                # Define A and a
+                if self.has_inclusive_bounds:
+                    A = np.full((0, self.dim), 0) if self.A is None else self.A
+                    a = np.full(0, 0) if self.a is None else self.a
                     if self.le is not None:
                         A = np.vstack((A, other))
                         a = np.append(
@@ -417,9 +376,13 @@ class Domain:
                                 np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
                             ),
                         )
-                if self.l is not None or self.g is not None:
-                    B = np.full((0, self.dim), 0)
-                    b = np.full(0, 0)
+                else:
+                    A = self.A
+                    a = self.a
+                # Define B and b
+                if self.has_strict_bounds:
+                    B = np.full((0, self.dim), 0) if self.B is None else self.B
+                    b = np.full(0, 0) if self.b is None else self.b
                     if self.l is not None:
                         B = np.vstack((B, other))
                         b = np.append(
@@ -436,22 +399,18 @@ class Domain:
                                 np.full(self.dim, self.g) if np.isscalar(self.g) else self.g
                             ),
                         )
-                l = None
-                g = None
-                le = None
-                ge = None
+                else:
+                    B = self.B
+                    b = self.b
             else:
                 raise ValueError("Invalid shape")
         elif len(other.shape) == 1 and len(other) == self.dim:
             return self.ldot(np.expand_dims(other, axis=0))
         elif len(other.shape) == 2 and other.shape[1] == self.dim:
-            # why can't we transform twice.
-            # just increase the dimension and map to the old setting
-            assert self.A is None and self.a is None, "Cannot transform with a matrix twice"
-            assert self.B is None and self.b is None, "Cannot transform with a matrix twice"
-            if self.le is not None or self.ge is not None:
-                A = np.full((0, self.dim), 0)
-                a = np.full(0, 0)
+            # Define A and a
+            if self.has_inclusive_bounds:
+                A = np.full((0, self.dim), 0) if self.A is None else self.A
+                a = np.full(0, 0) if self.a is None else self.a
                 if self.le is not None:
                     A = np.vstack((A, other))
                     a = np.append(
@@ -466,9 +425,13 @@ class Domain:
                             np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
                         ),
                     )
-            if self.l is not None or self.g is not None:
-                B = np.full((0, self.dim), 0)
-                b = np.full(0, 0)
+            else:
+                A = self.A
+                a = self.a
+            # Define B and b
+            if self.has_strict_bounds:
+                B = np.full((0, self.dim), 0) if self.B is None else self.B
+                b = np.full(0, 0) if self.b is None else self.b
                 if self.l is not None:
                     B = np.vstack((B, other))
                     b = np.append(
@@ -479,13 +442,22 @@ class Domain:
                     b = np.append(
                         b, -other.dot(np.full(self.dim, self.g) if np.isscalar(self.g) else self.g)
                     )
-            l = None
-            g = None
-            le = None
-            ge = None
+            else:
+                B = self.B
+                b = self.b
         else:
             raise ValueError("Invalid shape")
-        return Domain(l=l, g=g, le=le, ge=ge, A=A, a=a, B=B, b=b, dim=self.dim)
+        return Domain(
+            l=None,
+            g=None,
+            le=None,
+            ge=None,
+            A=A if A is None else A.dot(other),
+            a=a,
+            B=B if B is None else B.dot(other),
+            b=b,
+            dim=self.other.shape[1],
+        )
 
     def intersect(self, other):
         """
