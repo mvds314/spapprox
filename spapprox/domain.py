@@ -136,8 +136,6 @@ class Domain:
         In the multivariate case, multiplication by a vector is implemented as component wise
         multiplication.
         """
-        # TODO: sign is not implemented correctly
-        # raise NotImplementedError("Sign is not yet implemented correctly, also test this")
         assert other is not None
         if pd.api.types.is_number(other):
             assert not np.isclose(other, 0), "Cannot multiply with zero"
@@ -210,16 +208,122 @@ class Domain:
     def __rmul__(self, other):
         return self.__mul__(other)
 
-    # TODO: review ldot logic
     def ldot(self, other):
-        """
-        Left side dot product.
+        r"""
+        Left side dot product. Leads to the domain of :math:`y=Ax`.
+        This extends the multiplication (scaling) functionality to generic linear transformations.
 
-        Note that this might expand the domain, as several bounds are combined into one.
+        As :math:`A` is not necessarily invertible, we only allow this for domains
+        with upper and lower bound constrains, and not with :math:`Ax\leq b` constrains.
 
-        Note sure how useful this is.
+        Also, note that this might expand the domain, as several bounds are combined into one.
+
+        Not completely sure how useful this is.
         """
-        raise NotImplementedError("Distinguish between ldot and ldot inv")
+        assert other is not None
+        other = np.asanyarray(other)
+        if self.dim == 1:
+            if len(other.shape) <= 1:
+                raise NotImplementedError("This type of ldot is not implemented")
+            elif len(other.shape) == 2 and other.shape[1] == self.dim:
+                assert self.A is None and self.a is None, "Cannot transform with a matrix twice"
+                assert self.B is None and self.b is None, "Cannot transform with a matrix twice"
+                if self.le is not None or self.ge is not None:
+                    A = np.full((0, self.dim), 0)
+                    a = np.full(0, 0)
+                    if self.le is not None:
+                        A = np.vstack((A, other))
+                        a = np.append(
+                            a,
+                            other.dot(
+                                np.full(self.dim, self.le) if np.isscalar(self.le) else self.le
+                            ),
+                        )
+                    if self.ge is not None:
+                        A = np.vstack((A, -other))
+                        a = np.append(
+                            a,
+                            -other.dot(
+                                np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
+                            ),
+                        )
+                if self.l is not None or self.g is not None:
+                    B = np.full((0, self.dim), 0)
+                    b = np.full(0, 0)
+                    if self.l is not None:
+                        B = np.vstack((B, other))
+                        b = np.append(
+                            b,
+                            other.dot(
+                                np.full(self.dim, self.l) if np.isscalar(self.l) else self.l
+                            ),
+                        )
+                    if self.g is not None:
+                        B = np.vstack((B, -other))
+                        b = np.append(
+                            b,
+                            -other.dot(
+                                np.full(self.dim, self.g) if np.isscalar(self.g) else self.g
+                            ),
+                        )
+                l = None
+                g = None
+                le = None
+                ge = None
+            else:
+                raise ValueError("Invalid shape")
+        elif len(other.shape) == 1 and len(other) == self.dim:
+            return self.ldot(np.expand_dims(other, axis=0))
+        elif len(other.shape) == 2 and other.shape[1] == self.dim:
+            # why can't we transform twice.
+            # just increase the dimension and map to the old setting
+            assert self.A is None and self.a is None, "Cannot transform with a matrix twice"
+            assert self.B is None and self.b is None, "Cannot transform with a matrix twice"
+            if self.le is not None or self.ge is not None:
+                A = np.full((0, self.dim), 0)
+                a = np.full(0, 0)
+                if self.le is not None:
+                    A = np.vstack((A, other))
+                    a = np.append(
+                        a,
+                        other.dot(np.full(self.dim, self.le) if np.isscalar(self.le) else self.le),
+                    )
+                if self.ge is not None:
+                    A = np.vstack((A, -other))
+                    a = np.append(
+                        a,
+                        -other.dot(
+                            np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
+                        ),
+                    )
+            if self.l is not None or self.g is not None:
+                B = np.full((0, self.dim), 0)
+                b = np.full(0, 0)
+                if self.l is not None:
+                    B = np.vstack((B, other))
+                    b = np.append(
+                        b, other.dot(np.full(self.dim, self.l) if np.isscalar(self.l) else self.l)
+                    )
+                if self.g is not None:
+                    B = np.vstack((B, -other))
+                    b = np.append(
+                        b, -other.dot(np.full(self.dim, self.g) if np.isscalar(self.g) else self.g)
+                    )
+            l = None
+            g = None
+            le = None
+            ge = None
+        else:
+            raise ValueError("Invalid shape")
+        return Domain(l=l, g=g, le=le, ge=ge, A=A, a=a, B=B, b=b, dim=self.dim)
+
+    # TODO: review ldot logic
+    def ldotinv(self, other):
+        """
+        Left side inverse dot product.
+        This leads to the domain :math:`y`, where :math:`Ay=x`.
+        """
+        raise NotImplementedError("Implement ldotinv logic")
         assert other is not None
         other = np.asanyarray(other)
         if self.dim == 1:

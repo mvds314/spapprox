@@ -165,7 +165,7 @@ def test_trans_domain_nD():
     dom = Domain(l=3, g=-1, le=2, dim=3).mul(np.array([-2, 2, 2]))
     assert [4, 0, 0] not in dom
     assert [-4, 0, 0] in dom
-    assert [4.1, 0, 0] in dom
+    assert [2, 0, 0] not in dom
     assert [-4.1, 0, 0] not in dom
     assert [0, -2, 0] not in dom
     assert [0, -2.01, 0] not in dom
@@ -189,7 +189,7 @@ def test_trans_domain_nD():
     assert [3, 0, 0] in dom
 
 
-# Note ldot is not tested properly -> look into this
+# Note ldotinv needs to be implemented -> look into this
 # Then continue with the adding a univariate function case
 
 if __name__ == "__main__":
@@ -197,8 +197,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_trans_domain_nD",
+                # "-k",
+                # "test_trans_domain_nD",
                 "--tb=auto",
                 "--pdb",
             ]
