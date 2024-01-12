@@ -85,6 +85,30 @@ class Domain:
     def __contains__(self, t):
         return np.all(self.is_in_domain(t))
 
+    @property
+    def has_lower_bounds(self):
+        return self.g is not None or self.ge is not None
+
+    @property
+    def has_upper_bounds(self):
+        return self.l is not None or self.le is not None
+
+    @property
+    def has_inclusive_bounds(self):
+        return self.le is not None or self.ge is not None
+
+    @property
+    def has_strict_bounds(self):
+        return self.l is not None or self.g is not None
+
+    @property
+    def has_bounds(self):
+        return self.has_inclusive_bounds or self.has_strict_bounds
+
+    @property
+    def has_ineq_constraints(self):
+        return self.A is not None or self.B is not None
+
     def add(self, other):
         r"""
         Translation of the domain by :math:`\beta`.
@@ -176,7 +200,7 @@ class Domain:
                 ge = self.le * other if self.le is not None else None
                 le = self.ge * other if self.ge is not None else None
             else:
-                if self.g is not None or self.l is not None:
+                if self.has_strict_bounds:
                     l = np.full(self.dim, np.nan) if self.l is None else self.l
                     g = np.full(self.dim, np.nan) if self.g is None else self.g
                     l, g = (
@@ -186,7 +210,7 @@ class Domain:
                 else:
                     g = None
                     l = None
-                if self.ge is not None or self.le is not None:
+                if self.has_inclusive_bounds:
                     le = np.full(self.dim, np.nan) if self.le is None else self.le
                     ge = np.full(self.dim, np.nan) if self.ge is None else self.ge
                     le, ge = (
@@ -210,7 +234,7 @@ class Domain:
 
     def ldot(self, other):
         r"""
-        Left side dot product. Leads to the domain of :math:`y=Ax`.
+        Left side dot product. Leads to the domain of :math:`y=Cx`.
         This extends the multiplication (scaling) functionality to generic linear transformations.
 
         As :math:`A` is not necessarily invertible, we only allow this for domains
@@ -228,7 +252,7 @@ class Domain:
             elif len(other.shape) == 2 and other.shape[1] == self.dim:
                 assert self.A is None and self.a is None, "Cannot transform with a matrix twice"
                 assert self.B is None and self.b is None, "Cannot transform with a matrix twice"
-                if self.le is not None or self.ge is not None:
+                if self.has_inclusive_bounds:
                     A = np.full((0, self.dim), 0)
                     a = np.full(0, 0)
                     if self.le is not None:
@@ -247,7 +271,7 @@ class Domain:
                                 np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
                             ),
                         )
-                if self.l is not None or self.g is not None:
+                if self.has_strict_bounds:
                     B = np.full((0, self.dim), 0)
                     b = np.full(0, 0)
                     if self.l is not None:
@@ -279,7 +303,7 @@ class Domain:
             # just increase the dimension and map to the old setting
             assert self.A is None and self.a is None, "Cannot transform with a matrix twice"
             assert self.B is None and self.b is None, "Cannot transform with a matrix twice"
-            if self.le is not None or self.ge is not None:
+            if self.has_inclusive_bounds:
                 A = np.full((0, self.dim), 0)
                 a = np.full(0, 0)
                 if self.le is not None:
@@ -296,7 +320,7 @@ class Domain:
                             np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
                         ),
                     )
-            if self.l is not None or self.g is not None:
+            if self.has_strict_bounds:
                 B = np.full((0, self.dim), 0)
                 b = np.full(0, 0)
                 if self.l is not None:
@@ -317,15 +341,57 @@ class Domain:
             raise ValueError("Invalid shape")
         return Domain(l=l, g=g, le=le, ge=ge, A=A, a=a, B=B, b=b, dim=self.dim)
 
-    # TODO: review ldot logic
+    # TODO: review ldotinv logic
     def ldotinv(self, other):
         """
         Left side inverse dot product.
-        This leads to the domain :math:`y`, where :math:`Ay=x`.
+        This leads to the domain :math:`y`, where :math:`Cy=x`.
         """
         raise NotImplementedError("Implement ldotinv logic")
         assert other is not None
         other = np.asanyarray(other)
+        if not self.has_bounds and not self.has_ineq_constraints:
+            return Domain(dim=other.shape[1])
+        if self.has_strict_bounds:
+            B = np.full((0, self.dim), 0) if self.B is None else self.B
+            b = np.full(0, 0) if self.b is None else self.b
+            if self.l is not None:
+                B = np.vstack((B, other))
+                b = np.append(
+                    b,
+                    other.dot(np.full(self.dim, self.l) if np.isscalar(self.l) else self.l),
+                )
+            if self.g is not None:
+                B = np.vstack((B, -other))
+                b = np.append(
+                    b,
+                    -other.dot(np.full(self.dim, self.g) if np.isscalar(self.g) else self.g),
+                )
+        elif self.B is not None:
+            B = self.B
+            b = self.b
+        else:
+            B = None
+            b = None
+
+        if self.has_inclusive_bounds:
+            A = np.full((0, self.dim), 0) if self.A is None else self.A
+            a = np.full(0, 0) if self.a is None else self.a
+            if self.le is not None:
+                A = np.vstack((A, other))
+                a = np.append(
+                    a,
+                    other.dot(np.full(self.dim, self.le) if np.isscalar(self.le) else self.le),
+                )
+            if self.ge is not None:
+                A = np.vstack((A, -other))
+                a = np.append(
+                    a,
+                    -other.dot(np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge),
+                )
+
+        # TODO: continue here
+
         if self.dim == 1:
             if len(other.shape) <= 1:
                 raise NotImplementedError("This type of ldot is not implemented")
