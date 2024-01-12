@@ -41,16 +41,15 @@ class Domain:
             ), "Bounds should be scalars or have matching dim"
             specified_bounds = [np.asanyarray(x) for x in [l, le, ge, g] if x is not None]
             if len(specified_bounds) > 1:
-                assert all(
-                    np.all(
-                        np.where(
-                            np.isinf(specified_bounds[i]) & np.isinf(specified_bounds[i + 1]),
-                            True,
-                            specified_bounds[i] > specified_bounds[i + 1],
-                        )
-                    )
-                    for i in range(len(specified_bounds) - 1)
-                ), "Bounds should satisfy: g>ge>le>l"
+                df = pd.DataFrame(
+                    data=np.nan, index=range(self.dim), columns=["l", "le", "ge", "g"]
+                )
+                df["l"] = l
+                df["le"] = le
+                df["ge"] = ge
+                df["g"] = g
+                for _, sr in df.iterrows():
+                    assert sr.dropna().is_monotonic_decreasing, "Bounds should satisfy: g>ge>le>l"
                 l = np.asanyarray(l) if l is not None and not np.isscalar(l) else l
                 g = np.asanyarray(g) if g is not None and not np.isscalar(g) else g
                 le = np.asanyarray(le) if le is not None and not np.isscalar(le) else le
@@ -179,12 +178,9 @@ class Domain:
                 ge = self.le * other if self.le is not None else None
                 le = self.ge * other if self.ge is not None else None
             else:
-                raise NotImplementedError(
-                    "Logic with setting to inf is not correct, as it leads to violation of g>ge>le>l"
-                )
                 if self.g is not None or self.l is not None:
-                    l = np.full(self.dim, np.inf) if self.l is None else self.l
-                    g = np.full(self.dim, -np.inf) if self.g is None else self.g
+                    l = np.full(self.dim, np.nan) if self.l is None else self.l
+                    g = np.full(self.dim, np.nan) if self.g is None else self.g
                     l, g = (
                         np.where(sgncond, l * other, g * other),
                         np.where(sgncond, g * other, l * other),
@@ -193,8 +189,8 @@ class Domain:
                     g = None
                     l = None
                 if self.ge is not None or self.le is not None:
-                    le = np.full(self.dim, np.inf) if self.le is None else self.le
-                    ge = np.full(self.dim, -np.inf) if self.ge is None else self.ge
+                    le = np.full(self.dim, np.nan) if self.le is None else self.le
+                    ge = np.full(self.dim, np.nan) if self.ge is None else self.ge
                     le, ge = (
                         np.where(sgncond, le * other, ge * other),
                         np.where(sgncond, ge * other, le * other),
@@ -420,13 +416,13 @@ class Domain:
             else:
                 val = pd.notnull(t).all(axis=1)
         if self.l is not None:
-            val &= np.all((t < self.l) | np.isna(self.l), axis=len(t.shape) - 1)
+            val &= np.all((t < self.l) | np.isnan(self.l), axis=len(t.shape) - 1)
         if self.g is not None:
-            val &= np.all((t > self.g) | np.isna(self.g), axis=len(t.shape) - 1)
+            val &= np.all((t > self.g) | np.isnan(self.g), axis=len(t.shape) - 1)
         if self.le is not None:
-            val &= np.all((t <= self.le) | np.isna(self.le), axis=len(t.shape) - 1)
+            val &= np.all((t <= self.le) | np.isnan(self.le), axis=len(t.shape) - 1)
         if self.ge is not None:
-            val &= np.all((t >= self.ge) | np.isna(self.ge), axis=len(t.shape) - 1)
+            val &= np.all((t >= self.ge) | np.isnan(self.ge), axis=len(t.shape) - 1)
         if self.A is not None:
             val &= np.all((self.A.dot(t.T) <= self.a).T, len(t.shape) - 1)
         if self.B is not None:
