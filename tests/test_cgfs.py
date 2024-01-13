@@ -339,8 +339,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_cgf",
+                # "-k",
+                # "test_cgf",
                 "--tb=auto",
                 "--pdb",
             ]
