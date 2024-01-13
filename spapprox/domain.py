@@ -298,55 +298,8 @@ class Domain:
         # Initialize
         assert other is not None
         other = np.asanyarray(other)
-        # Handle edge cases
         if not self.has_bounds and not self.has_ineq_constraints:
             return Domain(dim=other.shape[1])
-        if self.dim == 1:
-            if len(other.shape) <= 1:
-                raise NotImplementedError("This type of ldotinv is not implemented")
-            elif len(other.shape) == 2 and other.shape[0] == self.dim:
-                # Define A and a
-                if self.has_inclusive_bounds:
-                    A = np.full((0, self.dim), 0) if self.A is None else self.A
-                    a = np.full(0, 0) if self.a is None else self.a
-                    if self.le is not None:
-                        A = np.vstack((A, np.eye(1)))
-                        a = np.append(
-                            a, np.full(self.dim, self.le) if np.isscalar(self.le) else self.le
-                        )
-                    if self.ge is not None:
-                        A = np.vstack((A, -np.eye(1)))
-                        a = np.append(
-                            a, np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
-                        )
-                    sel = ~np.isnan(a)
-                    A = A[sel]
-                    a = a[sel]
-                else:
-                    A = self.A
-                    a = self.a
-                # Define B and b
-                if self.has_strict_bounds:
-                    B = np.full((0, self.dim), 0) if self.B is None else self.B
-                    b = np.full(0, 0) if self.b is None else self.b
-                    if self.l is not None:
-                        B = np.vstack((B, np.eye(1)))
-                        b = np.append(
-                            b, np.full(self.dim, self.l) if np.isscalar(self.l) else self.l
-                        )
-                    if self.g is not None:
-                        B = np.vstack((B, -np.eye(1)))
-                        b = np.append(
-                            b, np.full(self.dim, self.g) if np.isscalar(self.g) else self.g
-                        )
-                    sel = ~np.isnan(b)
-                    B = B[sel]
-                    b = b[sel]
-                else:
-                    B = self.B
-                    b = self.b
-            else:
-                raise ValueError("Invalid shape")
         elif len(other.shape) == 1 and len(other) == self.dim:
             return self.ldot(np.expand_dims(other, axis=0))
         elif len(other.shape) == 2 and other.shape[0] == self.dim:
