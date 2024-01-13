@@ -271,6 +271,9 @@ class Domain:
                                 np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
                             ),
                         )
+                    sel = ~np.isnan(a)
+                    A = A[sel]
+                    a = a[sel]
                 if self.has_strict_bounds:
                     B = np.full((0, self.dim), 0)
                     b = np.full(0, 0)
@@ -290,6 +293,9 @@ class Domain:
                                 np.full(self.dim, self.g) if np.isscalar(self.g) else self.g
                             ),
                         )
+                    sel = ~np.isnan(b)
+                    B = B[sel]
+                    b = b[sel]
             else:
                 raise ValueError("Invalid shape")
         elif len(other.shape) == 1 and len(other) == self.dim:
@@ -316,6 +322,9 @@ class Domain:
                             np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
                         ),
                     )
+                sel = ~np.isnan(a)
+                A = A[sel]
+                a = a[sel]
             if self.has_strict_bounds:
                 B = np.full((0, self.dim), 0)
                 b = np.full(0, 0)
@@ -329,6 +338,9 @@ class Domain:
                     b = np.append(
                         b, -other.dot(np.full(self.dim, self.g) if np.isscalar(self.g) else self.g)
                     )
+                sel = ~np.isnan(b)
+                B = B[sel]
+                b = b[sel]
         else:
             raise ValueError("Invalid shape")
         return Domain(l=None, g=None, le=None, ge=None, A=A, a=a, B=B, b=b, dim=self.dim)
@@ -368,6 +380,9 @@ class Domain:
                                 np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
                             ),
                         )
+                    sel = ~np.isnan(a)
+                    A = A[sel]
+                    a = a[sel]
                 else:
                     A = self.A
                     a = self.a
@@ -391,6 +406,9 @@ class Domain:
                                 np.full(self.dim, self.g) if np.isscalar(self.g) else self.g
                             ),
                         )
+                    sel = ~np.isnan(b)
+                    B = B[sel]
+                    b = b[sel]
                 else:
                     B = self.B
                     b = self.b
@@ -417,6 +435,9 @@ class Domain:
                             np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge
                         ),
                     )
+                sel = ~np.isnan(a)
+                A = A[sel]
+                a = a[sel]
             else:
                 A = self.A
                 a = self.a
@@ -434,6 +455,9 @@ class Domain:
                     b = np.append(
                         b, -other.dot(np.full(self.dim, self.g) if np.isscalar(self.g) else self.g)
                     )
+                sel = ~np.isnan(b)
+                B = B[sel]
+                b = b[sel]
             else:
                 B = self.B
                 b = self.b
