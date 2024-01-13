@@ -176,21 +176,49 @@ def test_trans_domain_nD():
     assert [2, 0, 0] in dom
     assert [0, 1, 0] in dom
     # Test multiplication ldot
-    with pytest.raises(AssertionError):
+    with pytest.raises(Exception):
         Domain(l=3, ge=-1, le=2, A=[[1, 2, 3]], a=[1], dim=3).ldot(np.ones(3))
     with pytest.raises(ValueError):
         Domain(l=3, ge=-1, le=2, dim=3).ldot(np.ones(2))
-    assert False, "Properly test ldot and ldotinv here"
-    dom = Domain(l=3, ge=-1, le=2, dim=3)  # add mul here
-    assert [3, 0, 0] not in dom
+    dom = Domain(l=3, ge=-1, le=2, dim=3)
+    assert [2, 2, 2] in dom
+    assert [-1, -1, -1] in dom
+    assert [2.1, 0, 0] not in dom
     dom = dom.ldot(np.ones(3))
-    assert [3, 0, 0] in dom
-    dom = Domain(l=3, ge=-1, le=2, dim=3).ldot(np.ones((1, 3)))
-    assert [3, 0, 0] in dom
+    assert dom.dim == 1
+    assert 6 in dom
+    assert 6.1 not in dom
+    assert -3 in dom
+    assert -3.1 not in dom
+    # Test multiplication ldotinv
+    with pytest.raises(ValueError):
+        Domain(l=3, ge=-1, le=2, dim=1).ldotinv(np.ones(2))
+    with pytest.raises(ValueError):
+        Domain(l=3, ge=-1, le=2, dim=1).ldotinv(np.ones((2, 1)))
+    dom = Domain(l=3, ge=-1, le=2, dim=3)
+    assert [2, 2, 2] in dom
+    assert [-1, -1, -1] in dom
+    assert [2.1, 0, 0] not in dom
+    dom = dom.ldotinv(np.ones((3, 4)))
+    assert dom.dim == 4
+    assert [1, 1, 0, 0] in dom
+    assert [1, 1, 1, 0] not in dom
+    dom = Domain(l=3, ge=-1, le=2, dim=3).ldotinv(np.ones((3, 1)))
+    assert 2 in dom
+    assert 3 not in dom
+    # Test ldotinv in 1 dim
+    dom = dom.ldotinv(np.ones((1, 2)))
+    assert dom.dim == 2
+    assert [1, 1] in dom
+    assert [-1, -1] not in dom
+    dom = Domain(l=3, ge=-1, le=2, dim=1).ldotinv(np.ones((1, 2)))
+    assert dom.dim == 2
+    # Test invertible matrix case
+    dom = Domain(l=3, ge=-1, le=2, dim=2).ldot(np.eye(2))
+    assert dom.dim == 2
+    assert [3, 3] not in dom
+    assert [2, 2] in dom
 
-
-# Note ldotinv needs to be implemented -> look into this
-# Then continue with the adding a univariate function case
 
 if __name__ == "__main__":
     if True:
