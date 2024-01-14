@@ -169,11 +169,9 @@ def test_multiplication():
     mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1) * np.array([1, 2])
     assert mcgf1.dim == mcgf2.dim == 2
     for t in [[1, 2]]:
-        val1 = mcgf1.K(t)
-        val2 = mcgf2.K(t)
-        # assert np.isclose(mcgf1.K(t), mcgf2.K(t))
-    #     assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-    #     assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+        assert np.isclose(mcgf1.K(t), mcgf2.K(t))
+        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     # mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1)
     # mcgf2.add(+np.array([1, 2]), inplace=True)
     # assert mcgf1.dim == mcgf2.dim == 2

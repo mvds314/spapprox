@@ -1073,8 +1073,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         # Evaluate
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            if len(scale.shape) == 1:
-                raise NotImplementedError("Check this logic")
+            if len(scale.shape) <= 1:
                 y = np.add(scale * self._dK(ts), loc)
             else:
                 y = np.add(scale.dot(self._dK(ts)), loc)
@@ -1131,11 +1130,15 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            if len(scale.shape) == 1:
-                raise NotImplementedError("Fix this logic")
-                y = np.dot(np.dot(scale, self._d2K(ts)), scale.T)
+            y = self._d2K(ts)
+            if len(scale.shape) == 0:
+                y *= scale**2
+            elif len(scale.shape) == 1:
+                # This is supposed to be equivalent to the else case
+                y = np.apply_along_axis(lambda x: np.multiply(scale, x), 0, y)
+                y = np.apply_along_axis(lambda x: np.multiply(x, scale), 1, y)
             else:
-                y = np.dot(np.dot(scale, self._d2K(ts)), scale.T)
+                y = np.dot(np.dot(scale, y), scale.T)
             if np.isscalar(cond):
                 if cond:
                     return y
