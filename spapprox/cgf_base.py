@@ -926,7 +926,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             # This is simply a rescaling of all the components
             if inplace:
                 self.loc = self.loc * other
-                self.scale = ((other * np.asanyarray(self.scale).T).T,)
+                self.scale = (other * np.asanyarray(self.scale).T).T
                 for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
                     if hasattr(self, att):
                         delattr(self, att)
