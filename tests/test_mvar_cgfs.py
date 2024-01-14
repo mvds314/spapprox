@@ -163,12 +163,68 @@ def test_addition():
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
 
 
-# TODO: test whether they are equal
+def test_multiplication():
+    # add vector
+    mcgf1 = MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2)
+    mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1) * np.array([1, 2])
+    assert mcgf1.dim == mcgf2.dim == 2
+    for t in [[1, 2]]:
+        val1 = mcgf1.K(t)
+        val2 = mcgf2.K(t)
+        # assert np.isclose(mcgf1.K(t), mcgf2.K(t))
+    #     assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+    #     assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    # mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1)
+    # mcgf2.add(+np.array([1, 2]), inplace=True)
+    # assert mcgf1.dim == mcgf2.dim == 2
+    # for t in [[1, 2]]:
+    #     assert np.allclose(mcgf1.K(t), mcgf2.K(t))
+    #     assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+    #     assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    # mcgf2 = multivariate_norm(loc=np.array([1, 2]), scale=1)
+    # assert mcgf1.dim == mcgf2.dim == 2
+    # for t in [[1, 2]]:
+    #     assert np.allclose(mcgf1.K(t), mcgf2.K(t))
+    #     assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+    #     assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    # # Add a constant
+    # mcgf2 = multivariate_norm(loc=np.array([0, 1]), scale=1) + 1
+    # assert mcgf1.dim == mcgf2.dim == 2
+    # for t in [[1, 2]]:
+    #     assert np.allclose(mcgf1.K(t), mcgf2.K(t))
+    #     assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+    #     assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    # # add scalar
+    # mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1) + 1
+    # mcgf2 = multivariate_norm(loc=np.ones(2), scale=1)
+    # assert mcgf1.dim == mcgf2.dim == 2
+    # for t in [[1, 2]]:
+    #     assert np.allclose(mcgf1.K(t), mcgf2.K(t))
+    #     assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+    #     assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    # # Add multivariate cumulant genering function
+    # mcgf1 = multivariate_norm(loc=np.ones(2), scale=1) + multivariate_norm(
+    #     loc=np.zeros(2), scale=1
+    # )
+    # mcgf2 = multivariate_norm(loc=np.ones(2), scale=np.sqrt(2))
+    # assert mcgf1.dim == mcgf2.dim == 2
+    # for t in [[1, 2]]:
+    #     assert np.allclose(mcgf1.K(t), mcgf2.K(t))
+    #     assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+    #     assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    # # Add multivariate cumulant genering function
+    # mcgf1 = multivariate_norm(loc=np.ones(2), scale=1) + norm(loc=0, scale=1)
+    # mcgf2 = multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]]))
+    # assert mcgf1.dim == mcgf2.dim == 2
+    # for t in [[1, 2]]:
+    #     assert np.allclose(mcgf1.K(t), mcgf2.K(t))
+    #     assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+    #     assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
 
+
+# TODO: implement dKinv
 
 # TODO: test with transformations
-
-# TODO: look at 1D case if there are more sensible tests?
 
 # TODO: implement slicing and test that
 
@@ -180,7 +236,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_addition",
+                "test_multiplication",
                 "--tb=auto",
                 "--pdb",
             ]
