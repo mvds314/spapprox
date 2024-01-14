@@ -782,7 +782,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     def d2K0(self):
         if not hasattr(self, "_d2K0_cache"):
             self._d2K0_cache = np.dot(
-                np.dot(self.scale, CumulantGeneratingFunction.dK0.fget(self)), self.scale.T
+                np.dot(self.scale, CumulantGeneratingFunction.d2K0.fget(self)), self.scale.T
             )
         return self._d2K0_cache
 
