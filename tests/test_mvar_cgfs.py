@@ -201,11 +201,24 @@ def test_multiplication():
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
 
 
-# TODO: implement dKinv
-
 # TODO: test with transformations
+def test_ldot():
+    pass
+
+
+def test_ldotinv():
+    pass
+
 
 # TODO: implement slicing and test that
+def test_stack_and_slicing():
+    pass
+
+
+# TODO: implement dKinv
+def test_dKinv():
+    pass
+
 
 # TODO: decide on third derivative
 
@@ -214,8 +227,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_multiplication",
+                # "-k",
+                # "test_multiplication",
                 "--tb=auto",
                 "--pdb",
             ]
