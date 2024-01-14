@@ -183,95 +183,25 @@ class CumulantGeneratingFunction(ABC):
     def __rmul__(self, other):
         return self.__mul__(other)
 
-    @type_wrapper(xloc=1)
+    @abstractmethod
     def K(self, t, fillna=np.nan, loc=None, scale=None):
-        loc = self.loc if loc is None else np.asanyarray(loc)
-        scale = self.scale if scale is None else np.asanyarray(scale)
-        t = np.asanyarray(t)
-        tt = scale.T.dot(t)
-        cond = self.domain.is_in_domain(tt)
-        tt = np.where(cond, tt.T, 0).T  # prevent outside domain evaluations
-        with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            val = self._K(tt)
-            if np.isscalar(val):
-                val += np.sum(loc * t)
-            elif pd.api.types.is_array_like(val) and len(val.shape) == 1 and len(t.shape) == 1:
-                val += np.dot(loc, t.T)
-            elif pd.api.types.is_array_like(val) and len(val.shape) == 1:
-                val += np.sum((loc * t).T, axis=0)
-            else:
-                raise RuntimeError("Only scalar and vector valued return values are supported")
-            return np.where(cond, val, fillna)
-
-    @type_wrapper(xloc=1)
-    def dK(self, t, fillna=np.nan, loc=None, scale=None):
-        loc = self.loc if loc is None else np.asanyarray(loc)
-        scale = self.scale if scale is None else np.asanyarray(scale)
-        assert self._dK is not None, "dK must be specified"
-        t = np.asanyarray(t)
-        tt = scale.T.dot(t)
-        cond = self.domain.is_in_domain(tt)
-        tt = np.where(cond, tt.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
-        with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            y = np.add(scale.dot(self._dK(tt)), loc)
-            if np.isscalar(cond):
-                if cond:
-                    return y
-                elif np.isscalar(y):
-                    return fillna
-                else:
-                    return np.fill(np.asanyarray(y).shape, fillna)
-            else:
-                y = y.astype(np.float64)
-                y[~cond] = fillna
-                return y
-
-    @type_wrapper(xloc=1)
-    def dK_inv(self, x, loc=None, scale=None, fillna=np.nan):
-        """
-        Default implementation
-        """
         raise NotImplementedError()
 
-    @type_wrapper(xloc=1)
-    def d2K(self, t, fillna=np.nan, loc=None, scale=None):
-        loc = self.loc if loc is None else np.asanyarray(loc)
-        scale = self.scale if scale is None else np.asanyarray(scale)
-        assert self._d2K is not None, "d2K must be specified"
-        t = np.asanyarray(t)
-        tt = scale.T.dot(t)
-        cond = self.domain.is_in_domain(tt)
-        tt = np.where(cond, tt.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
-        with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            y = np.dot(np.dot(scale, self._d2K(tt)), scale.T)
-            if np.isscalar(cond):
-                if cond:
-                    return y
-                elif np.isscalar(y):
-                    return fillna
-                else:
-                    return np.fill(np.asanyarray(y).shape, fillna)
-            else:
-                y = y.astype(np.float64)
-                y[~cond] = fillna
-                return y
+    @abstractmethod
+    def dK(self, t, fillna=np.nan, loc=None, scale=None):
+        raise NotImplementedError()
 
-    @type_wrapper(xloc=1)
+    @abstractmethod
+    def dK_inv(self, x, loc=None, scale=None, fillna=np.nan):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def d2K(self, t, fillna=np.nan, loc=None, scale=None):
+        raise NotImplementedError()
+
+    @abstractmethod
     def d3K(self, t, fillna=np.nan, loc=None, scale=None):
-        loc = self.loc if loc is None else np.asanyarray(loc)
-        scale = self.scale if scale is None else np.asanyarray(scale)
-        assert self._d3K is not None, "d3K must be specified"
-        t = np.asanyarray(t)
-        tt = scale.T.dot(t)
-        cond = tt in self.domain
-        tt = np.where(cond, tt.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
-        with warnings.catch_warnings():
-            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-            # TODO: this is not correct for the multivariate case
-            return np.where(cond, np.dot(np.power(scale.T, 3), self._d3K(tt)), fillna)
+        raise NotImplementedError()
 
 
 class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
@@ -1087,13 +1017,29 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         raise NotImplementedError()
 
     @type_wrapper(xloc=1)
-    def K(self, t, loc=None, scale=None, fillna=np.nan):
-        t = np.asanyarray(t)
+    def K(self, t, fillna=np.nan, loc=None, scale=None):
+        # Initialize
+        loc = self.loc if loc is None else np.asanyarray(loc)
+        scale = self.scale if scale is None else np.asanyarray(scale)
         if len(t.shape) == 0:
             t = np.full(self.dim, t)
         assert t.shape[-1] == self.dim, "Dimensions do not match"
-        # TODO: move all loc and scale logic to this level
-        return super().K(t, loc=loc, scale=scale, fillna=fillna)
+        st = (scale * t.T).T if len(scale.shape) == 1 else scale.T.dot(t)
+        cond = self.domain.is_in_domain(st)
+        st = np.where(cond, st.T, 0).T  # prevent outside domain evaluations
+        # Evaluate
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            val = self._K(st)
+            if np.isscalar(val):
+                val += np.sum(loc * t)
+            elif pd.api.types.is_array_like(val) and len(val.shape) == 1 and len(t.shape) == 1:
+                val += np.dot(loc, t.T)
+            elif pd.api.types.is_array_like(val) and len(val.shape) == 1:
+                val += np.sum((loc * t).T, axis=0)
+            else:
+                raise RuntimeError("Only scalar and vector valued return values are supported")
+            return np.where(cond, val, fillna)
 
     @type_wrapper(xloc=1)
     def dK(self, t, loc=None, scale=None, fillna=np.nan):
@@ -1110,7 +1056,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         ----------
         [1] Ganesh, O'Connell (2004) - Big Quesues in Probability and Statistics
         """
-        t = np.asanyarray(t)
+        # Initialize
         if len(t.shape) == 0:
             t = np.full(self.dim, t)
         assert t.shape[-1] == self.dim, "Dimensions do not match"
@@ -1119,7 +1065,30 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             self._dK = np.vectorize(
                 nd.Gradient(lambda tt: self.K(tt, loc=0, scale=1)), signature="(n)->(n)"
             )
-        return super().dK(t, loc=loc, scale=scale, fillna=fillna)
+        loc = self.loc if loc is None else np.asanyarray(loc)
+        scale = self.scale if scale is None else np.asanyarray(scale)
+        ts = (scale * t.T).T if len(scale.shape) <= 1 else scale.T.dot(t)
+        cond = self.domain.is_in_domain(ts)
+        ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
+        # Evaluate
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            if len(scale.shape) == 1:
+                raise NotImplementedError("Check this logic")
+                y = np.add(scale * self._dK(ts), loc)
+            else:
+                y = np.add(scale.dot(self._dK(ts)), loc)
+            if np.isscalar(cond):
+                if cond:
+                    return y
+                elif np.isscalar(y):
+                    return fillna
+                else:
+                    return np.fill(np.asanyarray(y).shape, fillna)
+            else:
+                y = y.astype(np.float64)
+                y[~cond] = fillna
+                return y
 
     @type_wrapper(xloc=1)
     def dK_inv(self, x, t0=None, loc=None, scale=None, **kwargs):
@@ -1144,7 +1113,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         This is the Hessian, i.e., the matrix with second order partial derivatives.
         """
-        t = np.asanyarray(t)
+        # Initialize
         if len(t.shape) == 0:
             t = np.full(self.dim, t)
         assert t.shape[-1] == self.dim, "Dimensions do not match"
@@ -1153,7 +1122,31 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             self._d2K = np.vectorize(
                 nd.Hessian(lambda tt: self.K(tt, loc=0, scale=1)), signature="(n)->(n,n)"
             )
-        return super().d2K(t, loc=loc, scale=scale, fillna=fillna)
+        loc = self.loc if loc is None else np.asanyarray(loc)
+        scale = self.scale if scale is None else np.asanyarray(scale)
+        assert self._d2K is not None, "d2K must be specified"
+        t = np.asanyarray(t)
+        ts = (scale * t.T).T if len(scale.shape) <= 1 else scale.T.dot(t)
+        cond = self.domain.is_in_domain(ts)
+        ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            if len(scale.shape) == 1:
+                raise NotImplementedError("Fix this logic")
+                y = np.dot(np.dot(scale, self._d2K(ts)), scale.T)
+            else:
+                y = np.dot(np.dot(scale, self._d2K(ts)), scale.T)
+            if np.isscalar(cond):
+                if cond:
+                    return y
+                elif np.isscalar(y):
+                    return fillna
+                else:
+                    return np.fill(np.asanyarray(y).shape, fillna)
+            else:
+                y = y.astype(np.float64)
+                y[~cond] = fillna
+                return y
 
     @type_wrapper(xloc=1)
     def d3K(self, t, loc=None, scale=None, fillna=np.nan):
@@ -1162,14 +1155,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         raise NotImplementedError()
         # TODO: I'm not sure what this is supposed to be, some kind of tensor?
-        t = np.asanyarray(t)
-        if len(t.shape) == 0:
-            t = np.full(self.dim, t)
-        assert t.shape[-1] == self.dim, "Dimensions do not match"
-        if self._d3K is None:
-            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._d3K = nd.Derivative(self.K, n=3)
-        return super().d3K(t, fillna=fillna)
 
     @classmethod
     def from_univariate(cls, *cgfs):
@@ -1193,10 +1178,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             ).swapaxes(0, -1),
         )
         # TODO: stack the domains
-
-    @property
-    def d3K0(self):
-        raise NotImplementedError()
 
 
 # TODO: implement multivariate saddlepoint approximation
