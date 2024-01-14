@@ -994,23 +994,50 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         if isinstance(A, np.ndarray) and len(A.shape) == 1:
             return self.ldot(np.atleast_2d(A), inplace=inplace)[0]
-        elif isinstance(A, np.ndarray) and len(A.shape) == 2:
-            assert A.shape[1] == self.dim, "Dimensions do no match"
-            return MultivariateCumulantGeneratingFunction(
-                self._K,
-                loc=A.dot(self.loc),
-                scale=A.dot(self.scale),
-                dK=self._dK,
-                dK_inv=self._dK_inv,
-                d2K=self._d2K,
-                d3K=self._d3K,
-                dK0=self._dK0,
-                d2K0=self._d2K0,
-                d3K0=self._d3K0,
-                domain=self.domain,
-            )
+        elif isinstance(A, np.ndarray) and len(A.shape) == 2 and A.shape[1] == self.dim:
+            if inplace:
+                assert (
+                    A.shape[0] == self.dim
+                ), "inplace ldot only possible if dimension remains the same"
+                self.loc = A.dot(self.loc)
+                self.scale = A.dot(self.scale)
+                for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
+                    if hasattr(self, att):
+                        delattr(self, att)
+                return self
+            elif A.shape[0] == 1:
+                raise NotImplementedError("Implement slicing first")
+                return MultivariateCumulantGeneratingFunction(
+                    self._K,
+                    dim=A.shape[0],
+                    loc=A.dot(self.loc),
+                    scale=A.dot(self.scale),
+                    dK=self._dK,
+                    dK_inv=self._dK_inv,
+                    d2K=self._d2K,
+                    d3K=self._d3K,
+                    dK0=self._dK0,
+                    d2K0=self._d2K0,
+                    d3K0=self._d3K0,
+                    domain=self.domain,
+                )[0]
+            else:
+                return MultivariateCumulantGeneratingFunction(
+                    self._K,
+                    dim=A.shape[0],
+                    loc=A.dot(self.loc),
+                    scale=A.dot(self.scale),
+                    dK=self._dK,
+                    dK_inv=self._dK_inv,
+                    d2K=self._d2K,
+                    d3K=self._d3K,
+                    dK0=self._dK0,
+                    d2K0=self._d2K0,
+                    d3K0=self._d3K0,
+                    domain=self.domain,
+                )
         else:
-            raise ValueError("Can only multiply with a scalar")
+            raise ValueError("Invalid shape")
 
     def stack(self, other):
         # TODO: implement this

@@ -9,9 +9,10 @@ import pandas as pd
 import pytest
 from scipy.integrate import quad  # , dblquad
 import scipy.stats as sps
+from statsmodels.stats.moment_helpers import cov2corr
 
 from spapprox import (
-    # UnivariateCumulantGeneratingFunction,
+    UnivariateCumulantGeneratingFunction,
     MultivariateCumulantGeneratingFunction,
     # Domain,
     norm,
@@ -203,11 +204,34 @@ def test_multiplication():
 
 # TODO: test with transformations
 def test_ldot():
-    pass
-
-
-def test_ldotinv():
-    pass
+    # Multiplication with identity
+    mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(2 * np.eye(2))
+    mcgf2 = multivariate_norm(loc=np.zeros(2), scale=2)
+    assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
+    assert mcgf1.dim == mcgf2.dim == 2
+    for t in [[1, 2]]:
+        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
+        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    # Correlate through matrix multiplication
+    cov = np.array([[2, 1], [1, 3]])
+    cor, std = cov2corr(cov, return_std=True)
+    mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(
+        np.linalg.cholesky(cor)
+    ) * std + np.array([1, 2])
+    mcgf2 = multivariate_norm(loc=[1, 2], cov=cov)
+    assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
+    assert mcgf1.dim == mcgf2.dim == 2
+    assert np.allclose(mcgf1.cov, cov)
+    assert np.allclose(mcgf2.cov, cov)
+    for t in [[1, 2]]:
+        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
+        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    # TODO: test the projection on the 1dim case, but implement slicing first
+    # mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2))
+    # assert isinstance(mcgf1, UnivariateCumulantGeneratingFunction)
+    # mcgf2 = norm(loc=0, scale=2)
 
 
 # TODO: implement slicing and test that
@@ -221,14 +245,15 @@ def test_dKinv():
 
 
 # TODO: decide on third derivative
+# TODO: domain stack stuff does not intersect yet? -> see TODOs
 
 if __name__ == "__main__":
     if True:
         pytest.main(
             [
                 str(Path(__file__)),
-                # "-k",
-                # "test_multiplication",
+                "-k",
+                "test_ldot",
                 "--tb=auto",
                 "--pdb",
             ]
