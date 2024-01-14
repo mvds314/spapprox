@@ -849,16 +849,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 )
         elif isinstance(other, UnivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for UnivariateCumulantGeneratingFunction"
-            raise NotImplementedError(
-                "fix this logic, after domain ldot and ldotinv is implemented correctly"
-            )
             return MultivariateCumulantGeneratingFunction(
                 lambda t: self.K(t) + other.K(np.sum(t)),
                 dim=self.dim,
                 dK=lambda t: self.dK(t) + other.dK(np.sum(t)),
                 d2K=lambda t: self.d2K(t) + other.d2K(np.sum(t)),
                 d3K=lambda t: self.d3K(t) + other.d3K(np.sum(t)),
-                domain=self.domain.intersect(Domain()),
+                domain=self.domain.intersect(other.domain.ldotinv(np.ones((1, self.dim)))),
             )
         elif isinstance(other, MultivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for MultivariateCumulantGeneratingFunction"
@@ -1060,13 +1057,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         .. math::
             x = K'(t).
         """
-        x = np.asanyarray(x)
-        if len(t.shape) == 0:
-            t = np.full(self.dim, t)
-        assert x.shape[-1] == self.dim, "Dimensions do not match"
+        raise NotImplementedError()
+        # x = np.asanyarray(x)
+        # if len(t.shape) == 0:
+        # t = np.full(self.dim, t)
+        # assert x.shape[-1] == self.dim, "Dimensions do not match"
         # TODO: maybe implement a generic solver, is this the gradient or the innerproduct with the gradient
         # TODO: maybe copy the multivariate approach from the univariate case
-        raise NotImplementedError()
 
     @type_wrapper(xloc=1)
     def d2K(self, t, loc=None, scale=None, fillna=np.nan):

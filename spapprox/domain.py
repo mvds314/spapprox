@@ -298,11 +298,14 @@ class Domain:
         # Initialize
         assert other is not None
         other = np.asanyarray(other)
-        if not self.has_bounds and not self.has_ineq_constraints:
-            return Domain(dim=other.shape[1])
-        elif len(other.shape) == 1 and len(other) == self.dim:
-            return self.ldot(np.expand_dims(other, axis=0))
+        if len(other.shape) == 1 and len(other) == self.dim:
+            if not self.has_bounds and not self.has_ineq_constraints:
+                return Domain(dim=1)
+            else:
+                return self.ldot(np.expand_dims(other, axis=0))
         elif len(other.shape) == 2 and other.shape[0] == self.dim:
+            if not self.has_bounds and not self.has_ineq_constraints:
+                return Domain(dim=other.shape[1])
             # Define A and a
             if self.has_inclusive_bounds:
                 A = np.full((0, self.dim), 0) if self.A is None else self.A

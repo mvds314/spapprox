@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 import pytest
-from scipy.integrate import dblquad, quad
+from scipy.integrate import quad  # , dblquad
 import scipy.stats as sps
 
 from spapprox import (
@@ -128,6 +128,13 @@ def test_addition():
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    # Add a constant
+    mcgf2 = multivariate_norm(loc=np.array([0, 1]), scale=1) + 1
+    assert mcgf1.dim == mcgf2.dim == 2
+    for t in [[1, 2]]:
+        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
+        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     # add scalar
     mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1) + 1
     mcgf2 = multivariate_norm(loc=np.ones(2), scale=1)
@@ -147,23 +154,16 @@ def test_addition():
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     # Add multivariate cumulant genering function
-    assert False, "Continue here once addition univariate is implemented properly"
     mcgf1 = multivariate_norm(loc=np.ones(2), scale=1) + norm(loc=0, scale=1)
-    mcgf2 = multivariate_norm(loc=np.ones(2), cov=np.array([[np.sqrt(2), 1], [1, np.sqrt(2)]]))
+    mcgf2 = multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]]))
     assert mcgf1.dim == mcgf2.dim == 2
     for t in [[1, 2]]:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
 
-    # Add constant
-    # mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1) + multivariate_norm(
-    #     loc=np.zeros(2), scale=1
-    # )
-    # mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1) + multivariate_norm(
-    #     loc=np.zeros(2), scale=1
-    # )
-    # TODO: test whether they are equal
+
+# TODO: test whether they are equal
 
 
 # TODO: test with transformations
