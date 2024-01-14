@@ -244,8 +244,12 @@ def test_dKinv():
     pass
 
 
+# TODO: from univariate does not stack domains -> test this properly
+def test_univariate():
+    pass
+
+
 # TODO: decide on third derivative
-# TODO: domain stack stuff does not intersect yet? -> see TODOs
 
 if __name__ == "__main__":
     if True:
