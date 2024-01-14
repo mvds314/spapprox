@@ -105,7 +105,7 @@ class CumulantGeneratingFunction(ABC):
         for att in ["_dK0_cache"]:
             if hasattr(self, att):
                 delattr(self, att)
-        self._loc = np.asanyarray(loc)
+        self._loc = loc
 
     @property
     def scale(self):
@@ -116,7 +116,7 @@ class CumulantGeneratingFunction(ABC):
         for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
             if hasattr(self, att):
                 delattr(self, att)
-        self._scale = np.asanyarray(scale)
+        self._scale = scale
 
     @property
     def kappa1(self):
@@ -143,27 +143,20 @@ class CumulantGeneratingFunction(ABC):
     def dK0(self):
         if self._dK0 is None:
             self._dK0 = self.dK(0, loc=0, scale=1)
-        if not hasattr(self, "_dK0_cache"):
-            self._dK0_cache = self.scale.dot(self._dK0) + self.loc
-        return self._dK0_cache
+        return self._dK0
 
     @property
     def d2K0(self):
         if self._d2K0 is None:
             self._d2K0 = self.d2K(0, loc=0, scale=1)
-        if not hasattr(self, "_d2K0_cache"):
-            self._d2K0_cache = np.dot(np.dot(self.scale, self._d2K0), self.scale.T)
-        return self._d2K0_cache
+        return self._d2K0
 
     @property
     def d3K0(self):
         if self._d3K0 is None:
             self._d3K0 = self.d3K(0, loc=0, scale=1)
-        if not hasattr(self, "_d3K0_cache"):
-            self._d3K0_cache = np.dot(np.power(self.scale.T, 3), self._d3K0)
-        return self._d3K0_cache
+        return self._d3K0
 
-    # TODO: should we consider a default implementation here?
     @abstractmethod
     def add(self, other, inplace=False):
         raise NotImplementedError()
@@ -354,124 +347,34 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @CumulantGeneratingFunction.loc.setter
     def loc(self, loc):
-        assert pd.api.types.is_number(loc) or (
-            isinstance(loc, np.ndarray) and len(loc.shape) == 0
-        ), "loc should be a scalar"
+        if isinstance(loc, np.ndarray) and len(loc.shape) == 0:
+            loc = loc.tolist()
+        assert pd.api.types.is_number(loc), "loc should be a scalar"
         CumulantGeneratingFunction.loc.fset(self, loc)
 
     @CumulantGeneratingFunction.scale.setter
     def scale(self, scale):
-        assert pd.api.types.is_number(scale) or (
-            isinstance(scale, np.ndarray) and len(scale.shape) == 0
-        ), "scale should be a scalar"
-        CumulantGeneratingFunction.scale.fset(self, scale)
+        if isinstance(scale, np.ndarray) and len(scale.shape) == 0:
+            scale = scale.tolist()
+        assert pd.api.types.is_number(scale), "scale should be a scalar"
+        CumulantGeneratingFunction.scale.fset(self, float(scale))
 
     @property
     def variance(self):
         return self.kappa2
 
-    def add(self, other, inplace=False):
-        """
-        We use the following properties of the cumulant generating function
-        for independent random variables :math:`X` and :math:`Y`:
-
-        .. math::
-            K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct.
-
-        Parameters
-        ----------
-        other : int, float or UnivariateCumulantGeneratingFunction
-            Object to add
-        inplace : bool, optional
-            Whether to change the current object or create a new one. Now matter what is chosen,
-            the results is always returned.
-
-        References
-        ----------
-        [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
-        """
-        if isinstance(other, (int, float)):
-            if inplace:
-                self.loc = self.loc + other
-                if hasattr(self, "_dK0_cache"):
-                    delattr(self, "_dK0_cache")
-                return self
-            else:
-                return UnivariateCumulantGeneratingFunction(
-                    self._K,
-                    loc=self.loc + other,
-                    scale=self.scale,
-                    dK=self._dK,
-                    dK_inv=self._dK_inv,
-                    d2K=self._d2K,
-                    d3K=self._d3K,
-                    dK0=self._dK0,
-                    d2K0=self._d2K0,
-                    d3K0=self._d3K0,
-                    domain=self.domain,
-                )
-        elif isinstance(other, UnivariateCumulantGeneratingFunction):
-            assert not inplace, "inplace not supported for UnivariateCumulantGeneratingFunction"
-            return UnivariateCumulantGeneratingFunction(
-                lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.K(
-                    t, scale=ss, loc=ls
-                )
-                + other.K(t, scale=so, loc=lo),
-                dK=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.dK(
-                    t, loc=ls, scale=ss
-                )
-                + other.dK(t, loc=lo, scale=so),
-                d2K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.d2K(
-                    t, scale=ss, loc=ls
-                )
-                + other.d2K(t, scale=so, loc=lo),
-                d3K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.d3K(
-                    t, scale=ss, loc=ls
-                )
-                + other.d3K(t, scale=so, loc=lo),
-                domain=self.domain.intersect(other.domain),
-            )
-        else:
-            raise ValueError(
-                "Can only add a scalar or another UnivariateCumulantGeneratingFunction"
-            )
-
-    def mul(self, other, inplace=False):
-        """
-        We use the following properties of the cumulant generating function
-        for independent random variables :math:`X` and :math:`Y`:
-
-        .. math::
-            K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct.
-
-        References
-        ----------
-        [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
-        """
-        if isinstance(other, (int, float)):
-            if inplace:
-                self.loc = other * self.loc
-                self.scale = other * self.scale
-                for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
-                    if hasattr(self, att):
-                        delattr(self, att)
-                return self
-            else:
-                return UnivariateCumulantGeneratingFunction(
-                    self._K,
-                    loc=other * self.loc,
-                    scale=other * self.scale,
-                    dK=self._dK,
-                    dK_inv=self._dK_inv,
-                    d2K=self._d2K,
-                    d3K=self._d3K,
-                    dK0=self._dK0,
-                    d2K0=self._d2K0,
-                    d3K0=self._d3K0,
-                    domain=self.domain,
-                )
-        else:
-            raise ValueError("Can only multiply with a scalar")
+    @type_wrapper(xloc=1)
+    def K(self, t, fillna=np.nan, loc=None, scale=None):
+        loc = self.loc if loc is None else loc
+        scale = self.scale if scale is None else scale
+        assert np.isscalar(loc) and np.isscalar(scale), "loc and scale should be scalars"
+        st = scale * t
+        cond = self.domain.is_in_domain(st)
+        st = np.where(cond, st, 0)  # prevent outside domain evaluations
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            val = self._K(st) + loc * t
+            return np.where(cond, val, fillna)
 
     @type_wrapper(xloc=1)
     def dK(self, t, loc=None, scale=None, fillna=np.nan):
@@ -488,10 +391,20 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         ----------
         [1] Ganesh, O'Connell (2004) - Big Quesues in Probability and Statistics
         """
+        # Initialize
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=1)
-        return super().dK(t, loc=loc, scale=scale, fillna=fillna)
+        loc = self.loc if loc is None else loc
+        scale = self.scale if scale is None else scale
+        assert np.isscalar(loc) and np.isscalar(scale), "loc and scale should be scalars"
+        st = scale * t
+        cond = self.domain.is_in_domain(st)
+        st = np.where(cond, st, 0)  # prevent outside domain evaluations
+        # Evaluate
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            return np.where(cond, scale * self._dK(st) + loc, fillna)
 
     @type_wrapper(xloc=1)
     def dK_inv(self, x, t0=None, loc=None, scale=None, fillna=np.nan, **kwargs):
@@ -514,8 +427,8 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         [1] McCullagh (1985) - Tensor methdos in statistics
         """
         # Handle scaling
-        loc = self.loc if loc is None else np.asanyarray(loc)
-        scale = self.scale if scale is None else np.asanyarray(scale)
+        loc = self.loc if loc is None else loc
+        scale = self.scale if scale is None else scale
         x = np.asanyarray((x - loc) / scale)
         if self._dK_inv is not None:
             with warnings.catch_warnings():
@@ -641,7 +554,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         return np.where(cond, y / scale, fillna)
 
     @type_wrapper(xloc=1)
-    def d2K(self, t, loc=None, scale=None, fillna=np.nan):
+    def d2K(self, t, fillna=np.nan, loc=None, scale=None):
         """
         Note that higher order derivatives can sometimes
         be found if a generating polynomial exists, i.e.,
@@ -655,17 +568,156 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         ----------
         [1] Pistone, Wynn (1999) - Finitely generated cumulants.
         """
+        # Initialize
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d2K = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=2)
-        return super().d2K(t, loc=loc, scale=scale, fillna=fillna)
+        scale = self.scale if scale is None else scale
+        assert np.isscalar(scale), "scale should be a scalar"
+        st = scale * t
+        cond = self.domain.is_in_domain(st)
+        st = np.where(cond, st, 0)  # prevent outside domain evaluations
+        # Evaluate
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            return np.where(cond, scale**2 * self._d2K(st), fillna)
 
     @type_wrapper(xloc=1)
-    def d3K(self, t, loc=None, scale=None, fillna=np.nan):
+    def d3K(self, t, fillna=np.nan, loc=None, scale=None):
+        # Initialize
         if self._d3K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d3K = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=3)
-        return super().d3K(t, loc=loc, scale=scale, fillna=fillna)
+        scale = self.scale if scale is None else scale
+        assert np.isscalar(scale), "scale should be a scalar"
+        st = scale * t
+        cond = self.domain.is_in_domain(st)
+        st = np.where(cond, st, 0)  # prevent outside domain evaluations
+        # Evaluate
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            return np.where(cond, scale**3 * self._d3K(st), fillna)
+
+    @property
+    def dK0(self):
+        if not hasattr(self, "_dK0_cache"):
+            self._dK0_cache = self.scale * CumulantGeneratingFunction.dK0.fget(self) + self.loc
+        return self._dK0_cache
+
+    @property
+    def d2K0(self):
+        if not hasattr(self, "_d2K0_cache"):
+            self._d2K0_cache = self.scale**2 * CumulantGeneratingFunction.d2K0.fget(self)
+        return self._d2K0_cache
+
+    @property
+    def d3K0(self):
+        if not hasattr(self, "_d3K0_cache"):
+            self._d3K0_cache = self.scale**3 * CumulantGeneratingFunction.d3K0.fget(self)
+        return self._d3K0_cache
+
+    def add(self, other, inplace=False):
+        """
+        We use the following properties of the cumulant generating function
+        for independent random variables :math:`X` and :math:`Y`:
+
+        .. math::
+            K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct.
+
+        Parameters
+        ----------
+        other : int, float or UnivariateCumulantGeneratingFunction
+            Object to add
+        inplace : bool, optional
+            Whether to change the current object or create a new one. Now matter what is chosen,
+            the results is always returned.
+
+        References
+        ----------
+        [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
+        """
+        if isinstance(other, (int, float)):
+            if inplace:
+                self.loc = self.loc + other
+                if hasattr(self, "_dK0_cache"):
+                    delattr(self, "_dK0_cache")
+                return self
+            else:
+                return UnivariateCumulantGeneratingFunction(
+                    self._K,
+                    loc=self.loc + other,
+                    scale=self.scale,
+                    dK=self._dK,
+                    dK_inv=self._dK_inv,
+                    d2K=self._d2K,
+                    d3K=self._d3K,
+                    dK0=self._dK0,
+                    d2K0=self._d2K0,
+                    d3K0=self._d3K0,
+                    domain=self.domain,
+                )
+        elif isinstance(other, UnivariateCumulantGeneratingFunction):
+            assert not inplace, "inplace not supported for UnivariateCumulantGeneratingFunction"
+            return UnivariateCumulantGeneratingFunction(
+                lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.K(
+                    t, scale=ss, loc=ls
+                )
+                + other.K(t, scale=so, loc=lo),
+                dK=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.dK(
+                    t, loc=ls, scale=ss
+                )
+                + other.dK(t, loc=lo, scale=so),
+                d2K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.d2K(
+                    t, scale=ss, loc=ls
+                )
+                + other.d2K(t, scale=so, loc=lo),
+                d3K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.d3K(
+                    t, scale=ss, loc=ls
+                )
+                + other.d3K(t, scale=so, loc=lo),
+                domain=self.domain.intersect(other.domain),
+            )
+        else:
+            raise ValueError(
+                "Can only add a scalar or another UnivariateCumulantGeneratingFunction"
+            )
+
+    def mul(self, other, inplace=False):
+        """
+        We use the following properties of the cumulant generating function
+        for independent random variables :math:`X` and :math:`Y`:
+
+        .. math::
+            K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct.
+
+        References
+        ----------
+        [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
+        """
+        if isinstance(other, (int, float)):
+            if inplace:
+                self.loc = other * self.loc
+                self.scale = other * self.scale
+                for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
+                    if hasattr(self, att):
+                        delattr(self, att)
+                return self
+            else:
+                return UnivariateCumulantGeneratingFunction(
+                    self._K,
+                    loc=other * self.loc,
+                    scale=other * self.scale,
+                    dK=self._dK,
+                    dK_inv=self._dK_inv,
+                    d2K=self._d2K,
+                    d3K=self._d3K,
+                    dK0=self._dK0,
+                    d2K0=self._d2K0,
+                    d3K0=self._d3K0,
+                    domain=self.domain,
+                )
+        else:
+            raise ValueError("Can only multiply with a scalar")
 
 
 class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
@@ -762,7 +814,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             or (isinstance(loc, np.ndarray) and len(loc.shape) == 0)
             or (isinstance(loc, np.ndarray) and len(loc.shape) == 1 and len(loc) == self.dim)
         ), "loc should be a scalar or vector of length dim"
-        CumulantGeneratingFunction.loc.fset(self, loc)
+        CumulantGeneratingFunction.loc.fset(self, np.asanyarray(loc))
 
     @CumulantGeneratingFunction.scale.setter
     def scale(self, scale):
@@ -776,7 +828,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 and scale.shape[0] == self.dim
             )
         ), "scale should be a scalar, vector of length dim, or a matrix"
-        CumulantGeneratingFunction.scale.fset(self, scale)
+        CumulantGeneratingFunction.scale.fset(self, np.asanyarray(scale))
 
     @property
     def cov(self):
@@ -789,6 +841,24 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @property
     def variance(self):
         return np.diag(self.cov)
+
+    @property
+    def dK0(self):
+        if not hasattr(self, "_dK0_cache"):
+            self._dK0_cache = self.scale.dot(CumulantGeneratingFunction.dK0.fget(self)) + self.loc
+        return self._dK0_cache
+
+    @property
+    def d2K0(self):
+        if not hasattr(self, "_d2K0_cache"):
+            self._d2K0_cache = np.dot(
+                np.dot(self.scale, CumulantGeneratingFunction.dK0.fget(self)), self.scale.T
+            )
+        return self._d2K0_cache
+
+    @property
+    def d3K0(self):
+        raise NotImplementedError()
 
     def __getitem__(self, item):
         """
