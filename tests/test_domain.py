@@ -220,6 +220,9 @@ def test_trans_domain_nD():
     assert [2, 2] in dom
 
 
+# TODO: test stacking functionality
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(

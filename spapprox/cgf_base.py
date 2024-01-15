@@ -1195,7 +1195,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         Create a multivariate cgf from a list of univariate cgfs.
         """
-        raise NotImplementedError("Fix domain")
         assert (
             len(cgfs) > 1
         ), "at least 2 Univariate cumulant generating functions should be supplied"
@@ -1211,6 +1210,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             d2K=lambda t, cgfs=cgfs: np.apply_along_axis(
                 np.diag, 0, np.array([cgf.d2K(ti) for ti, cgf in zip(t.T, cgfs)])
             ).swapaxes(0, -1),
+            domain=Domain.from_domains(*[cgf.domain for cgf in cgfs]),
         )
         # TODO: stack the domains
 
