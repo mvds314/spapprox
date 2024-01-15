@@ -228,6 +228,10 @@ def test_ldot():
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    # Projection vs addition
+    mcgf1 = multivariate_norm(loc=0, scale=1, dim=3).ldot(np.array([[1, 0, 1], [0, 1, 1]]))
+    mcgf2 = multivariate_norm(loc=0, scale=1, dim=2) + norm()
+
     # TODO: test the projection on the 1dim case, but implement slicing first
     # mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2))
     # assert isinstance(mcgf1, UnivariateCumulantGeneratingFunction)
@@ -250,14 +254,15 @@ def test_univariate():
 
 
 # TODO: decide on third derivative
+# TODO: double check if domain is handled properly everywhere
 
 if __name__ == "__main__":
     if True:
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_ldot",
+                # "-k",
+                # "test_ldot",
                 "--tb=auto",
                 "--pdb",
             ]

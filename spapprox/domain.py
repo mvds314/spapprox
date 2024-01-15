@@ -109,6 +109,66 @@ class Domain:
     def has_ineq_constraints(self):
         return self.A is not None or self.B is not None
 
+    @property
+    def l_vect(self):
+        if not hasattr(self, "_l_vect_cache"):
+            if self.l is None:
+                self._l_vect_cache = np.full(self.dim, np.nan)
+            elif np.isscalar(self.l):
+                self._l_vect_cache = np.full(self.dim, self.l)
+            elif isinstance(self.l, np.ndarray) and len(self.l.shape) == 0:
+                self._l_vect_cache = np.full(self.dim, self.l.tolist())
+            elif isinstance(self.l, np.ndarray) and len(self.l.shape) == 1:
+                self._l_vect_cache = self.l
+            else:
+                raise ValueError("Unexpected value encountered")
+        return self._l_vect_cache
+
+    @property
+    def g_vect(self):
+        if not hasattr(self, "_g_vect_cache"):
+            if self.g is None:
+                self._g_vect_cache = np.full(self.dim, np.nan)
+            elif np.isscalar(self.g):
+                self._g_vect_cache = np.full(self.dim, self.g)
+            elif isinstance(self.g, np.ndarray) and len(self.g.shape) == 0:
+                self._g_vect_cache = np.full(self.dim, self.g.tolist())
+            elif isinstance(self.g, np.ndarray) and len(self.g.shape) == 1:
+                self._g_vect_cache = self.g
+            else:
+                raise ValueError("Unexpected value encountered")
+        return self._g_vect_cache
+
+    @property
+    def le_vect(self):
+        if not hasattr(self, "_le_vect_cache"):
+            if self.le is None:
+                self._le_vect_cache = np.full(self.dim, np.nan)
+            elif np.isscalar(self.le):
+                self._le_vect_cache = np.full(self.dim, self.le)
+            elif isinstance(self.le, np.ndarray) and len(self.le.shape) == 0:
+                self._le_vect_cache = np.full(self.dim, self.le.tolist())
+            elif isinstance(self.le, np.ndarray) and len(self.le.shape) == 1:
+                self._le_vect_cache = self.le
+            else:
+                raise ValueError("Unexpected value encountered")
+        return self._le_vect_cache
+
+    @property
+    def ge_vect(self):
+        if not hasattr(self, "_ge_vect_cache"):
+            if self.ge is None:
+                self._ge_vect_cache = np.full(self.dim, np.nan)
+            elif np.isscalar(self.ge):
+                self._ge_vect_cache = np.full(self.dim, self.ge)
+            elif isinstance(self.ge, np.ndarray) and len(self.ge.shape) == 0:
+                self._ge_vect_cache = np.full(self.dim, self.ge.tolist())
+            elif isinstance(self.ge, np.ndarray) and len(self.ge.shape) == 1:
+                self._ge_vect_cache = self.ge
+            else:
+                raise ValueError("Unexpected value encountered")
+        return self._ge_vect_cache
+
     def add(self, other):
         r"""
         Translation of the domain by :math:`\beta`.
@@ -443,6 +503,42 @@ class Domain:
             B = None
             b = None
         return Domain(l=l, g=g, le=le, ge=ge, A=A, a=a, B=B, b=b, dim=self.dim)
+
+    def stack(self, *domains):
+        dim = sum(d.dim for d in domains)
+        l = (
+            np.hstack(tuple([d.l_vect for d in domains]))
+            if any(d.l is not None for d in domains)
+            else None
+        )
+        g = (
+            np.hstack(tuple([d.g_vect for d in domains]))
+            if any(d.g is not None for d in domains)
+            else None
+        )
+        le = (
+            np.hstack(tuple([d.le_vect for d in domains]))
+            if any(d.le is not None for d in domains)
+            else None
+        )
+        ge = (
+            np.hstack(tuple([d.ge_vect for d in domains]))
+            if any(d.ge is not None for d in domains)
+            else None
+        )
+        if any(d.A is not None for d in domains):
+            A = None
+            a = None
+        else:
+            A = None
+            a = None
+        if any(d.B is not None for d in domains):
+            B = None
+            b = None
+        else:
+            B = None
+            b = None
+        return Domain(dim=dim, l=l, g=g, le=le, ge=ge, A=A, a=a, B=B, b=b)
 
     @type_wrapper(xloc=1)
     def is_in_domain(self, t):
