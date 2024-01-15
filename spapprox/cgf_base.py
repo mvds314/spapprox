@@ -993,6 +993,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
         """
         if isinstance(A, np.ndarray) and len(A.shape) == 1:
+            raise NotImplementedError("Implement slicing first, don't slide here!")
+            assert not inplace, "Inplace not possible when projecting to univariate case"
             return self.ldot(np.atleast_2d(A), inplace=inplace)[0]
         elif isinstance(A, np.ndarray) and len(A.shape) == 2 and A.shape[1] == self.dim:
             if inplace:
@@ -1006,7 +1008,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         delattr(self, att)
                 return self
             elif A.shape[0] == 1:
-                raise NotImplementedError("Implement slicing first")
+                raise NotImplementedError(
+                    "Dont slice here, translate to Multivaritate case with dim=1"
+                )
                 return MultivariateCumulantGeneratingFunction(
                     self._K,
                     dim=A.shape[0],
@@ -1191,6 +1195,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         Create a multivariate cgf from a list of univariate cgfs.
         """
+        raise NotImplementedError("Fix domain")
         assert (
             len(cgfs) > 1
         ), "at least 2 Univariate cumulant generating functions should be supplied"
