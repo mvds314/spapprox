@@ -758,9 +758,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 1:
                 self._scale_math_cache = np.diag(self.scale)
             elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 0:
-                self._scale_math_cache = np.diag(self.eye(self.dim) * self.scale.tolist())
+                self._scale_math_cache = np.eye(self.dim) * self.scale.tolist()
             elif pd.api.types.is_number(self.scale):
-                self._scale_math_cache = np.diag(self.eye(self.dim) * self.scale)
+                self._scale_math_cache = np.eye(self.dim) * self.scale
             else:
                 raise ValueError("Invalid type")
         return self._scale_math_cache
@@ -1033,8 +1033,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 assert (
                     A.shape[0] == self.dim
                 ), "inplace ldot only possible if dimension remains the same"
-                self.loc = A.dot(self.loc)
-                self.scale = A.dot(self.scale)
+                self.loc = A.dot(self.loc_vect)
+                self.scale = A.dot(self.scale_mat)
                 for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
                     if hasattr(self, att):
                         delattr(self, att)
@@ -1046,8 +1046,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 return MultivariateCumulantGeneratingFunction(
                     self._K,
                     dim=A.shape[0],
-                    loc=A.dot(self.loc),
-                    scale=A.dot(self.scale),
+                    loc=A.dot(self.loc_vect),
+                    scale=A.dot(self.scale_mat),
                     dK=self._dK,
                     dK_inv=self._dK_inv,
                     d2K=self._d2K,
@@ -1062,7 +1062,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     self._K,
                     dim=A.shape[0],
                     loc=A.dot(self.loc_vect),
-                    scale=A.dot(self.scale),
+                    scale=A.dot(self.scale_mat),
                     dK=self._dK,
                     dK_inv=self._dK_inv,
                     d2K=self._d2K,

@@ -230,7 +230,7 @@ def test_ldot():
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     # Projection vs addition
     mcgf1 = multivariate_norm(loc=0, scale=1, dim=3).ldot(np.array([[1, 0, 1], [0, 1, 1]]))
-    # mcgf2 = multivariate_norm(loc=0, scale=1, dim=2) + norm()
+    mcgf2 = multivariate_norm(loc=0, scale=1, dim=2) + norm()
 
     # TODO: test the projection on the 1dim case, but implement slicing first
     # mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2))
@@ -253,6 +253,9 @@ def test_univariate():
     pass
 
 
+# TODO: test vectorized evaluation of the derivatives
+# TODO: Can we do things more efficient?
+# TODO: For example, do not use loc_vect, or scale mat unnecisarily, better work it out with if statements?
 # TODO: decide on third derivative
 # TODO: double check if domain is handled properly everywhere
 
