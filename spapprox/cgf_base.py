@@ -737,6 +737,34 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             d3K0=d3K0,
         )
 
+    @property
+    def loc_vect(self):
+        if not hasattr(self, "_loc_vect_cache"):
+            if isinstance(self.loc, np.ndarray) and len(self.loc.shape) == 1:
+                return self.loc
+            elif pd.api.types.is_number(self.loc):
+                self._loc_vect_cache = np.full(self.dim, self.loc)
+            elif isinstance(self.loc, np.ndarray) and len(self.loc.shape) == 0:
+                self._loc_vect_cache = np.full(self.dim, self.loc.tolist())
+            else:
+                raise ValueError("Invalid type")
+        return self._loc_vect_cache
+
+    @property
+    def scale_mat(self):
+        if not hasattr(self, "_scale_mat_cache"):
+            if isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 2:
+                return self.scale
+            elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 1:
+                self._scale_math_cache = np.diag(self.scale)
+            elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 0:
+                self._scale_math_cache = np.diag(self.eye(self.dim) * self.scale.tolist())
+            elif pd.api.types.is_number(self.scale):
+                self._scale_math_cache = np.diag(self.eye(self.dim) * self.scale)
+            else:
+                raise ValueError("Invalid type")
+        return self._scale_math_cache
+
     @CumulantGeneratingFunction.loc.setter
     def loc(self, loc):
         assert (
@@ -744,6 +772,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             or (isinstance(loc, np.ndarray) and len(loc.shape) == 0)
             or (isinstance(loc, np.ndarray) and len(loc.shape) == 1 and len(loc) == self.dim)
         ), "loc should be a scalar or vector of length dim"
+        if hasattr(self, "_loc_vect_cache"):
+            delattr(self, "_loc_vect_cache")
         CumulantGeneratingFunction.loc.fset(self, np.asanyarray(loc))
 
     @CumulantGeneratingFunction.scale.setter
@@ -758,6 +788,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 and scale.shape[0] == self.dim
             )
         ), "scale should be a scalar, vector of length dim, or a matrix"
+        if hasattr(self, "_scale_mat_cache"):
+            delattr(self, "_scale_mat_cache")
         CumulantGeneratingFunction.scale.fset(self, np.asanyarray(scale))
 
     @property
@@ -1029,7 +1061,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 return MultivariateCumulantGeneratingFunction(
                     self._K,
                     dim=A.shape[0],
-                    loc=A.dot(self.loc),
+                    loc=A.dot(self.loc_vect),
                     scale=A.dot(self.scale),
                     dK=self._dK,
                     dK_inv=self._dK_inv,
