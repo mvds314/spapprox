@@ -231,6 +231,7 @@ def test_ldot():
     # Projection vs addition
     mcgf1 = multivariate_norm(loc=0, scale=1, dim=3).ldot(np.array([[1, 0, 1], [0, 1, 1]]))
     mcgf2 = multivariate_norm(loc=0, scale=1, dim=2) + norm()
+    assert mcgf1.dim == mcgf2.dim == 2
     assert np.allclose(mcgf2.cov, mcgf1.cov)
     # for t in [[1, 2]]:
     #     assert np.allclose(mcgf1.K(t), mcgf2.K(t))
