@@ -723,6 +723,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 domain = Domain(dim=len(scale))
             else:
                 domain = Domain(dim=dim)
+        assert domain.dim == dim, "Dimensions do not match"
         super().__init__(
             K,
             loc=loc,
@@ -1055,7 +1056,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     dK0=self._dK0,
                     d2K0=self._d2K0,
                     d3K0=self._d3K0,
-                    domain=self.domain,
+                    domain=self.domain.ldotinv(A.T),
                 )[0]
             else:
                 return MultivariateCumulantGeneratingFunction(
@@ -1070,7 +1071,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     dK0=self._dK0,
                     d2K0=self._d2K0,
                     d3K0=self._d3K0,
-                    domain=self.domain,
+                    domain=self.domain.ldotinv(A.T),
                 )
         else:
             raise ValueError("Invalid shape")
