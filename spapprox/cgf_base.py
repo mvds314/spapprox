@@ -723,7 +723,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 domain = Domain(dim=len(scale))
             else:
                 domain = Domain(dim=dim)
-        assert domain.dim == dim, "Dimensions do not match"
         super().__init__(
             K,
             loc=loc,
@@ -1056,7 +1055,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     dK0=self._dK0,
                     d2K0=self._d2K0,
                     d3K0=self._d3K0,
-                    domain=self.domain.ldotinv(A.T),
+                    domain=self.domain,
                 )[0]
             else:
                 return MultivariateCumulantGeneratingFunction(
@@ -1071,7 +1070,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     dK0=self._dK0,
                     d2K0=self._d2K0,
                     d3K0=self._d3K0,
-                    domain=self.domain.ldotinv(A.T),
+                    domain=self.domain,
                 )
         else:
             raise ValueError("Invalid shape")
@@ -1179,6 +1178,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         # Initialize
         if len(t.shape) == 0:
             t = np.full(self.dim, t)
+        # TODO: the problem is that once a scale is a projection matrix the loc scale overrides don't work anymore
         assert t.shape[-1] == self.dim, "Dimensions do not match"
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
