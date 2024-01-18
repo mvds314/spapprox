@@ -238,9 +238,7 @@ def test_ldot():
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    # TODO: fix this, the whole projection messes things up!
-    # assert np.allclose(mcgf2.cov, mcgf1.cov)
-    mcgf1.K(0, loc=0, scale=0)
+    assert np.allclose(mcgf2.cov, mcgf1.cov)
 
     # TODO: test the projection on the 1dim case, but implement slicing first
     # mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2))

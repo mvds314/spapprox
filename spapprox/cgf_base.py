@@ -807,14 +807,23 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @property
     def dK0(self):
         if not hasattr(self, "_dK0_cache"):
-            self._dK0_cache = self.scale.dot(CumulantGeneratingFunction.dK0.fget(self)) + self.loc
+            self._dK0_cache = (
+                self.scale.dot(
+                    self.dK(np.zeros(self.domain.dim), loc=0, scale=np.ones(self.domain.dim))
+                )
+                + self.loc
+            )
         return self._dK0_cache
 
     @property
     def d2K0(self):
         if not hasattr(self, "_d2K0_cache"):
             self._d2K0_cache = np.dot(
-                np.dot(self.scale, CumulantGeneratingFunction.d2K0.fget(self)), self.scale.T
+                np.dot(
+                    self.scale,
+                    self.d2K(np.zeros(self.domain.dim), loc=0, scale=np.ones(self.domain.dim)),
+                ),
+                self.scale.T,
             )
         return self._d2K0_cache
 
@@ -1086,8 +1095,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         scale = self.scale if scale is None else np.asanyarray(scale)
         if len(t.shape) == 0:
             t = np.full(self.dim, t)
-        assert t.shape[-1] == self.dim, "Dimensions do not match"
         st = (scale * t.T).T if len(scale.shape) == 1 else scale.T.dot(t)
+        assert st.shape[-1] == self.domain.dim, "Dimensions do not match"
         cond = self.domain.is_in_domain(st)
         st = np.where(cond, st.T, 0).T  # prevent outside domain evaluations
         # Evaluate
@@ -1122,7 +1131,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         # Initialize
         if len(t.shape) == 0:
             t = np.full(self.dim, t)
-        assert t.shape[-1] == self.dim, "Dimensions do not match"
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._dK = np.vectorize(
@@ -1131,6 +1139,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
         ts = (scale * t.T).T if len(scale.shape) <= 1 else scale.T.dot(t)
+        assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
         cond = self.domain.is_in_domain(ts)
         ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
         # Evaluate
@@ -1178,8 +1187,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         # Initialize
         if len(t.shape) == 0:
             t = np.full(self.dim, t)
-        # TODO: the problem is that once a scale is a projection matrix the loc scale overrides don't work anymore
-        assert t.shape[-1] == self.dim, "Dimensions do not match"
         if self._d2K is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
             self._d2K = np.vectorize(
@@ -1190,6 +1197,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         assert self._d2K is not None, "d2K must be specified"
         t = np.asanyarray(t)
         ts = (scale * t.T).T if len(scale.shape) <= 1 else scale.T.dot(t)
+        assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
         cond = self.domain.is_in_domain(ts)
         ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
         with warnings.catch_warnings():
