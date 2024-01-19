@@ -71,7 +71,6 @@ def test_2d_from_uniform():
     val = np.array([mcgf.dK(t) for t in ts])
     assert np.allclose(mcgf.dK(ts), val)
     assert np.allclose(mcgf_from_univ.dK(ts), val)
-    mcgf_int.dK(ts)
     assert np.allclose(mcgf_int.dK(ts), val, atol=1e-3)
     # Test the second derivatives
     for t in ts:
@@ -81,7 +80,6 @@ def test_2d_from_uniform():
         assert np.allclose(val, mcgf_int.d2K(t), atol=1e-3)
     val = np.array([mcgf.d2K(t) for t in ts])
     assert np.allclose(mcgf.d2K(ts), val)
-    mcgf_from_univ.d2K(ts)
     assert np.allclose(mcgf_from_univ.d2K(ts), val)
     assert np.allclose(mcgf_int.d2K(ts), val, atol=1e-3)
 
@@ -112,27 +110,28 @@ def test_addition():
     mcgf1 = MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2)
     mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1) + np.array([1, 2])
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1)
     mcgf2.add(np.array([1, 2]), inplace=True)
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     mcgf2 = multivariate_norm(loc=np.array([1, 2]), scale=1)
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     # Add a constant
     mcgf2 = multivariate_norm(loc=np.array([0, 1]), scale=1) + 1
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
@@ -140,7 +139,7 @@ def test_addition():
     mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1) + 1
     mcgf2 = multivariate_norm(loc=np.ones(2), scale=1)
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
@@ -150,7 +149,7 @@ def test_addition():
     )
     mcgf2 = multivariate_norm(loc=np.ones(2), scale=np.sqrt(2))
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
@@ -158,7 +157,7 @@ def test_addition():
     mcgf1 = multivariate_norm(loc=np.ones(2), scale=1) + norm(loc=0, scale=1)
     mcgf2 = multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]]))
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
@@ -169,26 +168,27 @@ def test_multiplication():
     mcgf1 = MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2)
     mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1) * np.array([1, 2])
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
+    for t in ts:
         assert np.isclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1)
     mcgf2.mul(np.array([1, 2]), inplace=True)
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     mcgf2 = multivariate_norm(loc=0, scale=np.array([1, 2]))
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     mcgf2 = multivariate_norm(loc=0, scale=np.diag(np.array([1, 2])))
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
@@ -196,7 +196,7 @@ def test_multiplication():
     mcgf1 = multivariate_norm(loc=np.array([0, 3]), scale=3)
     mcgf2 = multivariate_norm(loc=np.array([0, 1]), scale=1) * 3
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
@@ -209,7 +209,8 @@ def test_ldot():
     mcgf2 = multivariate_norm(loc=np.zeros(2), scale=2)
     assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
     assert mcgf1.dim == mcgf2.dim == 2
-    for t in [[1, 2]]:
+    ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
@@ -224,7 +225,7 @@ def test_ldot():
     assert mcgf1.dim == mcgf2.dim == 2
     assert np.allclose(mcgf1.cov, cov)
     assert np.allclose(mcgf2.cov, cov)
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
@@ -234,11 +235,13 @@ def test_ldot():
     assert mcgf1.dim == mcgf2.dim == 2
     assert mcgf1.domain.dim == 3
     assert mcgf2.domain.dim == 2
-    for t in [[1, 2]]:
+    for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     assert np.allclose(mcgf2.cov, mcgf1.cov)
+
+    # TODO: continue here: test vectorized evaluation of mcgf! also with addtition and multiplication
 
     # TODO: test the projection on the 1dim case, but implement slicing first
     # mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2))
