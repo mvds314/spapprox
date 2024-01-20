@@ -310,6 +310,7 @@ def test_ldot():
 
 # TODO: implement slicing and test that
 def test_stack_and_slicing():
+    # TODO: continue here with stack functionality
     pass
 
 
@@ -323,7 +324,6 @@ def test_univariate():
     pass
 
 
-# TODO: test vectorized evaluation of the derivatives
 # TODO: Can we do things more efficient?
 # TODO: For example, do not use loc_vect, or scale mat unnecisarily, better work it out with if statements?
 # TODO: decide on third derivative
