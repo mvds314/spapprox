@@ -326,7 +326,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_multiplication",
+                "test_ldot",
                 "--tb=auto",
                 "--pdb",
             ]

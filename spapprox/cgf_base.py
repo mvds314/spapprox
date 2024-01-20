@@ -1225,7 +1225,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 else:
                     raise IndexError("retval should a matrix of list of matrices")
             else:
-                y = np.dot(np.dot(scale.T, y.T).T, scale.T)
+                if len(y.shape) == 2:
+                    y = np.dot(np.dot(scale, y), scale.T)
+                elif len(y.shape) == 3:
+                    y = np.array([np.dot(np.dot(scale, yy), scale.T) for yy in y])
+                else:
+                    raise IndexError("retval should a matrix of list of matrices")
+
             if np.isscalar(cond):
                 if cond:
                     return y
