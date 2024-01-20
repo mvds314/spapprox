@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import warnings
 import numpy as np
 import pandas as pd
+import scipy as sp
 import scipy.optimize as spo
 import statsmodels.api as sm
 
@@ -1091,8 +1092,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             raise ValueError("Invalid shape")
 
     def stack(self, other):
-        # TODO: implement this
-        raise NotImplementedError()
+        return self.from_cgfs(self, other)
 
     @type_wrapper(xloc=1)
     def K(self, t, fillna=np.nan, loc=None, scale=None):
@@ -1258,7 +1258,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Create a multivariate cgf from a list of univariate cgfs.
         """
         assert (
-            len(cgfs) > 1
+            len(cgfs) >= 1
         ), "at least 2 Univariate cumulant generating functions should be supplied"
         assert all(
             isinstance(cgf, UnivariateCumulantGeneratingFunction) for cgf in cgfs
@@ -1274,6 +1274,47 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             ).swapaxes(0, -1),
             domain=Domain.from_domains(*[cgf.domain for cgf in cgfs]),
         )
+
+    @classmethod
+    def from_cgfs(cls, *cgfs):
+        """
+        Create a multivariate cgf from a list of univariate cgfs.
+        """
+        assert len(cgfs) > 1, "at least 2 cumulant generating functions should be supplied"
+        assert all(
+            isinstance(cgf, CumulantGeneratingFunction) for cgf in cgfs
+        ), "All cgfs must be CumulantGeneratingFunction"
+        if all(isinstance(cgf, UnivariateCumulantGeneratingFunction) for cgf in cgfs):
+            return cls.from_univariate(*cgfs)
+        else:
+            dims = np.array(
+                [
+                    cgf.dim if isinstance(cgf, MultivariateCumulantGeneratingFunction) else 1
+                    for cgf in cgfs
+                ]
+            )
+
+            def ti(t, i):
+                return t.T[dims[:i].sum() : dims[: i + 1].sum()]
+
+            def K(t):
+                return np.sum(
+                    [cgf.K(ti(t, i)) for i, cgf in enumerate(cgfs)],
+                    axis=0,
+                )
+
+            def dK(t):
+                return np.concatenate([cgf.dK(ti(t, i)) for i, cgf in enumerate(cgfs)]).T
+
+            def d2K(t):
+                return np.apply_along_axis(
+                    sp.linalg.block_diag,
+                    0,
+                    np.array([cgf.d2K(ti(t, i)) for i, cgf in enumerate(cgfs)]),
+                ).swapaxes(0, -1)
+
+            domain = Domain.from_domains(*[cgf.domain for cgf in cgfs])
+            return cls(K, dim=dims.sum(), loc=0, scale=1, dK=dK, d2K=d2K, domain=domain)
 
 
 # TODO: implement multivariate saddlepoint approximation

@@ -252,7 +252,6 @@ def test_multiplication():
         assert np.allclose(getattr(mcgf2, f)(ts), val)
 
 
-# TODO: test with transformations
 def test_ldot():
     # Multiplication with identity
     mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(2 * np.eye(2))
