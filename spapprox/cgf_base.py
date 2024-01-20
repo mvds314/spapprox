@@ -891,11 +891,17 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         elif isinstance(other, UnivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for UnivariateCumulantGeneratingFunction"
             return MultivariateCumulantGeneratingFunction(
-                lambda t: self.K(t) + other.K(np.sum(t)),
+                lambda t: self.K(t) + other.K(np.sum(t, axis=-1)),
                 dim=self.dim,
-                dK=lambda t: self.dK(t) + other.dK(np.sum(t)),
-                d2K=lambda t: self.d2K(t) + other.d2K(np.sum(t)),
-                d3K=lambda t: self.d3K(t) + other.d3K(np.sum(t)),
+                dK=lambda t: np.apply_along_axis(
+                    lambda x: np.add(x, other.dK(np.sum(t, axis=-1))), 0, self.dK(t)
+                ),
+                d2K=lambda t: np.apply_along_axis(
+                    lambda x: np.add(x, other.d2K(np.sum(t, axis=-1))), 0, self.d2K(t)
+                ),
+                d3K=lambda t: np.apply_along_axis(
+                    lambda x: np.add(x, other.d3K(np.sum(t, axis=-1))), 0, self.d3K(t)
+                ),
                 domain=self.domain.intersect(other.domain.ldotinv(np.ones((1, self.dim)))),
             )
         elif isinstance(other, MultivariateCumulantGeneratingFunction):
@@ -1095,7 +1101,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         scale = self.scale if scale is None else np.asanyarray(scale)
         if len(t.shape) == 0:
             t = np.full(self.dim, t)
-        st = (scale * t.T).T if len(scale.shape) == 1 else scale.T.dot(t)
+        st = (scale * t.T).T if len(scale.shape) == 1 else np.dot(t, scale)
         assert st.shape[-1] == self.domain.dim, "Dimensions do not match"
         cond = self.domain.is_in_domain(st)
         st = np.where(cond, st.T, 0).T  # prevent outside domain evaluations
@@ -1138,7 +1144,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
-        ts = (scale * t.T).T if len(scale.shape) <= 1 else scale.T.dot(t)
+        ts = (scale * t.T).T if len(scale.shape) <= 1 else np.dot(t, scale)
         assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
         cond = self.domain.is_in_domain(ts)
         ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
@@ -1148,7 +1154,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             if len(scale.shape) <= 1:
                 y = np.add(scale * self._dK(ts), loc)
             else:
-                y = np.add(scale.dot(self._dK(ts)), loc)
+                y = np.add(np.dot(self._dK(ts), scale.T), loc)
             if np.isscalar(cond):
                 if cond:
                     return y
@@ -1196,7 +1202,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         scale = self.scale if scale is None else np.asanyarray(scale)
         assert self._d2K is not None, "d2K must be specified"
         t = np.asanyarray(t)
-        ts = (scale * t.T).T if len(scale.shape) <= 1 else scale.T.dot(t)
+        ts = (scale * t.T).T if len(scale.shape) <= 1 else np.dot(t, scale)
         assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
         cond = self.domain.is_in_domain(ts)
         ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
@@ -1210,7 +1216,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 y = np.apply_along_axis(lambda x: np.multiply(scale, x), 0, y)
                 y = np.apply_along_axis(lambda x: np.multiply(x, scale), 1, y)
             else:
-                y = np.dot(np.dot(scale, y), scale.T)
+                y = np.dot(np.dot(scale.T, y.T).T, scale.T)
             if np.isscalar(cond):
                 if cond:
                     return y
@@ -1253,7 +1259,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             ).swapaxes(0, -1),
             domain=Domain.from_domains(*[cgf.domain for cgf in cgfs]),
         )
-        # TODO: stack the domains
 
 
 # TODO: implement multivariate saddlepoint approximation
