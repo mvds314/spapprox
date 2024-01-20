@@ -1101,7 +1101,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         scale = self.scale if scale is None else np.asanyarray(scale)
         if len(t.shape) == 0:
             t = np.full(self.dim, t)
-        st = (scale * t.T).T if len(scale.shape) == 1 else np.dot(t, scale)
+        # st = (scale * t.T).T if len(scale.shape) == 1 else np.dot(t, scale)
+        st = scale * t if len(scale.shape) == 1 else np.dot(t, scale)
         assert st.shape[-1] == self.domain.dim, "Dimensions do not match"
         cond = self.domain.is_in_domain(st)
         st = np.where(cond, st.T, 0).T  # prevent outside domain evaluations
@@ -1144,7 +1145,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
-        ts = (scale * t.T).T if len(scale.shape) <= 1 else np.dot(t, scale)
+        ts = scale * t if len(scale.shape) <= 1 else np.dot(t, scale)
         assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
         cond = self.domain.is_in_domain(ts)
         ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
@@ -1202,7 +1203,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         scale = self.scale if scale is None else np.asanyarray(scale)
         assert self._d2K is not None, "d2K must be specified"
         t = np.asanyarray(t)
-        ts = (scale * t.T).T if len(scale.shape) <= 1 else np.dot(t, scale)
+        ts = scale * t if len(scale.shape) <= 1 else np.dot(t, scale)
         assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
         cond = self.domain.is_in_domain(ts)
         ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
@@ -1213,8 +1214,16 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 y *= scale**2
             elif len(scale.shape) == 1:
                 # This is supposed to be equivalent to the else case
-                y = np.apply_along_axis(lambda x: np.multiply(scale, x), 0, y)
-                y = np.apply_along_axis(lambda x: np.multiply(x, scale), 1, y)
+                def diagscalemult(x):
+                    x = np.apply_along_axis(lambda z: np.multiply(scale, z), 0, x)
+                    return np.apply_along_axis(lambda z: np.multiply(z, scale), 1, x)
+
+                if len(y.shape) == 2:
+                    y = diagscalemult(y)
+                elif len(y.shape) == 3:
+                    y = np.array([diagscalemult(yy) for yy in y])
+                else:
+                    raise IndexError("retval should a matrix of list of matrices")
             else:
                 y = np.dot(np.dot(scale.T, y.T).T, scale.T)
             if np.isscalar(cond):

@@ -203,6 +203,10 @@ def test_multiplication():
         assert np.isclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    for f in ["K", "dK", "d2K"]:
+        val = np.array([getattr(mcgf1, f)(t) for t in ts])
+        assert np.allclose(getattr(mcgf1, f)(ts), val)
+        assert np.allclose(getattr(mcgf2, f)(ts), val)
     mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1)
     mcgf2.mul(np.array([1, 2]), inplace=True)
     assert mcgf1.dim == mcgf2.dim == 2
@@ -210,18 +214,30 @@ def test_multiplication():
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    for f in ["K", "dK", "d2K"]:
+        val = np.array([getattr(mcgf1, f)(t) for t in ts])
+        assert np.allclose(getattr(mcgf1, f)(ts), val)
+        assert np.allclose(getattr(mcgf2, f)(ts), val)
     mcgf2 = multivariate_norm(loc=0, scale=np.array([1, 2]))
     assert mcgf1.dim == mcgf2.dim == 2
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    for f in ["K", "dK", "d2K"]:
+        val = np.array([getattr(mcgf1, f)(t) for t in ts])
+        assert np.allclose(getattr(mcgf1, f)(ts), val)
+        assert np.allclose(getattr(mcgf2, f)(ts), val)
     mcgf2 = multivariate_norm(loc=0, scale=np.diag(np.array([1, 2])))
     assert mcgf1.dim == mcgf2.dim == 2
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    for f in ["K", "dK", "d2K"]:
+        val = np.array([getattr(mcgf1, f)(t) for t in ts])
+        assert np.allclose(getattr(mcgf1, f)(ts), val)
+        assert np.allclose(getattr(mcgf2, f)(ts), val)
     # Multiply by a constant
     mcgf1 = multivariate_norm(loc=np.array([0, 3]), scale=3)
     mcgf2 = multivariate_norm(loc=np.array([0, 1]), scale=1) * 3
@@ -230,6 +246,10 @@ def test_multiplication():
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    for f in ["K", "dK", "d2K"]:
+        val = np.array([getattr(mcgf1, f)(t) for t in ts])
+        assert np.allclose(getattr(mcgf1, f)(ts), val)
+        assert np.allclose(getattr(mcgf2, f)(ts), val)
 
 
 # TODO: test with transformations
@@ -306,7 +326,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_addition",
+                "test_multiplication",
                 "--tb=auto",
                 "--pdb",
             ]
