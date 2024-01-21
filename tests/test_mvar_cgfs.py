@@ -110,84 +110,57 @@ def test_statistics(mcgf, mean, cov):
     assert np.allclose(cov, mcgf.cov)
 
 
-def test_addition():
-    # add vector
-    mcgf1 = MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2)
-    mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1) + np.array([1, 2])
-    assert mcgf1.dim == mcgf2.dim == 2
+@pytest.mark.parametrize(
+    "mcgf1,mcgf2,dim",
+    [
+        # add vector
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
+            multivariate_norm(loc=np.zeros(2), scale=1) + np.array([1, 2]),
+            2,
+        ),
+        # add a vector in a different way
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
+            multivariate_norm(loc=np.zeros(2), scale=1).add(np.array([1, 2])),
+            2,
+        ),
+        # add hen specified as loc
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
+            multivariate_norm(loc=np.array([1, 2]), scale=1),
+            2,
+        ),
+        # Add a constant
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
+            multivariate_norm(loc=np.array([0, 1]), scale=1) + 1,
+            2,
+        ),
+        # add scalar
+        (
+            multivariate_norm(loc=np.zeros(2), scale=1) + 1,
+            multivariate_norm(loc=np.ones(2), scale=1),
+            2,
+        ),
+        # Add multivariate cumulant genering function
+        (
+            multivariate_norm(loc=np.ones(2), scale=1)
+            + multivariate_norm(loc=np.zeros(2), scale=1),
+            multivariate_norm(loc=np.ones(2), scale=np.sqrt(2)),
+            2,
+        ),
+        # Add multivariate cumulant genering function
+        (
+            multivariate_norm(loc=np.ones(2), scale=1) + norm(loc=0, scale=1),
+            multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]])),
+            2,
+        ),
+    ],
+)
+def test_addition(mcgf1, mcgf2, dim):
+    assert mcgf1.dim == mcgf2.dim == dim
     ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    # add a vector in a different way
-    mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1)
-    mcgf2.add(np.array([1, 2]), inplace=True)
-    assert mcgf1.dim == mcgf2.dim == 2
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    # and when specified as loc
-    mcgf2 = multivariate_norm(loc=np.array([1, 2]), scale=1)
-    assert mcgf1.dim == mcgf2.dim == 2
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    # Add a constant
-    mcgf2 = multivariate_norm(loc=np.array([0, 1]), scale=1) + 1
-    assert mcgf1.dim == mcgf2.dim == 2
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    # add scalar
-    mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1) + 1
-    mcgf2 = multivariate_norm(loc=np.ones(2), scale=1)
-    assert mcgf1.dim == mcgf2.dim == 2
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    # Add multivariate cumulant genering function
-    mcgf1 = multivariate_norm(loc=np.ones(2), scale=1) + multivariate_norm(
-        loc=np.zeros(2), scale=1
-    )
-    mcgf2 = multivariate_norm(loc=np.ones(2), scale=np.sqrt(2))
-    assert mcgf1.dim == mcgf2.dim == 2
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    # Add multivariate cumulant genering function
-    mcgf1 = multivariate_norm(loc=np.ones(2), scale=1) + norm(loc=0, scale=1)
-    mcgf2 = multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]]))
-    assert mcgf1.dim == mcgf2.dim == 2
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
@@ -375,7 +348,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_statistics",
+                "test_addition",
                 "--tb=auto",
                 "--pdb",
             ]
