@@ -715,7 +715,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         d3K0=None,
         domain=None,
     ):
-        assert isinstance(dim, int) and dim > 0, "dimimension must be an integer greater than 0"
+        assert (
+            pd.api.types.is_integer(dim) and dim > 0
+        ), "dimimension must be an integer greater than 0"
         self.dim = dim
         if domain is None:
             if pd.api.types.is_array_like(loc):
@@ -1295,23 +1297,27 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
 
             def ti(t, i):
-                return t.T[dims[:i].sum() : dims[: i + 1].sum()]
+                return t.T[dims[:i].sum() : dims[: i + 1].sum()].T
 
+            @type_wrapper(xloc=0)
             def K(t):
                 return np.sum(
                     [cgf.K(ti(t, i)) for i, cgf in enumerate(cgfs)],
                     axis=0,
                 )
 
+            @type_wrapper(xloc=0)
             def dK(t):
-                return np.concatenate([cgf.dK(ti(t, i)) for i, cgf in enumerate(cgfs)]).T
+                return np.concatenate([cgf.dK(ti(t, i)) for i, cgf in enumerate(cgfs)], axis=-1)
 
+            @type_wrapper(xloc=0)
             def d2K(t):
-                return np.apply_along_axis(
-                    sp.linalg.block_diag,
-                    0,
-                    np.array([cgf.d2K(ti(t, i)) for i, cgf in enumerate(cgfs)]),
-                ).swapaxes(0, -1)
+                if len(t.shape) == 1:
+                    return sp.linalg.block_diag(*[cgf.d2K(ti(t, i)) for i, cgf in enumerate(cgfs)])
+                elif len(t.shape) == 2:
+                    return np.array([d2K(tt) for tt in t.T])
+                else:
+                    raise
 
             domain = Domain.from_domains(*[cgf.domain for cgf in cgfs])
             return cls(K, dim=dims.sum(), loc=0, scale=1, dK=dK, d2K=d2K, domain=domain)
