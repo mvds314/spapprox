@@ -273,32 +273,35 @@ def test_ldot():
     # mcgf2 = norm(loc=0, scale=2)
 
 
-def test_stack():
-    # Test stacking
-    mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1)
-    mcgf2 = multivariate_norm(loc=np.zeros(2), scale=2)
-    mcgf2 = MultivariateCumulantGeneratingFunction.from_cgfs(mcgf1, mcgf2)
-    mcgf1 = multivariate_norm(loc=np.zeros(4), scale=np.array([1, 1, 2, 2]))
+@pytest.mark.parametrize(
+    "mcgf1,mcgf2,dim",
+    [
+        (
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                multivariate_norm(loc=np.zeros(2), scale=1),
+                multivariate_norm(loc=np.zeros(2), scale=2),
+            ),
+            multivariate_norm(loc=np.zeros(4), scale=np.array([1, 1, 2, 2])),
+            4,
+        ),
+        (
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]])),
+                multivariate_norm(loc=[3, 4], cov=np.array([[2, 0.5], [0.5, 1]])),
+            ),
+            multivariate_norm(
+                loc=[1, 2, 3, 4],
+                cov=sp.linalg.block_diag(
+                    np.array([[2, 1], [1, 3]]), np.array([[2, 0.5], [0.5, 1]])
+                ),
+            ),
+            4,
+        ),
+    ],
+)
+def test_stack(mcgf1, mcgf2, dim):
     assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
-    assert mcgf1.dim == mcgf2.dim == 4
-    ts = [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]]
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    # Test more complicated stacking
-    mcgf1 = multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]]))
-    mcgf2 = multivariate_norm(loc=[3, 4], cov=np.array([[2, 0.5], [0.5, 1]]))
-    locs = [mcgf1.loc, mcgf2.loc]
-    scales = [mcgf1.scale, mcgf2.scale]
-    mcgf2 = MultivariateCumulantGeneratingFunction.from_cgfs(mcgf1, mcgf2)
-    mcgf1 = multivariate_norm(loc=np.concatenate(locs), scale=sp.linalg.block_diag(*scales))
-    assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
-    assert mcgf1.dim == mcgf2.dim == 4
+    assert mcgf1.dim == mcgf2.dim == dim
     ts = [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]]
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
