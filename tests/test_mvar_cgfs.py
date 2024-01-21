@@ -85,25 +85,29 @@ def test_2d_from_uniform():
     assert np.allclose(mcgf_int.d2K(ts), val, atol=1e-3)
 
 
-def test_statistics():
-    # Standard multivariate normal
-    mcgf = multivariate_norm()
-    assert np.allclose(0, mcgf.mean)
-    assert np.allclose(np.eye(mcgf.dim), mcgf.cov)
-    # Multivariate normal with covmat specification
-    loc = [1, 2]
-    cov = np.array([[2, 1], [1, 2]])
-    mcgf = multivariate_norm(loc=loc, cov=cov)
-    assert np.allclose(loc, mcgf.mean)
+@pytest.mark.parametrize(
+    "mcgf,mean,cov",
+    [
+        # Standard multivariate normal
+        (multivariate_norm(), 0, np.eye(2)),
+        # Multivariate normal with covmat specification
+        (
+            multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 2]])),
+            [1, 2],
+            np.array([[2, 1], [1, 2]]),
+        ),
+        # Multivariate normal with scale specification
+        (
+            multivariate_norm(loc=[1, 2], scale=np.arange(1, 5).reshape((2, 2))),
+            [1, 2],
+            np.arange(1, 5).reshape((2, 2)).dot(np.arange(1, 5).reshape((2, 2)).T),
+        ),
+    ],
+)
+def test_statistics(mcgf, mean, cov):
+    assert np.allclose(mean, mcgf.mean)
+    assert np.allclose(np.sqrt(np.diag(cov)), mcgf.std)
     assert np.allclose(cov, mcgf.cov)
-    assert np.allclose(np.sqrt(2), mcgf.std)
-    # Multivariate normal with scale specification
-    scale = np.array([[1, 2], [3, 4]])
-    loc = [1, 2]
-    mcgf = multivariate_norm(loc=loc, scale=scale)
-    assert np.allclose(loc, mcgf.mean)
-    assert np.allclose(scale.dot(scale.T), mcgf.cov)
-    assert np.allclose(np.sqrt(np.diag(scale.dot(scale.T))), mcgf.std)
 
 
 def test_addition():
@@ -371,7 +375,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_stack_and_slicing",
+                "test_statistics",
                 "--tb=auto",
                 "--pdb",
             ]
