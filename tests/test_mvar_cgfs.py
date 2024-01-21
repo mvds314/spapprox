@@ -171,57 +171,44 @@ def test_addition(mcgf1, mcgf2, dim):
         assert np.allclose(getattr(mcgf2, f)(ts), val)
 
 
-def test_multiplication():
+@pytest.mark.parametrize(
+    "mcgf1,mcgf2,dim",
+    [
+        # multiply vector in several equivalent ways
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
+            multivariate_norm(loc=np.zeros(2), scale=1) * np.array([1, 2]),
+            2,
+        ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
+            multivariate_norm(loc=np.zeros(2), scale=1).mul(np.array([1, 2]), inplace=True),
+            2,
+        ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
+            multivariate_norm(loc=0, scale=np.array([1, 2])),
+            2,
+        ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
+            multivariate_norm(loc=0, scale=np.diag(np.array([1, 2]))),
+            2,
+        ),
+        # Multiply by a constant
+        (
+            multivariate_norm(loc=np.array([0, 3]), scale=3),
+            multivariate_norm(loc=np.array([0, 1]), scale=1) * 3,
+            2,
+        ),
+    ],
+)
+def test_multiplication(mcgf1, mcgf2, dim):
     # multiply vector in several equivalent ways
-    mcgf1 = MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2)
-    mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1) * np.array([1, 2])
-    assert mcgf1.dim == mcgf2.dim == 2
+    assert mcgf1.dim == mcgf2.dim == dim
     ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
     for t in ts:
         assert np.isclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    mcgf2 = multivariate_norm(loc=np.zeros(2), scale=1)
-    mcgf2.mul(np.array([1, 2]), inplace=True)
-    assert mcgf1.dim == mcgf2.dim == 2
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    mcgf2 = multivariate_norm(loc=0, scale=np.array([1, 2]))
-    assert mcgf1.dim == mcgf2.dim == 2
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    mcgf2 = multivariate_norm(loc=0, scale=np.diag(np.array([1, 2])))
-    assert mcgf1.dim == mcgf2.dim == 2
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    # Multiply by a constant
-    mcgf1 = multivariate_norm(loc=np.array([0, 3]), scale=3)
-    mcgf2 = multivariate_norm(loc=np.array([0, 1]), scale=1) * 3
-    assert mcgf1.dim == mcgf2.dim == 2
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
     for f in ["K", "dK", "d2K"]:
@@ -348,7 +335,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_addition",
+                "test_multiplication",
                 "--tb=auto",
                 "--pdb",
             ]
