@@ -45,9 +45,11 @@ def test_2d_from_uniform():
     # K = lambda t, pdf=sps.multivariate_normal(mean=np.zeros(2), cov=np.eye(2)).pdf: np.log(
     #     dblquad(lambda x, y: pdf([x, y]) * np.exp(np.dot([x, y], t)), -6, 6, -6, 6)[0]
     # ) #Takes too long
-    K = lambda t, pdfx=sps.norm().pdf, pdfy=sps.norm().pdf: np.log(
-        quad(lambda x: pdfx(x) * np.exp(x * t[0]), -6, 6)[0]
-        * quad(lambda y: pdfy(y) * np.exp(y * t[1]), -6, 6)[0]
+    K = (
+        lambda t, pdfx=sps.norm().pdf, pdfy=sps.norm().pdf: np.log(
+            quad(lambda x: pdfx(x) * np.exp(x * t[0]), -6, 6)[0]
+            * quad(lambda y: pdfy(y) * np.exp(y * t[1]), -6, 6)[0]
+        )
     )
     K = type_wrapper()(np.vectorize(K, signature="(n)->()"))
     mcgf_int = MultivariateCumulantGeneratingFunction(K, dim=2)
@@ -217,12 +219,34 @@ def test_multiplication(mcgf1, mcgf2, dim):
         assert np.allclose(getattr(mcgf2, f)(ts), val)
 
 
-def test_ldot():
-    # Multiplication with identity
-    mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(2 * np.eye(2))
-    mcgf2 = multivariate_norm(loc=np.zeros(2), scale=2)
+@pytest.mark.parametrize(
+    "mcgf1,mcgf2,dim",
+    [
+        # Multiplication with identity
+        (
+            multivariate_norm(loc=np.zeros(2), scale=1).ldot(2 * np.eye(2)),
+            multivariate_norm(loc=np.zeros(2), scale=2),
+            2,
+        ),
+        (
+            multivariate_norm(loc=np.zeros(2), scale=1).ldot(
+                np.linalg.cholesky(cov2corr(np.array([[2, 1], [1, 3]]), return_std=False))
+            )
+            * np.sqrt(np.array([2, 3]))
+            + np.array([1, 2]),
+            multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]])),
+            2,
+        ),
+        (
+            multivariate_norm(loc=0, scale=1, dim=3).ldot(np.array([[1, 0, 1], [0, 1, 1]])),
+            multivariate_norm(loc=0, scale=1, dim=2) + norm(),
+            2,
+        ),
+    ],
+)
+def test_ldot(mcgf1, mcgf2, dim):
     assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
-    assert mcgf1.dim == mcgf2.dim == 2
+    assert mcgf1.dim == mcgf2.dim == dim
     ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
@@ -232,41 +256,7 @@ def test_ldot():
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
-    # Correlate through matrix multiplication
-    cov = np.array([[2, 1], [1, 3]])
-    cor, std = cov2corr(cov, return_std=True)
-    mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(
-        np.linalg.cholesky(cor)
-    ) * std + np.array([1, 2])
-    mcgf2 = multivariate_norm(loc=[1, 2], cov=cov)
-    assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
-    assert mcgf1.dim == mcgf2.dim == 2
-    assert np.allclose(mcgf1.cov, cov)
-    assert np.allclose(mcgf2.cov, cov)
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    # Projection vs addition
-    mcgf1 = multivariate_norm(loc=0, scale=1, dim=3).ldot(np.array([[1, 0, 1], [0, 1, 1]]))
-    mcgf2 = multivariate_norm(loc=0, scale=1, dim=2) + norm()
-    assert mcgf1.dim == mcgf2.dim == 2
-    assert mcgf1.domain.dim == 3
-    assert mcgf2.domain.dim == 2
-    for t in ts:
-        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
     assert np.allclose(mcgf2.cov, mcgf1.cov)
-
     # TODO: test the projection on the 1dim case, but implement slicing first
     # mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2))
     # assert isinstance(mcgf1, UnivariateCumulantGeneratingFunction)
@@ -338,7 +328,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_multiplication",
+                "test_ldot",
                 "--tb=auto",
                 "--pdb",
             ]
