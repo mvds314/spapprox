@@ -1302,7 +1302,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             @type_wrapper(xloc=0)
             def K(t):
                 return np.sum(
-                    [cgf.K(ti(t, i)) for i, cgf in enumerate(cgfs)],
+                    [np.squeeze(cgf.K(ti(t, i))) for i, cgf in enumerate(cgfs)],
                     axis=0,
                 )
 

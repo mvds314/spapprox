@@ -45,11 +45,9 @@ def test_2d_from_uniform():
     # K = lambda t, pdf=sps.multivariate_normal(mean=np.zeros(2), cov=np.eye(2)).pdf: np.log(
     #     dblquad(lambda x, y: pdf([x, y]) * np.exp(np.dot([x, y], t)), -6, 6, -6, 6)[0]
     # ) #Takes too long
-    K = (
-        lambda t, pdfx=sps.norm().pdf, pdfy=sps.norm().pdf: np.log(
-            quad(lambda x: pdfx(x) * np.exp(x * t[0]), -6, 6)[0]
-            * quad(lambda y: pdfy(y) * np.exp(y * t[1]), -6, 6)[0]
-        )
+    K = lambda t, pdfx=sps.norm().pdf, pdfy=sps.norm().pdf: np.log(
+        quad(lambda x: pdfx(x) * np.exp(x * t[0]), -6, 6)[0]
+        * quad(lambda y: pdfy(y) * np.exp(y * t[1]), -6, 6)[0]
     )
     K = type_wrapper()(np.vectorize(K, signature="(n)->()"))
     mcgf_int = MultivariateCumulantGeneratingFunction(K, dim=2)
@@ -287,6 +285,18 @@ def test_ldot(mcgf1, mcgf2, dim):
             ),
             4,
         ),
+        (
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]])),
+                norm(loc=3, scale=2),
+                norm(loc=4, scale=1),
+            ),
+            multivariate_norm(
+                loc=[1, 2, 3, 4],
+                cov=sp.linalg.block_diag(np.array([[2, 1], [1, 3]]), np.array([[4, 0], [0, 1]])),
+            ),
+            4,
+        ),
     ],
 )
 def test_stack(mcgf1, mcgf2, dim):
@@ -328,7 +338,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_ldot",
+                "test_stack",
                 "--tb=auto",
                 "--pdb",
             ]
