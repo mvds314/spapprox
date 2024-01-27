@@ -839,7 +839,59 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Just set the other components to zero
         See Kolassa (2006) - Series approximation methods in statistics, Chapter 6.8
         """
-        pass
+        if isinstance(item, int):
+            assert item < self.dim, "Index out of bounds"
+            idmat = np.eye(self.dim)
+            if isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 2:
+                scale = self.scale[item, item]
+            elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 1:
+                scale = self.scale[item]
+            else:
+                scale = self.scale
+            if isinstance(self.loc, np.ndarray) and len(self.loc.shape) == 1:
+                loc = self.loc[item]
+            else:
+                loc = self.loc
+            return UnivariateCumulantGeneratingFunction(
+                lambda t: self.K(t * idmat[item], loc=0, scale=1),
+                dK=lambda t: self.dK(t * idmat[item], loc=0, scale=1),
+                d2K=lambda t: self.d2K(t * idmat[item], loc=0, scale=1),
+                d3K=lambda t: self.d3K(t * idmat[item], loc=0, scale=1),
+                domain=self.domain[item],
+                loc=loc,
+                scale=scale,
+            )
+        elif isinstance(item, slice):
+            return self[list(range(self.dim))[item]]
+        elif isinstance(item, tuple):
+            return self[list(item)]
+        elif isinstance(item, list):
+            assert all(pd.api.types.is_integer(i) for i in item), "Invalid index"
+            assert all(i < self.dim for i in item), "Index out of bounds"
+            assert len(set(item)) == len(item), "Index must be unique"
+            idmat = np.eye(self.dim)
+            if isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 2:
+                scale = self.scale[item, :][:, item]
+            elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 1:
+                scale = self.scale[item]
+            else:
+                scale = self.scale
+            if isinstance(self.loc, np.ndarray) and len(self.loc.shape) == 1:
+                loc = self.loc[item]
+            else:
+                loc = self.loc
+            return MultivariateCumulantGeneratingFunction(
+                lambda t: self.K(t * idmat[item], loc=0, scale=1),
+                dim=len(item),
+                dK=lambda t: self.dK(t * idmat[item], loc=0, scale=1),
+                d2K=lambda t: self.d2K(t * idmat[item], loc=0, scale=1),
+                d3K=lambda t: self.d3K(t * idmat[item], loc=0, scale=1),
+                domain=self.domain[item],
+                loc=loc,
+                scale=scale,
+            )
+        else:
+            raise ValueError("Invalid index")
 
     def add(self, other, inplace=True):
         r"""
@@ -1323,8 +1375,5 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             return cls(K, dim=dims.sum(), loc=0, scale=1, dK=dK, d2K=d2K, domain=domain)
 
 
-# TODO: implement multivariate saddlepoint approximation
-# TODO: write some tests first for the albove, using normal distribution
-# TODO: add stacking functionality
 # TODO: add some slicing, so that we can extract the marginals
 # TODO: can we construct a conditional cgf, or does that always go through the saddlepoint approximation?
