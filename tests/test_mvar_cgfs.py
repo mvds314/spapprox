@@ -13,7 +13,7 @@ import scipy.stats as sps
 from statsmodels.stats.moment_helpers import cov2corr
 
 from spapprox import (
-    UnivariateCumulantGeneratingFunction,
+    # UnivariateCumulantGeneratingFunction,
     MultivariateCumulantGeneratingFunction,
     # Domain,
     norm,
@@ -313,8 +313,32 @@ def test_stack(mcgf1, mcgf2, dim):
         assert np.allclose(getattr(mcgf2, f)(ts), val)
 
 
-def test_slicing():
-    pass
+@pytest.mark.parametrize(
+    "mcgf1,mcgf2,ts,dim",
+    [
+        (
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                multivariate_norm(loc=np.zeros(2), scale=1),
+                multivariate_norm(loc=np.zeros(2), scale=2),
+            )[0],
+            norm(loc=0, scale=1),
+            [-2, -1, 0, 1, 2],
+            None,
+        ),
+    ],
+)
+def test_slicing(mcgf1, mcgf2, ts, dim):
+    assert isinstance(mcgf1, mcgf2.__class__)
+    if dim is not None:
+        assert mcgf1.dim == mcgf2.dim == dim
+    for t in ts:
+        assert np.allclose(mcgf1.K(t), mcgf2.K(t))
+        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+    for f in ["K", "dK", "d2K"]:
+        val = np.array([getattr(mcgf1, f)(t) for t in ts])
+        assert np.allclose(getattr(mcgf1, f)(ts), val)
+    #     assert np.allclose(getattr(mcgf2, f)(ts), val)
 
 
 # TODO: implement dKinv
@@ -327,18 +351,13 @@ def test_univariate():
     pass
 
 
-# TODO: Can we do things more efficient?
-# TODO: For example, do not use loc_vect, or scale mat unnecisarily, better work it out with if statements?
-# TODO: decide on third derivative
-# TODO: double check if domain is handled properly everywhere
-
 if __name__ == "__main__":
     if True:
         pytest.main(
             [
                 str(Path(__file__)),
                 "-k",
-                "test_stack",
+                "test_slicing",
                 "--tb=auto",
                 "--pdb",
             ]

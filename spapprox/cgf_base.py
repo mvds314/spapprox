@@ -853,11 +853,39 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             else:
                 loc = self.loc
             return UnivariateCumulantGeneratingFunction(
-                lambda t: self.K(t * idmat[item], loc=0, scale=1),
-                dK=lambda t: self.dK(t * idmat[item], loc=0, scale=1),
-                d2K=lambda t: self.d2K(t * idmat[item], loc=0, scale=1),
-                d3K=lambda t: self.d3K(t * idmat[item], loc=0, scale=1),
-                domain=self.domain[item],
+                lambda t: self.K(
+                    t * idmat[item]
+                    if pd.api.types.is_number(t)
+                    or (isinstance(t, np.ndarray) and len(t.shape) == 0)
+                    else np.multiply(idmat[:, [item]], t).T,
+                    loc=0,
+                    scale=1,
+                ),
+                dK=lambda t: self.dK(
+                    t * idmat[item]
+                    if pd.api.types.is_number(t)
+                    or (isinstance(t, np.ndarray) and len(t.shape) == 0)
+                    else np.multiply(idmat[:, [item]], t).T,
+                    loc=0,
+                    scale=1,
+                )[item],
+                d2K=lambda t: self.d2K(
+                    t * idmat[item]
+                    if pd.api.types.is_number(t)
+                    or (isinstance(t, np.ndarray) and len(t.shape) == 0)
+                    else np.multiply(idmat[:, [item]], t).T,
+                    loc=0,
+                    scale=1,
+                )[item, item],
+                d3K=lambda t: self.d3K(
+                    t * idmat[item]
+                    if pd.api.types.is_number(t)
+                    or (isinstance(t, np.ndarray) and len(t.shape) == 0)
+                    else np.multiply(idmat[:, [item]], t).T,
+                    loc=0,
+                    scale=1,
+                ),
+                domain=self.domain.ldotinv(idmat[:, [item]]),
                 loc=loc,
                 scale=scale,
             )
@@ -886,7 +914,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK=lambda t: self.dK(t * idmat[item], loc=0, scale=1),
                 d2K=lambda t: self.d2K(t * idmat[item], loc=0, scale=1),
                 d3K=lambda t: self.d3K(t * idmat[item], loc=0, scale=1),
-                domain=self.domain[item],
+                domain=self.domain.ldotinv(idmat[:, item]),
                 loc=loc,
                 scale=scale,
             )
