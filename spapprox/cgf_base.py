@@ -868,7 +868,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     else np.multiply(idmat[:, [item]], t).T,
                     loc=0,
                     scale=1,
-                )[item],
+                ).T[item],
                 d2K=lambda t: self.d2K(
                     t * idmat[item]
                     if pd.api.types.is_number(t)
@@ -876,7 +876,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     else np.multiply(idmat[:, [item]], t).T,
                     loc=0,
                     scale=1,
-                )[item, item],
+                ).T[item, item],
                 d3K=lambda t: self.d3K(
                     t * idmat[item]
                     if pd.api.types.is_number(t)

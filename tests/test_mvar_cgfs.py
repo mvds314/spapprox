@@ -317,14 +317,20 @@ def test_stack(mcgf1, mcgf2, dim):
     "mcgf1,mcgf2,ts,dim",
     [
         (
-            MultivariateCumulantGeneratingFunction.from_cgfs(
-                multivariate_norm(loc=np.zeros(2), scale=1),
-                multivariate_norm(loc=np.zeros(2), scale=2),
-            )[0],
+            multivariate_norm(loc=np.zeros(4), scale=np.array([1, 1, 2, 2]))[0],
             norm(loc=0, scale=1),
             [-2, -1, 0, 1, 2],
             None,
         ),
+        # (
+        #     MultivariateCumulantGeneratingFunction.from_cgfs(
+        #         multivariate_norm(loc=np.zeros(2), scale=1),
+        #         multivariate_norm(loc=np.zeros(2), scale=2),
+        #     )[0],
+        #     norm(loc=0, scale=1),
+        #     [-2, -1, 0, 1, 2],
+        #     None,
+        # ),
     ],
 )
 def test_slicing(mcgf1, mcgf2, ts, dim):
@@ -338,7 +344,7 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
     for f in ["K", "dK", "d2K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
-    #     assert np.allclose(getattr(mcgf2, f)(ts), val)
+        assert np.allclose(getattr(mcgf2, f)(ts), val)
 
 
 # TODO: implement dKinv
