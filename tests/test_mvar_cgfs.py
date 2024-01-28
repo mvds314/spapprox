@@ -344,6 +344,12 @@ def test_stack(mcgf1, mcgf2, dim):
             2,
         ),
         (
+            multivariate_norm(loc=[1, 2, 3], scale=np.diag([1, 2, 3]))[[0, 2]],
+            multivariate_norm(loc=[1, 3], scale=np.diag([1, 3])),
+            [[-2, -1], [0, 1], [2, 0]],
+            2,
+        ),
+        (
             multivariate_norm(
                 loc=[1, 2, 3], cov=np.array([[1, 0.5, 0.1], [0.5, 2, 0.2], [0.1, 0.2, 3]])
             )[[0, 2]],
