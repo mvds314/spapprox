@@ -906,12 +906,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             else:
                 loc = self.loc
             return MultivariateCumulantGeneratingFunction(
-                lambda t: self.K(np.multiply(idmat[:, [item]], t).T, loc=0, scale=1),
+                lambda t: self.K(idmat[:, item].dot(t.T).T, loc=0, scale=1),
                 dim=len(item),
-                dK=lambda t: self.dK(np.multiply(idmat[:, [item]], t).T, loc=0, scale=1)
+                dK=lambda t: self.dK(idmat[:, item].dot(t.T).T, loc=0, scale=1)[item]
                 if self._dK is not None
                 else None,
-                d2K=lambda t: self.d2K(np.multiply(idmat[:, [item]], t).T, loc=0, scale=1)
+                # d2K=d2K,
+                d2K=lambda t: self.d2K(idmat[:, item].dot(t.T).T, loc=0, scale=1).T[item][:, item]
                 if self._d2K is not None
                 else None,
                 d3K=None,  # TODO: implement this one properly
