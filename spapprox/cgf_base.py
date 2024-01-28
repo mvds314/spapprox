@@ -912,7 +912,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 if self._dK is not None
                 else None,
                 # d2K=d2K,
-                d2K=lambda t: self.d2K(idmat[:, item].dot(t.T).T, loc=0, scale=1).T[item][:, item]
+                d2K=lambda t: self.d2K(idmat[:, item].dot(t.T).T, loc=0, scale=1).T[
+                    np.ix_(item, item)
+                ]
                 if self._d2K is not None
                 else None,
                 d3K=None,  # TODO: implement this one properly
