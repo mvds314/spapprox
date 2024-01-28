@@ -337,6 +337,12 @@ def test_stack(mcgf1, mcgf2, dim):
             [-2, -1, 0, 1, 2],
             None,
         ),
+        (
+            multivariate_norm(loc=[1, 2, 3, 4], scale=np.array([1, 1, 2, 2]))[[1, 2]],
+            multivariate_norm(loc=[2, 3], scale=np.array([1, 2])),
+            [-2, -1, 0, 1, 2],
+            2,
+        ),
     ],
 )
 def test_slicing(mcgf1, mcgf2, ts, dim):
