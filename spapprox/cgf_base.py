@@ -877,14 +877,15 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     loc=0,
                     scale=1,
                 ).T[item, item],
-                d3K=lambda t: self.d3K(
-                    t * idmat[item]
-                    if pd.api.types.is_number(t)
-                    or (isinstance(t, np.ndarray) and len(t.shape) == 0)
-                    else np.multiply(idmat[:, [item]], t).T,
-                    loc=0,
-                    scale=1,
-                ),
+                # TODO: implement this one properly
+                # d3K=lambda t: self.d3K(
+                #     t * idmat[item]
+                #     if pd.api.types.is_number(t)
+                #     or (isinstance(t, np.ndarray) and len(t.shape) == 0)
+                #     else np.multiply(idmat[:, [item]], t).T,
+                #     loc=0,
+                #     scale=1,
+                # ).T[item, item, item],
                 domain=self.domain.ldotinv(idmat[:, [item]]),
                 loc=loc,
                 scale=scale,
@@ -1395,7 +1396,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 if len(t.shape) == 1:
                     return sp.linalg.block_diag(*[cgf.d2K(ti(t, i)) for i, cgf in enumerate(cgfs)])
                 elif len(t.shape) == 2:
-                    return np.array([d2K(tt) for tt in t.T])
+                    return np.array([d2K(tt) for tt in t])
                 else:
                     raise
 

@@ -322,15 +322,21 @@ def test_stack(mcgf1, mcgf2, dim):
             [-2, -1, 0, 1, 2],
             None,
         ),
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_cgfs(
-        #         multivariate_norm(loc=np.zeros(2), scale=1),
-        #         multivariate_norm(loc=np.zeros(2), scale=2),
-        #     )[0],
-        #     norm(loc=0, scale=1),
-        #     [-2, -1, 0, 1, 2],
-        #     None,
-        # ),
+        (
+            multivariate_norm(loc=[1, 2, 3, 4], scale=np.array([1, 1, 2, 2]))[-1],
+            norm(loc=4, scale=2),
+            [-2, -1, 0, 1, 2],
+            None,
+        ),
+        (
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                multivariate_norm(loc=np.zeros(2), scale=1),
+                multivariate_norm(loc=np.zeros(2), scale=2),
+            )[0],
+            norm(loc=0, scale=1),
+            [-2, -1, 0, 1, 2],
+            None,
+        ),
     ],
 )
 def test_slicing(mcgf1, mcgf2, ts, dim):
