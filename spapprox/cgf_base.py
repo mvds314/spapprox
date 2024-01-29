@@ -896,7 +896,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             assert len(set(item)) == len(item), "Index must be unique"
             idmat = np.eye(self.dim)
             if isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 2:
-                scale = self.scale[item, :][:, item]
+                scale = self.scale[np.ix_(item, item)]
             elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 1:
                 scale = self.scale[item]
             else:
