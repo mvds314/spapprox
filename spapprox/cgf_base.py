@@ -896,29 +896,27 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             assert len(set(item)) == len(item), "Index must be unique"
             idmat = np.eye(self.dim)
             if isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 2:
-                scale = self.scale.T.dot(idmat[:, item])
+                scale = self.scale.T.dot(idmat[:, item]).T
             elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 1:
-                scale = idmat.dot(self.scale)[:, item]
+                scale = idmat.dot(self.scale)[item]
             else:
-                scale = self.scale * idmat[:, item]
+                scale = self.scale * idmat[:, item].T
             if isinstance(self.loc, np.ndarray) and len(self.loc.shape) == 1:
                 loc = self.loc[item]
             else:
                 loc = self.loc
             return MultivariateCumulantGeneratingFunction(
-                lambda t, scale=scale: self.K(scale.dot(t.T).T, loc=0, scale=1),
+                lambda t, loc=loc, scale=scale: self.K(t, loc=loc, scale=scale),
                 dim=len(item),
-                dK=lambda t, scale=scale: scale.T.dot(self.dK(scale.dot(t.T).T, loc=0, scale=1)).T
+                dK=lambda t, loc=loc, scale=scale: self.dK(t, loc=loc, scale=scale)
                 if self._dK is not None
                 else None,
-                d2K=lambda t, scale=scale: scale.T.dot(
-                    self.d2K(scale.dot(t.T).T, loc=0, scale=1)
-                ).dot(scale)
+                d2K=lambda t, loc=loc, scale=scale: self.d2K(t, loc=loc, scale=scale)
                 if self._d2K is not None
                 else None,
                 d3K=None,  # TODO: implement this one properly
                 domain=self.domain.ldotinv(idmat[:, item]),
-                loc=loc,
+                loc=0,
                 scale=1,
             )
         else:
