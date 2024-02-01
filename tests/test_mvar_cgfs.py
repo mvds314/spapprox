@@ -218,12 +218,13 @@ def test_multiplication(mcgf1, mcgf2, dim):
 
 
 @pytest.mark.parametrize(
-    "mcgf1,mcgf2,dim",
+    "mcgf1,mcgf2,ts,dim",
     [
         # Multiplication with identity
         (
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(2 * np.eye(2)),
             multivariate_norm(loc=np.zeros(2), scale=2),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
         ),
         (
@@ -233,18 +234,33 @@ def test_multiplication(mcgf1, mcgf2, dim):
             * np.sqrt(np.array([2, 3]))
             + np.array([1, 2]),
             multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]])),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
         ),
         (
             multivariate_norm(loc=0, scale=1, dim=3).ldot(np.array([[1, 0, 1], [0, 1, 1]])),
             multivariate_norm(loc=0, scale=1, dim=2) + norm(),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+        ),
+        (
+            multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2)),
+            norm(loc=0, scale=2),
+            [-1, -2, 0, 2, 4],
+            None,
+        ),
+        (
+            multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones((1, 2))),
+            multivariate_norm(loc=0, scale=2, dim=1),
+            [[-1], [-2], [0], [2], [4]],
+            None,
         ),
     ],
 )
-def test_ldot(mcgf1, mcgf2, dim):
+def test_ldot(mcgf1, mcgf2, ts, dim):
     assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
-    assert mcgf1.dim == mcgf2.dim == dim
+    if dim is not None:
+        assert mcgf1.dim == mcgf2.dim == dim
     ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
@@ -256,9 +272,6 @@ def test_ldot(mcgf1, mcgf2, dim):
         assert np.allclose(getattr(mcgf2, f)(ts), val)
     assert np.allclose(mcgf2.cov, mcgf1.cov)
     # TODO: test the projection on the 1dim case, but implement slicing first
-    # mcgf1 = multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2))
-    # assert isinstance(mcgf1, UnivariateCumulantGeneratingFunction)
-    # mcgf2 = norm(loc=0, scale=2)
 
 
 @pytest.mark.parametrize(
@@ -389,7 +402,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_slicing",
+                "test_ldot",
                 "--tb=auto",
                 "--pdb",
             ]
