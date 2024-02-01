@@ -1404,5 +1404,4 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             return cls(K, dim=dims.sum(), loc=0, scale=1, dK=dK, d2K=d2K, domain=domain)
 
 
-# TODO: add some slicing, so that we can extract the marginals
-# TODO: can we construct a conditional cgf, or does that always go through the saddlepoint approximation?
+# TODO: can we easily construct a conditional cgf using the conditional density? probabliy not?
