@@ -898,7 +898,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             if isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 2:
                 scale = self.scale.T.dot(idmat[:, item]).T
             elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 1:
-                scale = idmat.dot(self.scale)[item]
+                scale = np.diag(self.scale)[item]
             else:
                 scale = self.scale * idmat[:, item].T
             if isinstance(self.loc, np.ndarray) and len(self.loc.shape) == 1:
