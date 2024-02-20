@@ -1183,7 +1183,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         # st = (scale * t.T).T if len(scale.shape) == 1 else np.dot(t, scale)
         st = scale * t if len(scale.shape) == 1 else np.dot(t, scale)
         assert st.shape[-1] == self.domain.dim, "Dimensions do not match"
-        cond = self.domain.is_in_domain(st)
+        cond = np.squeeze(self.domain.is_in_domain(st))
         st = np.where(cond, st.T, 0).T  # prevent outside domain evaluations
         # Evaluate
         with warnings.catch_warnings():
@@ -1192,7 +1192,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             if np.isscalar(val):
                 val += np.sum(loc * t)
             elif pd.api.types.is_array_like(val) and len(val.shape) == 1 and len(t.shape) == 1:
-                val += np.dot(loc, t.T)
+                val += np.atleast_2d(t).T.dot(loc).squeeze()
             elif pd.api.types.is_array_like(val) and len(val.shape) == 1:
                 val += np.sum((loc * t).T, axis=0)
             else:
@@ -1226,7 +1226,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         scale = self.scale if scale is None else np.asanyarray(scale)
         ts = scale * t if len(scale.shape) <= 1 else np.dot(t, scale)
         assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
-        cond = self.domain.is_in_domain(ts)
+        cond = np.squeeze(self.domain.is_in_domain(ts))
         ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
         # Evaluate
         with warnings.catch_warnings():

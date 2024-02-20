@@ -249,9 +249,8 @@ def test_multiplication(mcgf1, mcgf2, dim):
             [-1, -2, 0, 2, 4],
             None,
         ),
-        (
-            multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones((1, 2))),
-            multivariate_norm(loc=0, scale=2, dim=1),
+            multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.atleast_2d(np.ones(2))),
+            multivariate_norm(loc=0, scale=np.sqrt(2), dim=1),
             [[-1], [-2], [0], [2], [4]],
             None,
         ),
@@ -261,7 +260,6 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
     assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
     if dim is not None:
         assert mcgf1.dim == mcgf2.dim == dim
-    ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
