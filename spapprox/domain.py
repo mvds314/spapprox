@@ -565,7 +565,7 @@ class Domain:
 
     @type_wrapper(xloc=1)
     def is_in_domain(self, t):
-        if self.dim == 1:
+        if self.dim == 1 and len(t.shape) < 2:
             val = np.full(t.shape, pd.notnull(t))
             t = np.expand_dims(t, axis=len(t.shape))
         else:
