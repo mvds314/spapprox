@@ -13,7 +13,7 @@ import scipy.stats as sps
 from statsmodels.stats.moment_helpers import cov2corr
 
 from spapprox import (
-    # UnivariateCumulantGeneratingFunction,
+    UnivariateCumulantGeneratingFunction,
     MultivariateCumulantGeneratingFunction,
     # Domain,
     norm,
@@ -245,10 +245,17 @@ def test_multiplication(mcgf1, mcgf2, dim):
         ),
         (
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2)),
-            norm(loc=0, scale=2),
+            norm(loc=0, scale=np.sqrt(2)),
             [-1, -2, 0, 2, 4],
             None,
         ),
+        (
+            multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.atleast_2d(np.ones(2)))[[0]],
+            multivariate_norm(loc=0, scale=np.sqrt(2), dim=1),
+            [[-1], [-2], [0], [2], [4]],
+            None,
+        ),
+        (
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.atleast_2d(np.ones(2))),
             multivariate_norm(loc=0, scale=np.sqrt(2), dim=1),
             [[-1], [-2], [0], [2], [4]],
@@ -257,7 +264,7 @@ def test_multiplication(mcgf1, mcgf2, dim):
     ],
 )
 def test_ldot(mcgf1, mcgf2, ts, dim):
-    assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
+    assert isinstance(mcgf1, mcgf2.__class__)
     if dim is not None:
         assert mcgf1.dim == mcgf2.dim == dim
     for t in ts:
@@ -268,8 +275,8 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
-    assert np.allclose(mcgf2.cov, mcgf1.cov)
-    # TODO: test the projection on the 1dim case, but implement slicing first
+    if not isinstance(mcgf1, UnivariateCumulantGeneratingFunction):
+        assert np.allclose(mcgf2.cov, mcgf1.cov)
 
 
 @pytest.mark.parametrize(
@@ -400,7 +407,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_ldot",
+                "test_stack",
                 "--tb=auto",
                 "--pdb",
             ]

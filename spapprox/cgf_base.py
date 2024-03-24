@@ -841,50 +841,15 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         if isinstance(item, int):
             assert item < self.dim, "Index out of bounds"
-            idmat = np.eye(self.dim)
-            if isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 2:
-                scale = self.scale[item, item]
-            elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 1:
-                scale = self.scale[item]
-            else:
-                scale = self.scale
-            if isinstance(self.loc, np.ndarray) and len(self.loc.shape) == 1:
-                loc = self.loc[item]
-            else:
-                loc = self.loc
+            mcgf = self[[item]]
             return UnivariateCumulantGeneratingFunction(
-                lambda t: self.K(
-                    t * idmat[item]
-                    if pd.api.types.is_number(t)
-                    or (isinstance(t, np.ndarray) and len(t.shape) == 0)
-                    else np.multiply(idmat[:, [item]], t).T,
-                    loc=0,
-                    scale=1,
-                ),
-                dK=lambda t: self.dK(
-                    t * idmat[item]
-                    if pd.api.types.is_number(t)
-                    or (isinstance(t, np.ndarray) and len(t.shape) == 0)
-                    else np.multiply(idmat[:, [item]], t).T,
-                    loc=0,
-                    scale=1,
-                ).T[item]
-                if self._dK is not None
-                else None,
-                d2K=lambda t: self.d2K(
-                    t * idmat[item]
-                    if pd.api.types.is_number(t)
-                    or (isinstance(t, np.ndarray) and len(t.shape) == 0)
-                    else np.multiply(idmat[:, [item]], t).T,
-                    loc=0,
-                    scale=1,
-                ).T[item, item]
-                if self._d2K is not None
-                else None,
+                lambda t, mcgf=mcgf: mcgf.K(np.expand_dims(t, -1)),
+                dK=lambda t, mcgf=mcgf: mcgf.dK(np.expand_dims(t, -1)).squeeze(),
+                d2K=lambda t, mcgf=mcgf: mcgf.d2K(np.expand_dims(t, -1)).squeeze(),
                 d3K=None,  # TODO: implement this one properly
-                domain=self.domain.ldotinv(idmat[:, [item]]),
-                loc=loc,
-                scale=scale,
+                domain=mcgf.domain,
+                loc=0,
+                scale=1,
             )
         elif isinstance(item, slice):
             return self[list(range(self.dim))[item]]
@@ -894,6 +859,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             assert all(pd.api.types.is_integer(i) for i in item), "Invalid index"
             assert all(i < self.dim for i in item), "Index out of bounds"
             assert len(set(item)) == len(item), "Index must be unique"
+            # return self.ldot(np.eye(self.dim)[item]) #alternative implementation
             idmat = np.eye(self.dim)
             if isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 2:
                 scale = self.scale.T.dot(idmat[:, item]).T
@@ -915,7 +881,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 if self._d2K is not None
                 else None,
                 d3K=None,  # TODO: implement this one properly
-                domain=self.domain.ldotinv(idmat[:, item]),
+                domain=self.domain.ldotinv(scale.T),
                 loc=0,
                 scale=1,
             )
@@ -1137,21 +1103,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     if hasattr(self, att):
                         delattr(self, att)
                 return self
-            elif A.shape[0] == 1:
-                return MultivariateCumulantGeneratingFunction(
-                    self._K,
-                    dim=A.shape[0],
-                    loc=A.dot(self.loc_vect),
-                    scale=A.dot(self.scale_mat),
-                    dK=self._dK,
-                    dK_inv=self._dK_inv,
-                    d2K=self._d2K,
-                    d3K=self._d3K,
-                    dK0=self._dK0,
-                    d2K0=self._d2K0,
-                    d3K0=self._d3K0,
-                    domain=self.domain,
-                )
             else:
                 return MultivariateCumulantGeneratingFunction(
                     self._K,
