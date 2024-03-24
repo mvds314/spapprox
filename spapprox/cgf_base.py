@@ -1325,7 +1325,10 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
 
             def ti(t, i):
-                return t.T[dims[:i].sum() : dims[: i + 1].sum()].T
+                if isinstance(cgfs[i], MultivariateCumulantGeneratingFunction):
+                    return t.T[dims[:i].sum() : dims[: i + 1].sum()].T
+                else:
+                    return t.T[dims[:i].sum() : dims[: i + 1].sum()].T.squeeze()
 
             @type_wrapper(xloc=0)
             def K(t):
@@ -1336,7 +1339,15 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
             @type_wrapper(xloc=0)
             def dK(t):
-                return np.concatenate([cgf.dK(ti(t, i)) for i, cgf in enumerate(cgfs)], axis=-1)
+                vals = [
+                    np.atleast_1d(cgf.dK(ti(t, i)))  # .reshape((dims.sum(), dims[i]))
+                    for i, cgf in enumerate(cgfs)
+                ]
+                if len(t.shape) > 1:
+                    vals = [v.reshape((t.shape[0], dims[i])) for i, v in enumerate(vals)]
+                else:
+                    vals = [v.reshape(dims[i]) for i, v in enumerate(vals)]
+                return np.concatenate(vals, axis=-1)
 
             @type_wrapper(xloc=0)
             def d2K(t):
