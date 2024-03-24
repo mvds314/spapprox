@@ -391,9 +391,40 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
         assert np.allclose(getattr(mcgf2, f)(ts), val)
 
 
-# TODO: implement dKinv
-def test_dKinv():
-    pass
+@pytest.mark.parametrize(
+    "mcgf,ts",
+    [
+        # multivariate normal with inverse defined
+        (
+            multivariate_norm(dim=2),
+            [[-2, -1], [0, 1], [2, 0]],
+        ),
+        # multivariate normal without inverse defined
+        # (
+        #     MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()),
+        #     [[-2, -1], [0, 1], [2, 0]],
+        # ),
+        # Try with different types of scaling, also projecting and such
+    ],
+)
+def test_dKinv(mcgf, ts):
+    assert isinstance(mcgf, MultivariateCumulantGeneratingFunction)
+    for t in ts:
+        x = mcgf.dK(t)
+        tt = mcgf.dK_inv(x)
+        xx = mcgf.dK(tt)
+        assert np.allclose(tt, t)
+        assert np.allclose(xx, x)
+    # TODO: test the same thing vectorized
+    xs = mcgf.dK(ts)
+    tts = mcgf.dK_inv(xs)
+    xxs = mcgf.dK(tts)
+    assert np.allclose(tts, ts)
+    assert np.allclose(xxs, xs)
+
+
+# TODO: build in dKinv tests in all the other unittests
+# TODO: also test the 1 dim case
 
 
 def test_from_univariate():
@@ -417,7 +448,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_from_univariate",
+                "test_dKinv",
                 "--tb=auto",
                 "--pdb",
             ]

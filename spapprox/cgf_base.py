@@ -1229,7 +1229,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 return y
 
     @type_wrapper(xloc=1)
-    def dK_inv(self, x, t0=None, loc=None, scale=None, **kwargs):
+    def dK_inv(self, x, t0=None, loc=None, scale=None, fillna=np.nan, **kwargs):
         """
         Inverse of the derivative of the cumulant generating function.
 
@@ -1238,29 +1238,39 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         .. math::
             x = K'(t).
         """
-        raise NotImplementedError()
-        # x = np.asanyarray(x)
-        # if len(t.shape) == 0:
-        # t = np.full(self.dim, t)
-        # assert x.shape[-1] == self.dim, "Dimensions do not match"
-        # TODO: maybe implement a generic solver, is this the gradient or the innerproduct with the gradient
-        # TODO: maybe copy the multivariate approach from the univariate case
-
-        # If needed, get the solution with the smallest norm
-
-        # TODO: continue here, make notes and work out the math
-
-        # TODO: pseudo inverse commutes with transpose
-
+        # Handle vectorized evaluation
+        if len(x.shape) > 2:
+            raise ValueError("Invalid shape")
+        elif t0 is not None and len(t0.shape) > 2:
+            raise ValueError("Invalid shape")
+        elif len(x.shape) == 2 and (t0 is None or len(t0.shape) == 1):
+            return np.asanyarray(
+                [self.dK_inv(xx, t0=t0, loc=loc, scale=scale, fillna=fillna, **kwargs) for xx in x]
+            )
+        elif len(x.shape) == 2 and len(t0.shape) == 2:
+            return np.asanyarray(
+                [
+                    self.dK_inv(xx, t0=tt0, loc=loc, scale=scale, fillna=fillna, **kwargs)
+                    for xx, tt0 in zip(x, t0)
+                ]
+            )
+        # Otherwise => single evaluation
         # Handle scaling
         loc = self.loc if loc is None else loc
-        scale = self.scale if scale is None else scale
-        x = np.asanyarray((x - loc) / scale)
+        if scale is not None:
+            # TODO: handle custom defined scaling
+            raise NotImplementedError()
+        else:
+            # TODO: make this  more efficient, you don't always have to invert a matrix
+            scale_mat_inv = self.scale_mat_inv
+        x = scale_mat_inv.T.dot(np.asanyarray(x - loc))
+        # If dK_inv is provided
         if self._dK_inv is not None:
             with warnings.catch_warnings():
                 warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
                 y = self._dK_inv(x)
         else:
+            # Otherwise solve numerically
             kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
             kwargs.setdefault("jac", lambda t: np.diag(self.d2K(t, loc=0, scale=1)))
             if "method" in kwargs:
@@ -1294,8 +1304,22 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         for i, xx in enumerate(x)
                     ]
                 )
-        cond = self.domain.is_in_domain(y)
-        return np.where(cond, y / scale, fillna)
+        # Post processing
+        cond = np.squeeze(self.domain.is_in_domain(y))
+        y = scale_mat_inv.dot(y)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            if np.isscalar(cond):
+                if cond:
+                    return y
+                elif np.isscalar(y):
+                    return fillna
+                else:
+                    return np.fill(np.asanyarray(y).shape, fillna)
+            else:
+                y = y.astype(np.float64)
+                y[~cond] = fillna
+                return y
 
     @type_wrapper(xloc=1)
     def d2K(self, t, loc=None, scale=None, fillna=np.nan):
