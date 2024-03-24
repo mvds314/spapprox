@@ -220,7 +220,18 @@ def test_trans_domain_nD():
     assert [2, 2] in dom
 
 
-# TODO: test stacking functionality
+def test_from_domains():
+    # Initialize
+    dom1 = Domain(l=3, g=-1, le=2, dim=3)
+    dom2 = Domain(l=3, g=-1, le=2, dim=2) + 4
+    dom = Domain.from_domains(dom1, dom2)
+    # Tests
+    assert dom.dim == dom1.dim + dom2.dim
+    for x in [[1, 2, 1, 5, 6], [0, 0, 0, 0, 0]]:
+        if x[: dom1.dim] in dom1 and x[dom1.dim :] in dom2:
+            assert x in dom
+        else:
+            assert x not in dom
 
 
 if __name__ == "__main__":
@@ -229,7 +240,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 # "-k",
-                # "test_trans_domain_nD",
+                # "test_from_domains",
                 "--tb=auto",
                 "--pdb",
             ]
