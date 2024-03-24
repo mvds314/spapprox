@@ -399,6 +399,10 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
             multivariate_norm(dim=2),
             [[-2, -1], [0, 1], [2, 0]],
         ),
+        (
+            multivariate_norm(dim=2, scale=[1, 2], loc=[1, 2]),
+            [[-2, -1], [0, 1], [2, 0]],
+        ),
         # multivariate normal without inverse defined
         # (
         #     MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()),
@@ -415,12 +419,13 @@ def test_dKinv(mcgf, ts):
         xx = mcgf.dK(tt)
         assert np.allclose(tt, t)
         assert np.allclose(xx, x)
-    # TODO: test the same thing vectorized
+    # Test the same thing vectorized
     xs = mcgf.dK(ts)
     tts = mcgf.dK_inv(xs)
     xxs = mcgf.dK(tts)
     assert np.allclose(tts, ts)
     assert np.allclose(xxs, xs)
+    # TODO: do some test with custom scaling...
 
 
 # TODO: build in dKinv tests in all the other unittests
