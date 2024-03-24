@@ -757,16 +757,16 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     def scale_mat(self):
         if not hasattr(self, "_scale_mat_cache"):
             if isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 2:
-                return self.scale
+                self._scale_mat_cache = self.scale
             elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 1:
-                self._scale_math_cache = np.diag(self.scale)
+                self._scale_mat_cache = np.diag(self.scale)
             elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 0:
-                self._scale_math_cache = np.eye(self.dim) * self.scale.tolist()
+                self._scale_mat_cache = np.eye(self.dim) * self.scale.tolist()
             elif pd.api.types.is_number(self.scale):
-                self._scale_math_cache = np.eye(self.dim) * self.scale
+                self._scale_mat_cache = np.eye(self.dim) * self.scale
             else:
                 raise ValueError("Invalid type")
-        return self._scale_math_cache
+        return self._scale_mat_cache
 
     @CumulantGeneratingFunction.loc.setter
     def loc(self, loc):
@@ -791,9 +791,39 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 and scale.shape[0] == self.dim
             )
         ), "scale should be a scalar, vector of length dim, or a matrix"
-        if hasattr(self, "_scale_mat_cache"):
-            delattr(self, "_scale_mat_cache")
+        for attr in ["_scale_mat_cache", "_scale_inv_cache", "_scale_mat_inv_cache"]:
+            if hasattr(self, attr):
+                delattr(self, attr)
         CumulantGeneratingFunction.scale.fset(self, np.asanyarray(scale))
+
+    @property
+    def scale_inv(self):
+        if not hasattr(self, "_scale_inv_cache"):
+            if isinstance(self.scale, np.ndarray) and len(self.scale.shape) == 2:
+                self._scale_inv_cache = np.linalg.pinv(self.scale)
+            elif isinstance(self.scale, np.ndarray) and len(self.scale.shape) <= 1:
+                self._scale_inv_cache = 1 / self.scale
+            elif pd.api.types.is_number(self.scale):
+                self._scale_inv_cache = 1 / self.scale
+            else:
+                raise ValueError("Invalid type")
+        return self._scale_inv_cache
+
+    @property
+    def scale_mat_inv(self):
+        if not hasattr(self, "_scale_mat_inv_cache"):
+            scale_inv = self.scale_inv
+            if isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 2:
+                self._scale_mat_inv_cache = scale_inv
+            elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
+                self._scale_mat_inv_cache = np.diag(self.scale_inv)
+            elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 0:
+                self._scale_mat_inv_cache = np.eye(self.dim) * scale_inv.tolist()
+            elif pd.api.types.is_number(scale_inv):
+                self._scale_mat_inv_cache = np.eye(self.dim) * scale_inv
+            else:
+                raise ValueError("Invalid type")
+        return self._scale_mat_inv_cache
 
     @property
     def cov(self):
@@ -1215,6 +1245,57 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         # assert x.shape[-1] == self.dim, "Dimensions do not match"
         # TODO: maybe implement a generic solver, is this the gradient or the innerproduct with the gradient
         # TODO: maybe copy the multivariate approach from the univariate case
+
+        # If needed, get the solution with the smallest norm
+
+        # TODO: continue here, make notes and work out the math
+
+        # TODO: pseudo inverse commutes with transpose
+
+        # Handle scaling
+        loc = self.loc if loc is None else loc
+        scale = self.scale if scale is None else scale
+        x = np.asanyarray((x - loc) / scale)
+        if self._dK_inv is not None:
+            with warnings.catch_warnings():
+                warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+                y = self._dK_inv(x)
+        else:
+            kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
+            kwargs.setdefault("jac", lambda t: np.diag(self.d2K(t, loc=0, scale=1)))
+            if "method" in kwargs:
+                methods = [kwargs["method"]]
+            else:
+                methods = [
+                    "hybr",
+                    "lm",
+                    "broyden1",
+                    "broyden2",
+                    "anderson",
+                    "linearmixing",
+                    "diagbroyden",
+                    "excitingmixing",
+                    "krylov",
+                    "df-sane",
+                ]
+            for method in methods:
+                kwargs["method"] = method
+                try:
+                    res = spo.root(lambda t, x=x: self.dK(t, loc=0, scale=1) - x, **kwargs)
+                except Exception:
+                    continue
+                if res.success:
+                    y = np.asanyarray(res.x)
+                    break
+            else:
+                y = np.asanyarray(
+                    [
+                        self.dK_inv(xx, loc=0, scale=1, t0=None if t0 is None else t0[i])
+                        for i, xx in enumerate(x)
+                    ]
+                )
+        cond = self.domain.is_in_domain(y)
+        return np.where(cond, y / scale, fillna)
 
     @type_wrapper(xloc=1)
     def d2K(self, t, loc=None, scale=None, fillna=np.nan):

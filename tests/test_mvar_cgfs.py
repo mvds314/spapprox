@@ -396,7 +396,6 @@ def test_dKinv():
     pass
 
 
-# TODO: from univariate does not stack domains -> test this properly
 def test_from_univariate():
     cgf1 = exponential()
     cgf2 = exponential(scale=2)
