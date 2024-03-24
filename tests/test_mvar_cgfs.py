@@ -18,7 +18,7 @@ from spapprox import (
     # Domain,
     norm,
     multivariate_norm,
-    # exponential,
+    exponential,
     # gamma,
     # chi2,
     # laplace,
@@ -397,8 +397,19 @@ def test_dKinv():
 
 
 # TODO: from univariate does not stack domains -> test this properly
-def test_univariate():
-    pass
+def test_from_univariate():
+    cgf1 = exponential()
+    cgf2 = exponential(scale=2)
+    mcgf = MultivariateCumulantGeneratingFunction.from_univariate(cgf1, cgf2)
+    assert isinstance(mcgf, MultivariateCumulantGeneratingFunction)
+    assert mcgf.dim == 2
+    ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
+    for t in ts:
+        if cgf1.domain.is_in_domain(t[0]) and cgf2.domain.is_in_domain(t[1]):
+            assert mcgf.domain.is_in_domain(t)
+            assert np.allclose(mcgf.K(t), cgf1.K(t[0]) + cgf2.K(t[1]))
+        else:
+            assert not mcgf.domain.is_in_domain(t)
 
 
 if __name__ == "__main__":
@@ -407,7 +418,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_stack",
+                "test_from_univariate",
                 "--tb=auto",
                 "--pdb",
             ]
