@@ -1268,11 +1268,11 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         if self._dK_inv is not None:
             with warnings.catch_warnings():
                 warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
-                y = self._dK_inv(x)
+                t = self._dK_inv(x)
         else:
             # Otherwise solve numerically
             kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
-            kwargs.setdefault("jac", lambda t: np.diag(self.d2K(t, loc=0, scale=1)))
+            kwargs.setdefault("jac", lambda tt: np.diag(self.d2K(tt, loc=0, scale=1)))
             if "method" in kwargs:
                 methods = [kwargs["method"]]
             else:
@@ -1298,28 +1298,28 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     y = np.asanyarray(res.x)
                     break
             else:
-                y = np.asanyarray(
+                t = np.asanyarray(
                     [
                         self.dK_inv(xx, loc=0, scale=1, t0=None if t0 is None else t0[i])
                         for i, xx in enumerate(x)
                     ]
                 )
         # Post processing
-        cond = np.squeeze(self.domain.is_in_domain(y))
-        y = scale_mat_inv.dot(y)
+        cond = np.squeeze(self.domain.is_in_domain(t))
+        t = scale_mat_inv.dot(t)
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             if np.isscalar(cond):
                 if cond:
-                    return y
-                elif np.isscalar(y):
+                    return t
+                elif np.isscalar(t):
                     return fillna
                 else:
-                    return np.fill(np.asanyarray(y).shape, fillna)
+                    return np.fill(np.asanyarray(t).shape, fillna)
             else:
-                y = y.astype(np.float64)
-                y[~cond] = fillna
-                return y
+                t = t.astype(np.float64)
+                t[~cond] = fillna
+                return t
 
     @type_wrapper(xloc=1)
     def d2K(self, t, loc=None, scale=None, fillna=np.nan):
