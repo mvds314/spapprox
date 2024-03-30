@@ -1375,11 +1375,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             # Otherwise solve numerically
             kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
-<<<<<<< HEAD
-            kwargs.setdefault("jac", lambda t: self.d2K(t, loc=0, scale=1))
-=======
-            kwargs.setdefault("jac", lambda tt: np.diag(self.d2K(tt, loc=0, scale=1)))
->>>>>>> main
+            kwargs.setdefault("jac", lambda tt: self.d2K(tt, loc=0, scale=1))
             if "method" in kwargs:
                 methods = [kwargs["method"]]
             else:
