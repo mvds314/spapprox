@@ -1261,9 +1261,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             # TODO: handle custom defined scaling
             raise NotImplementedError()
         else:
-            # TODO: make this  more efficient, you don't always have to invert a matrix
-            scale_mat_inv = self.scale_mat_inv
-        x = scale_mat_inv.T.dot(np.asanyarray(x - loc))
+            scale_inv = self.scale_inv
+        if pd.api.types.is_number(scale_inv):
+            x = np.asanyarray(x - loc) / scale_inv
+        elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
+            x = np.asanyarray(x - loc) / scale_inv
+        else:
+            x = self.scale_mat_inv.T.dot(np.asanyarray(x - loc))
         # If dK_inv is provided
         if self._dK_inv is not None:
             with warnings.catch_warnings():
@@ -1272,7 +1276,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             # Otherwise solve numerically
             kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
-            kwargs.setdefault("jac", lambda t: np.diag(self.d2K(t, loc=0, scale=1)))
+            kwargs.setdefault("jac", lambda t: self.d2K(t, loc=0, scale=1))
             if "method" in kwargs:
                 methods = [kwargs["method"]]
             else:
@@ -1306,7 +1310,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 )
         # Post processing
         cond = np.squeeze(self.domain.is_in_domain(y))
-        y = scale_mat_inv.dot(y)
+        if pd.api.types.is_number(scale_inv):
+            y = y / scale_inv
+        elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
+            y = y / scale_inv
+        else:
+            y = scale_inv.T.dot(y)
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             if np.isscalar(cond):
