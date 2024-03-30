@@ -1299,7 +1299,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 except Exception:
                     continue
                 if res.success:
-                    y = np.asanyarray(res.x)
+                    t = np.asanyarray(res.x)
                     break
             else:
                 t = np.asanyarray(
@@ -1309,11 +1309,11 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     ]
                 )
         # Post processing
-        cond = np.squeeze(self.domain.is_in_domain(y))
+        cond = np.squeeze(self.domain.is_in_domain(t))
         if pd.api.types.is_number(scale_inv):
-            y = y / scale_inv
+            t = t / scale_inv
         elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
-            y = y / scale_inv
+            t = t / scale_inv
         else:
             y = scale_inv.T.dot(y)
         with warnings.catch_warnings():
