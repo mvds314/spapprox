@@ -225,20 +225,20 @@ def test_domain():
         domain=Domain(g=1, l=2),
     )
     assert np.isnan(cgf.K(0.5))
-    assert ~np.isnan(cgf.K(1.5))
+    assert not np.isnan(cgf.K(1.5))
     assert np.isnan(cgf.dK(0.5))
-    assert ~np.isnan(cgf.dK(1.5))
+    assert not np.isnan(cgf.dK(1.5))
     assert np.isnan(cgf.d2K(0.5))
-    assert ~np.isnan(cgf.d2K(1.5))
+    assert not np.isnan(cgf.d2K(1.5))
     assert np.isnan(cgf.d3K(0.5))
-    assert ~np.isnan(cgf.d3K(1.5))
+    assert not np.isnan(cgf.d3K(1.5))
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
         domain=Domain(g=0, l=2),
     )
     val = cgf.K([-1, 1])
     assert np.isnan(val[0])
-    assert ~np.isnan(val[1])
+    assert not np.isnan(val[1])
 
 
 @pytest.mark.parametrize(
@@ -254,19 +254,19 @@ def test_domain():
 def test_return_type(cgf):
     for f in [cgf.K, cgf.dK]:
         assert np.isscalar(f(10))
-        assert ~np.isscalar(f([10]))
-        assert ~np.isscalar(f([10, 10]))
+        assert not np.isscalar(f([10]))
+        assert not np.isscalar(f([10, 10]))
         if 10 not in cgf.domain:
             assert np.isnan(f(10))
             assert np.isnan(f([10])).all()
             assert np.isnan(f([10, 10])).all()
-        assert np.isscalar(f(0)) and ~np.isnan(f(0))
-        assert ~np.isscalar(f([0, 1]))
+        assert np.isscalar(f(0)) and not np.isnan(f(0))
+        assert not np.isscalar(f([0, 1]))
         if 1 not in cgf.domain:
-            assert np.isnan(f([0, 1])).any() and ~np.isnan(f([0, 1])).all()
+            assert np.isnan(f([0, 1])).any() and not np.isnan(f([0, 1])).all()
             assert (
-                ~np.isscalar(f([1, 1], fillna=0))
-                and ~np.isnan(f([1, 1], fillna=0)).any()
+                not np.isscalar(f([1, 1], fillna=0))
+                and not np.isnan(f([1, 1], fillna=0)).any()
                 and np.allclose(f([1, 1], fillna=0), 0)
             )
 
