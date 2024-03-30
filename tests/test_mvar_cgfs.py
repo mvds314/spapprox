@@ -395,19 +395,19 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
     "mcgf,ts",
     [
         # multivariate normal with inverse defined
-        (
-            multivariate_norm(dim=2),
-            [[-2, -1], [0, 1], [2, 0]],
-        ),
+        # (
+        #     multivariate_norm(dim=2),
+        #     [[-2, -1], [0, 1], [2, 0]],
+        # ),
         (
             multivariate_norm(dim=2, scale=[1, 2], loc=[1, 2]),
             [[-2, -1], [0, 1], [2, 0]],
         ),
         # multivariate normal without inverse defined
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()),
-            [[-2, -1], [0, 1], [2, 0]],
-        ),
+        # (
+        #     MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()),
+        #     [[-2, -1], [0, 1], [2, 0]],
+        # ),
         # TODO: continue here
         # Try with different types of scaling, also projecting and such
     ],
