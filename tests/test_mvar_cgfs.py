@@ -40,16 +40,17 @@ def test_2d_from_uniform():
     # The default implementation
     mcgf = multivariate_norm(loc=np.zeros(2), scale=1)
     assert np.isscalar(mcgf.K([1, 2]))
+
     # Manual by integration
     # K = lambda t, pdf=sps.multivariate_normal(mean=np.zeros(2), cov=np.eye(2)).pdf: np.log(
     #     dblquad(lambda x, y: pdf([x, y]) * np.exp(np.dot([x, y], t)), -6, 6, -6, 6)[0]
     # ) #Takes too long
-    K = (
-        lambda t, pdfx=sps.norm().pdf, pdfy=sps.norm().pdf: np.log(
+    def K(t, pdfx=sps.norm().pdf, pdfy=sps.norm().pdf):
+        return np.log(
             quad(lambda x: pdfx(x) * np.exp(x * t[0]), -6, 6)[0]
             * quad(lambda y: pdfy(y) * np.exp(y * t[1]), -6, 6)[0]
         )
-    )
+
     K = type_wrapper()(np.vectorize(K, signature="(n)->()"))
     mcgf_int = MultivariateCumulantGeneratingFunction(K, dim=2)
     assert np.isscalar(mcgf_int.K([1, 2]))
