@@ -944,6 +944,28 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
         return ts
 
+    @type_wrapper(xloc=1)
+    def _inv_scale_t(self, ts, inv_scale=None):
+        """
+        Apply the inverse scaling to the :math:`t_Y` variable of the cumulant generating function of
+        the transformed random vector :math:`Y`.
+
+        Given a random vector :math:`X` with cumulant generating function :math:`K_X(t_X)`,
+        the cumulant generating function of the transformed random vector :math:`Y=AX+b` is given by:
+
+        .. math::
+            K_Y(t_Y) = K_X(t_X)+<b,t_Y>,
+        were :math:`t_X = A^Tt_Y` is the transformed variable, and :math:`b` is the translation.
+        """
+        if inv_scale is None:
+            inv_scale = self.scale_inv
+        else:
+            inv_scale = np.asanyarray(inv_scale)
+            self._validate_scale_inv(inv_scale)
+        t = ts / inv_scale if len(inv_scale.shape) <= 1 else np.dot(ts, inv_scale)
+        assert t.shape[-1] == self.dim, "Dimensions do not match"
+        return t
+
     @property
     def cov(self):
         return self.d2K0
@@ -1403,10 +1425,11 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         # Handle scaling
         loc = self.loc if loc is None else loc
         if scale is not None:
-            # TODO: handle custom defined scaling
-            raise NotImplementedError()
+            self._validate_scale(scale)
+            scale_inv = self._get_scale_inv(scale)
         else:
             scale_inv = self.scale_inv
+        # Should we scale inv t or x?
         if pd.api.types.is_number(scale_inv):
             x = np.asanyarray(x - loc) * scale_inv
         elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
