@@ -845,12 +845,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             or (
                 isinstance(scale, np.ndarray)
                 and len(scale.shape) == 1
-                and len(scale) == self.dim
+                and len(scale) == self.dim == self.domain.dim
             )
             or (
                 isinstance(scale, np.ndarray)
                 and len(scale.shape) == 2
                 and scale.shape[0] == self.dim
+                and scale.shape[1] == self.domain.dim
             )
         ), f"scale should be a scalar, vector of length {self.dim}, or a matrix"
 
@@ -860,39 +861,67 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             self._scale_inv_cache = self._get_scale_inv()
         return self._scale_inv_cache
 
+    def _validate_scale_inv(self, scale_inv):
+        assert (
+            pd.api.types.is_number(scale_inv)
+            or (isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 0)
+            or (
+                isinstance(scale_inv, np.ndarray)
+                and len(scale_inv.shape) == 1
+                and len(scale_inv) == self.dim == self.domain.dim
+            )
+            or (
+                isinstance(scale_inv, np.ndarray)
+                and len(scale_inv.shape) == 2
+                and scale_inv.shape[1] == self.dim
+                and scale_inv.shape[0] == self.domain.dim
+            )
+        ), f"scale_inv should be a scalar, vector of length {self.dim}, or a matrix"
+
     def _get_scale_inv(self, scale=None):
         if scale is None:
             scale = self.scale
         else:
             self._validate_scale(scale)
         if isinstance(scale, np.ndarray) and len(scale.shape) == 2:
-            return np.linalg.pinv(scale)
+            scale_inv = np.linalg.pinv(scale)
         elif isinstance(scale, np.ndarray) and len(scale.shape) <= 1:
-            return 1 / scale
+            scale_inv = 1 / scale
         elif pd.api.types.is_number(scale):
-            return 1 / scale
+            scale_inv = 1 / scale
         else:
-            raise ValueError("Invalid type")
+            raise ValueError("Invalid type for scale")
+        self._validate_scale_inv(scale_inv)
+        return scale_inv
 
     @property
     def scale_mat_inv(self):
         if not hasattr(self, "_scale_mat_inv_cache"):
-            scale_inv = self.scale_inv
-            if isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 2:
-                self._scale_mat_inv_cache = scale_inv
-            elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
-                self._scale_mat_inv_cache = np.diag(self.scale_inv)
-            elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 0:
-                self._scale_mat_inv_cache = np.eye(self.dim) * scale_inv.tolist()
-            elif pd.api.types.is_number(scale_inv):
-                self._scale_mat_inv_cache = np.eye(self.dim) * scale_inv
-            else:
-                raise ValueError("Invalid type")
+            self._scale_mat_inv_cache = self._get_scale_mat_inv()
         return self._scale_mat_inv_cache
 
-    def _get_scale_mat_inv(self, scale=None, scale_mat=None):
-        pass
-        # TODO: continue here and implement this one
+    def _get_scale_mat_inv(self, scale_inv=None, scale=None, scale_mat=None):
+        if scale_inv is None:
+            if scale is None and scale_mat is None:
+                scale_inv = self.scale_inv
+            elif scale is not None:
+                scale_inv = self._get_scale_inv(scale)
+            elif scale_mat is not None:
+                scale_inv = np.linalg.pinv(scale_mat)
+            else:
+                raise ValueError("Invalid input")
+        self._validate_scale_inv(scale_inv)
+        if isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 2:
+            scale_mat_inv = scale_inv
+        elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
+            scale_mat_inv = np.diag(self.scale_inv)
+        elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 0:
+            scale_mat_inv = np.eye(self.dim) * scale_inv.tolist()
+        elif pd.api.types.is_number(scale_inv):
+            scale_mat_inv = np.eye(self.dim) * scale_inv
+        else:
+            raise ValueError("Invalid type for scale_inv")
+        return scale_mat_inv
 
     @type_wrapper(xloc=1)
     def _scale_t(self, t, scale=None):
