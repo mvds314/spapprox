@@ -1421,7 +1421,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     for xx, tt0 in zip(x, t0)
                 ]
             )
-        # Otherwise => single evaluation
+        # Otherwise just a single evaluation
         # Handle scaling
         loc = self.loc if loc is None else loc
         if scale is not None:
@@ -1429,7 +1429,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             scale_inv = self._get_scale_inv(scale)
         else:
             scale_inv = self.scale_inv
-        # Should we scale inv t or x?
         if pd.api.types.is_number(scale_inv):
             x = np.asanyarray(x - loc) * scale_inv
         elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
