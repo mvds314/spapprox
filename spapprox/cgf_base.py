@@ -1212,23 +1212,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     domain=self.domain,
                     dim=self.dim,
                 )
-            #     lambda t: self.K(other * t),
-            #     dK=lambda t: other * self.dK(other * t),
-            #     dK_inv=lambda x: self.dK_inv(x / other) / other,
-            #     d2K=lambda t: np.atleast_2d(other).T.dot(np.atleast_2d(other))
-            #     * (self.d2K(other * t)),
-            #     d3K=lambda t, A=np.array(
-            #         [
-            #             [
-            #                 [other[i] * other[j] * other[k] for i in range(self.dim)]
-            #                 for j in range(self.dim)
-            #             ]
-            #             for k in range(self.dim)
-            #         ]
-            #     ): A
-            #     * self.d3K(other * t),
-            #     domain=self.domain,
-            # )
         else:
             raise ValueError("Can only multiply with a scalar or vector")
 
