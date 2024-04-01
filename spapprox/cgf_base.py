@@ -940,7 +940,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             scale = self.scale
         else:
             scale = np.asanyarray(scale)
-        return scale * t if len(scale.shape) == 1 else np.dot(t, scale)
+        ts = scale * t if len(scale.shape) <= 1 else np.dot(t, scale)
+        assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
+        return ts
 
     @property
     def cov(self):
@@ -1287,7 +1289,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             t = np.full(self.dim, t)
         # st = (scale * t.T).T if len(scale.shape) == 1 else np.dot(t, scale)
         st = self._scale_t(t, scale=scale)
-        assert st.shape[-1] == self.domain.dim, "Dimensions do not match"
         cond = np.squeeze(self.domain.is_in_domain(st))
         st = np.where(cond, st.T, 0).T  # prevent outside domain evaluations
         # Evaluate
@@ -1339,8 +1340,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
-        ts = scale * t if len(scale.shape) <= 1 else np.dot(t, scale)
-        assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
+        ts = self._scale_t(t, scale=scale)
         cond = np.squeeze(self.domain.is_in_domain(ts))
         ts = np.where(
             cond, ts.T, 0
@@ -1503,8 +1503,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         scale = self.scale if scale is None else np.asanyarray(scale)
         assert self._d2K is not None, "d2K must be specified"
         t = np.asanyarray(t)
-        ts = scale * t if len(scale.shape) <= 1 else np.dot(t, scale)
-        assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
+        ts = self._scale_t(t, scale=scale)
         cond = self.domain.is_in_domain(ts)
         ts = np.where(
             cond, ts.T, 0
