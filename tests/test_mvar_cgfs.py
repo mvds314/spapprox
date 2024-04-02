@@ -447,6 +447,8 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
         ),
         # TODO: continue here
         # Try with different types of scaling, also projecting and such
+        # TODO: also test with exponential
+        # TODO: also test the 1 dim case
     ],
 )
 def test_dKinv(mcgf, ts):
