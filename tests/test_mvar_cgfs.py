@@ -465,7 +465,6 @@ def test_dKinv(mcgf, ts):
     xxs = mcgf.dK(tts)
     assert np.allclose(tts, ts)
     assert np.allclose(xxs, xs)
-    # TODO: do some test with custom scaling...
 
 
 # TODO: build in dKinv tests in all the other unittests
