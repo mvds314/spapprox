@@ -443,7 +443,7 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
             MultivariateCumulantGeneratingFunction.from_univariate(
                 norm(loc=2, scale=3), norm(loc=1, scale=2)
             ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
-            [[-2, -1], [0, 1], [2, 0]],
+            [[-2, -1, 0], [0, 1, 1], [2, 0, 0]],
         ),
         # TODO: continue here
         # Try with different types of scaling, also projecting and such
