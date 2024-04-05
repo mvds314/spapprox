@@ -1434,7 +1434,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
             x = np.asanyarray(x - loc) * scale_inv
         else:
-            x = self.scale_mat_inv.dot(np.asanyarray(x - loc))
+            x = scale_inv.dot(np.asanyarray(x - loc))
         # If dK_inv is provided
         if self._dK_inv is not None:
             with warnings.catch_warnings():
