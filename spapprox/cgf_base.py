@@ -1390,13 +1390,32 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @type_wrapper(xloc=1)
     def dK_inv(self, x, t0=None, loc=None, scale=None, fillna=np.nan, **kwargs):
-        """
+        r"""
         Inverse of the derivative of the cumulant generating function.
 
         It solves:
 
         .. math::
             x = K'(t).
+
+        When X, i.e., the random vector of which this class defines the cumulant
+        generating function is specified as a linear transormation through the
+        `scale` and `loc` paramters, i.e., :math:`X=AU+b`, the we solve
+
+        .. math::
+            x = A^T \grad K_U(A^T t_x) + b.
+
+        Typically, we will use the pseudo inverse :math:`P` of :math:`A` to find
+        a solution. The following cases are to be distinguished.
+
+        If :math:`A` is invertible, then the solution is given by:
+
+        .. math::
+            t_x = \grad K_U (P^T(x-b).
+
+        A special cases arise when :math:`A` is not invertible, or when :math:`A`
+        is a projection matrix.
+
         """
         # Handle vectorized evaluation
         if len(x.shape) > 2:
