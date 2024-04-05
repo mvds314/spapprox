@@ -457,14 +457,16 @@ def test_dKinv(mcgf, ts):
         x = mcgf.dK(t)
         tt = mcgf.dK_inv(x)
         xx = mcgf.dK(tt)
-        assert np.allclose(tt, t)
         assert np.allclose(xx, x)
+        if mcgf.domain.dim == mcgf.dim:
+            assert np.allclose(tt, t)
     # Test the same thing vectorized
     xs = mcgf.dK(ts)
     tts = mcgf.dK_inv(xs)
     xxs = mcgf.dK(tts)
-    assert np.allclose(tts, ts)
     assert np.allclose(xxs, xs)
+    if mcgf.domain.dim == mcgf.dim:
+        assert np.allclose(tts, ts)
 
 
 # TODO: build in dKinv tests in all the other unittests
