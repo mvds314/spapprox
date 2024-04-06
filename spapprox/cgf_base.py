@@ -1505,7 +1505,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 # TODO: scale back here
         elif self._dK_inv is not None and not scale_is_invertible:
             raise NotImplementedError()
-        else:
+        elif self._dK_inv is None and scale_is_invertible:
             # TODO: split this one as well in two cases
             # Otherwise solve numerically
             kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
@@ -1545,6 +1545,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         for i, xx in enumerate(x)
                     ]
                 )
+        else:
+            raise NotImplementedError()
         # Post processing
         # TODO: this post processing is no longer generic
         if scale_is_invertible:
