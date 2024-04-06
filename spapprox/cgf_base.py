@@ -1481,25 +1481,32 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         loc = self.loc if loc is None else loc
         if scale is not None:
             self._validate_scale(scale)
-            scale_inv = self._get_scale_inv(scale)
             scale_is_invertible = self._scale_is_invertible(scale)
+            scale_inv = self._get_scale_inv(scale) if scale_is_invertible else None
         else:
-            scale_inv = self.scale_inv
             scale_is_invertible = self.scale_is_invertible
-        if pd.api.types.is_number(scale_inv):
-            x = np.asanyarray(x - loc) * scale_inv
-        elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
-            x = np.asanyarray(x - loc) * scale_inv
+            scale_inv = self.scale_inv if scale_is_invertible else None
+        if scale_is_invertible:
+            if pd.api.types.is_number(scale_inv):
+                x = np.asanyarray(x - loc) * scale_inv
+            elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
+                x = np.asanyarray(x - loc) * scale_inv
+            else:
+                x = scale_inv.dot(np.asanyarray(x - loc))
         else:
-            x = scale_inv.dot(np.asanyarray(x - loc))
+            raise NotImplementedError()
         # If dK_inv is provided
-        if self._dK_inv is not None:
+        if self._dK_inv is not None and scale_is_invertible:
             with warnings.catch_warnings():
                 warnings.filterwarnings(
                     action="ignore", message="All-NaN slice encountered"
                 )
                 t = self._dK_inv(x)
+                # TODO: scale back here
+        elif self._dK_inv is not None and not scale_is_invertible:
+            raise NotImplementedError()
         else:
+            # TODO: split this one as well in two cases
             # Otherwise solve numerically
             kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
             kwargs.setdefault("jac", lambda tt: self.d2K(tt, loc=0, scale=1))
@@ -1539,6 +1546,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     ]
                 )
         # Post processing
+        # TODO: this post processing is no longer generic
         cond = np.squeeze(self.domain.is_in_domain(t))
         if pd.api.types.is_number(scale_inv):
             t = t * scale_inv
