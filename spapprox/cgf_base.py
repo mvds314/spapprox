@@ -1547,13 +1547,16 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 )
         # Post processing
         # TODO: this post processing is no longer generic
-        cond = np.squeeze(self.domain.is_in_domain(t))
-        if pd.api.types.is_number(scale_inv):
-            t = t * scale_inv
-        elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
-            t = t * scale_inv
+        if scale_is_invertible:
+            cond = np.squeeze(self.domain.is_in_domain(t))
+            if pd.api.types.is_number(scale_inv):
+                t = t * scale_inv
+            elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
+                t = t * scale_inv
+            else:
+                t = scale_inv.T.dot(t)
         else:
-            t = scale_inv.T.dot(t)
+            raise NotImplementedError()
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 action="ignore", message="All-NaN slice encountered"
