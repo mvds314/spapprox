@@ -1494,16 +1494,18 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             else:
                 x = scale_inv.dot(np.asanyarray(x - loc))
         else:
-            raise NotImplementedError()
-        # If dK_inv is provided
+            x = np.asanayarray(x - loc)
+        # Invert based on whether dK_inv is provided and scale is invertible
         if self._dK_inv is not None and scale_is_invertible:
             with warnings.catch_warnings():
                 warnings.filterwarnings(
                     action="ignore", message="All-NaN slice encountered"
                 )
                 t = self._dK_inv(x)
-                # TODO: scale back here
         elif self._dK_inv is not None and not scale_is_invertible:
+            # TODO: can we do anything in this case?
+            # Maybe we can give back a solution if it exists, otherwise, we give raise and error
+            # TODO: so we should test wether soemthing is in the range?
             raise NotImplementedError()
         elif self._dK_inv is None and scale_is_invertible:
             # TODO: split this one as well in two cases
