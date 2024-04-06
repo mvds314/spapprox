@@ -833,7 +833,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @CumulantGeneratingFunction.scale.setter
     def scale(self, scale):
         self._validate_scale(scale)
-        for attr in ["_scale_mat_cache", "_scale_inv_cache", "_scale_mat_inv_cache"]:
+        for attr in [
+            "_scale_mat_cache",
+            "_scale_inv_cache",
+            "_scale_mat_inv_cache",
+            "_scale_is_invertible_cache",
+        ]:
             if hasattr(self, attr):
                 delattr(self, attr)
         CumulantGeneratingFunction.scale.fset(self, np.asanyarray(scale))
@@ -854,6 +859,29 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 and scale.shape[1] == self.domain.dim
             )
         ), f"scale should be a scalar, vector of length {self.dim}, or a matrix"
+
+    @property
+    def scale_is_invertible(self):
+        if not hasattr(self, "_scale_is_invertible_cache"):
+            self._scale_is_invertible_cache = self._scale_is_invertible(self.scale)
+        return self._scale_is_invertible_cache
+
+    def _scale_is_invertible(self, scale):
+        if pd.api.types.is_number(scale) or (
+            isinstance(scale, np.ndarray) and len(scale.shape) == 0
+        ):
+            return not np.isclose(scale, 0)
+        elif self.dim != self.domain.dim:
+            return False
+        elif isinstance(scale, np.ndarray) and len(scale.shape) == 1:
+            return not np.isclose(scale, 0).any()
+        elif isinstance(scale, np.ndarray) and len(scale.shape) == 2:
+            assert (
+                scale.shape[0] == scale.shape[1]
+            ), "Scale matrix is expected to be square if dim equals dim of domain"
+            return np.linalg.matrix_rank(scale) == self.dim
+        else:
+            raise RuntimeError("Unexpected type or scale of shape")
 
     @property
     def scale_inv(self):
@@ -1411,7 +1439,15 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         If :math:`A` is invertible, then the solution is given by:
 
         .. math::
-            t_x = \grad K_U (P^T(x-b).
+            t_x = (\grad K_U)^-1 (P^T(x-b).
+
+        If :math:`A` is not invertible, then the solution is given by:
+
+        .. math::
+            t_x = (\grad K_U)^-1 (P^T(x-b) + (I-P^T) t_0),
+
+        where :math:`t_0` is an initial guess.
+
 
         A special cases arise when :math:`A` is not invertible, or when :math:`A`
         is a projection matrix.
@@ -1446,8 +1482,10 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         if scale is not None:
             self._validate_scale(scale)
             scale_inv = self._get_scale_inv(scale)
+            scale_is_invertible = self._scale_is_invertible(scale)
         else:
             scale_inv = self.scale_inv
+            scale_is_invertible = self.scale_is_invertible
         if pd.api.types.is_number(scale_inv):
             x = np.asanyarray(x - loc) * scale_inv
         elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
