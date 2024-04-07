@@ -33,9 +33,7 @@ class Domain:
         B=None,
         b=None,  # noqa: E741
     ):
-        assert (
-            pd.api.types.is_integer(dim) and dim > 0
-        ), "Dimension should be a positive integer"
+        assert pd.api.types.is_integer(dim) and dim > 0, "Dimension should be a positive integer"
         self.dim = dim
         # Validate bound constraints
         if dim == 1:
@@ -52,9 +50,7 @@ class Domain:
             assert all(
                 x is None or np.isscalar(x) or len(x) == dim for x in [l, le, ge, g]
             ), "Bounds should be scalars or have matching dim"
-            specified_bounds = [
-                np.asanyarray(x) for x in [l, le, ge, g] if x is not None
-            ]
+            specified_bounds = [np.asanyarray(x) for x in [l, le, ge, g] if x is not None]
             if len(specified_bounds) > 1:
                 df = pd.DataFrame(
                     data=np.nan, index=range(self.dim), columns=["l", "le", "ge", "g"]
@@ -64,9 +60,7 @@ class Domain:
                 df["ge"] = ge
                 df["g"] = g
                 for _, sr in df.iterrows():
-                    assert (
-                        sr.dropna().is_monotonic_decreasing
-                    ), "Bounds should satisfy: g>ge>le>l"
+                    assert sr.dropna().is_monotonic_decreasing, "Bounds should satisfy: g>ge>le>l"
                 l = np.asanyarray(l) if l is not None and not np.isscalar(l) else l  # noqa: E741
                 g = np.asanyarray(g) if g is not None and not np.isscalar(g) else g
                 le = np.asanyarray(le) if le is not None and not np.isscalar(le) else le
@@ -200,16 +194,8 @@ class Domain:
         """
         assert other is not None
         if pd.api.types.is_number(other):
-            a = (
-                None
-                if self.a is None
-                else self.a + self.A.dot(np.full(self.dim, other))
-            )
-            b = (
-                None
-                if self.b is None
-                else self.b + self.B.dot(np.full(self.dim, other))
-            )
+            a = None if self.a is None else self.a + self.A.dot(np.full(self.dim, other))
+            b = None if self.b is None else self.b + self.B.dot(np.full(self.dim, other))
         elif isinstance(other, np.ndarray) and len(other.shape) == 0:
             return self.add(other.tolist())
         elif pd.api.types.is_array_like(other) and len(other) == self.dim:
@@ -377,9 +363,7 @@ class Domain:
                 g = g[0] if g is not None else None
                 le = le[0] if le is not None else None
                 ge = ge[0] if ge is not None else None
-            return Domain(
-                l=l, g=g, le=le, ge=ge, A=None, a=None, B=None, b=None, dim=dim
-            )
+            return Domain(l=l, g=g, le=le, ge=ge, A=None, a=None, B=None, b=None, dim=dim)
         else:
             raise ValueError("Invalid shape")
 
@@ -427,14 +411,10 @@ class Domain:
                 b = np.full(0, 0) if self.b is None else self.b
                 if self.l is not None:
                     B = np.vstack((B, np.eye(self.dim)))
-                    b = np.append(
-                        b, np.full(self.dim, self.l) if np.isscalar(self.l) else self.l
-                    )
+                    b = np.append(b, np.full(self.dim, self.l) if np.isscalar(self.l) else self.l)
                 if self.g is not None:
                     B = np.vstack((B, -np.eye(self.dim)))
-                    b = np.append(
-                        b, np.full(self.dim, self.g) if np.isscalar(self.g) else self.g
-                    )
+                    b = np.append(b, np.full(self.dim, self.g) if np.isscalar(self.g) else self.g)
                 sel = ~np.isnan(b)
                 B = B[sel]
                 b = b[sel]
@@ -484,9 +464,7 @@ class Domain:
             ):
                 g = min(self.g, other.g)
             else:
-                g = np.min(
-                    [self.g * np.ones(self.dim), other.g * np.ones(self.dim)], axis=0
-                )
+                g = np.min([self.g * np.ones(self.dim), other.g * np.ones(self.dim)], axis=0)
         elif self.g is not None:
             g = self.g
         elif other.g is not None:
@@ -499,9 +477,7 @@ class Domain:
             ):
                 le = max(self.le, other.le)
             else:
-                le = np.max(
-                    [self.le * np.ones(self.dim), other.le * np.ones(self.dim)], axis=0
-                )
+                le = np.max([self.le * np.ones(self.dim), other.le * np.ones(self.dim)], axis=0)
         elif self.le is not None:
             le = self.le
         elif other.le is not None:
@@ -514,9 +490,7 @@ class Domain:
             ):
                 ge = min(self.ge, other.ge)
             else:
-                ge = np.min(
-                    [self.ge * np.ones(self.dim), other.ge * np.ones(self.dim)], axis=0
-                )
+                ge = np.min([self.ge * np.ones(self.dim), other.ge * np.ones(self.dim)], axis=0)
         elif self.ge is not None:
             ge = self.ge
         elif other.ge is not None:
@@ -554,9 +528,7 @@ class Domain:
 
     @classmethod
     def from_domains(cls, *domains):
-        assert all(
-            isinstance(d, Domain) for d in domains
-        ), "All arguments should be Domains"
+        assert all(isinstance(d, Domain) for d in domains), "All arguments should be Domains"
         dim = sum(d.dim for d in domains)
         l = (  # noqa: E741
             np.hstack(tuple([d.l_vect for d in domains]))
@@ -579,9 +551,7 @@ class Domain:
             else None
         )
         if any(d.A is not None for d in domains):
-            A = np.zeros(
-                (sum(d.A.shape[0] if d.A is not None else 0 for d in domains), dim)
-            )
+            A = np.zeros((sum(d.A.shape[0] if d.A is not None else 0 for d in domains), dim))
             a = np.zeros(A.shape[0])
             i, j = 0
             for d in domains:
@@ -596,9 +566,7 @@ class Domain:
             A = None
             a = None
         if any(d.B is not None for d in domains):
-            B = np.zeros(
-                (sum(d.B.shape[0] if d.B is not None else 0 for d in domains), dim)
-            )
+            B = np.zeros((sum(d.B.shape[0] if d.B is not None else 0 for d in domains), dim))
             b = np.zeros(B.shape[0])
             i, j = 0
             for d in domains:

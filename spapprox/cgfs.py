@@ -65,9 +65,7 @@ def multivariate_norm(loc=0, scale=None, dim=None, cov=None):
             dim = 2
     # Validate input
     assert (
-        loc is None
-        or len(loc.shape) == 0
-        or (len(loc.shape) == 1 and loc.shape[0] == dim)
+        loc is None or len(loc.shape) == 0 or (len(loc.shape) == 1 and loc.shape[0] == dim)
     ), "loc has wrong shape"
     assert (
         scale is None
@@ -206,11 +204,7 @@ def binomial(n=1, p=0.5):
         K=lambda t, n=n, p=p: n * np.log(p * (np.exp(t) - 1) + 1),
         dK=lambda t, n=n, p=p: n * p / ((1 - p) * np.exp(-t) + p),
         dK_inv=lambda x, n=n, p=p: -np.log((n * p / x - p) / (1 - p)),
-        d2K=lambda t, n=n, p=p: n
-        * p
-        * (1 - p)
-        * np.exp(-t)
-        / ((1 - p) * np.exp(-t) + p) ** 2,
+        d2K=lambda t, n=n, p=p: n * p * (1 - p) * np.exp(-t) / ((1 - p) * np.exp(-t) + p) ** 2,
         d3K=lambda t, n=n, p=p: n
         * p
         * (1 - p)
