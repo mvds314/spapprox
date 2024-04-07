@@ -991,7 +991,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             inv_scale = np.asanyarray(inv_scale)
             self._validate_scale_inv(inv_scale)
-        t = ts / inv_scale if len(inv_scale.shape) <= 1 else np.dot(ts, inv_scale)
+        t = ts * inv_scale if len(inv_scale.shape) <= 1 else np.dot(ts, inv_scale)
         assert t.shape[-1] == self.dim, "Dimensions do not match"
         return t
 
