@@ -115,12 +115,8 @@ def test_expon_spa(cgf, dist, trange):
     spa = UnivariateSaddlePointApprox(cgf)
     for f in [
         spa.pdf,
-        lambda t=None, fillna=np.nan, backend="LR": spa.cdf(
-            t=t, fillna=fillna, backend=backend
-        ),
-        lambda t=None, fillna=np.nan, backend="BN": spa.cdf(
-            t=t, fillna=fillna, backend=backend
-        ),
+        lambda t=None, fillna=np.nan, backend="LR": spa.cdf(t=t, fillna=fillna, backend=backend),
+        lambda t=None, fillna=np.nan, backend="BN": spa.cdf(t=t, fillna=fillna, backend=backend),
     ]:
         assert np.isscalar(f(t=0))
         assert not np.isscalar(f(t=[0, 0]))
@@ -129,16 +125,11 @@ def test_expon_spa(cgf, dist, trange):
         assert not np.isscalar(f(t=[1 / 3, 1], fillna=0)) and np.allclose(
             f(t=[1, 1 / 3], fillna=10), 10
         )
-        assert (
-            not np.isscalar(spa.pdf(t=[1 / 3, 0]))
-            and not np.isnan(spa.pdf(t=[1, 0])).all()
-        )
+        assert not np.isscalar(spa.pdf(t=[1 / 3, 0])) and not np.isnan(spa.pdf(t=[1, 0])).all()
     # approximation accuracy test
     t = np.linspace(*trange, 1000)[:-1]
     x = spa.cgf.dK(t)
-    assert np.allclose(
-        spa.pdf(t=t), dist.pdf(x), atol=5e-5
-    ), "This should approx be equal"
+    assert np.allclose(spa.pdf(t=t), dist.pdf(x), atol=5e-5), "This should approx be equal"
     assert np.allclose(
         spa.cdf(t=t, backend="LR"), dist.cdf(x), atol=5e-3
     ), "This should approx be equal"
