@@ -1424,14 +1424,16 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         It solves:
 
         .. math::
-            x = K'(t).
+            x = \nabla_{t_x} K_X(t_X).
 
         When X, i.e., the random vector of which this class defines the cumulant
         generating function is specified as a linear transormation through the
         `scale` and `loc` paramters, i.e., :math:`X=AU+b`, the we solve
 
         .. math::
-            x = A^T \grad K_U(A^T t_x) + b.
+            x = \nabla_{t_X} \left[K_U(A^Tt_X)+b\cdot t_X\right]
+            = A \nabla_{t_U} K_U(A^T t_x) + b.
+
 
         Typically, we will use the pseudo inverse :math:`P` of :math:`A` to find
         a solution. The following cases are to be distinguished.
@@ -1439,19 +1441,20 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         If :math:`A` is invertible, then the solution is given by:
 
         .. math::
-            t_x = (\grad K_U)^-1 (P^T(x-b).
+            t_x = (\nabla K_U)^{-1} \left(P(x-b)\right).
 
-        If :math:`A` is not invertible, then the solution is given by:
+        If :math:`A` is not invertible, then either :math:`x-b` is not in the range of
+        :math:`A`, in which case there is no solution to
 
         .. math::
-            t_x = (\grad K_U)^-1 (P^T(x-b) + (I-P^T) t_0),
+            A \nabla_{t_U} K_U(A^T t_x) = x - b.
 
-        where :math:`t_0` is an initial guess.
+        Or, there might be multiple solutions, depending on whether the null space
+        of :math:`A` intersects with the range of :math:`\nabla K_U`.
 
-
-        A special cases arise when :math:`A` is not invertible, or when :math:`A`
-        is a projection matrix.
-
+        In the current implementation, we merely check whether :math:`x-b` is in the
+        range of A (if A is not invertible). If it is, we solve
+        :math:`A \nabla_{t_U} K_U(A^T t_x) = x - b` numerically
         """
         # Handle vectorized evaluation
         if len(x.shape) > 2:
@@ -1506,6 +1509,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             # TODO: can we do anything in this case?
             # Maybe we can give back a solution if it exists, otherwise, we give raise and error
             # TODO: so we should test wether soemthing is in the range?
+            # TODO: figure out when it makes sense to do anything
             raise NotImplementedError()
         elif self._dK_inv is None and scale_is_invertible:
             # TODO: split this one as well in two cases
