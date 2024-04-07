@@ -77,9 +77,9 @@ def test_2d_from_uniform():
     assert np.allclose(mcgf_int.dK(ts), val, atol=1e-3)
     # Test inverse of the derivatives
     for t in ts:
-        assert np.allclose(mcgf.dKinv(mcgf.dK(t)), t)
-        assert np.allclose(mcgf_from_univ.dKinv(mcgf_from_univ.dK(t)), t)
-        assert np.allclose(mcgf_int.dKinv(mcgf_int.dK(t)), t, atol=1e-3)
+        assert np.allclose(mcgf.dK_inv(mcgf.dK(t)), t)
+        assert np.allclose(mcgf_from_univ.dK_inv(mcgf_from_univ.dK(t)), t)
+        assert np.allclose(mcgf_int.dK_inv(mcgf_int.dK(t)), t, atol=1e-3)
     val = np.array([mcgf.dK(t) for t in ts])
     assert np.allclose(mcgf.dK_inv(val), ts)
     assert np.allclose(mcgf_from_univ.dK_inv(val), ts)
@@ -188,10 +188,14 @@ def test_addition(mcgf1, mcgf2, dim):
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+        assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
+        assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
     for f in ["K", "dK", "d2K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
+    assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
+    assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
 
 
 @pytest.mark.parametrize(
@@ -236,10 +240,14 @@ def test_multiplication(mcgf1, mcgf2, dim):
         assert np.isclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+        assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
+        assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
     for f in ["K", "dK", "d2K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
+    assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
+    assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
 
 
 @pytest.mark.parametrize(
@@ -302,10 +310,14 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+        assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
+        assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
     for f in ["K", "dK", "d2K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
+    assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
+    assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
     if not isinstance(mcgf1, UnivariateCumulantGeneratingFunction):
         assert np.allclose(mcgf2.cov, mcgf1.cov)
 
@@ -358,10 +370,14 @@ def test_stack(mcgf1, mcgf2, dim):
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+        assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
+        assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
     for f in ["K", "dK", "d2K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
+    assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
+    assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
 
 
 @pytest.mark.parametrize(
@@ -419,10 +435,14 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+        assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
+        assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
     for f in ["K", "dK", "d2K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
+    assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
+    assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
 
 
 @pytest.mark.parametrize(
@@ -501,7 +521,6 @@ def test_dKinv(mcgf, ts):
         assert np.allclose(tts, ts)
 
 
-# TODO: build in dKinv tests in all the other unittests
 # TODO: also test the 1 dim case
 
 
