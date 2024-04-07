@@ -1411,7 +1411,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 elif np.isscalar(y):
                     return fillna
                 else:
-                    return np.fill(np.asanyarray(y).shape, fillna)
+                    return np.full(np.asanyarray(y).shape, fillna)
             else:
                 y = y.astype(np.float64)
                 y[~cond] = fillna
@@ -1483,13 +1483,14 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         # Otherwise just a single evaluation
         # Handle scaling
         loc = self.loc if loc is None else loc
-        if scale is not None:
+        if scale is None:
+            scale = self.scale
+            scale_is_invertible = self.scale_is_invertible
+            scale_inv = self.scale_inv
+        else:
             self._validate_scale(scale)
             scale_is_invertible = self._scale_is_invertible(scale)
             scale_inv = self._get_scale_inv(scale)
-        else:
-            scale_is_invertible = self.scale_is_invertible
-            scale_inv = self.scale_inv
         # Invert based on whether dK_inv is provided and scale is invertible
         if self._dK_inv is not None and scale_is_invertible:
             # Initialize
@@ -1521,7 +1522,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 2
                 ), "The (pseudo)-inverse should be matrix"
                 if not np.allclose(scale.dot(scale_inv.dot(x - loc)), x):
-                    return np.full(fillna, self.dim)
+                    return np.full(self.dim, fillna)
             # Proceed with finding a solution numerically
             kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
             kwargs.setdefault("jac", lambda tt: self.d2K(tt, loc=loc, scale=scale))
@@ -1553,7 +1554,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     t = np.asanyarray(res.x)
                     break
             else:
-                return np.full(fillna, self.dim)
+                return np.full(self.dim, fillna)
             # Verify whether found solution is in domain
             if pd.api.types.is_number(scale):
                 cond = np.squeeze(self.domain.is_in_domain(t * scale))
@@ -1572,7 +1573,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 elif np.isscalar(t):
                     return fillna
                 else:
-                    return np.fill(np.asanyarray(t).shape, fillna)
+                    return np.full(np.asanyarray(t).shape, fillna)
             else:
                 t = t.astype(np.float64)
                 t[~cond] = fillna
@@ -1636,7 +1637,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 elif np.isscalar(y):
                     return fillna
                 else:
-                    return np.fill(np.asanyarray(y).shape, fillna)
+                    return np.full(np.asanyarray(y).shape, fillna)
             else:
                 y = y.astype(np.float64)
                 y[~cond] = fillna

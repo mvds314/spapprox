@@ -397,45 +397,49 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
 @pytest.mark.parametrize(
     "mcgf,ts",
     [
-        # # multivariate normal with inverse defined
-        # (
-        #     multivariate_norm(dim=2),
-        #     [[-2, -1], [0, 1], [2, 0]],
-        # ),
-        # (
-        #     multivariate_norm(dim=2, scale=[1, 2], loc=[1, 2]),
-        #     [[-2, -1], [0, 1], [2, 0]],
-        # ),
-        # # multivariate normal without inverse defined
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()),
-        #     [[-2, -1], [0, 1], [2, 0]],
-        # ),
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()).ldot(
-        #         np.array([[1, 2], [2, 1]])
-        #     ),
-        #     [[-2, -1], [0, 1], [2, 0]],
-        # ),
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         norm(loc=2, scale=3), norm(loc=1, scale=2)
-        #     ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
-        #     [[-2, -1, 0], [0, 1, 1], [2, 0, 0]],
-        # ),
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         norm(loc=2, scale=3), norm(loc=1, scale=2)
-        #     ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
-        #     [[-2, -1, 0]],
-        # ),
-        # TODO: continue with this test, more complex ones don't seem to work yet
+        # multivariate normal with inverse defined
+        (
+            multivariate_norm(dim=2),
+            [[-2, -1], [0, 1], [2, 0]],
+        ),
+        (
+            multivariate_norm(dim=2, scale=[1, 2], loc=[1, 2]),
+            [[-2, -1], [0, 1], [2, 0]],
+        ),
+        # multivariate normal without inverse defined
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()),
+            [[-2, -1], [0, 1], [2, 0]],
+        ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()).ldot(
+                np.array([[1, 2], [2, 1]])
+            ),
+            [[-2, -1], [0, 1], [2, 0]],
+        ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                norm(loc=2, scale=3), norm(loc=1, scale=2)
+            ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
+            [[-2, -1, 0], [0, 1, 1], [2, 0, 0]],
+        ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                norm(loc=2, scale=3), norm(loc=1, scale=2)
+            ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
+            [[-2, -1, 0]],
+        ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                norm(loc=2, scale=3), exponential(loc=1, scale=2)
+            ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
+            [[-2, -1, 0]],
+        ),
         (
             MultivariateCumulantGeneratingFunction.from_univariate(
                 exponential(loc=5),
                 norm(loc=3),
                 norm(loc=2),
-                # exponential(loc=5, scale=2), norm(3), norm(2)
             ).ldot(
                 np.array(
                     [
@@ -444,10 +448,8 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
                     ]
                 )
             ),
-            [[-2, -1], [0, 1], [2, 0]],
+            [[-2, -1], [0, -5], [-2, 0]],
         ),
-        # TODO: continue here
-        # TODO: also test with exponential
     ],
 )
 def test_dKinv(mcgf, ts):
