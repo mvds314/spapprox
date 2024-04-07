@@ -24,7 +24,8 @@ class Timer:
 
 
 # Fibonacci sequence
-fib = lambda n: reduce(lambda x, n: [x[1], x[0] + x[1]], range(n), [0, 1])[0]
+def fib(n):
+    return reduce(lambda x, n: [x[1], x[0] + x[1]], range(n), [0, 1])[0]
 
 
 def type_wrapper(xloc=0):
@@ -33,7 +34,9 @@ def type_wrapper(xloc=0):
         def wrapped(*args, **kwargs):
             x = args[xloc]
             wrapper = PandasWrapper(x)
-            args = tuple(np.asanyarray(x) if i == xloc else a for i, a in enumerate(args))
+            args = tuple(
+                np.asanyarray(x) if i == xloc else a for i, a in enumerate(args)
+            )
             y = np.asanyarray(f(*args, **kwargs))
             return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
 

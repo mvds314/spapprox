@@ -6,18 +6,16 @@ from pathlib import Path
 import numpy as np
 import pytest
 import scipy.stats as sps
-
 from scipy.integrate import quad
-
 from spapprox import (
-    norm,
+    # poisson,
+    # binomial,
+    UnivariateSaddlePointApprox,
+    chi2,
     exponential,
     gamma,
-    chi2,
     laplace,
-    poisson,
-    binomial,
-    UnivariateSaddlePointApprox,
+    norm,
 )
 
 
@@ -35,9 +33,11 @@ def test_norm_spa(cgf, dist, trange):
     # These ones should be exact
     assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
     assert np.isclose(
-        quad(lambda t: spa.pdf(t=t, normalize_pdf=False) * cgf.d2K(t), a=trange[0], b=trange[1])[
-            0
-        ],
+        quad(
+            lambda t: spa.pdf(t=t, normalize_pdf=False) * cgf.d2K(t),
+            a=trange[0],
+            b=trange[1],
+        )[0],
         1,
     )
     assert np.isclose(spa.cdf(t=trange[0]), 0, atol=1e-6)
@@ -115,8 +115,12 @@ def test_expon_spa(cgf, dist, trange):
     spa = UnivariateSaddlePointApprox(cgf)
     for f in [
         spa.pdf,
-        lambda t=None, fillna=np.nan, backend="LR": spa.cdf(t=t, fillna=fillna, backend=backend),
-        lambda t=None, fillna=np.nan, backend="BN": spa.cdf(t=t, fillna=fillna, backend=backend),
+        lambda t=None, fillna=np.nan, backend="LR": spa.cdf(
+            t=t, fillna=fillna, backend=backend
+        ),
+        lambda t=None, fillna=np.nan, backend="BN": spa.cdf(
+            t=t, fillna=fillna, backend=backend
+        ),
     ]:
         assert np.isscalar(f(t=0))
         assert ~np.isscalar(f(t=[0, 0]))
@@ -125,11 +129,15 @@ def test_expon_spa(cgf, dist, trange):
         assert ~np.isscalar(f(t=[1 / 3, 1], fillna=0)) and np.allclose(
             f(t=[1, 1 / 3], fillna=10), 10
         )
-        assert ~np.isscalar(spa.pdf(t=[1 / 3, 0])) and ~np.isnan(spa.pdf(t=[1, 0])).all()
+        assert (
+            ~np.isscalar(spa.pdf(t=[1 / 3, 0])) and ~np.isnan(spa.pdf(t=[1, 0])).all()
+        )
     # approximation accuracy test
     t = np.linspace(*trange, 1000)[:-1]
     x = spa.cgf.dK(t)
-    assert np.allclose(spa.pdf(t=t), dist.pdf(x), atol=5e-5), "This should approx be equal"
+    assert np.allclose(
+        spa.pdf(t=t), dist.pdf(x), atol=5e-5
+    ), "This should approx be equal"
     assert np.allclose(
         spa.cdf(t=t, backend="LR"), dist.cdf(x), atol=5e-3
     ), "This should approx be equal"
