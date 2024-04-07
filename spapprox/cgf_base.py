@@ -1338,7 +1338,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         scale = self.scale if scale is None else np.asanyarray(scale)
         if len(t.shape) == 0:
             t = np.full(self.dim, t)
-        # st = (scale * t.T).T if len(scale.shape) == 1 else np.dot(t, scale)
         st = self._scale_t(t, scale=scale)
         cond = np.squeeze(self.domain.is_in_domain(st))
         st = np.where(cond, st.T, 0).T  # prevent outside domain evaluations
@@ -1509,12 +1508,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             # Verify whether found solution is in domain
             cond = np.squeeze(self.domain.is_in_domain(t))
             # Post processing
-            if pd.api.types.is_number(scale_inv):
-                t = t * scale_inv
-            elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
-                t = t * scale_inv
-            else:
-                t = scale_inv.T.dot(t)
+            t = self._inv_scale_t(t, inv_scale=scale_inv)
         else:
             # Test if x - loc is in the range of A, if not, there is no solution
             if not scale_is_invertible:
@@ -1556,12 +1550,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             else:
                 return np.full(self.dim, fillna)
             # Verify whether found solution is in domain
-            if pd.api.types.is_number(scale):
-                cond = np.squeeze(self.domain.is_in_domain(t * scale))
-            elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
-                cond = np.squeeze(self.domain.is_in_domain(t * scale))
-            else:
-                cond = np.squeeze(self.domain.is_in_domain(scale.T.dot(t)))
+            cond = np.squeeze(self.domain.is_in_domain(self._scale_t(t, scale=scale)))
         # Return
         with warnings.catch_warnings():
             warnings.filterwarnings(
@@ -1716,10 +1705,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
             @type_wrapper(xloc=0)
             def dK(t):
-                vals = [
-                    np.atleast_1d(cgf.dK(ti(t, i)))  # .reshape((dims.sum(), dims[i]))
-                    for i, cgf in enumerate(cgfs)
-                ]
+                vals = [np.atleast_1d(cgf.dK(ti(t, i))) for i, cgf in enumerate(cgfs)]
                 if len(t.shape) > 1:
                     vals = [
                         v.reshape((t.shape[0], dims[i])) for i, v in enumerate(vals)
@@ -1742,6 +1728,3 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
             domain = Domain.from_domains(*[cgf.domain for cgf in cgfs])
             return cls(K, dim=dims.sum(), loc=0, scale=1, dK=dK, d2K=d2K, domain=domain)
-
-
-# TODO: can we easily construct a conditional cgf using the conditional density? probabliy not?
