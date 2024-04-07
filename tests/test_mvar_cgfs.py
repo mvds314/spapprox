@@ -78,7 +78,11 @@ def test_2d_from_uniform():
     # Test the second derivatives
     for t in ts:
         val = mcgf.d2K(t)
-        assert pd.api.types.is_array_like(val) and len(val.shape) == 2 and val.shape == (2, 2)
+        assert (
+            pd.api.types.is_array_like(val)
+            and len(val.shape) == 2
+            and val.shape == (2, 2)
+        )
         assert np.allclose(val, mcgf_from_univ.d2K(t))
         assert np.allclose(val, mcgf_int.d2K(t), atol=1e-3)
     val = np.array([mcgf.d2K(t) for t in ts])
@@ -117,25 +121,33 @@ def test_statistics(mcgf, mean, cov):
     [
         # add vector
         (
-            MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                norm() + 1, norm() + 2
+            ),
             multivariate_norm(loc=np.zeros(2), scale=1) + np.array([1, 2]),
             2,
         ),
         # add a vector in a different way
         (
-            MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                norm() + 1, norm() + 2
+            ),
             multivariate_norm(loc=np.zeros(2), scale=1).add(np.array([1, 2])),
             2,
         ),
         # add hen specified as loc
         (
-            MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                norm() + 1, norm() + 2
+            ),
             multivariate_norm(loc=np.array([1, 2]), scale=1),
             2,
         ),
         # Add a constant
         (
-            MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                norm() + 1, norm() + 2
+            ),
             multivariate_norm(loc=np.array([0, 1]), scale=1) + 1,
             2,
         ),
@@ -184,7 +196,9 @@ def test_addition(mcgf1, mcgf2, dim):
         ),
         (
             MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
-            multivariate_norm(loc=np.zeros(2), scale=1).mul(np.array([1, 2]), inplace=True),
+            multivariate_norm(loc=np.zeros(2), scale=1).mul(
+                np.array([1, 2]), inplace=True
+            ),
             2,
         ),
         (
@@ -231,7 +245,9 @@ def test_multiplication(mcgf1, mcgf2, dim):
         ),
         (
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(
-                np.linalg.cholesky(cov2corr(np.array([[2, 1], [1, 3]]), return_std=False))
+                np.linalg.cholesky(
+                    cov2corr(np.array([[2, 1], [1, 3]]), return_std=False)
+                )
             )
             * np.sqrt(np.array([2, 3]))
             + np.array([1, 2]),
@@ -240,7 +256,9 @@ def test_multiplication(mcgf1, mcgf2, dim):
             2,
         ),
         (
-            multivariate_norm(loc=0, scale=1, dim=3).ldot(np.array([[1, 0, 1], [0, 1, 1]])),
+            multivariate_norm(loc=0, scale=1, dim=3).ldot(
+                np.array([[1, 0, 1], [0, 1, 1]])
+            ),
             multivariate_norm(loc=0, scale=1, dim=2) + norm(),
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
@@ -252,7 +270,9 @@ def test_multiplication(mcgf1, mcgf2, dim):
             None,
         ),
         (
-            multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.atleast_2d(np.ones(2)))[[0]],
+            multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.atleast_2d(np.ones(2)))[
+                [0]
+            ],
             multivariate_norm(loc=0, scale=np.sqrt(2), dim=1),
             [[-1], [-2], [0], [2], [4]],
             None,
@@ -313,7 +333,9 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
             ),
             multivariate_norm(
                 loc=[1, 2, 3, 4],
-                cov=sp.linalg.block_diag(np.array([[2, 1], [1, 3]]), np.array([[4, 0], [0, 1]])),
+                cov=sp.linalg.block_diag(
+                    np.array([[2, 1], [1, 3]]), np.array([[4, 0], [0, 1]])
+                ),
             ),
             4,
         ),
