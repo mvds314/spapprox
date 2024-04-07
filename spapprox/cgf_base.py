@@ -1486,37 +1486,45 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         if scale is not None:
             self._validate_scale(scale)
             scale_is_invertible = self._scale_is_invertible(scale)
-            scale_inv = self._get_scale_inv(scale) if scale_is_invertible else None
+            scale_inv = self._get_scale_inv(scale)
         else:
             scale_is_invertible = self.scale_is_invertible
-            scale_inv = self.scale_inv if scale_is_invertible else None
-        if scale_is_invertible:
+            scale_inv = self.scale_inv
+        # Invert based on whether dK_inv is provided and scale is invertible
+        if self._dK_inv is not None and scale_is_invertible:
+            # Initialize
             if pd.api.types.is_number(scale_inv):
                 x = np.asanyarray(x - loc) * scale_inv
             elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
                 x = np.asanyarray(x - loc) * scale_inv
             else:
                 x = scale_inv.dot(np.asanyarray(x - loc))
-        else:
-            x = np.asanayarray(x - loc)
-        # Invert based on whether dK_inv is provided and scale is invertible
-        if self._dK_inv is not None and scale_is_invertible:
+            # Solve
             with warnings.catch_warnings():
                 warnings.filterwarnings(
                     action="ignore", message="All-NaN slice encountered"
                 )
                 t = self._dK_inv(x)
-        elif self._dK_inv is not None and not scale_is_invertible:
-            # TODO: can we do anything in this case?
-            # Maybe we can give back a solution if it exists, otherwise, we give raise and error
-            # TODO: so we should test wether soemthing is in the range?
-            # TODO: figure out when it makes sense to do anything
-            raise NotImplementedError()
-        elif self._dK_inv is None and scale_is_invertible:
-            # TODO: split this one as well in two cases
-            # Otherwise solve numerically
+            # Verify whether found solution is in domain
+            cond = np.squeeze(self.domain.is_in_domain(t))
+            # Post processing
+            if pd.api.types.is_number(scale_inv):
+                t = t * scale_inv
+            elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
+                t = t * scale_inv
+            else:
+                t = scale_inv.T.dot(t)
+        else:
+            # Test if x - loc is in the range of A, if not, there is no solution
+            if not scale_is_invertible:
+                assert (
+                    isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 2
+                ), "The (pseudo)-inverse should be matrix"
+                if not np.allclose(scale.dot(scale_inv.dot(x - loc)), x):
+                    return np.full(fillna, self.dim)
+            # Proceed with finding a solution numerically
             kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
-            kwargs.setdefault("jac", lambda tt: self.d2K(tt, loc=0, scale=1))
+            kwargs.setdefault("jac", lambda tt: self.d2K(tt, loc=loc, scale=scale))
             if "method" in kwargs:
                 methods = [kwargs["method"]]
             else:
@@ -1536,7 +1544,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 kwargs["method"] = method
                 try:
                     res = spo.root(
-                        lambda t, x=x: self.dK(t, loc=0, scale=1) - x, **kwargs
+                        lambda t, x=x: self.dK(t, loc=loc, scale=scale) - x - loc,
+                        **kwargs,
                     )
                 except Exception:
                     continue
@@ -1544,28 +1553,15 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     t = np.asanyarray(res.x)
                     break
             else:
-                t = np.asanyarray(
-                    [
-                        self.dK_inv(
-                            xx, loc=0, scale=1, t0=None if t0 is None else t0[i]
-                        )
-                        for i, xx in enumerate(x)
-                    ]
-                )
-        else:
-            raise NotImplementedError()
-        # Post processing
-        # TODO: this post processing is no longer generic
-        if scale_is_invertible:
-            cond = np.squeeze(self.domain.is_in_domain(t))
-            if pd.api.types.is_number(scale_inv):
-                t = t * scale_inv
+                return np.full(fillna, self.dim)
+            # Verify whether found solution is in domain
+            if pd.api.types.is_number(scale):
+                cond = np.squeeze(self.domain.is_in_domain(t * scale))
             elif isinstance(scale_inv, np.ndarray) and len(scale_inv.shape) == 1:
-                t = t * scale_inv
+                cond = np.squeeze(self.domain.is_in_domain(t * scale))
             else:
-                t = scale_inv.T.dot(t)
-        else:
-            raise NotImplementedError()
+                cond = np.squeeze(self.domain.is_in_domain(scale.T.dot(t)))
+        # Return
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 action="ignore", message="All-NaN slice encountered"
