@@ -500,6 +500,7 @@ def test_dKinv(mcgf, ts):
 
 
 # TODO: also test the 1 dim case
+# TODO: just redo some of the 1 dim case tests
 
 
 def test_from_univariate():
