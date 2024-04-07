@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from abc import ABC, abstractmethod
 import warnings
+from abc import ABC, abstractmethod
+
 import numpy as np
 import pandas as pd
 import scipy as sp
@@ -17,7 +18,7 @@ except ImportError:
     has_numdifftools = False
 
 from .domain import Domain
-from .util import type_wrapper, fib
+from .util import fib, type_wrapper
 
 
 class CumulantGeneratingFunction(ABC):
@@ -1737,6 +1738,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         *[cgf.d2K(ti(t, i)) for i, cgf in enumerate(cgfs)]
                     )
                 elif len(t.shape) == 2:
+                    return np.array([d2K(tt) for tt in t])
                     return np.array([d2K(tt) for tt in t])
                 else:
                     raise
