@@ -187,6 +187,18 @@ def univariate_empirical(x):
 
 # TODO: add asymmetric generalized normal distribution
 
+# TODO: multivariate Gamma (See Butler 2007, page 77; Huzurbar 2012)
+
+# TODO: multinoimal distribution (see Butler 2007, page 80)
+
+# TODO: add bivariate poisson distribution (see Butler 2007, page 81)
+
+# TODO: also see Butler 2007, page 90 for higher order expansions
+
+# TODO: add multinomial bootstrap of the mean
+
+# TODO: see the exercise in Butler for negative binomial distribution, and multivariate logistc distribution
+
 
 def poisson(mu=1):
     return UnivariateCumulantGeneratingFunction(
