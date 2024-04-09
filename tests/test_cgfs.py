@@ -103,14 +103,13 @@ from spapprox import (
             [0.2, 0.55],
             sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
         ),
-        # TODO: fix this test
-        # (
-        #     1.1 * (multivariate_norm(loc=0, scale=1)[0] + multivariate_norm(loc=1, scale=1)[0])
-        #     - 0.3,
-        #     1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3,
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
-        # ),
+        (
+            1.1 * (multivariate_norm(loc=0, scale=1)[0] + multivariate_norm(loc=1, scale=1)[0])
+            - 0.3,
+            (1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3).K,
+            [0.2, 0.55],
+            sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
+        ),
         # Case 6: Univariate normal distribution with loc and scale
         (
             norm(loc=1, scale=0.5),
