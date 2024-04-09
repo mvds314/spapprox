@@ -88,13 +88,12 @@ from spapprox import (
             [0.2, 0.55],
             sps.norm(loc=0, scale=1.1),
         ),
-        # TODO: fix this test
-        # (
-        #     1.1 * multivariate_norm(loc=0, scale=1)[0],
-        #     1.1 * norm(loc=0, scale=1),
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0, scale=1.1),
-        # ),
+        (
+            1.1 * multivariate_norm(loc=0, scale=1)[0],
+            (1.1 * norm(loc=0, scale=1)).K,
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=1.1),
+        ),
         # Case 5: Sum of two univariate normal distributions scaled by a constant and shifted
         (
             1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3,
