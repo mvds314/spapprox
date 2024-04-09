@@ -498,7 +498,7 @@ class Domain:
         else:
             ge = None
         if self.A is not None and other.A is not None:
-            A = np.vstack(self.A, other.A)
+            A = np.vstack((self.A, other.A))
             a = np.append(self.a, other.a)
         elif self.A is not None:
             A = self.A
@@ -510,7 +510,7 @@ class Domain:
             A = None
             a = None
         if self.B is not None and other.B is not None:
-            B = np.vstack(self.B, other.B)
+            B = np.vstack((self.B, other.B))
             b = np.append(self.b, other.b)
         elif self.B is not None:
             B = self.B

@@ -28,6 +28,8 @@ from spapprox import (
     univariate_empirical,
 )
 
+# TODO: add division to test cases
+
 
 @pytest.mark.parametrize(
     "cgf_to_test,cgf,ts,dist",
@@ -161,15 +163,14 @@ from spapprox import (
             [0.2, 0.55],
             sps.expon(scale=1),
         ),
-        # TODO: fix this test
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         norm(0, 1), 2 * exponential(scale=1) / 2
-        #     )[1],
-        #     exponential(scale=1).K,
-        #     [0.2, 0.55],
-        #     sps.expon(scale=1),
-        # ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                norm(0, 1), 2 * exponential(scale=1) / 2
+            )[1],
+            exponential(scale=1).K,
+            [0.2, 0.55],
+            sps.expon(scale=1),
+        ),
         # Case 9: Univariate exponential with scale
         (
             exponential(scale=0.5),
@@ -179,6 +180,7 @@ from spapprox import (
             [0.2, 0.55],
             sps.expon(scale=0.5),
         ),
+        # TODO: fix this test
         # (
         #     MultivariateCumulantGeneratingFunction.from_univariate(
         #         exponential(scale=0.5), exponential(scale=0.5)
@@ -217,8 +219,8 @@ from spapprox import (
         # (
         #     MultivariateCumulantGeneratingFunction.from_univariate(
         #         gamma(a=2, scale=0.5), gamma(a=2, scale=0.5)
-        #     ).ldot([1, 0])[0],
-        #     gamma(a=2, scale=0.5),
+        #     ).ldot([1, 0]),
+        #     gamma(a=2, scale=0.5).K,
         #     [0.2, 0.55],
         #     sps.gamma(a=2, scale=0.5),
         # ),
@@ -236,7 +238,7 @@ from spapprox import (
         #     MultivariateCumulantGeneratingFunction.from_univariate(chi2(df=2), chi2(df=3)).ldot(
         #         [1, 0]
         #     )[1],
-        #     chi2(df=3),
+        #     chi2(df=3).K,
         #     [0.2, 0.25],
         #     sps.chi2(df=3),
         # ),
@@ -254,7 +256,7 @@ from spapprox import (
         #     MultivariateCumulantGeneratingFunction.from_univariate(
         #         laplace(loc=0, scale=1), laplace(loc=0, scale=1)
         #     ).ldot([1, 0])[0],
-        #     laplace(loc=0, scale=1),
+        #     laplace(loc=0, scale=1).K,
         #     [0.2, 0.55, -0.23],
         #     sps.laplace(loc=0, scale=1),
         # ),
@@ -269,10 +271,10 @@ from spapprox import (
         ),
         # TODO: fix this test
         # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         poisson(mu=2), poisson(mu=2)
-        #     )[0],
-        #     poisson(mu=2),
+        #     MultivariateCumulantGeneratingFunction.from_univariate(poisson(mu=2), poisson(mu=2))[
+        #         0
+        #     ],
+        #     poisson(mu=2).K,
         #     [0.2, 0.55],
         #     sps.poisson(mu=2),
         # ),
@@ -290,7 +292,7 @@ from spapprox import (
         #     MultivariateCumulantGeneratingFunction.from_univariate(
         #         binomial(n=10, p=0.5), binomial(n=10, p=0.5)
         #     )[0],
-        #     binomial(n=10, p=0.5),
+        #     binomial(n=10, p=0.5).K,
         #     [0.2, 0.55],
         #     sps.binom(n=10, p=0.5),
         # ),
@@ -303,15 +305,14 @@ from spapprox import (
             [0.2, 0.55, -0.23],
             sps.norm(loc=2, scale=0.2),
         ),
-        # TODO: fix this test
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         univariate_sample_mean(norm(2, 1), 25), univariate_sample_mean(norm(2, 1), 25)
-        #     )[0],
-        #     univariate_sample_mean(norm(2, 1), 25),
-        #     [0.2, 0.55, -0.23],
-        #     sps.norm(loc=2, scale=0.2),
-        # ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                univariate_sample_mean(norm(2, 1), 25), univariate_sample_mean(norm(2, 1), 25)
+            )[0],
+            univariate_sample_mean(norm(2, 1), 25).K,
+            [0.2, 0.55, -0.23],
+            sps.norm(loc=2, scale=0.2),
+        ),
         # Case 17: Univariate empirical
         (
             univariate_empirical(np.arange(10)),
@@ -319,15 +320,14 @@ from spapprox import (
             [0.2, 0.55, -0.23],
             np.arange(10),
         ),
-        # TODO: fix this test
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         univariate_empirical(np.arange(10)), univariate_empirical(np.arange(10))
-        #     )[0],
-        #     univariate_empirical(np.arange(10)),
-        #     [0.2, 0.55, -0.23],
-        #     np.arange(10),
-        # ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                univariate_empirical(np.arange(10)), univariate_empirical(np.arange(10))
+            )[0],
+            univariate_empirical(np.arange(10)).K,
+            [0.2, 0.55, -0.23],
+            np.arange(10),
+        ),
     ],
 )
 def test_cgf(cgf_to_test, cgf, ts, dist):
