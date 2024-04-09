@@ -182,6 +182,9 @@ class CumulantGeneratingFunction(ABC):
     def __mul__(self, other):
         return self.mul(other, inplace=False)
 
+    def __truediv__(self, other):
+        return self.mul(1 / other, inplace=False)
+
     def __rmul__(self, other):
         return self.__mul__(other)
 
