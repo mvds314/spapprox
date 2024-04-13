@@ -330,7 +330,7 @@ def test_basic(cgf_to_test, cgf, ts, dist):
     # Test function evaluations
     assert isinstance(cgf_to_test, UnivariateCumulantGeneratingFunction)
     for t in ts:
-        cgf_to_test.K(t),
+        (cgf_to_test.K(t),)
         assert np.isclose(cgf(t), cgf_to_test.K(t), atol=1e-4)
         dcgf = nd.Derivative(cgf_to_test.K, n=1)
         assert np.isclose(dcgf(t), cgf_to_test.dK(t))
@@ -390,19 +390,20 @@ def test_domain():
     assert np.isnan(cgf.d3K(0.5))
     assert not np.isnan(cgf.d3K(1.5))
     # TODO: fix this test
-    # cgf = MultivariateCumulantGeneratingFunction(
-    #     K=lambda t: t**4,
-    #     domain=Domain(g=0, l=2),
-    #     dim=2,
-    # )[0]
-    # assert np.isnan(cgf.K(0.5))
-    # assert not np.isnan(cgf.K(1.5))
-    # assert np.isnan(cgf.dK(0.5))
-    # assert not np.isnan(cgf.dK(1.5))
-    # assert np.isnan(cgf.d2K(0.5))
-    # assert not np.isnan(cgf.d2K(1.5))
-    # assert np.isnan(cgf.d3K(0.5))
-    # assert not np.isnan(cgf.d3K(1.5))
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=lambda t: t**4,
+        domain=Domain(g=0, l=2, dim=2),
+        dim=2,
+    )
+    cgf = cgf[0]
+    assert np.isnan(cgf.K(0.5))
+    assert not np.isnan(cgf.K(1.5))
+    assert np.isnan(cgf.dK(0.5))
+    assert not np.isnan(cgf.dK(1.5))
+    assert np.isnan(cgf.d2K(0.5))
+    assert not np.isnan(cgf.d2K(1.5))
+    assert np.isnan(cgf.d3K(0.5))
+    assert not np.isnan(cgf.d3K(1.5))
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
         domain=Domain(g=0, l=2),
@@ -550,7 +551,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_basic",
+                "test_domain",
                 "--tb=auto",
                 "--pdb",
             ]
