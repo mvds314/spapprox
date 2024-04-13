@@ -1071,7 +1071,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
         [3] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
         """
-        if isinstance(other, (int, float, np.ndarray)):
+        if isinstance(other, (int, float, np.ndarray, list)):
+            if isinstance(other, list):
+                other = np.asanyarray(other)
             if isinstance(other, np.ndarray):
                 assert len(other) == self.dim, "Dimensions do not match"
             if inplace:
@@ -1173,6 +1175,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     domain=self.domain,
                     dim=self.dim,
                 )
+        elif isinstance(other, list):
+            return self.mul(np.asanyarray(other), inplace=inplace)
         elif isinstance(other, np.ndarray) and len(other.shape) == 1:
             assert len(other) == self.dim, "Vector rescaling should work on all variables"
             # This is simply a rescaling of all the components
@@ -1230,6 +1234,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         if isinstance(A, np.ndarray) and len(A.shape) == 1:
             assert not inplace, "Inplace not possible when projecting to univariate case"
             return self.ldot(np.atleast_2d(A), inplace=inplace)[0]
+        elif isinstance(A, list):
+            return self.ldot(np.asanyarray(A), inplace=inplace)
         elif isinstance(A, np.ndarray) and len(A.shape) == 2 and A.shape[1] == self.dim:
             if inplace:
                 assert (

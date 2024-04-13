@@ -414,7 +414,9 @@ class Domain:
                     b = np.append(b, np.full(self.dim, self.l) if np.isscalar(self.l) else self.l)
                 if self.g is not None:
                     B = np.vstack((B, -np.eye(self.dim)))
-                    b = np.append(b, np.full(self.dim, self.g) if np.isscalar(self.g) else self.g)
+                    b = np.append(
+                        b, np.full(self.dim, -self.g) if np.isscalar(self.g) else -self.g
+                    )
                 sel = ~np.isnan(b)
                 B = B[sel]
                 b = b[sel]
@@ -584,7 +586,7 @@ class Domain:
 
     @type_wrapper(xloc=1)
     def is_in_domain(self, t):
-        if self.dim == 1 and len(t.shape) < 2:
+        if self.dim == 1 and len(t.shape) < 1:
             val = np.full(t.shape, pd.notnull(t))
             t = np.expand_dims(t, axis=len(t.shape))
         else:

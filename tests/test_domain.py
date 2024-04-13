@@ -74,6 +74,14 @@ def test_domain_nD():
     assert np.isscalar(res) and res
     res = dom.is_in_domain([[3, 0, 0], [0, 0, 0]])
     assert pd.api.types.is_array_like(res) and all(res == [False, True])
+    # Another test with actual bounds
+    dom = Domain(l=3, g=-1, le=2, dim=1)
+    assert [3] not in dom
+    assert [[0]] in dom
+    res = dom.is_in_domain([0])
+    assert np.isscalar(res) and res
+    res = dom.is_in_domain([[3], [0]])
+    assert pd.api.types.is_array_like(res) and all(res == [False, True])
     # Test At <= a
     with pytest.raises(AssertionError):
         Domain(A=np.array([[1]]), a=np.array([2]), dim=3)
@@ -239,8 +247,8 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                # "-k",
-                # "test_from_domains",
+                "-k",
+                "test_domain_nD",
                 "--tb=auto",
                 "--pdb",
             ]
