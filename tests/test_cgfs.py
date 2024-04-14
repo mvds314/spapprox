@@ -343,20 +343,45 @@ def test_basic(cgf_to_test, cgf, ts, dist):
     assert np.isclose(cgf_to_test.variance, dist.var())
     # Test addition scalar
     for t in ts:
+        # Test cumulant generating function
         assert np.isclose(cgf(t) + t, (cgf_to_test + float(1)).K(t))
-        dcgf = nd.Derivative(cgf_to_test.K, n=1)
         assert np.isclose(cgf(t) - 2 * t, (cgf_to_test - int(2)).K(t), atol=1e-5)
         cgf_to_test.add(3, inplace=True)
         assert np.isclose(cgf(t) + 3 * t, cgf_to_test.K(t))
         cgf_to_test.add(-3, inplace=True)
         cgf_to_test.add(3, inplace=False)
         assert np.isclose(cgf(t), cgf_to_test.K(t))
+        # Test first derivative
         dcgf = nd.Derivative(cgf, n=1)
         cgf_to_test.add(3, inplace=True)
         assert np.isclose(dcgf(t) + 3, cgf_to_test.dK(t), atol=1e-4)
         assert np.isclose(cgf_to_test.dK0, dcgf(0) + 3)
         cgf_to_test.add(-3, inplace=True)
         assert np.isclose(cgf_to_test.dK0, dcgf(0))
+    # Test multiplication and division with scalar
+    for t in ts:
+        # Test cumulant generating function
+        assert np.isclose(cgf(1.01 * t), (1.01 * cgf_to_test).K(t))
+        assert np.isclose(cgf(1.01 * t), (cgf_to_test / (1 / 1.01)).K(t), atol=1e-5)
+        cgf_to_test.mul(1.01, inplace=True)
+        assert np.isclose(cgf(1.01 * t), cgf_to_test.K(t))
+        cgf_to_test.mul(1 / 1.01, inplace=True)
+        cgf_to_test.mul(2, inplace=False)
+        assert np.isclose(cgf(t), cgf_to_test.K(t))
+        # Test first derivative
+        dcgf = nd.Derivative(cgf, n=1)
+        cgf_to_test.mul(1.01, inplace=True)
+        assert np.isclose(dcgf(1.01 * t) / (1 / 1.01), cgf_to_test.dK(t), atol=1e-4)
+        assert np.isclose(cgf_to_test.dK0, dcgf(0) * 1.01)
+        cgf_to_test.mul(1 / 1.01, inplace=True)
+        assert np.isclose(cgf_to_test.dK0, dcgf(0))
+        # Test second derivative
+        d2cgf = nd.Derivative(cgf, n=2)
+        cgf_to_test.mul(1.01, inplace=True)
+        assert np.isclose(d2cgf(1.01 * t) / (1 / 1.01) ** 2, cgf_to_test.d2K(t), atol=1e-4)
+        assert np.isclose(cgf_to_test.d2K0, d2cgf(0) * 1.01**2)
+        cgf_to_test.mul(1 / 1.01, inplace=True)
+        assert np.isclose(cgf_to_test.d2K0, d2cgf(0))
     # Test addition other cumulant generating function
     for t in ts:
         assert np.isclose(cgf(t) + cgf(t), (cgf_to_test + cgf_to_test).K(t))
@@ -389,7 +414,6 @@ def test_domain():
     assert not np.isnan(cgf.d2K(1.5))
     assert np.isnan(cgf.d3K(0.5))
     assert not np.isnan(cgf.d3K(1.5))
-    # TODO: fix this test
     cgf = MultivariateCumulantGeneratingFunction(
         K=lambda t: np.sum(t**4),
         domain=Domain(ge=[1, 0], l=[2, 2], dim=2),
