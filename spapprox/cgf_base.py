@@ -1029,11 +1029,17 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             return MultivariateCumulantGeneratingFunction(
                 lambda t, loc=loc, scale=scale: self.K(t, loc=loc, scale=scale),
                 dim=len(item),
-                dK=lambda t, loc=loc, scale=scale: (
-                    self.dK(t, loc=loc, scale=scale) if self._dK is not None else None
+                dK=(
+                    None
+                    if self._dK is None
+                    else lambda t, loc=loc, scale=scale: (
+                        self.dK(t, loc=loc, scale=scale) if self._dK is not None else None
+                    )
                 ),
-                d2K=lambda t, loc=loc, scale=scale: (
-                    self.d2K(t, loc=loc, scale=scale) if self._d2K is not None else None
+                d2K=(
+                    None
+                    if self._d2K is None
+                    else lambda t, loc=loc, scale=scale: (self.d2K(t, loc=loc, scale=scale))
                 ),
                 d3K=None,  # TODO: implement this one properly
                 domain=self.domain.ldotinv(scale.T),
@@ -1312,9 +1318,22 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             t = np.full(self.dim, t)
         if self._dK is None:
             assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._dK = np.vectorize(
-                nd.Gradient(lambda tt: self.K(tt, loc=0, scale=1)), signature="(n)->(n)"
-            )
+            grad = nd.Gradient(lambda tt: self.K(tt, loc=0, scale=1))
+
+            def _dK(tt):
+                """
+                Note vectorize gradient does not seem to work, return shape is
+                not a vector for 1 dim evaluations.
+                """
+                tt = np.asanyarray(tt)
+                if len(tt.shape) == 2:
+                    return np.asanyarray([grad(ttt) for ttt in tt])
+                elif len(tt.shape) == 1:
+                    return np.atleast_1d(grad(tt))
+                else:
+                    raise ValueError("Invalid shape")
+
+            self._dK = _dK
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
         ts = self._scale_t(t, scale=scale)

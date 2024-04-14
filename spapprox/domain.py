@@ -608,7 +608,7 @@ class Domain:
         if self.ge is not None:
             val &= np.all((t >= self.ge) | np.isnan(self.ge), axis=len(t.shape) - 1)
         if self.A is not None:
-            val &= np.all((self.A.dot(t.T) <= self.a).T, len(t.shape) - 1)
+            val &= np.all(self.A.dot(t.T).T <= self.a, len(t.shape) - 1)
         if self.B is not None:
-            val &= np.all((self.B.dot(t.T) < self.b).T, axis=len(t.shape) - 1)
+            val &= np.all(self.B.dot(t.T).T < self.b, axis=len(t.shape) - 1)
         return val

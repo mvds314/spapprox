@@ -391,8 +391,8 @@ def test_domain():
     assert not np.isnan(cgf.d3K(1.5))
     # TODO: fix this test
     cgf = MultivariateCumulantGeneratingFunction(
-        K=lambda t: t**4,
-        domain=Domain(g=0, l=2, dim=2),
+        K=lambda t: np.sum(t**4),
+        domain=Domain(ge=[1, 0], l=[2, 2], dim=2),
         dim=2,
     )
     cgf = cgf[0]
