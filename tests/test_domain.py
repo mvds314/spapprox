@@ -79,7 +79,7 @@ def test_domain_nD():
     assert [3] not in dom
     assert [[0]] in dom
     res = dom.is_in_domain([0])
-    assert np.isscalar(res) and res
+    assert pd.api.types.is_array_like(res) and all(res)
     res = dom.is_in_domain([[3], [0]])
     assert pd.api.types.is_array_like(res) and all(res == [False, True])
     # Test At <= a

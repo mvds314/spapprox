@@ -551,7 +551,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_domain",
+                "test_basic",
                 "--tb=auto",
                 "--pdb",
             ]
