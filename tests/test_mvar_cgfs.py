@@ -28,6 +28,8 @@ from spapprox import (
 from spapprox.util import type_wrapper
 from statsmodels.stats.moment_helpers import cov2corr
 
+# TODO: add division to test cases
+
 
 def test_2d_from_uniform():
     cgf1 = norm()

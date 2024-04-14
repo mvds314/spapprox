@@ -28,8 +28,6 @@ from spapprox import (
     univariate_empirical,
 )
 
-# TODO: add division to test cases
-
 
 @pytest.mark.parametrize(
     "cgf_to_test,cgf,ts,dist",
@@ -503,8 +501,8 @@ def test_return_type(cgf):
         ),
         # TODO: fix this test
         # (
-        # MultivariateCumulantGeneratingFunction.from_univariate(exponential(scale=1))[0],
-        # [0.2, 0.55, 0.95],
+        #     MultivariateCumulantGeneratingFunction.from_univariate(exponential(scale=1))[0],
+        #     [0.2, 0.55, 0.95],
         # ),
         # TODO: continue here
         # Case 5: Univariate exponential with scale
