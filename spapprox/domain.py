@@ -532,56 +532,67 @@ class Domain:
     def from_domains(cls, *domains):
         assert all(isinstance(d, Domain) for d in domains), "All arguments should be Domains"
         dim = sum(d.dim for d in domains)
-        l = (  # noqa: E741
-            np.hstack(tuple([d.l_vect for d in domains]))
-            if any(d.l is not None for d in domains)
-            else None
-        )
-        g = (
-            np.hstack(tuple([d.g_vect for d in domains]))
-            if any(d.g is not None for d in domains)
-            else None
-        )
-        le = (
-            np.hstack(tuple([d.le_vect for d in domains]))
-            if any(d.le is not None for d in domains)
-            else None
-        )
-        ge = (
-            np.hstack(tuple([d.ge_vect for d in domains]))
-            if any(d.ge is not None for d in domains)
-            else None
-        )
-        if any(d.A is not None for d in domains):
-            A = np.zeros((sum(d.A.shape[0] if d.A is not None else 0 for d in domains), dim))
-            a = np.zeros(A.shape[0])
-            i, j = 0
-            for d in domains:
-                if d.A is not None:
-                    A[i : i + d.A.shape[0], j : j + d.dim] = d.A
-                    a[i : i + d.a.shape[0]] = d.a
-                    i += d.A.shape[0]
-                j += d.dim
-            assert i == A.shape[0]
-            assert j == A.shape[1]
+        if dim == 1:
+            assert len(domains) == 1, "For dimension 1, only one domain is expected"
+            l = domains[0].l  # noqa: E741
+            g = domains[0].g
+            le = domains[0].le
+            ge = domains[0].ge
+            A = domains[0].A
+            a = domains[0].a
+            B = domains[0].B
+            b = domains[0].b
         else:
-            A = None
-            a = None
-        if any(d.B is not None for d in domains):
-            B = np.zeros((sum(d.B.shape[0] if d.B is not None else 0 for d in domains), dim))
-            b = np.zeros(B.shape[0])
-            i, j = 0
-            for d in domains:
-                if d.B is not None:
-                    B[i : i + d.B.shape[0], j : j + d.dim] = d.B
-                    b[i : i + d.b.shape[0]] = d.b
-                    i += d.B.shape[0]
-                j += d.dim
-            assert i == B.shape[0]
-            assert j == B.shape[1]
-        else:
-            B = None
-            b = None
+            l = (  # noqa: E741
+                np.hstack(tuple([d.l_vect for d in domains]))
+                if any(d.l is not None for d in domains)
+                else None
+            )
+            g = (
+                np.hstack(tuple([d.g_vect for d in domains]))
+                if any(d.g is not None for d in domains)
+                else None
+            )
+            le = (
+                np.hstack(tuple([d.le_vect for d in domains]))
+                if any(d.le is not None for d in domains)
+                else None
+            )
+            ge = (
+                np.hstack(tuple([d.ge_vect for d in domains]))
+                if any(d.ge is not None for d in domains)
+                else None
+            )
+            if any(d.A is not None for d in domains):
+                A = np.zeros((sum(d.A.shape[0] if d.A is not None else 0 for d in domains), dim))
+                a = np.zeros(A.shape[0])
+                i, j = 0
+                for d in domains:
+                    if d.A is not None:
+                        A[i : i + d.A.shape[0], j : j + d.dim] = d.A
+                        a[i : i + d.a.shape[0]] = d.a
+                        i += d.A.shape[0]
+                    j += d.dim
+                assert i == A.shape[0]
+                assert j == A.shape[1]
+            else:
+                A = None
+                a = None
+            if any(d.B is not None for d in domains):
+                B = np.zeros((sum(d.B.shape[0] if d.B is not None else 0 for d in domains), dim))
+                b = np.zeros(B.shape[0])
+                i, j = 0
+                for d in domains:
+                    if d.B is not None:
+                        B[i : i + d.B.shape[0], j : j + d.dim] = d.B
+                        b[i : i + d.b.shape[0]] = d.b
+                        i += d.B.shape[0]
+                    j += d.dim
+                assert i == B.shape[0]
+                assert j == B.shape[1]
+            else:
+                B = None
+                b = None
         return cls(dim=dim, l=l, g=g, le=le, ge=ge, A=A, a=a, B=B, b=b)
 
     @type_wrapper(xloc=1)

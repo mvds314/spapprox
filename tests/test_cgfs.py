@@ -499,22 +499,19 @@ def test_return_type(cgf):
             exponential(scale=1),
             [0.2, 0.55, 0.95],
         ),
-        # TODO: fix this test
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(exponential(scale=1))[0],
-        #     [0.2, 0.55, 0.95],
-        # ),
-        # TODO: continue here
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(exponential(scale=1))[0],
+            [0.2, 0.55, 0.95],
+        ),
         # Case 5: Univariate exponential with scale
         (
             exponential(scale=0.5),
             [0.2, 0.55, 0.95],
         ),
-        # TODO: fix this test
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(exponential(scale=0.5))[0],
-        #     [0.2, 0.55, 0.95],
-        # )
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(exponential(scale=0.5))[0],
+            [0.2, 0.55, 0.95],
+        ),
         # Case 6: Univariate exponential manually specified
         (
             UnivariateCumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
@@ -573,7 +570,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_basic",
+                "test_dKinv",
                 "--tb=auto",
                 "--pdb",
             ]
