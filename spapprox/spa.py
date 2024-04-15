@@ -481,6 +481,31 @@ class UnivariateSaddlePointApproxMean(UnivariateSaddlePointApprox):
         super().__init__(cgf, pdf_normalization=pdf_normalization)
 
 
+class BivariateSaddlePointApprox:
+    """
+    Given the cumulant generating function of a bivariate random variable, this class
+    provides the saddle point approximation of the probability density function.
+
+    The bivariate saddle point approximation is given by
+
+    .. math::
+        f(x, y) \approx \frac{1}{2\pi\sqrt{\det\left(-H\right)}} \exp\left(K(t) - t_1x - t_2y\right)
+
+    where :math:`H` is the Hessian matrix of the cumulant generating function, and :math:`t`
+    is the solution of the saddle point equation.
+
+    References
+    ----------
+    [1] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
+    [2] Butler, R. W. (2007). Saddlepoint approximations with applications.
+    [3] Butler, R. W., & Wood, A. T. A. (2002). Saddlepoint approximations for the bivariate normal distribution.
+
+    TODO: find out a bit more references
+    """
+
+    pass
+
+
 class MultivariateSaddlePointApprox:
     """
     See the Kolasse book on how to remove singularities
