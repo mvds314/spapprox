@@ -1,31 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from pathlib import Path
 import warnings
+from pathlib import Path
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", category=DeprecationWarning)
     import numdifftools as nd
 import numpy as np
 import pytest
-from scipy.integrate import quad
 import scipy.stats as sps
-
+from scipy.integrate import quad
 from spapprox import (
-    UnivariateCumulantGeneratingFunction,
-    MultivariateCumulantGeneratingFunction,
     Domain,
-    norm,
-    multivariate_norm,
+    MultivariateCumulantGeneratingFunction,
+    UnivariateCumulantGeneratingFunction,
+    binomial,
+    chi2,
     exponential,
     gamma,
-    chi2,
     laplace,
+    multivariate_norm,
+    norm,
     poisson,
-    binomial,
-    univariate_sample_mean,
     univariate_empirical,
+    univariate_sample_mean,
 )
 
 
