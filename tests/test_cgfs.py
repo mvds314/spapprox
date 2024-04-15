@@ -521,43 +521,68 @@ def test_return_type(cgf):
             UnivariateCumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
             [0.2, 0.55, 0.95],
         ),
-        # TODO: add multivariate case
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                UnivariateCumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t)))
+            )[0],
+            [0.2, 0.55, 0.95],
+        ),
         # Case 7: Univariate gamma
         (
             gamma(a=2, scale=0.5),
             [0.2, 0.55],
         ),
-        # TODO: add multivariate case
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(gamma(a=2, scale=0.5))[0],
+            [0.2, 0.55],
+        ),
         # Case 8: Univariate chi2
         (
             chi2(df=3),
             [0.2, 0.25],
         ),
-        # TODO: add multivariate case
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(chi2(df=3))[0],
+            [0.2, 0.25],
+        ),
         # Case 9: Univariate laplace
         (
             laplace(loc=0, scale=1),
             [0.2, 0.55, -0.23],
         ),
-        # TODO: add multivariate case
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(laplace(loc=0, scale=1))[0],
+            [0.2, 0.55, -0.23],
+        ),
         # Case 10: Univariate poisson
         (
             poisson(mu=2),
             [0.2, 0.55],
         ),
-        # TODO: add multivariate case
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(poisson(mu=2))[0],
+            [0.2, 0.55],
+        ),
         # Case 11: Univariate binomial
         (
             binomial(n=10, p=0.5),
             [0.2, 0.55],
         ),
-        # TODO: add multivariate case
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(binomial(n=10, p=0.5))[0],
+            [0.2, 0.55],
+        ),
         # Case 12: Univariate beta
         (
             univariate_sample_mean(norm(2, 1), 25),
             [0.2, 0.55, -0.23],
         ),
-        # TODO: add multivariate case
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                univariate_sample_mean(norm(2, 1), 25)
+            )[0],
+            [0.2, 0.55, -0.23],
+        ),
     ],
 )
 def test_dKinv(cgf, ts):
