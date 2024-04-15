@@ -28,8 +28,6 @@ from spapprox import (
 from spapprox.util import type_wrapper
 from statsmodels.stats.moment_helpers import cov2corr
 
-# TODO: add division to test cases
-
 
 def test_2d_from_uniform():
     cgf1 = norm()
@@ -191,7 +189,7 @@ def test_addition(mcgf1, mcgf2, dim):
 @pytest.mark.parametrize(
     "mcgf1,mcgf2,dim",
     [
-        # multiply vector in several equivalent ways
+        # multiply by or divide by vector in several equivalent ways
         (
             MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
             multivariate_norm(loc=np.zeros(2), scale=1) * np.array([1, 2]),
@@ -199,7 +197,17 @@ def test_addition(mcgf1, mcgf2, dim):
         ),
         (
             MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
+            multivariate_norm(loc=np.zeros(2), scale=1) / np.array([1, 0.5]),
+            2,
+        ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
             multivariate_norm(loc=np.zeros(2), scale=1).mul(np.array([1, 2]), inplace=True),
+            2,
+        ),
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
+            multivariate_norm(loc=0, scale=np.array([1, 2])),
             2,
         ),
         (
@@ -218,9 +226,14 @@ def test_addition(mcgf1, mcgf2, dim):
             multivariate_norm(loc=np.array([0, 1]), scale=1) * 3,
             2,
         ),
+        (
+            multivariate_norm(loc=np.array([0, 3]), scale=3),
+            multivariate_norm(loc=np.array([0, 1]), scale=1) / (1 / 3),
+            2,
+        ),
     ],
 )
-def test_multiplication(mcgf1, mcgf2, dim):
+def test_multiplication_and_division(mcgf1, mcgf2, dim):
     # multiply vector in several equivalent ways
     assert mcgf1.dim == mcgf2.dim == dim
     ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
@@ -499,10 +512,6 @@ def test_dKinv(mcgf, ts):
     assert np.allclose(xxs, xs)
     if mcgf.domain.dim == mcgf.dim:
         assert np.allclose(tts, ts)
-
-
-# TODO: also test the 1 dim case
-# TODO: just redo some of the 1 dim case tests
 
 
 def test_from_univariate():
