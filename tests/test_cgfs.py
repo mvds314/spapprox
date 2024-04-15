@@ -388,6 +388,7 @@ def test_basic(cgf_to_test, cgf, ts, dist):
 
 
 def test_domain():
+    # Test simple domain
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
         domain=Domain(l=1),
@@ -400,6 +401,7 @@ def test_domain():
     assert np.isnan(cgf.d2K(1.5))
     assert np.isclose(cgf.d3K(0.5), 12)
     assert np.isnan(cgf.d3K(1.5))
+    # Test domain with bounds
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
         domain=Domain(g=1, l=2),
@@ -412,6 +414,7 @@ def test_domain():
     assert not np.isnan(cgf.d2K(1.5))
     assert np.isnan(cgf.d3K(0.5))
     assert not np.isnan(cgf.d3K(1.5))
+    # Test by indexing MultivariateCumulantGeneratingFunction
     cgf = MultivariateCumulantGeneratingFunction(
         K=lambda t: np.sum(t**4),
         domain=Domain(ge=[1, 0], l=[2, 2], dim=2),
@@ -426,6 +429,7 @@ def test_domain():
     assert not np.isnan(cgf.d2K(1.5))
     assert np.isnan(cgf.d3K(0.5))
     assert not np.isnan(cgf.d3K(1.5))
+    # Another test
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
         domain=Domain(g=0, l=2),
