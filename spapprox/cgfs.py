@@ -57,21 +57,21 @@ def multivariate_norm(loc=0, scale=None, dim=None, cov=None):
     loc = np.asanyarray(loc)
     # Infer dimension
     if dim is None:
-        if loc is not None and len(loc.shape) > 0:
+        if loc is not None and loc.ndim > 0:
             dim = loc.shape[0]
-        elif scale is not None and len(scale.shape) > 0:
+        elif scale is not None and scale.ndim > 0:
             dim = scale.shape[0]
         else:
             dim = 2
     # Validate input
     assert (
-        loc is None or len(loc.shape) == 0 or (len(loc.shape) == 1 and loc.shape[0] == dim)
+        loc is None or loc.ndim == 0 or (loc.ndim == 1 and loc.shape[0] == dim)
     ), "loc has wrong shape"
     assert (
         scale is None
-        or len(scale.shape) == 0
-        or (len(scale.shape) == 1 and scale.shape[0] == dim)
-        or (len(scale.shape) == 2 and scale.shape[1] == dim)
+        or scale.ndim == 0
+        or (scale.ndim == 1 and scale.shape[0] == dim)
+        or (scale.ndim == 2 and scale.shape[1] == dim)
     ), "scale has wrong shape"
     # Return
     return MultivariateCumulantGeneratingFunction(
@@ -79,12 +79,10 @@ def multivariate_norm(loc=0, scale=None, dim=None, cov=None):
         dim=dim,
         dK=lambda t: t,
         dK_inv=lambda x: x,
-        d2K=lambda t: (
-            np.tile(np.eye(dim), (t.shape[0], 1, 1)) if len(t.shape) == 2 else np.eye(dim)
-        ),
+        d2K=lambda t: (np.tile(np.eye(dim), (t.shape[0], 1, 1)) if t.ndim == 2 else np.eye(dim)),
         d3K=lambda t: np.zeros(t.shape),
-        loc=loc if loc is None or len(loc.shape) > 0 else loc.tolist(),
-        scale=scale if scale is None or len(scale.shape) > 0 else scale.tolist(),
+        loc=loc if loc is None or loc.ndim > 0 else loc.tolist(),
+        scale=scale if scale is None or scale.ndim > 0 else scale.tolist(),
     )
 
 
@@ -162,21 +160,21 @@ def univariate_empirical(x):
 
     @type_wrapper(xloc=0)
     def K(t, x=x):
-        if len(t.shape) == 0:
+        if t.ndim == 0:
             y = np.log(np.exp(t * x).mean())
         else:
             y = np.log(np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1))
-        return y.tolist() if len(t.shape) == 1 else y
+        return y.tolist() if t.ndim == 1 else y
 
     @type_wrapper(xloc=0)
     def dK(t, x=x):
-        if len(t.shape) == 0:
+        if t.ndim == 0:
             y = (x * np.exp(t * x)).mean() / (np.exp(t * x).mean())
         else:
             y = (x * np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x)))).mean(axis=1) / (
                 np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1)
             )
-        return y.tolist() if len(t.shape) == 1 else y
+        return y.tolist() if t.ndim == 1 else y
 
     return UnivariateCumulantGeneratingFunction(K, dK=dK)
 
