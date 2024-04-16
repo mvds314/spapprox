@@ -36,7 +36,7 @@ def type_wrapper(xloc=0):
             wrapper = PandasWrapper(x)
             args = tuple(np.asanyarray(x) if i == xloc else a for i, a in enumerate(args))
             y = np.asanyarray(f(*args, **kwargs))
-            return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
+            return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
         return wrapped
 

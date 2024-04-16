@@ -173,7 +173,7 @@ class UnivariateSaddlePointApprox:
         if normalize_pdf:
             y *= 1 / self._pdf_normalization
         y = np.where(np.isnan(y), fillna, y)
-        return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
     def cdf(self, x=None, t=None, fillna=np.nan, backend="LR", **solver_kwargs):
         r"""
@@ -233,7 +233,7 @@ class UnivariateSaddlePointApprox:
         else:
             raise ValueError("backend must be either 'LR' or 'BN'")
         y = np.where(np.isnan(y), fillna, y)
-        return y.tolist() if len(y.shape) == 0 else wrapper.wrap(y)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
     @type_wrapper(xloc=1)
     def ppf(self, q, fillna=np.nan, t0=None, ttol=1e-4, **kwargs):
@@ -252,7 +252,7 @@ class UnivariateSaddlePointApprox:
         if hasattr(self, "_cdf_cache") and hasattr(self, "_t_cache"):
             t = np.interp(q, self._cdf_cache, self._t_cache)
         else:
-            if len(q.shape) == 0:  # Then it is a scalar "array"
+            if q.ndim == 0:  # Then it is a scalar "array"
                 q = q.tolist()
                 kwargs["x0"] = 0 if t0 is None else t0
                 bracket_methods = [
