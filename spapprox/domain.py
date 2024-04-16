@@ -74,8 +74,8 @@ class Domain:
             assert a is not None, "A and a should both be specified"
             A = np.asanyarray(A)
             a = np.asanyarray(a)
-            assert len(A.shape) == 2, "A should be a matrix"
-            assert len(a.shape) == 1, "a should be a vector"
+            assert A.ndim == 2, "A should be a matrix"
+            assert a.ndim == 1, "a should be a vector"
             assert A.shape == (
                 len(a),
                 self.dim,
@@ -88,8 +88,8 @@ class Domain:
             assert b is not None, "B and b should both be specified"
             B = np.asanyarray(B)
             b = np.asanyarray(b)
-            assert len(B.shape) == 2, "B should be a matrix"
-            assert len(b.shape) == 1, "b should be a vector"
+            assert B.ndim == 2, "B should be a matrix"
+            assert b.ndim == 1, "b should be a vector"
             assert B.shape == (
                 len(b),
                 self.dim,
@@ -133,9 +133,9 @@ class Domain:
                 self._l_vect_cache = np.full(self.dim, np.nan)
             elif np.isscalar(self.l):
                 self._l_vect_cache = np.full(self.dim, self.l)
-            elif isinstance(self.l, np.ndarray) and len(self.l.shape) == 0:
+            elif isinstance(self.l, np.ndarray) and self.l.ndim == 0:
                 self._l_vect_cache = np.full(self.dim, self.l.tolist())
-            elif isinstance(self.l, np.ndarray) and len(self.l.shape) == 1:
+            elif isinstance(self.l, np.ndarray) and self.l.ndim == 1:
                 self._l_vect_cache = self.l
             else:
                 raise ValueError("Unexpected value encountered")
@@ -148,9 +148,9 @@ class Domain:
                 self._g_vect_cache = np.full(self.dim, np.nan)
             elif np.isscalar(self.g):
                 self._g_vect_cache = np.full(self.dim, self.g)
-            elif isinstance(self.g, np.ndarray) and len(self.g.shape) == 0:
+            elif isinstance(self.g, np.ndarray) and self.g.ndim == 0:
                 self._g_vect_cache = np.full(self.dim, self.g.tolist())
-            elif isinstance(self.g, np.ndarray) and len(self.g.shape) == 1:
+            elif isinstance(self.g, np.ndarray) and self.g.ndim == 1:
                 self._g_vect_cache = self.g
             else:
                 raise ValueError("Unexpected value encountered")
@@ -163,9 +163,9 @@ class Domain:
                 self._le_vect_cache = np.full(self.dim, np.nan)
             elif np.isscalar(self.le):
                 self._le_vect_cache = np.full(self.dim, self.le)
-            elif isinstance(self.le, np.ndarray) and len(self.le.shape) == 0:
+            elif isinstance(self.le, np.ndarray) and self.le.ndim == 0:
                 self._le_vect_cache = np.full(self.dim, self.le.tolist())
-            elif isinstance(self.le, np.ndarray) and len(self.le.shape) == 1:
+            elif isinstance(self.le, np.ndarray) and self.le.ndim == 1:
                 self._le_vect_cache = self.le
             else:
                 raise ValueError("Unexpected value encountered")
@@ -178,9 +178,9 @@ class Domain:
                 self._ge_vect_cache = np.full(self.dim, np.nan)
             elif np.isscalar(self.ge):
                 self._ge_vect_cache = np.full(self.dim, self.ge)
-            elif isinstance(self.ge, np.ndarray) and len(self.ge.shape) == 0:
+            elif isinstance(self.ge, np.ndarray) and self.ge.ndim == 0:
                 self._ge_vect_cache = np.full(self.dim, self.ge.tolist())
-            elif isinstance(self.ge, np.ndarray) and len(self.ge.shape) == 1:
+            elif isinstance(self.ge, np.ndarray) and self.ge.ndim == 1:
                 self._ge_vect_cache = self.ge
             else:
                 raise ValueError("Unexpected value encountered")
@@ -196,7 +196,7 @@ class Domain:
         if pd.api.types.is_number(other):
             a = None if self.a is None else self.a + self.A.dot(np.full(self.dim, other))
             b = None if self.b is None else self.b + self.B.dot(np.full(self.dim, other))
-        elif isinstance(other, np.ndarray) and len(other.shape) == 0:
+        elif isinstance(other, np.ndarray) and other.ndim == 0:
             return self.add(other.tolist())
         elif pd.api.types.is_array_like(other) and len(other) == self.dim:
             a = None if self.a is None else self.a + self.A.dot(other)
@@ -254,12 +254,12 @@ class Domain:
                 l = self.g * other if self.g is not None else None  # noqa: E741
                 ge = self.le * other if self.le is not None else None
                 le = self.ge * other if self.ge is not None else None
-        elif isinstance(other, np.ndarray) and len(other.shape) == 0:
+        elif isinstance(other, np.ndarray) and other.ndim == 0:
             return self.mul(other.tolist())
         elif self.dim > 1 and pd.api.types.is_array_like(other):
             other = np.asanyarray(other)
             assert not np.any(np.isclose(other, 0)), "Cannot multiply with zero"
-            assert len(other.shape) == 1 and len(other) == self.dim, "Invalid shape"
+            assert other.ndim == 1 and len(other) == self.dim, "Invalid shape"
             # Divide each row of A by other
             A = None if self.A is None else np.divide(self.A, other)
             B = None if self.B is None else np.divide(self.B, other)
@@ -330,9 +330,9 @@ class Domain:
                     "Provided transformation must be invertible for domains with ineq constraints"
                 )
             return self.ldotinv(inv)
-        elif len(other.shape) == 1 and len(other) == self.dim:
+        elif other.ndim == 1 and len(other) == self.dim:
             return self.ldot(np.atleast_2d(other))
-        elif len(other.shape) == 2 and other.shape[1] == self.dim:
+        elif other.ndim == 2 and other.shape[1] == self.dim:
             if self.l is None:
                 l = None  # noqa: E741
             elif np.isscalar(self.l):
@@ -357,7 +357,7 @@ class Domain:
                 ge = other.dot(np.full(self.dim, self.ge))
             else:
                 ge = other.dot(self.ge)
-            dim = other.shape[0] if len(other.shape) == 2 else 1
+            dim = other.shape[0] if other.ndim == 2 else 1
             if dim == 1:
                 l = l[0] if l is not None else None  # noqa: E741
                 g = g[0] if g is not None else None
@@ -375,12 +375,12 @@ class Domain:
         # Initialize
         assert other is not None
         other = np.asanyarray(other)
-        if len(other.shape) == 1 and len(other) == self.dim:
+        if other.ndim == 1 and len(other) == self.dim:
             if not self.has_bounds and not self.has_ineq_constraints:
                 return Domain(dim=1)
             else:
                 return self.ldot(np.expand_dims(other, axis=0))
-        elif len(other.shape) == 2 and other.shape[0] == self.dim:
+        elif other.ndim == 2 and other.shape[0] == self.dim:
             if not self.has_bounds and not self.has_ineq_constraints:
                 return Domain(dim=other.shape[1])
             # Define A and a
@@ -597,29 +597,29 @@ class Domain:
 
     @type_wrapper(xloc=1)
     def is_in_domain(self, t):
-        if self.dim == 1 and len(t.shape) < 2:
+        if self.dim == 1 and t.ndim < 2:
             val = np.full(t.shape, pd.notnull(t))
-            t = np.expand_dims(t, axis=len(t.shape))
+            t = np.expand_dims(t, axis=t.ndim)
         else:
-            assert len(t.shape) in [
+            assert t.ndim in [
                 1,
                 2,
             ], "Only vectors or lists of vectors are supported"
             assert t.shape[-1] == self.dim, "Shape does not match with dimension"
-            if len(t.shape) == 1:
+            if t.ndim == 1:
                 val = pd.notnull(t).all()
             else:
                 val = pd.notnull(t).all(axis=1)
         if self.l is not None:
-            val &= np.all((t < self.l) | np.isnan(self.l), axis=len(t.shape) - 1)
+            val &= np.all((t < self.l) | np.isnan(self.l), axis=t.ndim - 1)
         if self.g is not None:
-            val &= np.all((t > self.g) | np.isnan(self.g), axis=len(t.shape) - 1)
+            val &= np.all((t > self.g) | np.isnan(self.g), axis=t.ndim - 1)
         if self.le is not None:
-            val &= np.all((t <= self.le) | np.isnan(self.le), axis=len(t.shape) - 1)
+            val &= np.all((t <= self.le) | np.isnan(self.le), axis=t.ndim - 1)
         if self.ge is not None:
-            val &= np.all((t >= self.ge) | np.isnan(self.ge), axis=len(t.shape) - 1)
+            val &= np.all((t >= self.ge) | np.isnan(self.ge), axis=t.ndim - 1)
         if self.A is not None:
-            val &= np.all(self.A.dot(t.T).T <= self.a, len(t.shape) - 1)
+            val &= np.all(self.A.dot(t.T).T <= self.a, t.ndim - 1)
         if self.B is not None:
-            val &= np.all(self.B.dot(t.T).T < self.b, axis=len(t.shape) - 1)
+            val &= np.all(self.B.dot(t.T).T < self.b, axis=t.ndim - 1)
         return val
