@@ -482,7 +482,7 @@ class UnivariateSaddlePointApproxMean(UnivariateSaddlePointApprox):
 
 
 class BivariateSaddlePointApprox:
-    """
+    r"""
     Given the cumulant generating function of a bivariate random variable, this class
     provides the saddle point approximation of the probability density function.
 
