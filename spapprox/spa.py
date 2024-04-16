@@ -494,13 +494,15 @@ class BivariateSaddlePointApprox:
     where :math:`H` is the Hessian matrix of the cumulant generating function, and :math:`t`
     is the solution of the saddle point equation.
 
+    We follow the approach as outlined in [4].
+
     References
     ----------
-    [1] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
+    [1] Broda, Paolella (2011) - Saddlepoint approximations - a review
     [2] Butler, R. W. (2007). Saddlepoint approximations with applications.
-    [3] Butler, R. W., & Wood, A. T. A. (2002). Saddlepoint approximations for the bivariate normal distribution.
+    [3] Wang (1990) - Saddlepoint approximations for bivariate distributions
+    [4] Paolella (2007) - Intermediate Probability
 
-    TODO: find out a bit more references
     """
 
     pass
@@ -509,13 +511,15 @@ class BivariateSaddlePointApprox:
 class MultivariateSaddlePointApprox:
     """
     See the Kolasse book on how to remove singularities
-    DasGupta claims the multidimensional case is too notationally comples
+    DasGupta claims the multidimensional case is too notationally complex
 
     References
     ----------
     [1] Kolassa (2006) - Series approximations in statistics
     [2] DasGupta (2008) - Asymptotic theory of statistics and probability, Chapter 14.9
     [3] Reid (1988) - Saddlepoint methods and statistical inference
+    [4] Gatto (2000) - Symbolic computation for approximating distributions of some families of one and two-sample nonparametric test statistics
+    [5] Gatto (2019) - Saddlepoint approximations for data in simplices
     """
 
     pass
