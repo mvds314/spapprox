@@ -66,7 +66,7 @@ from spapprox import (
         (
             norm(loc=1, scale=1) + norm(loc=2, scale=1),
             lambda t, pdf=sps.norm(3, np.sqrt(2)).pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+                quad(lambda x: pdf(x) * np.exp(t * x), a=-12, b=12)[0]
             ),
             [0.2, 0.55],
             sps.norm(loc=3, scale=np.sqrt(2)),
