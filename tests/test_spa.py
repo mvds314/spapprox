@@ -182,12 +182,19 @@ def test_expon_spa(cgf, dist, trange):
     ],
 )
 def test_mvar_spa(cgf, dist, ts, dim):
+    # TODO: also test the bivariate implementation explicitly
     spa = MultivariateSaddlePointApprox(cgf)
     assert spa.dim == dim
     for t in ts:
         x = spa.cgf.dK(t)
         assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
     assert np.allclose(spa.pdf(t=ts, normalize_pdf=False), dist.pdf(spa.cgf.dK(ts)))
+    # TODO: test pdf normalization with nquad
+    # TODO: use the special dblquad function for the 2D case
+
+    # TODO: what else can we test?
+
+    # TODO: can we do any interpolation or fitting of the saddlepoint equation?
 
     # assert np.isclose(
     #     quad(
