@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from abc import ABC, abstractmethod
+from abc import ABC
 import inspect
 import numpy as np
 import scipy.stats as sps
