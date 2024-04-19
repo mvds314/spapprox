@@ -4,6 +4,7 @@
 from pathlib import Path
 
 import numpy as np
+import itertools
 import pytest
 import scipy.stats as sps
 from scipy.integrate import quad
@@ -183,12 +184,13 @@ def test_expon_spa(cgf, dist, trange):
 def test_mvar_spa(cgf, dist, trange, dim):
     spa = MultivariateSaddlePointApprox(cgf)
     assert spa.dim == dim
-    t = np.linspace(*trange, 1000)
-    t = [4, 5]
-    x = spa.cgf.dK(t)
-    # These ones should be exact
-    val = spa.pdf(t=t, normalize_pdf=False)
-    assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
+    ts = np.linspace(*trange, 10)
+    for t in itertools.combinations_with_replacement(ts, dim):
+        t = list(t)
+        x = spa.cgf.dK(t)
+        assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
+    # TODO: test vectorized
+
     # assert np.isclose(
     #     quad(
     #         lambda t: spa.pdf(t=t, normalize_pdf=False) * cgf.d2K(t),
