@@ -86,7 +86,7 @@ class SaddlePointApprox(ABC):
         cached_attribs = [
             k
             for k, v in inspect.getmembers(self, lambda a: not inspect.isroutine(a))
-            if k.endwiths("_cache")
+            if k.endswith("_cache")
         ]
         for attr in cached_attribs:
             if hasattr(self, attr):
