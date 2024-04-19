@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from abc import ABC
+from abc import ABC, abstractmethod
 import inspect
 import numpy as np
 import scipy.stats as sps
@@ -69,6 +69,15 @@ class SaddlePointApprox(ABC):
 
     def ppf(self, q, *args, fillna=np.nan, t0=None, ttol=1e-4, **kwargs):
         raise NotImplementedError(f"PPF not implemented for {self.__class__.__name__}")
+
+    @type_wrapper(xloc=1)
+    def _dK_inv(self, x, **solver_kwargs):
+        return self.cgf.dK_inv(x, **solver_kwargs)
+
+    @property
+    @abstractmethod
+    def dim(self):
+        raise NotImplementedError
 
     def clear_cache(self):
         """
@@ -196,6 +205,10 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
         )
         return np.where(np.isnan(retval), fillna, retval)
+
+    @property
+    def dim(self):
+        return 1
 
     @property
     def _pdf_normalization(self):
@@ -476,7 +489,7 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
         if hasattr(self, "_x_cache") and hasattr(self, "_t_cache"):
             return np.interp(x, self._x_cache, self._t_cache)
         else:
-            return self.cgf.dK_inv(x, **solver_kwargs)
+            return super()._dK_inv(x, **solver_kwargs)
 
 
 class UnivariateSaddlePointApproxMean(UnivariateSaddlePointApprox):
@@ -530,13 +543,15 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
 
     @type_wrapper(xloc=1)
     def _spapprox_pdf(self, x, t, fillna=np.nan):
-        raise NotImplementedError
+        # TODO: test vectorized
         t = np.asanyarray(t)
         d2Kt = self.cgf.d2K(t, fillna=fillna)
         with np.errstate(divide="ignore"):
             retval = np.where(
                 ~np.isclose(d2Kt, 0) & ~np.isnan(d2Kt),
-                np.exp(self.cgf.K(t) - t * x) * np.sqrt(np.divide(1, 2 * np.pi * d2Kt)),
+                np.exp(self.cgf.K(t) - np.dot(t, x))
+                / np.power(2 * np.pi, self.dim / 2)
+                / np.sqrt(np.linalg.det(d2Kt)),
                 fillna,
             )
         return np.where(np.isnan(retval), fillna, retval)
@@ -555,6 +570,10 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             ), "Failed to compute pdf normalization, value is equals NaN or Infinite"
             self._pdf_normalization_cache = val
         return self._pdf_normalization_cache
+
+    @property
+    def dim(self):
+        return self.cgf.dim
 
     def fit_saddle_point_eqn(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
         """
@@ -921,13 +940,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         self._cdf_cache = self.cdf(x=x_range)
         self._t_cache = self.cgf.dK_inv(x_range)
 
-    @type_wrapper(xloc=1)
     def _dK_inv(self, x, **solver_kwargs):
-        raise NotImplementedError
-        if hasattr(self, "_x_cache") and hasattr(self, "_t_cache"):
-            return np.interp(x, self._x_cache, self._t_cache)
-        else:
-            return self.cgf.dK_inv(x, **solver_kwargs)
+        # TODO: implement multivariate interpolation with radial basis functions or something like that
+        return super()._dK_inv(x, **solver_kwargs)
 
 
 # TODO: implement Dirichlet bootstrap
