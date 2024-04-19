@@ -545,6 +545,101 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             )
         return np.where(np.isnan(retval), fillna, retval)
 
+    @property
+    def _pdf_normalization(self):
+        if not hasattr(self, "_pdf_normalization_cache") or self._pdf_normalization_cache is None:
+            a, b = self.infer_t_range()
+            val = quad(
+                lambda t: self.pdf(t=t, normalize_pdf=False, fillna=0) * self.cgf.d2K(t, fillna=0),
+                a=a,
+                b=b,
+            )[0]
+            assert not np.isnan(val) and np.isfinite(
+                val
+            ), "Failed to compute pdf normalization, value is equals NaN or Infinite"
+            self._pdf_normalization_cache = val
+        return self._pdf_normalization_cache
+
+    def pdf(self, x=None, t=None, normalize_pdf=True, fillna=np.nan, **solver_kwargs):
+        r"""
+        Saddle point approximation of the probability density function.
+        Given by
+
+        .. math::
+            f(x) \approx \frac{1}{\sqrt{2\pi K''(t)}} \exp\left(K(t) - tx\right)
+
+        where :math:`t` is the solution of the saddle point equation.
+
+        Parameters
+        ----------
+        x : array_like, optional (either x or t must be provided)
+            The values at which to evaluate the probability density function.
+        t : array_like, optional (either x or t must be provided)
+            Solution of the saddle point equation. If not provided, it will be
+            computed using numerical root finding.
+        normalize_pdf : bool, optional
+            Whether to normalize the probability density function. Default is
+            True.
+        fillna : float, optional
+            The value to replace NaNs with.
+        """
+        raise NotImplementedError
+        assert x is not None or t is not None
+        if x is None:
+            x = self.cgf.dK(t)
+        elif t is None:
+            t = self._dK_inv(x, **solver_kwargs)
+        wrapper = PandasWrapper(x)
+        y = np.asanyarray(self._spapprox_pdf(np.asanyarray(x), np.asanyarray(t)))
+        if normalize_pdf:
+            y *= 1 / self._pdf_normalization
+        y = np.where(np.isnan(y), fillna, y)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+
+    def fit_saddle_point_eqn(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
+        """
+        Evaluate the saddle point equation to the given range of values.
+        And use linear interpolation to solve the saddle point equation, form now onwards.
+
+        If t_range is not provided, it will be assumed that the cumulant generating
+        function is defined in a neighborhood of zero. The range will be computed
+        by scaling iteratively, until we little mass for higher or lower values of x.
+        """
+        raise NotImplementedError
+        if t_range is None:
+            if hasattr(self, "_t_cache"):
+                t_range = [self._t_cache[0], self._t_cache[-1]]
+            else:
+                t_range = self.infer_t_range(atol=atol, rtol=rtol)
+        # Solve saddle point equation
+        self._x_cache = np.linspace(*self.cgf.dK(t_range), num=num)
+        self._t_cache = self.cgf.dK_inv(self._x_cache, **solver_kwargs)
+
+
+class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
+    r"""
+    Given the cumulant generating function of a bivariate random variable, this class
+    provides the saddle point approximation of the probability density function.
+
+    The bivariate saddle point approximation is given by
+
+    .. math::
+        f(x, y) \approx \frac{1}{2\pi\sqrt{\det\left(-H\right)}} \exp\left(K(t) - t_1x - t_2y\right)
+
+    where :math:`H` is the Hessian matrix of the cumulant generating function, and :math:`t`
+    is the solution of the saddle point equation.
+
+    We follow the approach as outlined in [4].
+
+    References
+    ----------
+    [1] Broda, Paolella (2011) - Saddlepoint approximations - a review
+    [2] Butler, R. W. (2007). Saddlepoint approximations with applications.
+    [3] Wang (1990) - Saddlepoint approximations for bivariate distributions
+    [4] Paolella (2007) - Intermediate Probability
+
+    """
+
     @type_wrapper(xloc=1)
     def _spapprox_cdf_LR(self, x, t, fillna=np.nan):
         r"""
@@ -621,56 +716,48 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         )
         return np.where(np.isnan(retval), fillna, retval)
 
-    @property
-    def _pdf_normalization(self):
-        if not hasattr(self, "_pdf_normalization_cache") or self._pdf_normalization_cache is None:
-            a, b = self.infer_t_range()
-            val = quad(
-                lambda t: self.pdf(t=t, normalize_pdf=False, fillna=0) * self.cgf.d2K(t, fillna=0),
-                a=a,
-                b=b,
-            )[0]
-            assert not np.isnan(val) and np.isfinite(
-                val
-            ), "Failed to compute pdf normalization, value is equals NaN or Infinite"
-            self._pdf_normalization_cache = val
-        return self._pdf_normalization_cache
-
-    def pdf(self, x=None, t=None, normalize_pdf=True, fillna=np.nan, **solver_kwargs):
-        r"""
-        Saddle point approximation of the probability density function.
-        Given by
-
-        .. math::
-            f(x) \approx \frac{1}{\sqrt{2\pi K''(t)}} \exp\left(K(t) - tx\right)
-
-        where :math:`t` is the solution of the saddle point equation.
-
-        Parameters
-        ----------
-        x : array_like, optional (either x or t must be provided)
-            The values at which to evaluate the probability density function.
-        t : array_like, optional (either x or t must be provided)
-            Solution of the saddle point equation. If not provided, it will be
-            computed using numerical root finding.
-        normalize_pdf : bool, optional
-            Whether to normalize the probability density function. Default is
-            True.
-        fillna : float, optional
-            The value to replace NaNs with.
+    def infer_t_range(self, atol=1e-4, rtol=1e-4):
+        """
+        Infers a suitable range for so that it covers roughly the entire probability mass
         """
         raise NotImplementedError
-        assert x is not None or t is not None
-        if x is None:
-            x = self.cgf.dK(t)
-        elif t is None:
-            t = self._dK_inv(x, **solver_kwargs)
-        wrapper = PandasWrapper(x)
-        y = np.asanyarray(self._spapprox_pdf(np.asanyarray(x), np.asanyarray(t)))
-        if normalize_pdf:
-            y *= 1 / self._pdf_normalization
-        y = np.where(np.isnan(y), fillna, y)
-        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+        # Determine initial range
+        lb = next(-1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(-1 * 0.9**i)))
+        ub = next(1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(1 * 0.9**i)))
+        cdf_lb = self.cdf(x=self.cgf.dK(lb), t=lb, fillna=np.nan)
+        cdf_ub = self.cdf(x=self.cgf.dK(ub), t=ub, fillna=np.nan)
+        assert lb < ub and cdf_lb < cdf_ub, "cdf is assumed to be increasing"
+        # Define scaling factors
+        lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
+        ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
+        lb_scaling = next(lb_scalings)
+        ub_scaling = next(ub_scalings)
+        # find lb through iterative scaling
+        while not np.isclose(cdf_lb, 0, atol=atol, rtol=rtol):
+            lb_new = lb / lb_scaling
+            x_new = self.cgf.dK(lb_new)
+            if not np.isnan(x_new):
+                lb = lb_new
+                cdf_lb = self.cdf(x=x_new, t=lb, fillna=np.nan)
+                continue
+            try:
+                lb_scaling = next(lb_scalings)
+            except StopIteration:
+                raise Exception("Could not find valid lb")
+        # find ub through iterative scaling
+        while not np.isclose(cdf_ub, 1, atol=atol, rtol=rtol):
+            ub_new = ub / ub_scaling
+            x_new = self.cgf.dK(ub_new)
+            if not np.isnan(x_new):
+                ub = ub_new
+                cdf_ub = self.cdf(x=x_new, t=ub, fillna=np.nan)
+                continue
+            try:
+                ub_scaling = next(ub_scalings)
+            except StopIteration:
+                raise Exception("Could not find valid ub")
+        assert lb <= 0 <= ub
+        return [lb, ub]
 
     def cdf(self, x=None, t=None, fillna=np.nan, backend="LR", **solver_kwargs):
         r"""
@@ -860,68 +947,6 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
                     )
         return self.cgf.dK(t)
 
-    def infer_t_range(self, atol=1e-4, rtol=1e-4):
-        """
-        Infers a suitable range for so that it covers roughly the entire probability mass
-        """
-        raise NotImplementedError
-        # Determine initial range
-        lb = next(-1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(-1 * 0.9**i)))
-        ub = next(1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(1 * 0.9**i)))
-        cdf_lb = self.cdf(x=self.cgf.dK(lb), t=lb, fillna=np.nan)
-        cdf_ub = self.cdf(x=self.cgf.dK(ub), t=ub, fillna=np.nan)
-        assert lb < ub and cdf_lb < cdf_ub, "cdf is assumed to be increasing"
-        # Define scaling factors
-        lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
-        ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
-        lb_scaling = next(lb_scalings)
-        ub_scaling = next(ub_scalings)
-        # find lb through iterative scaling
-        while not np.isclose(cdf_lb, 0, atol=atol, rtol=rtol):
-            lb_new = lb / lb_scaling
-            x_new = self.cgf.dK(lb_new)
-            if not np.isnan(x_new):
-                lb = lb_new
-                cdf_lb = self.cdf(x=x_new, t=lb, fillna=np.nan)
-                continue
-            try:
-                lb_scaling = next(lb_scalings)
-            except StopIteration:
-                raise Exception("Could not find valid lb")
-        # find ub through iterative scaling
-        while not np.isclose(cdf_ub, 1, atol=atol, rtol=rtol):
-            ub_new = ub / ub_scaling
-            x_new = self.cgf.dK(ub_new)
-            if not np.isnan(x_new):
-                ub = ub_new
-                cdf_ub = self.cdf(x=x_new, t=ub, fillna=np.nan)
-                continue
-            try:
-                ub_scaling = next(ub_scalings)
-            except StopIteration:
-                raise Exception("Could not find valid ub")
-        assert lb <= 0 <= ub
-        return [lb, ub]
-
-    def fit_saddle_point_eqn(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
-        """
-        Evaluate the saddle point equation to the given range of values.
-        And use linear interpolation to solve the saddle point equation, form now onwards.
-
-        If t_range is not provided, it will be assumed that the cumulant generating
-        function is defined in a neighborhood of zero. The range will be computed
-        by scaling iteratively, until we little mass for higher or lower values of x.
-        """
-        raise NotImplementedError
-        if t_range is None:
-            if hasattr(self, "_t_cache"):
-                t_range = [self._t_cache[0], self._t_cache[-1]]
-            else:
-                t_range = self.infer_t_range(atol=atol, rtol=rtol)
-        # Solve saddle point equation
-        self._x_cache = np.linspace(*self.cgf.dK(t_range), num=num)
-        self._t_cache = self.cgf.dK_inv(self._x_cache, **solver_kwargs)
-
     def fit_ppf(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000):
         """
         Fit the inverse of the cumulative distribution function using linear interpolation.
@@ -943,33 +968,6 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             return np.interp(x, self._x_cache, self._t_cache)
         else:
             return self.cgf.dK_inv(x, **solver_kwargs)
-
-
-class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
-    r"""
-    Given the cumulant generating function of a bivariate random variable, this class
-    provides the saddle point approximation of the probability density function.
-
-    The bivariate saddle point approximation is given by
-
-    .. math::
-        f(x, y) \approx \frac{1}{2\pi\sqrt{\det\left(-H\right)}} \exp\left(K(t) - t_1x - t_2y\right)
-
-    where :math:`H` is the Hessian matrix of the cumulant generating function, and :math:`t`
-    is the solution of the saddle point equation.
-
-    We follow the approach as outlined in [4].
-
-    References
-    ----------
-    [1] Broda, Paolella (2011) - Saddlepoint approximations - a review
-    [2] Butler, R. W. (2007). Saddlepoint approximations with applications.
-    [3] Wang (1990) - Saddlepoint approximations for bivariate distributions
-    [4] Paolella (2007) - Intermediate Probability
-
-    """
-
-    pass
 
 
 # TODO: implement Dirichlet bootstrap
