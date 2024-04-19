@@ -29,9 +29,40 @@ class SaddlePointApprox(ABC):
         self.cgf = cgf
         self._pdf_normalization_cache = pdf_normalization
 
-    @abstractmethod
     def pdf(self, x=None, t=None, normalize_pdf=True, fillna=np.nan, **solver_kwargs):
-        pass
+        r"""
+        Saddle point approximation of the probability density function.
+        Given by
+
+        .. math::
+            f(x) \approx \frac{1}{\sqrt{2\pi K''(t)}} \exp\left(K(t) - tx\right)
+
+        where :math:`t` is the solution of the saddle point equation.
+
+        Parameters
+        ----------
+        x : array_like, optional (either x or t must be provided)
+            The values at which to evaluate the probability density function.
+        t : array_like, optional (either x or t must be provided)
+            Solution of the saddle point equation. If not provided, it will be
+            computed using numerical root finding.
+        normalize_pdf : bool, optional
+            Whether to normalize the probability density function. Default is
+            True.
+        fillna : float, optional
+            The value to replace NaNs with.
+        """
+        assert x is not None or t is not None
+        if x is None:
+            x = self.cgf.dK(t)
+        elif t is None:
+            t = self._dK_inv(x, **solver_kwargs)
+        wrapper = PandasWrapper(x)
+        y = np.asanyarray(self._spapprox_pdf(np.asanyarray(x), np.asanyarray(t)))
+        if normalize_pdf:
+            y *= 1 / self._pdf_normalization
+        y = np.where(np.isnan(y), fillna, y)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
     def cdf(self, *args, x=None, t=None, fillna=np.nan, **solver_kwargs):
         raise NotImplementedError(f"CDF not implemented for {self.__class__.__name__}")
@@ -180,41 +211,6 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             ), "Failed to compute pdf normalization, value is equals NaN or Infinite"
             self._pdf_normalization_cache = val
         return self._pdf_normalization_cache
-
-    def pdf(self, x=None, t=None, normalize_pdf=True, fillna=np.nan, **solver_kwargs):
-        r"""
-        Saddle point approximation of the probability density function.
-        Given by
-
-        .. math::
-            f(x) \approx \frac{1}{\sqrt{2\pi K''(t)}} \exp\left(K(t) - tx\right)
-
-        where :math:`t` is the solution of the saddle point equation.
-
-        Parameters
-        ----------
-        x : array_like, optional (either x or t must be provided)
-            The values at which to evaluate the probability density function.
-        t : array_like, optional (either x or t must be provided)
-            Solution of the saddle point equation. If not provided, it will be
-            computed using numerical root finding.
-        normalize_pdf : bool, optional
-            Whether to normalize the probability density function. Default is
-            True.
-        fillna : float, optional
-            The value to replace NaNs with.
-        """
-        assert x is not None or t is not None
-        if x is None:
-            x = self.cgf.dK(t)
-        elif t is None:
-            t = self._dK_inv(x, **solver_kwargs)
-        wrapper = PandasWrapper(x)
-        y = np.asanyarray(self._spapprox_pdf(np.asanyarray(x), np.asanyarray(t)))
-        if normalize_pdf:
-            y *= 1 / self._pdf_normalization
-        y = np.where(np.isnan(y), fillna, y)
-        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
     def cdf(self, x=None, t=None, fillna=np.nan, backend="LR", **solver_kwargs):
         r"""
@@ -559,42 +555,6 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             ), "Failed to compute pdf normalization, value is equals NaN or Infinite"
             self._pdf_normalization_cache = val
         return self._pdf_normalization_cache
-
-    def pdf(self, x=None, t=None, normalize_pdf=True, fillna=np.nan, **solver_kwargs):
-        r"""
-        Saddle point approximation of the probability density function.
-        Given by
-
-        .. math::
-            f(x) \approx \frac{1}{\sqrt{2\pi K''(t)}} \exp\left(K(t) - tx\right)
-
-        where :math:`t` is the solution of the saddle point equation.
-
-        Parameters
-        ----------
-        x : array_like, optional (either x or t must be provided)
-            The values at which to evaluate the probability density function.
-        t : array_like, optional (either x or t must be provided)
-            Solution of the saddle point equation. If not provided, it will be
-            computed using numerical root finding.
-        normalize_pdf : bool, optional
-            Whether to normalize the probability density function. Default is
-            True.
-        fillna : float, optional
-            The value to replace NaNs with.
-        """
-        raise NotImplementedError
-        assert x is not None or t is not None
-        if x is None:
-            x = self.cgf.dK(t)
-        elif t is None:
-            t = self._dK_inv(x, **solver_kwargs)
-        wrapper = PandasWrapper(x)
-        y = np.asanyarray(self._spapprox_pdf(np.asanyarray(x), np.asanyarray(t)))
-        if normalize_pdf:
-            y *= 1 / self._pdf_normalization
-        y = np.where(np.isnan(y), fillna, y)
-        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
     def fit_saddle_point_eqn(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
         """
