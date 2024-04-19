@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
+import inspect
 import numpy as np
 import scipy.stats as sps
 import scipy.optimize as spo
@@ -35,9 +36,21 @@ class SaddlePointApprox(ABC):
     def cdf(self, *args, x=None, t=None, fillna=np.nan, **solver_kwargs):
         raise NotImplementedError(f"CDF not implemented for {self.__class__.__name__}")
 
-    @abstractmethod
     def ppf(self, q, *args, fillna=np.nan, t0=None, ttol=1e-4, **kwargs):
         raise NotImplementedError(f"PPF not implemented for {self.__class__.__name__}")
+
+    def clear_cache(self):
+        """
+        Clear any information stored from fit functions
+        """
+        cached_attribs = [
+            k
+            for k, v in inspect.getmembers(self, lambda a: not inspect.isroutine(a))
+            if k.endwiths("_cache")
+        ]
+        for attr in cached_attribs:
+            if hasattr(self, attr):
+                delattr(self, attr)
 
 
 class UnivariateSaddlePointApprox(SaddlePointApprox):
@@ -461,14 +474,6 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             x_range = np.linspace(*self.cgf.dK(t_range), num=num)
         self._cdf_cache = self.cdf(x=x_range)
         self._t_cache = self.cgf.dK_inv(x_range)
-
-    def clear_cache(self):
-        """
-        Clear any information stored from fit functions
-        """
-        for attr in ["_x_cache", "_t_cache", "_cdf_cache"]:
-            if hasattr(self, attr):
-                delattr(self, attr)
 
     @type_wrapper(xloc=1)
     def _dK_inv(self, x, **solver_kwargs):
@@ -930,15 +935,6 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             x_range = np.linspace(*self.cgf.dK(t_range), num=num)
         self._cdf_cache = self.cdf(x=x_range)
         self._t_cache = self.cgf.dK_inv(x_range)
-
-    def clear_cache(self):
-        """
-        Clear any information stored from fit functions
-        """
-        raise NotImplementedError
-        for attr in ["_x_cache", "_t_cache", "_cdf_cache"]:
-            if hasattr(self, attr):
-                delattr(self, attr)
 
     @type_wrapper(xloc=1)
     def _dK_inv(self, x, **solver_kwargs):
