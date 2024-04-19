@@ -171,25 +171,23 @@ def test_expon_spa(cgf, dist, trange):
 
 
 @pytest.mark.parametrize(
-    "cgf, dist, trange, dim",
+    "cgf, dist, ts, dim",
     [
         (
             multivariate_norm(loc=0.5, scale=3),
             sps.multivariate_normal(mean=[0.5, 0.5], cov=9),
-            [-10, 10],
+            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
             2,
         ),
     ],
 )
-def test_mvar_spa(cgf, dist, trange, dim):
+def test_mvar_spa(cgf, dist, ts, dim):
     spa = MultivariateSaddlePointApprox(cgf)
     assert spa.dim == dim
-    ts = np.linspace(*trange, 10)
-    for t in itertools.combinations_with_replacement(ts, dim):
-        t = list(t)
+    for t in ts:
         x = spa.cgf.dK(t)
         assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
-    # TODO: test vectorized
+    assert np.allclose(spa.pdf(t=ts, normalize_pdf=False), dist.pdf(spa.cgf.dK(ts)))
 
     # assert np.isclose(
     #     quad(

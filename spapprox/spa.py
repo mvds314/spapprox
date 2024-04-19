@@ -549,7 +549,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         with np.errstate(divide="ignore"):
             retval = np.where(
                 ~np.isclose(detd2Kt, 0) & ~np.isnan(detd2Kt),
-                np.exp(self.cgf.K(t) - np.dot(t, x))
+                np.exp(self.cgf.K(t) - np.multiply(t, x).sum(axis=-1))
                 / np.power(2 * np.pi, self.dim / 2)
                 / np.sqrt(detd2Kt),
                 fillna,
