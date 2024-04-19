@@ -545,13 +545,13 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
     def _spapprox_pdf(self, x, t, fillna=np.nan):
         # TODO: test vectorized
         t = np.asanyarray(t)
-        d2Kt = self.cgf.d2K(t, fillna=fillna)
+        detd2Kt = np.linalg.det(self.cgf.d2K(t, fillna=fillna))
         with np.errstate(divide="ignore"):
             retval = np.where(
-                ~np.isclose(d2Kt, 0) & ~np.isnan(d2Kt),
+                ~np.isclose(detd2Kt, 0) & ~np.isnan(detd2Kt),
                 np.exp(self.cgf.K(t) - np.dot(t, x))
                 / np.power(2 * np.pi, self.dim / 2)
-                / np.sqrt(np.linalg.det(d2Kt)),
+                / np.sqrt(detd2Kt),
                 fillna,
             )
         return np.where(np.isnan(retval), fillna, retval)

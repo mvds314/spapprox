@@ -11,11 +11,14 @@ from spapprox import (
     # poisson,
     # binomial,
     UnivariateSaddlePointApprox,
+    MultivariateSaddlePointApprox,
+    BivariateSaddlePointApprox,
     chi2,
     exponential,
     gamma,
     laplace,
     norm,
+    multivariate_norm,
 )
 
 
@@ -28,6 +31,7 @@ from spapprox import (
 )
 def test_norm_spa(cgf, dist, trange):
     spa = UnivariateSaddlePointApprox(cgf)
+    assert spa.dim == 1, "Univariate approximations are supposed to be 1 dimensional"
     t = np.linspace(*trange, 1000)
     x = spa.cgf.dK(t)
     # These ones should be exact
@@ -79,6 +83,7 @@ def test_norm_spa(cgf, dist, trange):
 )
 def test_normalization(cgf, trange):
     spa = UnivariateSaddlePointApprox(cgf)
+    assert spa.dim == 1, "Univariate approximations are supposed to be 1 dimensional"
     assert np.isclose(spa.cdf(t=trange[0]), 0, atol=1e-5)
     assert np.isclose(spa.cdf(t=trange[1]), 1, atol=1e-5)
     assert np.isclose(
@@ -113,6 +118,7 @@ def test_normalization(cgf, trange):
 )
 def test_expon_spa(cgf, dist, trange):
     spa = UnivariateSaddlePointApprox(cgf)
+    assert spa.dim == 1, "Univariate approximations are supposed to be 1 dimensional"
     for f in [
         spa.pdf,
         lambda t=None, fillna=np.nan, backend="LR": spa.cdf(t=t, fillna=fillna, backend=backend),
@@ -163,13 +169,67 @@ def test_expon_spa(cgf, dist, trange):
     assert np.allclose(spa.cdf(x=spa.ppf(qs)), qs, atol=1e-3)
 
 
+@pytest.mark.parametrize(
+    "cgf, dist, trange, dim",
+    [
+        (
+            multivariate_norm(loc=0.5, scale=3),
+            sps.multivariate_normal(mean=[0.5, 0.5], cov=9),
+            [-10, 10],
+            2,
+        ),
+    ],
+)
+def test_mvar_spa(cgf, dist, trange, dim):
+    spa = MultivariateSaddlePointApprox(cgf)
+    assert spa.dim == dim
+    t = np.linspace(*trange, 1000)
+    t = [4, 5]
+    x = spa.cgf.dK(t)
+    # These ones should be exact
+    val = spa.pdf(t=t, normalize_pdf=False)
+    assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
+    # assert np.isclose(
+    #     quad(
+    #         lambda t: spa.pdf(t=t, normalize_pdf=False) * cgf.d2K(t),
+    #         a=trange[0],
+    #         b=trange[1],
+    #     )[0],
+    #     1,
+    # )
+    # assert np.isclose(spa.cdf(t=trange[0]), 0, atol=1e-6)
+    # assert np.isclose(spa.cdf(t=trange[1]), 1, atol=1e-6)
+    # # Test investion saddle point
+    # spa.fit_saddle_point_eqn(num=10000)
+    # for t in [-2, -1, 1 / 6]:
+    #     x = spa.cgf.dK(t)
+    #     assert np.isclose(spa.cgf.dK(spa._dK_inv(x)), x, atol=1e-3)
+    # # Test clear cache
+    # assert hasattr(spa, "_x_cache") and hasattr(spa, "_t_cache")
+    # spa.clear_cache()
+    # assert not hasattr(spa, "_x_cache") and not hasattr(spa, "_t_cache")
+    # # Test cdf
+    # qs = [0.05, 0.1, 0.3, 0.5, 0.9, 0.95]
+    # for q in qs:
+    #     # Note: It's better compare x than p
+    #     assert np.isclose(dist.ppf(spa.cdf(x=dist.ppf(q))), dist.ppf(q), atol=5e-2)
+    # for q in qs:
+    #     assert np.isclose(spa.cdf(x=spa.ppf(q)), q, atol=1e-6)
+    # assert np.allclose(spa.cdf(x=spa.ppf(qs)), qs, atol=1e-4)
+    # # Same tests but then with ppf fitted
+    # spa.fit_ppf()
+    # for q in qs:
+    #     assert np.isclose(spa.cdf(x=spa.ppf(q)), q, atol=1e-3)
+    # assert np.allclose(spa.cdf(x=spa.ppf(qs)), qs, atol=1e-3)
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(
             [
                 str(Path(__file__)),
-                # "-k",
-                # "test_normalization",
+                "-k",
+                "test_mvar_spa",
                 "--tb=auto",
                 "--pdb",
             ]
