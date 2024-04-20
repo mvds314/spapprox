@@ -5,7 +5,7 @@ import inspect
 import numpy as np
 import scipy.stats as sps
 import scipy.optimize as spo
-from scipy.integrate import quad
+from scipy.integrate import quad, nquad
 
 
 from .cgfs import (
@@ -73,6 +73,11 @@ class SaddlePointApprox(ABC):
     @type_wrapper(xloc=1)
     def _dK_inv(self, x, **solver_kwargs):
         return self.cgf.dK_inv(x, **solver_kwargs)
+
+    @property
+    @abstractmethod
+    def _pdf_normalization(self):
+        raise NotImplementedError
 
     @property
     @abstractmethod
@@ -559,11 +564,11 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
     @property
     def _pdf_normalization(self):
         if not hasattr(self, "_pdf_normalization_cache") or self._pdf_normalization_cache is None:
-            a, b = self.infer_t_range()
-            val = quad(
-                lambda t: self.pdf(t=t, normalize_pdf=False, fillna=0) * self.cgf.d2K(t, fillna=0),
-                a=a,
-                b=b,
+            tranges = self.infer_t_ranges()
+            val = nquad(
+                lambda *args: self.pdf(t=args[: self.dim], normalize_pdf=False, fillna=0)
+                * np.linalg.det(self.cgf.d2K(args[: self.dim], fillna=0)),
+                tranges,
             )[0]
             assert not np.isnan(val) and np.isfinite(
                 val
@@ -593,6 +598,30 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         # Solve saddle point equation
         self._x_cache = np.linspace(*self.cgf.dK(t_range), num=num)
         self._t_cache = self.cgf.dK_inv(self._x_cache, **solver_kwargs)
+
+    def infer_t_ranges(self, atol=1e-4, rtol=1e-4):
+        """
+        Infers suitable ranges for :math:`t` so that it covers, roughly the entire probability mass.
+        The ranges are inferred from the univariat case.
+        """
+        return [
+            UnivariateSaddlePointApprox(self.cgf[i]).infer_t_range(atol=atol, rtol=rtol)
+            for i in range(self.dim)
+        ]
+
+    def fit_cdf(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000):
+        """
+        Fit the cumulative distribution function using linear interpolation.
+        """
+        raise NotImplementedError
+        if not hasattr(self, "_x_cache"):
+            if hasattr(self, "_t_cache"):
+                t_range = [self._t_cache[0], self._t_cache[-1]]
+            else:
+                t_range = self.infer_t_range(atol=atol, rtol=rtol)
+            x_range = np.linspace(*self.cgf.dK(t_range), num=num)
+        self._cdf_cache = self.cdf(x=x_range)
+        self._t_cache = self.cgf.dK_inv(x_range)
 
 
 class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
@@ -694,49 +723,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
         )
         return np.where(np.isnan(retval), fillna, retval)
-
-    def infer_t_range(self, atol=1e-4, rtol=1e-4):
-        """
-        Infers a suitable range for so that it covers roughly the entire probability mass
-        """
-        raise NotImplementedError
-        # Determine initial range
-        lb = next(-1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(-1 * 0.9**i)))
-        ub = next(1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(1 * 0.9**i)))
-        cdf_lb = self.cdf(x=self.cgf.dK(lb), t=lb, fillna=np.nan)
-        cdf_ub = self.cdf(x=self.cgf.dK(ub), t=ub, fillna=np.nan)
-        assert lb < ub and cdf_lb < cdf_ub, "cdf is assumed to be increasing"
-        # Define scaling factors
-        lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
-        ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
-        lb_scaling = next(lb_scalings)
-        ub_scaling = next(ub_scalings)
-        # find lb through iterative scaling
-        while not np.isclose(cdf_lb, 0, atol=atol, rtol=rtol):
-            lb_new = lb / lb_scaling
-            x_new = self.cgf.dK(lb_new)
-            if not np.isnan(x_new):
-                lb = lb_new
-                cdf_lb = self.cdf(x=x_new, t=lb, fillna=np.nan)
-                continue
-            try:
-                lb_scaling = next(lb_scalings)
-            except StopIteration:
-                raise Exception("Could not find valid lb")
-        # find ub through iterative scaling
-        while not np.isclose(cdf_ub, 1, atol=atol, rtol=rtol):
-            ub_new = ub / ub_scaling
-            x_new = self.cgf.dK(ub_new)
-            if not np.isnan(x_new):
-                ub = ub_new
-                cdf_ub = self.cdf(x=x_new, t=ub, fillna=np.nan)
-                continue
-            try:
-                ub_scaling = next(ub_scalings)
-            except StopIteration:
-                raise Exception("Could not find valid ub")
-        assert lb <= 0 <= ub
-        return [lb, ub]
 
     def cdf(self, x=None, t=None, fillna=np.nan, backend="LR", **solver_kwargs):
         r"""

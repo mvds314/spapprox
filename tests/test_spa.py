@@ -189,6 +189,7 @@ def test_mvar_spa(cgf, dist, ts, dim):
         x = spa.cgf.dK(t)
         assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
     assert np.allclose(spa.pdf(t=ts, normalize_pdf=False), dist.pdf(spa.cgf.dK(ts)))
+    assert np.allclose(spa.pdf(t=ts, normalize_pdf=True), dist.pdf(spa.cgf.dK(ts)))
     # TODO: test pdf normalization with nquad
     # TODO: use the special dblquad function for the 2D case
 
