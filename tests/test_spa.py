@@ -179,7 +179,8 @@ def test_expon_spa(cgf, dist, trange):
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
             2,
         ),
-        # TODO: add more tests?
+        # TODO: add test with correlated variables
+        # TODO: add test of another distribution
     ],
 )
 def test_mvar_spa(cgf, dist, ts, dim):
