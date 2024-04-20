@@ -546,6 +546,12 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         self.cgf = cgf
         self._pdf_normalization_cache = pdf_normalization
 
+    def __getitem__(self, i):
+        raise NotImplementedError("Return the marginal approximation")
+
+    def condition(self, i, x):
+        raise NotImplementedError("Condition the approximation on the ith variable")
+
     @type_wrapper(xloc=1)
     def _spapprox_pdf(self, x, t, fillna=np.nan):
         # TODO: test vectorized

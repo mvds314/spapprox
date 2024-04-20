@@ -47,7 +47,7 @@ def test_norm_spa(cgf, dist, trange):
     )
     assert np.isclose(spa.cdf(t=trange[0]), 0, atol=1e-6)
     assert np.isclose(spa.cdf(t=trange[1]), 1, atol=1e-6)
-    # Test investion saddle point
+    # Test inversion saddle point
     spa.fit_saddle_point_eqn(num=10000)
     for t in [-2, -1, 1 / 6]:
         x = spa.cgf.dK(t)
@@ -190,13 +190,15 @@ def test_mvar_spa(cgf, dist, ts, dim):
         assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
     assert np.allclose(spa.pdf(t=ts, normalize_pdf=False), dist.pdf(spa.cgf.dK(ts)))
     assert np.allclose(spa.pdf(t=ts, normalize_pdf=True), dist.pdf(spa.cgf.dK(ts)))
-    # TODO: test pdf normalization with nquad
-    # TODO: use the special dblquad function for the 2D case
+    # TODO: test normalization separately as in univariate case
+    # TODO: test solve saddlepoint equation
+    # TODO: fit saddlepoint equation
+    # TODO: test fit cdf using integration
+    # TODO: test fit ppf using integration
 
     # TODO: what else can we test?
 
-    # TODO: can we do any interpolation or fitting of the saddlepoint equation?
-
+    # TODO: what can we reuse of the stuff below?
     # assert np.isclose(
     #     quad(
     #         lambda t: spa.pdf(t=t, normalize_pdf=False) * cgf.d2K(t),
