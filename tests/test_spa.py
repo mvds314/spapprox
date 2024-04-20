@@ -7,7 +7,7 @@ import numpy as np
 import itertools
 import pytest
 import scipy.stats as sps
-from scipy.integrate import quad
+from scipy.integrate import quad, nquad
 from spapprox import (
     # poisson,
     # binomial,
@@ -179,6 +179,7 @@ def test_expon_spa(cgf, dist, trange):
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
             2,
         ),
+        # TODO: add more tests?
     ],
 )
 def test_mvar_spa(cgf, dist, ts, dim):
@@ -190,7 +191,17 @@ def test_mvar_spa(cgf, dist, ts, dim):
         assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
     assert np.allclose(spa.pdf(t=ts, normalize_pdf=False), dist.pdf(spa.cgf.dK(ts)))
     assert np.allclose(spa.pdf(t=ts, normalize_pdf=True), dist.pdf(spa.cgf.dK(ts)))
-    # TODO: test normalization separately as in univariate case
+    tranges = spa.infer_t_ranges()
+    assert np.isclose(
+        nquad(
+            lambda *args: spa.pdf(t=args[: spa.dim], normalize_pdf=False, fillna=0)
+            * np.linalg.det(spa.cgf.d2K(args[: spa.dim], fillna=0)),
+            tranges,
+        )[0],
+        1,
+        atol=5e-4,
+    )
+
     # TODO: test solve saddlepoint equation
     # TODO: fit saddlepoint equation
     # TODO: test fit cdf using integration
