@@ -179,8 +179,20 @@ def test_expon_spa(cgf, dist, trange):
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
             2,
         ),
-        # TODO: add test with correlated variables
-        # TODO: test in 3 dims -> for fit saddlepoint eqn
+        # Test with correlated variables
+        (
+            multivariate_norm(loc=[0.5, 0.2], cov=[[3, 1], [1, 3]]),
+            sps.multivariate_normal(mean=[0.5, 0.2], cov=[[3, 1], [1, 3]]),
+            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
+            2,
+        ),
+        # 3 dim test
+        (
+            multivariate_norm(loc=0.5, scale=3),
+            sps.multivariate_normal(mean=[0.5, 0.5, 0.5], cov=9),
+            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 3)),
+            3,
+        ),
         # TODO: add test of another distribution
     ],
 )
@@ -209,7 +221,6 @@ def test_mvar_spa(cgf, dist, ts, dim):
     for xx in x:
         assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
     np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
-    # TODO: test the same thing vectorized
 
 
 if __name__ == "__main__":
