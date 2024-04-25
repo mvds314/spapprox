@@ -189,7 +189,7 @@ def test_expon_spa(cgf, dist, trange):
         ),
         # 3 dim test
         (
-            multivariate_norm(loc=0.5, scale=3),
+            multivariate_norm(loc=0.5, scale=3, dim=3),
             sps.multivariate_normal(mean=[0.5, 0.5, 0.5], cov=9),
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 3)),
             3,
