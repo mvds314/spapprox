@@ -206,8 +206,9 @@ def test_mvar_spa(cgf, dist, ts, dim):
     spa.fit_saddle_point_eqn(num=100)
     x = spa._x_cache
     x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
-    for xx, tt in zip(x, t):
+    for xx in x:
         assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
+    np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
     # TODO: test the same thing vectorized
 
 

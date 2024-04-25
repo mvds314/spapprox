@@ -556,7 +556,6 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
 
     @type_wrapper(xloc=1)
     def _spapprox_pdf(self, x, t, fillna=np.nan):
-        # TODO: test vectorized
         t = np.asanyarray(t)
         detd2Kt = np.linalg.det(self.cgf.d2K(t, fillna=fillna))
         with np.errstate(divide="ignore"):
