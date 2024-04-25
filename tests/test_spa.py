@@ -13,6 +13,7 @@ from spapprox import (
     # binomial,
     UnivariateSaddlePointApprox,
     MultivariateSaddlePointApprox,
+    MultivariateCumulantGeneratingFunction,
     BivariateSaddlePointApprox,
     chi2,
     exponential,
@@ -193,7 +194,16 @@ def test_expon_spa(cgf, dist, trange):
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 3)),
             3,
         ),
-        # TODO: add test of another distribution
+        # Other distribution
+        (
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                norm(loc=0.5, scale=3), norm(loc=0.5, scale=3)
+            ),
+            sps.multivariate_normal(mean=[0.5, 0.5], cov=9),
+            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
+            2,
+        ),
+        # TODO: test non-normal distribution?
     ],
 )
 def test_mvar_spa(cgf, dist, ts, dim):
