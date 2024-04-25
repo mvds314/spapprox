@@ -180,6 +180,7 @@ def test_expon_spa(cgf, dist, trange):
             2,
         ),
         # TODO: add test with correlated variables
+        # TODO: test in 3 dims -> for fit saddlepoint eqn
         # TODO: add test of another distribution
     ],
 )
@@ -207,7 +208,7 @@ def test_mvar_spa(cgf, dist, ts, dim):
     x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
     for xx, tt in zip(x, t):
         assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
-    # TODO: test solve saddlepoint equation
+    # TODO: test the same thing vectorized
 
 
 if __name__ == "__main__":

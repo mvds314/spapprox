@@ -608,7 +608,9 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         self._x_cache = [np.linspace(*xr, num=num) for xr in x_ranges]
         xir = np.vstack([xi.ravel() for xi in np.meshgrid(*self._x_cache)]).T
         self._t_cache = self.cgf.dK_inv(xir, **solver_kwargs)
-        self._t_cache = self._t_cache.reshape(*[num] * self.dim, self.dim)
+        self._t_cache = self._t_cache.reshape(*[num] * self.dim, self.dim).transpose(
+            list(range(0, self.dim))[-1::-1] + [self.dim]
+        )
         self._interp_cache = RegularGridInterpolator(self._x_cache, self._t_cache)
 
     @type_wrapper(xloc=1)
