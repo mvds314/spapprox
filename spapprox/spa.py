@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from abc import ABC, abstractmethod
 import inspect
-import numpy as np
-import scipy.stats as sps
-import scipy.optimize as spo
-from scipy.integrate import quad, nquad
+import itertools
+from abc import ABC, abstractmethod
 
+import numpy as np
+import scipy.optimize as spo
+import scipy.stats as sps
+from scipy.integrate import nquad, quad
+from scipy.interpolate import RegularGridInterpolator
+from statsmodels.tools.validation import PandasWrapper
 
 from .cgfs import (
+    MultivariateCumulantGeneratingFunction,
     UnivariateCumulantGeneratingFunction,
     univariate_sample_mean,
-    MultivariateCumulantGeneratingFunction,
 )
-from .util import type_wrapper, fib
-from statsmodels.tools.validation import PandasWrapper
+from .util import fib, type_wrapper
 
 
 class SaddlePointApprox(ABC):
@@ -586,7 +588,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
     def dim(self):
         return self.cgf.dim
 
-    def fit_saddle_point_eqn(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
+    def fit_saddle_point_eqn(self, t_ranges=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
         """
         Evaluate the saddle point equation to the given range of values.
         And use linear interpolation to solve the saddle point equation, form now onwards.
@@ -595,15 +597,26 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         function is defined in a neighborhood of zero. The range will be computed
         by scaling iteratively, until we little mass for higher or lower values of x.
         """
-        raise NotImplementedError
-        if t_range is None:
+        if t_ranges is None:
             if hasattr(self, "_t_cache"):
-                t_range = [self._t_cache[0], self._t_cache[-1]]
+                raise NotImplementedError
+                t_ranges = [self._t_cache[0], self._t_cache[-1]]
             else:
-                t_range = self.infer_t_range(atol=atol, rtol=rtol)
-        # Solve saddle point equation
-        self._x_cache = np.linspace(*self.cgf.dK(t_range), num=num)
-        self._t_cache = self.cgf.dK_inv(self._x_cache, **solver_kwargs)
+                t_ranges = self.infer_t_ranges(atol=atol, rtol=rtol)
+        x_ranges = self.cgf.dK(list(itertools.product(*t_ranges)))
+        x_ranges = np.vstack((x_ranges.min(axis=0), x_ranges.max(axis=0))).T
+        self._x_cache = [np.linspace(*xr, num=num) for xr in x_ranges]
+        xir = np.vstack([xi.ravel() for xi in np.meshgrid(*self._x_cache)]).T
+        self._t_cache = self.cgf.dK_inv(xir, **solver_kwargs)
+        self._t_cache = self._t_cache.reshape(*[num] * self.dim, self.dim)
+        self._interp_cache = RegularGridInterpolator(self._x_cache, self._t_cache)
+
+    @type_wrapper(xloc=1)
+    def _dK_inv(self, x, **solver_kwargs):
+        if hasattr(self, "_interp_cache"):
+            return self._interp_cache(x)
+        else:
+            return super()._dK_inv(x, **solver_kwargs)
 
     def infer_t_ranges(self, atol=1e-4, rtol=1e-4):
         """

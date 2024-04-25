@@ -202,47 +202,12 @@ def test_mvar_spa(cgf, dist, ts, dim):
         1,
         atol=5e-4,
     )
-
+    spa.fit_saddle_point_eqn(num=100)
+    x = spa._x_cache
+    x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
+    for xx, tt in zip(x, t):
+        assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
     # TODO: test solve saddlepoint equation
-    # TODO: fit saddlepoint equation
-    # TODO: test fit cdf using integration
-    # TODO: test fit ppf using integration
-
-    # TODO: what else can we test?
-
-    # TODO: what can we reuse of the stuff below?
-    # assert np.isclose(
-    #     quad(
-    #         lambda t: spa.pdf(t=t, normalize_pdf=False) * cgf.d2K(t),
-    #         a=trange[0],
-    #         b=trange[1],
-    #     )[0],
-    #     1,
-    # )
-    # assert np.isclose(spa.cdf(t=trange[0]), 0, atol=1e-6)
-    # assert np.isclose(spa.cdf(t=trange[1]), 1, atol=1e-6)
-    # # Test investion saddle point
-    # spa.fit_saddle_point_eqn(num=10000)
-    # for t in [-2, -1, 1 / 6]:
-    #     x = spa.cgf.dK(t)
-    #     assert np.isclose(spa.cgf.dK(spa._dK_inv(x)), x, atol=1e-3)
-    # # Test clear cache
-    # assert hasattr(spa, "_x_cache") and hasattr(spa, "_t_cache")
-    # spa.clear_cache()
-    # assert not hasattr(spa, "_x_cache") and not hasattr(spa, "_t_cache")
-    # # Test cdf
-    # qs = [0.05, 0.1, 0.3, 0.5, 0.9, 0.95]
-    # for q in qs:
-    #     # Note: It's better compare x than p
-    #     assert np.isclose(dist.ppf(spa.cdf(x=dist.ppf(q))), dist.ppf(q), atol=5e-2)
-    # for q in qs:
-    #     assert np.isclose(spa.cdf(x=spa.ppf(q)), q, atol=1e-6)
-    # assert np.allclose(spa.cdf(x=spa.ppf(qs)), qs, atol=1e-4)
-    # # Same tests but then with ppf fitted
-    # spa.fit_ppf()
-    # for q in qs:
-    #     assert np.isclose(spa.cdf(x=spa.ppf(q)), q, atol=1e-3)
-    # assert np.allclose(spa.cdf(x=spa.ppf(qs)), qs, atol=1e-3)
 
 
 if __name__ == "__main__":
