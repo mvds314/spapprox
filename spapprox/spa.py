@@ -297,6 +297,10 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
         Percent point function computed as the inverse of the saddle point
         approximation of the cumulative distribution function.
 
+        When available, the ppf interpolated. The method is based on
+        a custom implementation. Probably we could have also used the
+        Scipy's sampling pinv method.
+
         Parameters
         ----------
         q : array_like
