@@ -749,7 +749,23 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         The standard Lugannani-Rice approximation is given by
 
         .. math::
-            F(x) \approx \Phi(w) + \phi(w) \left(\frac{1}{w} - \frac{1}{u}\right)
+            F(x,y) \approx \Phi_2(\tilde x_1, \tilde y_1, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,
+        where
+
+        .. math::
+            \tilde x_1 = \sgn(\tilde t_0) \sqrt{2\left(\tilde t_0 y - K(0, \tilde t_0)\right)},
+            \tilde w_0 = \sgn(\tilde t_0) \sqrt(2\left(K(\tilde s, 0) - K(\tilde s, \tilde t) + \tilde t y\right)),
+
+        and :math:`(\tilde s, \tilde t)` are found by solving the saddle point equation
+
+        .. math::
+           \nabla K(\tilde t, \tilde s) = \begin{bmatrix} x \\ y \end{bmatrix},
+
+        And, :math:`\tilde t_0` is found by solving a second saddlepoint equation:
+
+        ..math::
+           \partial_t K(0, \tilde t_0) = y.
+
 
         where :math:`\Phi` and :math:`\phi` are the cumulative and probability density
         of the standard normal distribution, respectively, and :math:`w` and :math:`u`
