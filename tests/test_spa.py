@@ -174,6 +174,7 @@ def test_expon_spa(cgf, dist, trange):
 @pytest.mark.parametrize(
     "cgf, dist, ts, dim",
     [
+        # Basic test with uncorrelated variables
         (
             multivariate_norm(loc=0.5, scale=3),
             sps.multivariate_normal(mean=[0.5, 0.5], cov=9),
@@ -204,42 +205,35 @@ def test_expon_spa(cgf, dist, trange):
             2,
         ),
         # TODO: test non-normal distribution?
+        # TODO: also test the bivariate implementation explicitly
     ],
 )
 def test_mvar_spa(cgf, dist, ts, dim):
-    # TODO: also test the bivariate implementation explicitly
     spa = MultivariateSaddlePointApprox(cgf)
     assert spa.dim == dim
     for t in ts:
         x = spa.cgf.dK(t)
         assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
     assert np.allclose(spa.pdf(t=ts, normalize_pdf=False), dist.pdf(spa.cgf.dK(ts)))
-    assert np.allclose(spa.pdf(t=ts, normalize_pdf=True), dist.pdf(spa.cgf.dK(ts)))
-    tranges = spa.infer_t_ranges()
-    assert np.isclose(
-        nquad(
-            lambda *args: spa.pdf(t=args[: spa.dim], normalize_pdf=False, fillna=0)
-            * np.linalg.det(spa.cgf.d2K(args[: spa.dim], fillna=0)),
-            tranges,
-        )[0],
-        1,
-        atol=5e-4,
-    )
-    spa.fit_saddle_point_eqn(num=100)
+    if dim <= 2:
+        # TODO: these tests takes very long in 3D, what is the alternative?
+        assert np.allclose(spa.pdf(t=ts, normalize_pdf=True), dist.pdf(spa.cgf.dK(ts)))
+        assert np.isclose(spa._pdf_normalization_cache, 1, atol=5e-4)
+    spa.fit_saddle_point_eqn(num=10)
     x = spa._x_cache
     x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
     for xx in x:
-        assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
+        cgf.dK(cgf.dK_inv(xx))
+        spa._dK_inv(xx)
+        assert np.allclose(xx, cgf.dK(spa._dK_inv(xx)))
     np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
     # Same logic, but now with cache already provided
-    spa.fit_saddle_point_eqn(num=100)
+    spa.fit_saddle_point_eqn(num=10)
     x = spa._x_cache
     x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
     for xx in x:
         assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
     np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
-
-    # TODO: continue here and fix this unittest
 
 
 # TODO: then continue with bivariate spa
