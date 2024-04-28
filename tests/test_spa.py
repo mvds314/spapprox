@@ -239,6 +239,11 @@ def test_mvar_spa(cgf, dist, ts, dim):
         assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
     np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
 
+    # TODO: continue here and fix this unittest
+
+
+# TODO: then continue with bivariate spa
+
 
 if __name__ == "__main__":
     if True:
