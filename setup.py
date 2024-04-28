@@ -10,5 +10,5 @@ setup(
     keywords="statistics",
     packages=["spapprox"],
     install_requires=["numpy", "scipy", "pandas", "statsmodels"],
-    extras_require={"diff": ["numdifftools"]},
+    extras_require={"diff": ["numdifftools"], "fastnorm": ["fastnorm"]},
 )

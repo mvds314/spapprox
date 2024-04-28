@@ -7,6 +7,7 @@ This module includes code for saddle point approximation
 Saddle point approximations can be used to approximate distributions when you know their cumulant generating function.
 We follow the theory as outlined in: Ronald W Butler (2007): "Saddlepoint Approximations with Applications"
 As he puts it:
+
 > Among the various tools that have been developed for use in statistics and probability
 > over the years, perhaps the least understood and most remarkable tool is the saddlepoint
 > approximation. It is remarkable because it usually provides probability approximations
@@ -23,13 +24,15 @@ the distribution functions. You can, however, sum their cumulant generating func
 The saddle point approximation can, subsequently be used to approximate the pdf and cdf given the cumulant generating function.
 
 Altogether, applications include:
-* Approximating the distribution of the sum of random variables
-* Approximating the distribution of the mean of random variables
-* Bootstrapping the transform domain: approximating the (bootstrap) distribution of the mean (or some other statistic) on some sample without actually bootstrapping.
+
+- Approximating the distribution of the sum of random variables
+- Approximating the distribution of the mean of random variables
+- Bootstrapping the transform domain: approximating the (bootstrap) distribution of the mean (or some other statistic) on some sample without actually bootstrapping.
 
 To be implemented are:
-* Approximating conditional distributions
-* Approximating the distirbution of the quotient of random variables
+
+- Approximating conditional distributions
+- Approximating the distirbution of the quotient of random variables
 
 ## Basic example
 
@@ -59,13 +62,17 @@ You can install this library directly from github:
 pip install git+https://github.com/mvds314/spapprox.git
 ```
 
+Optional dependencies are `numdifftools` for numerical differentiation and `fastnorm` for faster bivariate normal cdf evaluation.
+
+````bash
+
 ## Development
 
 For development purposes, clone the repo:
 
 ```bash
 git clone https://github.com/mvds314/spapprox.git
-```
+````
 
 Then navigate to the folder containing `setup.py` and run
 
