@@ -231,6 +231,13 @@ def test_mvar_spa(cgf, dist, ts, dim):
     for xx in x:
         assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
     np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
+    # Same logic, but now with cache already provided
+    spa.fit_saddle_point_eqn(num=100)
+    x = spa._x_cache
+    x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
+    for xx in x:
+        assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
+    np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
 
 
 if __name__ == "__main__":

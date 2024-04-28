@@ -601,8 +601,9 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         """
         if t_ranges is None:
             if hasattr(self, "_t_cache"):
-                raise NotImplementedError
-                t_ranges = [self._t_cache[0], self._t_cache[-1]]
+                t_ranges = np.vstack(
+                    (self._t_cache.min(axis=0).min(axis=0), self._t_cache.max(axis=0).max(axis=0))
+                ).T
             else:
                 t_ranges = self.infer_t_ranges(atol=atol, rtol=rtol)
         x_ranges = self.cgf.dK(list(itertools.product(*t_ranges)))
@@ -632,19 +633,15 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             for i in range(self.dim)
         ]
 
+    def cdf(self, *args, x=None, t=None, fillna=np.nan, **solver_kwargs):
+        # TODO: make a basic implementation with numerical integration
+        raise NotImplementedError(f"CDF not implemented for {self.__class__.__name__}")
+
     def fit_cdf(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000):
         """
         Fit the cumulative distribution function using linear interpolation.
         """
         raise NotImplementedError
-        if not hasattr(self, "_x_cache"):
-            if hasattr(self, "_t_cache"):
-                t_range = [self._t_cache[0], self._t_cache[-1]]
-            else:
-                t_range = self.infer_t_range(atol=atol, rtol=rtol)
-            x_range = np.linspace(*self.cgf.dK(t_range), num=num)
-        self._cdf_cache = self.cdf(x=x_range)
-        self._t_cache = self.cgf.dK_inv(x_range)
 
 
 class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
