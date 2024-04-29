@@ -742,19 +742,28 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         )
         return np.where(np.isnan(retval), fillna, retval)
 
-    def cdf(self, x=None, t=None, fillna=np.nan, backend="LR", **solver_kwargs):
+    def cdf(self, x=None, t=None, fillna=np.nan, **solver_kwargs):
         r"""
-        Saddle point approximation of the cumulative distribution function.
+        Saddle point approximation of the cumulative distribution function in
+        the bivariate case.
 
-        The standard Lugannani-Rice approximation is given by
+        The approximation is given by
 
         .. math::
             F(x,y) \approx \Phi_2(\tilde x_1, \tilde y_1, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,
         where
 
         .. math::
-            \tilde x_1 = \sgn(\tilde t_0) \sqrt{2\left(\tilde t_0 y - K(0, \tilde t_0)\right)},
-            \tilde w_0 = \sgn(\tilde t_0) \sqrt(2\left(K(\tilde s, 0) - K(\tilde s, \tilde t) + \tilde t y\right)),
+            \tilde x_1 = \sgn(\tilde t_0) \sqrt{2\left(\tilde t_0 y - K(0, \tilde t_0)\right)},\\
+            \tilde w_0 = \sgn(\tilde t_0) \sqrt(2\left(K(\tilde s, 0) - K(\tilde s, \tilde t) + \tilde t y\right)),\\
+            \tilde w = \sgn(\tilde s) \sqrt{2} \sqrt{\tilde s x + \tilde t y - K(\tilde s, \tilde t) - \tilde t_0 y + K(0, \tilde t_0)},\\
+            \tilde y_1 = \frac{\tilde 2 - b \tilde x_1}{\sqrt{1+b^2}},\\
+            \tilde \rho = \frac{-b}{\sqrt{1+b^2}},\\
+            b = \frac{\tilde w_0 - \tilde x_1}{\tilde w},\\
+            \tilde n = \phi(\tilde w)\left(\frac{1}{\tilde w}-\frac{1}{\tilde u}\right),\\
+            \tilde n_0 = \phi(\tilde x_1)\left(\frac{1}{w_0}-\frac{1}{\tilde u_0}\right),\\
+            \tilde u = \tilde s \sqrt{frac{\text{det} K''(\tilde s, \tilde t)}{K''_{tt}(\tilde s, \tilde t)}},\\
+            \tilde u_0 = \tilde t \sqrt{K''_{tt}(\tilde s, \tilde t)}
 
         and :math:`(\tilde s, \tilde t)` are found by solving the saddle point equation
 
@@ -766,30 +775,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         ..math::
            \partial_t K(0, \tilde t_0) = y.
 
-
-        where :math:`\Phi` and :math:`\phi` are the cumulative and probability density
-        of the standard normal distribution, respectively, and :math:`w` and :math:`u`
-        are given by
-
-        .. math::
-            w = \text{sign}(t)\sqrt{2\left(tx - K(t)\right)},
-
-        .. math::
-            u = t\sqrt{K''(t)}.
-
-        For :math:`t = 0`, the approximation is given by
-
-        .. math::
-            F(x) \approx \frac{1}{2} + \frac{K'''(0)}{6\sqrt{2\pi K''(0)^3}}.
-
-
-        The alternative Barndorff-Nielsen approximation is given by
-
-        .. math::
-            F(x) \approx \Phi(w + \log(u/w)/w)
-
-        where :math:`\Phi` is the cumulative distribution of the standard normal.
-
         Parameters
         ----------
         x : array_like, optional (either x or t must be provided)
@@ -799,10 +784,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             computed using numerical root finding.
         fillna : float, optional
             The value to replace NaNs with.
-        backend : str, optional
-            The backend to use for the computation. Either 'LR' for Lugannani-Rice approximation
-            or 'BN' for Barndorff-Nielsen approximation. Default is 'LR'.
         """
+        # TODO: continue here
         raise NotImplementedError
         assert x is not None or t is not None
         if x is None:
