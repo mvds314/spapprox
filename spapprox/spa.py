@@ -666,82 +666,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
     """
 
-    @type_wrapper(xloc=1)
-    def _spapprox_cdf_LR(self, x, t, fillna=np.nan):
-        r"""
-        Lugannani-Rice saddle point approximation of the cumulative distribution as given by
-
-        .. math::
-            F(x) \approx \Phi(w) + \phi(w) \left(\frac{1}{w} - \frac{1}{u}\right)
-
-        where :math:`\Phi` and :math:`\phi` are the cumulative and probability density
-        of the standard normal distribution, respectively, and :math:`w` and :math:`u`
-        are given by
-
-        .. math::
-            w = \text{sign}(t)\sqrt{2\left(tx - K(t)\right)},
-
-        .. math::
-            u = t\sqrt{K''(t)}.
-
-        For :math:`t = 0`, the approximation is given by
-
-        .. math::
-            F(x) \approx \frac{1}{2} + \frac{K'''(0)}{6\sqrt{2\pi K''(0)^3}}.
-
-        Reference
-        ---------
-        [1] Lugannani, R., & Rice, S. (1980). Saddle point approximation for the distribution of the sum of independent random variables. Advances in applied probability.
-
-        [2] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
-        """
-        raise NotImplementedError
-        t = np.asanyarray(t)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
-            u = t * np.sqrt(self.cgf.d2K(t))
-            retval = sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
-        retval = np.where(
-            ~np.isclose(t, 0),
-            retval,
-            1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
-        )
-        return np.where(np.isnan(retval), fillna, retval)
-
-    @type_wrapper(xloc=1)
-    def _spapprox_cdf_BN(self, x, t, fillna=np.nan):
-        r"""
-        This is an alternative implementation of the Lugannani-Rice saddle point
-        approximation of the cumulative distribution.
-
-        It is given by
-
-        .. math::
-            F(x) \approx \Phi(w + \log(u/w)/w)
-
-        where :math:`\Phi` is the cumulative distribution of the standard normal.
-
-        References
-        ----------
-        [1] Barndorff-Nielsen, O. E. (1986). Inference on full or partial parameters based on the standardized signed log likelihood ratio. Biometrika.
-
-        [2] Bandorff-Nielsen, O. E. (1990) Approximate interval probabilities. Journal of the Royal Statistical Society. Series B (Methodological).
-
-        [3] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
-        """
-        raise NotImplementedError
-        t = np.asanyarray(t)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
-            u = t * np.sqrt(self.cgf.d2K(t))
-            retval = sps.norm.cdf(w + np.log(u / w) / w)
-        retval = np.where(
-            ~np.isclose(t, 0),
-            retval,
-            1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
-        )
-        return np.where(np.isnan(retval), fillna, retval)
-
+    # TODO: change notation to x and t instead of x y, t and s
+    # TODO: is some of the notation reverse
     def cdf(self, x=None, t=None, fillna=np.nan, **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function in
@@ -762,7 +688,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             b = \frac{\tilde w_0 - \tilde x_1}{\tilde w},\\
             \tilde n = \phi(\tilde w)\left(\frac{1}{\tilde w}-\frac{1}{\tilde u}\right),\\
             \tilde n_0 = \phi(\tilde x_1)\left(\frac{1}{w_0}-\frac{1}{\tilde u_0}\right),\\
-            \tilde u = \tilde s \sqrt{frac{\text{det} K''(\tilde s, \tilde t)}{K''_{tt}(\tilde s, \tilde t)}},\\
+            \tilde u = \tilde s \sqrt{\frac{\text{det} K''(\tilde s, \tilde t)}{K''_{tt}(\tilde s, \tilde t)}},\\
             \tilde u_0 = \tilde t \sqrt{K''_{tt}(\tilde s, \tilde t)}
 
         and :math:`(\tilde s, \tilde t)` are found by solving the saddle point equation
@@ -787,18 +713,16 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         """
         # TODO: continue here
         raise NotImplementedError
+        # Initialize
         assert x is not None or t is not None
         if x is None:
             x = self.cgf.dK(t)
         elif t is None:
             t = self._dK_inv(x, **solver_kwargs)
         wrapper = PandasWrapper(x)
-        if backend == "LR":
-            y = np.asanyarray(self._spapprox_cdf_LR(np.asanyarray(x), np.asanyarray(t)))
-        elif backend == "BN":
-            y = np.asanyarray(self._spapprox_cdf_BN(np.asanyarray(x), np.asanyarray(t)))
-        else:
-            raise ValueError("backend must be either 'LR' or 'BN'")
+        # Solve saddlepoint equations
+        # T
+        y = None
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
@@ -815,7 +739,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         fillna : float, optional
             The value to replace NaNs with.
         """
-        raise NotImplementedError
+        raise NotImplementedError("Copy dKinv logic?")
         assert np.all((0 <= np.asanyarray(q)) & (np.asanyarray(q) <= 1))
         if hasattr(self, "_cdf_cache") and hasattr(self, "_t_cache"):
             t = np.interp(q, self._cdf_cache, self._t_cache)
