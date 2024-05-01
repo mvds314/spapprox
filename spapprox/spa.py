@@ -754,9 +754,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         where
 
         .. math::
-            \tilde x_1 = \sgn(\tilde t_0) \sqrt{2\left(\tilde t_0 y - K(0, \tilde t_0)\right)},\\
-            \tilde w_0 = \sgn(\tilde t_0) \sqrt(2\left(K(\tilde s, 0) - K(\tilde s, \tilde t) + \tilde t y\right)),\\
-            \tilde w = \sgn(\tilde s) \sqrt{2} \sqrt{\tilde s x + \tilde t y - K(\tilde s, \tilde t) - \tilde t_0 y + K(0, \tilde t_0)},\\
+            \tilde x_1 = \text{sign}(\tilde t_0) \sqrt{2\left(\tilde t_0 y - K(0, \tilde t_0)\right)},\\
+            \tilde w_0 = \text{sign}(\tilde t_0) \sqrt(2\left(K(\tilde s, 0) - K(\tilde s, \tilde t) + \tilde t y\right)),\\
+            \tilde w = \text{sign}(\tilde s) \sqrt{2} \sqrt{\tilde s x + \tilde t y - K(\tilde s, \tilde t) - \tilde t_0 y + K(0, \tilde t_0)},\\
             \tilde y_1 = \frac{\tilde 2 - b \tilde x_1}{\sqrt{1+b^2}},\\
             \tilde \rho = \frac{-b}{\sqrt{1+b^2}},\\
             b = \frac{\tilde w_0 - \tilde x_1}{\tilde w},\\
