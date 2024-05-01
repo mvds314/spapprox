@@ -675,13 +675,26 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
         The approximation is given by
 
+        x,y -> x=x_1,x_2
+        \tilde x_1, \tilde y_1 -> \tilde x
+        \tilde x_1 ->\tilde x_1
+        \tilde y_1 ->\tilde x_2
+        \tilde s, \tilde t -> t
+        \tilde t_0 -> s_1
+        0,\tilde t_0 -> s=s_0,s_1, with s_0=0
+
+
+
         .. math::
-            F(x,y) \approx \Phi_2(\tilde x_1, \tilde y_1, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,
+            F(x,y) \approx \Phi_2(\tilde x_1, \tilde y_1, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,\\
+            F(x) \approx \Phi_2(\tilde x, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,
         where
 
         .. math::
-            \tilde x_1 = \text{sign}(\tilde t_0) \sqrt{2\left(\tilde t_0 y - K(0, \tilde t_0)\right)},\\
-            \tilde w_0 = \text{sign}(\tilde t_0) \sqrt(2\left(K(\tilde s, 0) - K(\tilde s, \tilde t) + \tilde t y\right)),\\
+            \tilde x_1 = \text{sign}(tilde t_0) \sqrt{2\left(\tilde t_0 y - K(0, \tilde t_0)\right)},\\
+            \tilde x_1 = \text{sign}(s_1) \sqrt{2\left(s_1 x_1 - K(s)\right)},\\
+            \tilde w_0 = \text{sign}(\tilde t) \sqrt(2\left(K(\tilde s, 0) - K(\tilde s, \tilde t) + \tilde t y\right)),\\
+            \tilde w_0 = \text{sign}(t_1) \sqrt(2\left(K([t_0,0]) - K(t) + t_1 x_1\right)),\\
             \tilde w = \text{sign}(\tilde s) \sqrt{2} \sqrt{\tilde s x + \tilde t y - K(\tilde s, \tilde t) - \tilde t_0 y + K(0, \tilde t_0)},\\
             \tilde y_1 = \frac{\tilde 2 - b \tilde x_1}{\sqrt{1+b^2}},\\
             \tilde \rho = \frac{-b}{\sqrt{1+b^2}},\\
@@ -735,7 +748,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         Parameters
         ----------
         q : array_like
-            The values at which to evaluate the inverse cumulative distribution function.
+            The values at which to evaluate the inverse cumulative
+            distribution function.
         fillna : float, optional
             The value to replace NaNs with.
         """
