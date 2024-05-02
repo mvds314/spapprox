@@ -675,23 +675,27 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
         The approximation is given by
 
-        x,y -> x=x_1,x_2
-        \tilde x_1, \tilde y_1 -> \tilde x
-        \tilde x_1 ->\tilde x_1
-        \tilde y_1 ->\tilde x_2
-        \tilde s, \tilde t -> t
-        \tilde t_0 -> s_1
-        0,\tilde t_0 -> s=s_0,s_1, with s_0=0
+        x,y -> \mathbf{x}
+        \tilde s, \tilde t -> \mathbf{\tilde t}
+        \tilde t_0, just keep this one
+        0,\tilde t_0 -> \mathbf{\tilde t_0}
 
 
 
         .. math::
             F(x,y) \approx \Phi_2(\tilde x_1, \tilde y_1, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,\\
-            F(x) \approx \Phi_2(\tilde x, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,
-        where
+            F(\mathbf{x}) \approx \Phi_2(\mathbf{\tilde x}, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,
+        
+        where vectors are denoted in bold notation:
 
         .. math::
-            \tilde x_1 = \text{sign}(tilde t_0) \sqrt{2\left(\tilde t_0 y - K(0, \tilde t_0)\right)},\\
+            \mathbf{x} = \left[x,y\right],\\
+            \mathbf{\tilde x} = \left[\tilde x,\tilde y\right],\\
+            \mathbf{\tilde t} = \left[\tilde s,\tilde t\right],\\
+            \mathbf{\tilde t_0} = \left[0,t_0\right].
+            
+        .. math::
+            \tilde x_1 = \text{sign}(\tilde t_0) \sqrt{2\tilde t_0 y -2 K\left([0, \tilde t_0]\right)},\\
             \tilde x_1 = \text{sign}(s_1) \sqrt{2\left(s_1 x_1 - K(s)\right)},\\
             \tilde w_0 = \text{sign}(\tilde t) \sqrt(2\left(K(\tilde s, 0) - K(\tilde s, \tilde t) + \tilde t y\right)),\\
             \tilde w_0 = \text{sign}(t_1) \sqrt(2\left(K([t_0,0]) - K(t) + t_1 x_1\right)),\\
@@ -707,12 +711,14 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         and :math:`(\tilde s, \tilde t)` are found by solving the saddle point equation
 
         .. math::
-           \nabla K(\tilde t, \tilde s) = \begin{bmatrix} x \\ y \end{bmatrix},
+           \nabla K(\mathbf{\tilde t}) = \mathbf{x},
 
         And, :math:`\tilde t_0` is found by solving a second saddlepoint equation:
 
         ..math::
-           \partial_t K(0, \tilde t_0) = y.
+           \partial_2 K(\mathbf{\tilde t_0}) = y,
+           
+         where :math:`\partial_i` differentials to the :math:`i`-th variable.
 
         Parameters
         ----------
