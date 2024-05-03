@@ -683,30 +683,35 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
 
         .. math::
-            F(x,y) \approx \Phi_2(\tilde x_1, \tilde y_1, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,\\
-            F(\mathbf{x}) \approx \Phi_2(\mathbf{\tilde x}, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,
+            F(\mathbf{x}) \approx \Phi_2(\mathbf{\tilde x_1}, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,
         
-        where vectors are denoted in bold notation:
+        where vectors are denoted in bold and have components as follows:
 
         .. math::
             \mathbf{x} = \left[x,y\right],\\
             \mathbf{\tilde x} = \left[\tilde x,\tilde y\right],\\
+            \mathbf{\tilde x_1} = \left[\tilde x_1,\tilde y_1\right],\\
             \mathbf{\tilde t} = \left[\tilde s,\tilde t\right],\\
-            \mathbf{\tilde t_0} = \left[0,t_0\right].
+            \mathbf{\tilde t_0} = \left[0,t_0\right],\\
+            \mathbf{\tilde s_0} = \left[\tilde s,0\right].
+            
+        And where,
             
         .. math::
-            \tilde x_1 = \text{sign}(\tilde t_0) \sqrt{2\tilde t_0 y -2 K\left([0, \tilde t_0]\right)},\\
-            \tilde x_1 = \text{sign}(s_1) \sqrt{2\left(s_1 x_1 - K(s)\right)},\\
-            \tilde w_0 = \text{sign}(\tilde t) \sqrt(2\left(K(\tilde s, 0) - K(\tilde s, \tilde t) + \tilde t y\right)),\\
-            \tilde w_0 = \text{sign}(t_1) \sqrt(2\left(K([t_0,0]) - K(t) + t_1 x_1\right)),\\
-            \tilde w = \text{sign}(\tilde s) \sqrt{2} \sqrt{\tilde s x + \tilde t y - K(\tilde s, \tilde t) - \tilde t_0 y + K(0, \tilde t_0)},\\
+            \tilde x_1 = \text{sign}(\tilde t_0) \sqrt{2(\mathbf{\tilde t_0}\cdot \mathbf{x}
+                                                         - K(\mathbf{\tilde t_0}))},\\
+            \tilde w_0 = \text{sign}(\tilde t) \sqrt{2\left(K(\mathbf{\tilde s_0}) - K(\mathbf{\tilde t}) + \tilde t y\right)},\\
+            \tilde w = \text{sign}(\tilde s) \sqrt{2}
+                       \sqrt{\mathbf{\tilde t}\cdot\mathbf{\tilde x} 
+                        - \mathbf{\tilde t_0}\cdot\mathbf{x}
+                        + K(\mathbf{\tilde t_0}) - K(\mathbf{\tilde t})},\\
+            b = \frac{\tilde w_0 - \tilde x_1}{\tilde w},\\
             \tilde y_1 = \frac{\tilde 2 - b \tilde x_1}{\sqrt{1+b^2}},\\
             \tilde \rho = \frac{-b}{\sqrt{1+b^2}},\\
-            b = \frac{\tilde w_0 - \tilde x_1}{\tilde w},\\
             \tilde n = \phi(\tilde w)\left(\frac{1}{\tilde w}-\frac{1}{\tilde u}\right),\\
             \tilde n_0 = \phi(\tilde x_1)\left(\frac{1}{w_0}-\frac{1}{\tilde u_0}\right),\\
-            \tilde u = \tilde s \sqrt{\frac{\text{det} K''(\tilde s, \tilde t)}{K''_{tt}(\tilde s, \tilde t)}},\\
-            \tilde u_0 = \tilde t \sqrt{K''_{tt}(\tilde s, \tilde t)}
+            \tilde u = \tilde s \sqrt{\frac{\text{det} K''(\mathbf{\tilde t})}{K''_{tt}(\mathbf{\tilde t})}},\\
+            \tilde u_0 = \tilde t \sqrt{K''_{tt}(\mathbf{\tilde t})}
 
         and :math:`(\tilde s, \tilde t)` are found by solving the saddle point equation
 
@@ -715,7 +720,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
         And, :math:`\tilde t_0` is found by solving a second saddlepoint equation:
 
-        ..math::
+        .. math::
            \partial_2 K(\mathbf{\tilde t_0}) = y,
            
          where :math:`\partial_i` differentials to the :math:`i`-th variable.
