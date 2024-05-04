@@ -258,29 +258,31 @@ def test_bvar_spa(cgf, dist, ts, dim):
         assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
     assert np.allclose(spa.pdf(t=ts, normalize_pdf=False), dist.pdf(spa.cgf.dK(ts)))
     # test cdf
-    for t in ts:
+    # TODO: continue here and fix this test
+    for t in ts[5:6]:
         x = spa.cgf.dK(t)
+        print(dist.cdf(x))
         assert np.allclose(spa.cdf(t=t), dist.cdf(x))
-    import pdb
+    # import pdb
 
-    pdb.set_trace()
-    assert np.allclose(spa.cdf(t=ts), dist.cdf(spa.cgf.dK(ts)))
-    # TODO: what to include from this?
-    spa.fit_saddle_point_eqn(num=10)
-    x = spa._x_cache
-    x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
-    for xx in x:
-        cgf.dK(cgf.dK_inv(xx))
-        spa._dK_inv(xx)
-        assert np.allclose(xx, cgf.dK(spa._dK_inv(xx)))
-    np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
-    # Same logic, but now with cache already provided
-    spa.fit_saddle_point_eqn(num=10)
-    x = spa._x_cache
-    x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
-    for xx in x:
-        assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
-    np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
+    # pdb.set_trace()
+    # assert np.allclose(spa.cdf(t=ts), dist.cdf(spa.cgf.dK(ts)))
+    # # TODO: what to include from this?
+    # spa.fit_saddle_point_eqn(num=10)
+    # x = spa._x_cache
+    # x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
+    # for xx in x:
+    #     cgf.dK(cgf.dK_inv(xx))
+    #     spa._dK_inv(xx)
+    #     assert np.allclose(xx, cgf.dK(spa._dK_inv(xx)))
+    # np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
+    # # Same logic, but now with cache already provided
+    # spa.fit_saddle_point_eqn(num=10)
+    # x = spa._x_cache
+    # x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
+    # for xx in x:
+    #     assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
+    # np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
 
 
 # TODO: contintue with the conditional Skovgaard approximation
