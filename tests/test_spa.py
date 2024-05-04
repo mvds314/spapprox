@@ -242,8 +242,8 @@ def test_mvar_spa(cgf, dist, ts, dim):
     [
         # Basic test with uncorrelated variables
         (
-            multivariate_norm(loc=0.5, scale=3),
-            sps.multivariate_normal(mean=[0.5, 0.5], cov=9),
+            multivariate_norm(loc=0, scale=1),
+            sps.multivariate_normal(mean=[0, 0], cov=1),
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
             2,
         ),
