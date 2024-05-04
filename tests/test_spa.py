@@ -260,10 +260,10 @@ def test_bvar_spa(cgf, dist, ts, dim):
     # test cdf
     for t in ts:
         x = spa.cgf.dK(t)
-        import pdb
-
-        pdb.set_trace()
         assert np.allclose(spa.cdf(t=t), dist.cdf(x))
+    import pdb
+
+    pdb.set_trace()
     assert np.allclose(spa.cdf(t=ts), dist.cdf(spa.cgf.dK(ts)))
     # TODO: what to include from this?
     spa.fit_saddle_point_eqn(num=10)
