@@ -7,7 +7,7 @@ import numpy as np
 import itertools
 import pytest
 import scipy.stats as sps
-from scipy.integrate import quad, nquad
+from scipy.integrate import quad
 from spapprox import (
     # poisson,
     # binomial,
@@ -236,8 +236,54 @@ def test_mvar_spa(cgf, dist, ts, dim):
     np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
 
 
-# TODO: then continue with bivariate spa
+# TODO: continue with testing the bivariate spa
+@pytest.mark.parametrize(
+    "cgf, dist, ts, dim",
+    [
+        # Basic test with uncorrelated variables
+        (
+            multivariate_norm(loc=0.5, scale=3),
+            sps.multivariate_normal(mean=[0.5, 0.5], cov=9),
+            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
+            2,
+        ),
+    ],
+)
+def test_bvar_spa(cgf, dist, ts, dim):
+    spa = BivariateSaddlePointApprox(cgf)
+    assert spa.dim == 2
+    # test pdf
+    for t in ts:
+        x = spa.cgf.dK(t)
+        assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
+    assert np.allclose(spa.pdf(t=ts, normalize_pdf=False), dist.pdf(spa.cgf.dK(ts)))
+    # test cdf
+    for t in ts:
+        x = spa.cgf.dK(t)
+        import pdb
 
+        pdb.set_trace()
+        assert np.allclose(spa.cdf(t=t), dist.cdf(x))
+    assert np.allclose(spa.cdf(t=ts), dist.cdf(spa.cgf.dK(ts)))
+    # TODO: what to include from this?
+    spa.fit_saddle_point_eqn(num=10)
+    x = spa._x_cache
+    x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
+    for xx in x:
+        cgf.dK(cgf.dK_inv(xx))
+        spa._dK_inv(xx)
+        assert np.allclose(xx, cgf.dK(spa._dK_inv(xx)))
+    np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
+    # Same logic, but now with cache already provided
+    spa.fit_saddle_point_eqn(num=10)
+    x = spa._x_cache
+    x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
+    for xx in x:
+        assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
+    np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
+
+
+# TODO: contintue with the conditional Skovgaard approximation
 
 if __name__ == "__main__":
     if True:
@@ -245,7 +291,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_mvar_spa",
+                "test_bvar_spa",
                 "--tb=auto",
                 "--pdb",
             ]

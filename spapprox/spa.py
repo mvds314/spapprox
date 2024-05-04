@@ -38,7 +38,7 @@ class SaddlePointApprox(ABC):
         .. math::
             f(x) \approx \frac{1}{\sqrt{2\pi K''(t)}} \exp\left(K(t) - tx\right)
 
-        where :math:`t` is the solution of the saddle point equation.
+        where :math:`t` solves the saddle point equation.
 
         Parameters
         ----------
@@ -689,6 +689,22 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         r"""
         Saddle point approximation of the cumulative distribution function in
         the bivariate case.
+        """
+        assert x is not None or t is not None
+        if x is None:
+            x = self.cgf.dK(t)
+        elif t is None:
+            t = self._dK_inv(x, **solver_kwargs)
+        wrapper = PandasWrapper(x)
+        x, t = np.asanyarray(x), np.asanyarray(t)
+        y = self._spapprox_cdf(x, t)
+        y = np.where(np.isnan(y), fillna, y)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+
+    def _spapprox_cdf(self, x, t, fillna=np.nan, **solver_kwargs):
+        r"""
+        Saddle point approximation of the cumulative distribution function in
+        the bivariate case.
 
         The approximation is given by
 
@@ -750,20 +766,19 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         fillna : float, optional
             The value to replace NaNs with.
         """
-        # TODO: continue here
-        raise NotImplementedError
-        # Initialize
-        assert x is not None or t is not None
-        if x is None:
-            x = self.cgf.dK(t)
-        elif t is None:
-            t = self._dK_inv(x, **solver_kwargs)
-        wrapper = PandasWrapper(x)
-        # Solve saddlepoint equations
-        # T
-        y = None
-        y = np.where(np.isnan(y), fillna, y)
-        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+        # Note, slicing a component of a cgf sets the other variables to zero
+        tt = self.cgf[1].dK_inv(x[1], **solver_kwargs)
+        tt0 = np.hstack((np.zeros(np.shape(tt)), tt))
+        t0 = t.copy()
+        t0[0] = 0
+        s0 = t.copy()
+        s0[1] = 0
+        tx = np.sign(tt) * np.sqrt(2 * (tt0.dot(x) - self.cgf(tt0)))
+        tw = np.sign(t) * np.sqrt(2 * (self.cgf(s0) - self.cgf(t) + t0.dot(x)))
+        import pdb
+
+        pdb.set_trace()
+        # TODO: test this
 
     @type_wrapper(xloc=1)
     def ppf(self, q, fillna=np.nan, t0=None, ttol=1e-4, **kwargs):
