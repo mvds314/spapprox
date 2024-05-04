@@ -533,7 +533,23 @@ class UnivariateSaddlePointApproxMean(UnivariateSaddlePointApprox):
 
 
 class MultivariateSaddlePointApprox(SaddlePointApprox):
-    """
+    r"""
+    Given the cumulant generating function of a random vector, this class
+    provides the saddle point approximation of the probability density function.
+
+    The multivariate saddle point approximation is given by
+
+    .. math::
+        f(\mathbf{x}) \approx \frac{1}{2\pi\sqrt{\left|\det H\right|}}
+        \exp\left(K(\mathbf{t}) - \mathbf{x}\cdot\mathbf{t}\right)
+
+
+    where :math:`H` is the Hessian matrix of the cumulant generating function,
+    and :math:`\mathbf{t}` solves the saddle point equation :math:`K(\mathbf{t})=x`.
+
+    We follow the approach as outlined in [4] Section 5.2.
+
+
     See the Kolasse book on how to remove singularities
     DasGupta claims the multidimensional case is too notationally complex
 
@@ -650,12 +666,15 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
     The bivariate saddle point approximation is given by
 
     .. math::
-        f(x, y) \approx \frac{1}{2\pi\sqrt{\det\left(-H\right)}} \exp\left(K(t) - t_1x - t_2y\right)
+        f(\mathbf{x}) \approx \frac{1}{2\pi\sqrt{\left|\det H\right|}}
+        \exp\left(K(\mathbf{\tilde t}) - \mathbf{x}\cdot\mathbf{\tilde t}\right)
 
-    where :math:`H` is the Hessian matrix of the cumulant generating function, and :math:`t`
-    is the solution of the saddle point equation.
+    where :math:`\mathbf{x} = \left[x,y\right]`,
+    :math:`H` is the Hessian matrix of the cumulant generating function,
+    and :math:`\mathbf{\tilde t}= \left[\tilde s,\tilde t\right]` solves
+    the saddle point equation :math:`K(\mathbf{\tilde t})=x`.
 
-    We follow the approach as outlined in [4].
+    We follow the approach as outlined in [4] Section 5.2.
 
     References
     ----------
@@ -666,8 +685,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
     """
 
-    # TODO: change notation to x and t instead of x y, t and s
-    # TODO: is some of the notation reverse
     def cdf(self, x=None, t=None, fillna=np.nan, **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function in
@@ -675,56 +692,54 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
         The approximation is given by
 
-        x,y -> \mathbf{x}
-        \tilde s, \tilde t -> \mathbf{\tilde t}
-        \tilde t_0, just keep this one
-        0,\tilde t_0 -> \mathbf{\tilde t_0}
-
-
-
         .. math::
-            F(\mathbf{x}) \approx \Phi_2(\mathbf{\tilde x_1}, \tilde \rho) + \Phi(\tilde w_0) \tilde n + \tilde n \tilde n_0,
+            F(\mathbf{x}) \approx \Phi_2(\mathbf{\tilde x}, \rho)
+            + \Phi(\tilde w) n + \Phi(w) \tilde n + n \tilde n,
         
         where vectors are denoted in bold and have components as follows:
 
         .. math::
             \mathbf{x} = \left[x,y\right],\\
+            \mathbf{t} = \left[s, t\right],\\
             \mathbf{\tilde x} = \left[\tilde x,\tilde y\right],\\
-            \mathbf{\tilde x_1} = \left[\tilde x_1,\tilde y_1\right],\\
-            \mathbf{\tilde t} = \left[\tilde s,\tilde t\right],\\
-            \mathbf{\tilde t_0} = \left[0,t_0\right],\\
-            \mathbf{\tilde s_0} = \left[\tilde s,0\right].
+            \mathbf{\tilde t_0} = \left[0,\tilde t\right],\\
+            \mathbf{s_0} = \left[s,0\right],\\
+            \mathbf{t_0} = \left[0,t\right].
             
         And where,
             
         .. math::
-            \tilde x_1 = \text{sign}(\tilde t_0) \sqrt{2(\mathbf{\tilde t_0}\cdot \mathbf{x}
+            \tilde x = \text{sign}(\tilde t) \sqrt{2(\mathbf{\tilde t_0}\cdot \mathbf{x}
                                                          - K(\mathbf{\tilde t_0}))},\\
-            \tilde w_0 = \text{sign}(\tilde t) \sqrt{2\left(K(\mathbf{\tilde s_0}) - K(\mathbf{\tilde t}) + \tilde t y\right)},\\
-            \tilde w = \text{sign}(\tilde s) \sqrt{2}
-                       \sqrt{\mathbf{\tilde t}\cdot\mathbf{\tilde x} 
+            \tilde w = \text{sign}(t) \sqrt{2\left(K(\mathbf{s_0}) - K(\mathbf{t}) + 
+                                                     \mathbf{t_0}\cdot\mathbf{x}\right)},\\
+            w = \text{sign}(s) \sqrt{2}
+                       \sqrt{\mathbf{t}\cdot\mathbf{x} 
                         - \mathbf{\tilde t_0}\cdot\mathbf{x}
-                        + K(\mathbf{\tilde t_0}) - K(\mathbf{\tilde t})},\\
-            b = \frac{\tilde w_0 - \tilde x_1}{\tilde w},\\
-            \tilde y_1 = \frac{\tilde 2 - b \tilde x_1}{\sqrt{1+b^2}},\\
-            \tilde \rho = \frac{-b}{\sqrt{1+b^2}},\\
-            \tilde n = \phi(\tilde w)\left(\frac{1}{\tilde w}-\frac{1}{\tilde u}\right),\\
-            \tilde n_0 = \phi(\tilde x_1)\left(\frac{1}{w_0}-\frac{1}{\tilde u_0}\right),\\
-            \tilde u = \tilde s \sqrt{\frac{\text{det} K''(\mathbf{\tilde t})}{K''_{tt}(\mathbf{\tilde t})}},\\
-            \tilde u_0 = \tilde t \sqrt{K''_{tt}(\mathbf{\tilde t})}
+                        + K(\mathbf{\tilde t_0}) - K(\mathbf{t})},\\
+            b = \frac{\tilde w - \tilde x}{w},\\
+            \tilde y = \frac{w - b \tilde x}{\sqrt{1+b^2}},\\
+            \rho = \frac{-b}{\sqrt{1+b^2}},\\
+            n = \phi(w)\left(\frac{1}{w}-\frac{1}{u}\right),\\
+            \tilde n = \phi(\tilde x)\left(\frac{1}{\tilde w}-\frac{1}{\tilde u}\right),\\
+            u = s \sqrt{\frac{\text{det} K''(\mathbf{t})}{K''_{tt}(\mathbf{t})}},\\
+            \tilde u = t \sqrt{K''_{tt}(\mathbf{t})}
 
-        and :math:`(\tilde s, \tilde t)` are found by solving the saddle point equation
-
-        .. math::
-           \nabla K(\mathbf{\tilde t}) = \mathbf{x},
-
-        And, :math:`\tilde t_0` is found by solving a second saddlepoint equation:
+        and :math:`\mathbf{t}=[s,t]` is found by solving the saddle point equation
 
         .. math::
-           \partial_2 K(\mathbf{\tilde t_0}) = y,
-           
-         where :math:`\partial_i` differentials to the :math:`i`-th variable.
+           \nabla K(\mathbf{t}) = \mathbf{x},
 
+        And, :math:`\mathbf{\tilde t_0}=[0,\tilde t]` is found by solving a second saddlepoint equation:
+
+        .. math::
+            \partial_{t} K(\mathbf{\tilde t_0}) = y.
+            
+        We follow the approach as outlined in [4] Section 5.2.
+        Note that, we simplified notation somewhat, and that there is typo in their
+        formula for :math:`\tilde n_0` (in their notation): :math:`w_0` is not definiened
+        and should probably read :math:`\tilde w_0`.
+            
         Parameters
         ----------
         x : array_like, optional (either x or t must be provided)
