@@ -775,13 +775,15 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         fillna : float, optional
             The value to replace NaNs with.
         """
+        # Initialize
         # Note, slicing a component of a cgf sets the other variables to zero
-        tt = self.cgf[1].dK_inv(x[1], **solver_kwargs)
-        tt0 = np.hstack((np.zeros(np.shape(tt)), tt))
+        tt = self.cgf[1].dK_inv(x.T[1], **solver_kwargs)
+        tt0 = np.vstack((np.zeros(np.shape(tt)), tt)).T
         t0 = t.copy()
         t0[0] = 0
         s0 = t.copy()
         s0[1] = 0
+        # Calculate components
         tx = np.sign(tt) * np.sqrt(2 * (tt0.dot(x) - self.cgf.K(tt0)))
         tw = np.sign(t[1]) * np.sqrt(2 * (self.cgf.K(s0) - self.cgf.K(t) + t0.dot(x)))
         w = np.sign(t[0]) * np.sqrt(2 * ((t - tt0).dot(x) + self.cgf.K(tt0) - self.cgf.K(t)))
@@ -793,6 +795,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         tu = t[1] * np.sqrt(self.cgf.d2K(t)[1, 1])
         n = sps.norm.pdf(w) * (1 / w - 1 / u)
         assert not np.isclose(t, 0).any(), "handle this special case"
+        # TODO: handle singularities
+        # Put everything together
         tn = sps.norm.pdf(tx[0]) * (1 / tw - 1 / tu)
         if _has_fastnorm:
             retval = fastnorm.bivar_norm_cdf(tx, rho)
