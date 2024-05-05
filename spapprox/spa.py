@@ -784,13 +784,18 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         s0 = t.copy()
         s0[1] = 0
         # Calculate components
-        tx = np.sign(tt) * np.sqrt(2 * (tt0.dot(x) - self.cgf.K(tt0)))
-        tw = np.sign(t[1]) * np.sqrt(2 * (self.cgf.K(s0) - self.cgf.K(t) + t0.dot(x)))
-        w = np.sign(t[0]) * np.sqrt(2 * ((t - tt0).dot(x) + self.cgf.K(tt0) - self.cgf.K(t)))
+        tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1) - self.cgf.K(tt0)))
+        tw = np.sign(t.T[1]) * np.sqrt(
+            2 * (self.cgf.K(s0) - self.cgf.K(t) + (t0 * x).sum(axis=-1))
+        )
+        w = np.sign(t.T[0]) * np.sqrt(
+            2 * (((t - tt0) * x).sum(axis=-1) + self.cgf.K(tt0) - self.cgf.K(t))
+        )
         b = (tw - tx) / w
         ty = (w - b * tx) / np.sqrt(1 + np.square(b))
-        tx = np.hstack((tx, ty))
+        tx = np.vstack((tx, ty)).T
         rho = -b / np.sqrt(1 + np.square(b))
+        # TODO: continue here with the vectorization
         u = t[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / self.cgf.d2K(t)[1, 1])
         tu = t[1] * np.sqrt(self.cgf.d2K(t)[1, 1])
         n = sps.norm.pdf(w) * (1 / w - 1 / u)
