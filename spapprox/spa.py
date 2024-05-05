@@ -784,25 +784,31 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         s0 = t.copy()
         s0[..., 1] = 0
         # Calculate components
-        tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
-        tw = np.sign(t.T[1]) * np.sqrt(
-            2 * (self.cgf.K(s0) - self.cgf.K(t) + (t0 * x).sum(axis=-1).squeeze())
-        )
-        w = np.sign(t.T[0]) * np.sqrt(
-            2 * (((t - tt0) * x).sum(axis=-1).squeeze() + self.cgf.K(tt0) - self.cgf.K(t))
-        )
-        b = (tw - tx) / w
-        ty = (w - b * tx) / np.sqrt(1 + np.square(b))
-        tx = np.vstack((tx, ty)).T.squeeze()
-        rho = -b / np.sqrt(1 + np.square(b))
-        d2Kt11 = self.cgf.d2K(t)[..., 1, 1]
-        u = t.T[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt11)
-        tu = t.T[1] * np.sqrt(d2Kt11)
-        n = sps.norm.pdf(w) * (1 / w - 1 / u)
-        assert not np.isclose(t, 0).any(), "handle this special case"
-        # TODO: handle singularities
+        if not np.isclose(t, 0).any():
+            tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
+            tw = np.sign(t.T[1]) * np.sqrt(
+                2 * (self.cgf.K(s0) - self.cgf.K(t) + (t0 * x).sum(axis=-1).squeeze())
+            )
+            w = np.sign(t.T[0]) * np.sqrt(
+                2 * (((t - tt0) * x).sum(axis=-1).squeeze() + self.cgf.K(tt0) - self.cgf.K(t))
+            )
+            b = (tw - tx) / w
+            ty = (w - b * tx) / np.sqrt(1 + np.square(b))
+            tx = np.vstack((tx, ty)).T.squeeze()
+            rho = -b / np.sqrt(1 + np.square(b))
+            d2Kt11 = self.cgf.d2K(t)[..., 1, 1]
+            u = t.T[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt11)
+            tu = t.T[1] * np.sqrt(d2Kt11)
+            n = sps.norm.pdf(w) * (1 / w - 1 / u)
+            tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
+        else:
+            # TODO: handle singularities
+            # TODO: replace by limiting value
+            assert not np.isclose(t, 0).any(), "handle this special case"
+            # TODO: implement third derivative stuff in nominator
+            # How are we going to incoporate this?
+            n = sps.norm.pdf(w) / 6 * (1 / self.cgf.d2K(s0)[..., 0, 0])
         # Put everything together
-        tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
         if _has_fastnorm:
             if np.ndim(rho) == 0:
                 retval = fastnorm.bivar_norm_cdf(tx, rho)

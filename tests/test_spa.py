@@ -236,7 +236,6 @@ def test_mvar_spa(cgf, dist, ts, dim):
     np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
 
 
-# TODO: continue with testing the bivariate spa
 @pytest.mark.parametrize(
     "cgf, dist, ts, dim",
     [
@@ -244,7 +243,7 @@ def test_mvar_spa(cgf, dist, ts, dim):
         (
             multivariate_norm(loc=0, scale=1),
             sps.multivariate_normal(mean=[0, 0], cov=1),
-            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
+            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 11), 2)),
             2,
         ),
         # TODO: create more elaborate tests
