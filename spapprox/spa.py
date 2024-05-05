@@ -781,8 +781,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         s0 = t.copy()
         s0[1] = 0
         tx = np.sign(tt) * np.sqrt(2 * (tt0.dot(x) - self.cgf.K(tt0)))
-        tw = np.sign(t[0]) * np.sqrt(2 * (self.cgf.K(s0) - self.cgf.K(t) + t0.dot(x)))
-        w = np.sign(t[1]) * np.sqrt(2 * ((t - tt0).dot(x) + self.cgf.K(tt0) - self.cgf.K(t)))
+        tw = np.sign(t[1]) * np.sqrt(2 * (self.cgf.K(s0) - self.cgf.K(t) + t0.dot(x)))
+        w = np.sign(t[0]) * np.sqrt(2 * ((t - tt0).dot(x) + self.cgf.K(tt0) - self.cgf.K(t)))
         b = (tw - tx) / w
         ty = (w - b * tx) / np.sqrt(1 + np.square(b))
         tx = np.hstack((tx, ty))
@@ -790,6 +790,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         u = t[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / self.cgf.d2K(t)[1, 1])
         tu = t[1] * np.sqrt(self.cgf.d2K(t)[1, 1])
         n = sps.norm.pdf(w) * (1 / w - 1 / u)
+        assert not np.isclose(t, 0).any(), "handle this special case"
         tn = sps.norm.pdf(tx[0]) * (1 / tw - 1 / tu)
         if _has_fastnorm:
             retval = fastnorm.bivar_norm_cdf(tx, rho)

@@ -247,6 +247,8 @@ def test_mvar_spa(cgf, dist, ts, dim):
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
             2,
         ),
+        # TODO: create more elaborate tests
+        # TODO: test against book examples
     ],
 )
 def test_bvar_spa(cgf, dist, ts, dim):
@@ -258,14 +260,11 @@ def test_bvar_spa(cgf, dist, ts, dim):
         assert np.allclose(spa.pdf(t=t, normalize_pdf=False), dist.pdf(x))
     assert np.allclose(spa.pdf(t=ts, normalize_pdf=False), dist.pdf(spa.cgf.dK(ts)))
     # test cdf
-    # TODO: continue here and fix this test
-    for t in ts[5:6]:
+    for i, t in enumerate(ts):
         x = spa.cgf.dK(t)
         print(dist.cdf(x))
-        assert np.allclose(spa.cdf(t=t), dist.cdf(x))
-    # import pdb
-
-    # pdb.set_trace()
+        assert np.allclose(spa.cdf(t=t), dist.cdf(x), atol=1e-6)
+    # TODO: continue here and test vectorized
     # assert np.allclose(spa.cdf(t=ts), dist.cdf(spa.cgf.dK(ts)))
     # # TODO: what to include from this?
     # spa.fit_saddle_point_eqn(num=10)
