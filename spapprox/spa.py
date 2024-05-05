@@ -780,9 +780,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         tt = self.cgf[1].dK_inv(x.T[1], **solver_kwargs)
         tt0 = np.vstack((np.zeros(np.shape(tt)), tt)).T.squeeze()
         t0 = t.copy()
-        t0[0] = 0
+        t0[..., 0] = 0
         s0 = t.copy()
-        s0[1] = 0
+        s0[..., 1] = 0
         # Calculate components
         tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
         tw = np.sign(t.T[1]) * np.sqrt(
