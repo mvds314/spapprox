@@ -8,9 +8,11 @@ from functools import reduce
 
 
 class Timer:
-    def __init__(self, msg="Running"):
+    def __init__(self, msg="Running", decimals=2):
         self.msg = f"{msg}..."
         self.t0 = 0
+        assert isinstance(decimals, int) and decimals >= 0
+        self.decimals = decimals
 
     def __enter__(self):
         print(self.msg, end="")
@@ -18,7 +20,7 @@ class Timer:
         return self.t0
 
     def __exit__(self, ex_type, ex_value, ex_traceback):
-        print(f" finished in {time.time()-self.t0:.2f} seconds")
+        print(f" finished in {time.time()-self.t0:.{self.decimals}f} seconds")
         return False
 
 
