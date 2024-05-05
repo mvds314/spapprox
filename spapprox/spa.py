@@ -689,6 +689,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
     [2] Butler, R. W. (2007). Saddlepoint approximations with applications.
     [3] Wang (1990) - Saddlepoint approximations for bivariate distributions
     [4] Paolella (2007) - Intermediate Probability
+    [5] Kolassa (2006) - Serie approximations in statistics
+    [6] Kolassa, Li (2011) - Series approximations to multivariate saddlepoint approximations
 
     """
 
