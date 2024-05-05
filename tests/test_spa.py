@@ -264,26 +264,17 @@ def test_bvar_spa(cgf, dist, ts, dim):
         x = spa.cgf.dK(t)
         assert np.allclose(spa.cdf(t=t), dist.cdf(x), atol=1e-6)
     assert np.allclose(spa.cdf(t=ts), dist.cdf(spa.cgf.dK(ts)), atol=1e-6)
-    # TODO: continue here with other tests
-    # # TODO: what to include from this?
-    # spa.fit_saddle_point_eqn(num=10)
-    # x = spa._x_cache
-    # x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
-    # for xx in x:
-    #     cgf.dK(cgf.dK_inv(xx))
-    #     spa._dK_inv(xx)
-    #     assert np.allclose(xx, cgf.dK(spa._dK_inv(xx)))
-    # np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
-    # # Same logic, but now with cache already provided
-    # spa.fit_saddle_point_eqn(num=10)
-    # x = spa._x_cache
-    # x = np.vstack([xi.ravel() for xi in np.meshgrid(*x)]).T
-    # for xx in x:
-    #     assert np.allclose(cgf.dK_inv(xx), spa._dK_inv(xx))
-    # np.allclose(cgf.dK_inv(x), spa._dK_inv(x))
+    # TODO: continue here and handle singularities for bivariate case
 
 
 # TODO: contintue with the conditional Skovgaard approximation
+
+# TODO: then continue with a bootstrapping application
+
+# TODO: then go to other applications, esaddle?, the empirical saddlepoint approximation
+# TODO: then go to other applications, estimating equations,
+# TODO: then go to other applications, discrete correction
+
 
 if __name__ == "__main__":
     if True:
