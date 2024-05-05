@@ -778,35 +778,50 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         # Initialize
         # Note, slicing a component of a cgf sets the other variables to zero
         tt = self.cgf[1].dK_inv(x.T[1], **solver_kwargs)
-        tt0 = np.vstack((np.zeros(np.shape(tt)), tt)).T
+        tt0 = np.vstack((np.zeros(np.shape(tt)), tt)).T.squeeze()
         t0 = t.copy()
         t0[0] = 0
         s0 = t.copy()
         s0[1] = 0
         # Calculate components
-        tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1) - self.cgf.K(tt0)))
+        tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
         tw = np.sign(t.T[1]) * np.sqrt(
-            2 * (self.cgf.K(s0) - self.cgf.K(t) + (t0 * x).sum(axis=-1))
+            2 * (self.cgf.K(s0) - self.cgf.K(t) + (t0 * x).sum(axis=-1).squeeze())
         )
         w = np.sign(t.T[0]) * np.sqrt(
-            2 * (((t - tt0) * x).sum(axis=-1) + self.cgf.K(tt0) - self.cgf.K(t))
+            2 * (((t - tt0) * x).sum(axis=-1).squeeze() + self.cgf.K(tt0) - self.cgf.K(t))
         )
         b = (tw - tx) / w
         ty = (w - b * tx) / np.sqrt(1 + np.square(b))
-        tx = np.vstack((tx, ty)).T
+        tx = np.vstack((tx, ty)).T.squeeze()
         rho = -b / np.sqrt(1 + np.square(b))
-        # TODO: continue here with the vectorization
-        u = t[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / self.cgf.d2K(t)[1, 1])
-        tu = t[1] * np.sqrt(self.cgf.d2K(t)[1, 1])
+        d2Kt11 = self.cgf.d2K(t)[..., 1, 1]
+        u = t.T[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt11)
+        tu = t.T[1] * np.sqrt(d2Kt11)
         n = sps.norm.pdf(w) * (1 / w - 1 / u)
         assert not np.isclose(t, 0).any(), "handle this special case"
         # TODO: handle singularities
         # Put everything together
-        tn = sps.norm.pdf(tx[0]) * (1 / tw - 1 / tu)
+        tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
         if _has_fastnorm:
-            retval = fastnorm.bivar_norm_cdf(tx, rho)
+            # TODO: fix this for vector valued rho
+            if np.ndim(rho) == 0:
+                retval = fastnorm.bivar_norm_cdf(tx, rho)
+            else:
+                retval = np.array(
+                    [fastnorm.bivar_norm_cdf(_tx, _rho) for _tx, _rho in zip(tx, rho)]
+                )
+
         else:
-            retval = sps.multivariate_normal([0, 0], np.array([[1, rho], [rho, 1]])).cdf(tx)
+            if np.ndim(rho) == 0:
+                retval = sps.multivariate_normal([0, 0], np.array([[1, rho], [rho, 1]])).cdf(tx)
+            else:
+                retval = np.array(
+                    [
+                        sps.multivariate_normal([0, 0], np.array([[1, _rho], [_rho, 1]])).cdf(_tx)
+                        for _tx, _rho in zip(tx, rho)
+                    ]
+                )
         retval += sps.norm.cdf(tw) * tn + sps.norm.cdf(w) * n + n * tn
         return retval
 
