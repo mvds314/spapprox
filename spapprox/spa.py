@@ -805,7 +805,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             # TODO: handle singularities
             # TODO: replace by limiting value
             assert not np.isclose(t, 0).any(), "handle this special case"
-            # TODO: implement third derivative stuff in nominator
+            # TODO: implement third derivative stuff in nominator -> for this implement derivatives in cgf
             # How are we going to incoporate this?
             n = sps.norm.pdf(w) / 6 * (1 / self.cgf.d2K(s0)[..., 0, 0])
         # Put everything together

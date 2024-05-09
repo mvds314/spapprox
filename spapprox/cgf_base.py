@@ -19,6 +19,8 @@ except ImportError:
 from .domain import Domain
 from .util import fib, type_wrapper
 
+# TODO: sort out how _diK0 and _diK0_cache are handled
+
 
 class CumulantGeneratingFunction(ABC):
     r"""
@@ -793,6 +795,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             "_scale_inv_cache",
             "_scale_mat_inv_cache",
             "_scale_is_invertible_cache",
+            "_d3K0_cache",
         ]:
             if hasattr(self, attr):
                 delattr(self, attr)
@@ -984,6 +987,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @property
     def d3K0(self):
+        """
+        In the multivariate case, we merely implement the diagonal
+        """
         raise NotImplementedError()
 
     def __getitem__(self, item):
@@ -1113,6 +1119,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     lambda x: np.add(x, other.d3K(np.sum(t, axis=-1))), 0, self.d3K(t)
                 ),
                 domain=self.domain.intersect(other.domain.ldotinv(np.ones((1, self.dim)))),
+                # TODO: we could set diK0 if they are already computed for both
             )
         elif isinstance(other, MultivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for MultivariateCumulantGeneratingFunction"
@@ -1135,6 +1142,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 )
                 + other.d3K(t, scale=so, loc=lo),
                 domain=self.domain.intersect(other.domain),
+                # TODO: we could set diK0 if they are already computed for both
             )
         else:
             raise ValueError("Can only add a scalar or another CumulantGeneratingFunction")
@@ -1201,7 +1209,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     d3K=self._d3K,
                     dK0=self._dK0,
                     d2K0=self._d2K0,
-                    d3K0=self._d3K0,
+                    d3K0=None,
                     domain=self.domain,
                     dim=self.dim,
                 )
