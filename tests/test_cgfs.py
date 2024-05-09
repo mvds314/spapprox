@@ -355,6 +355,10 @@ def test_basic(cgf_to_test, cgf, ts, dist):
         assert np.isclose(cgf_to_test.dK0, dcgf(0) + 3)
         cgf_to_test.add(-3, inplace=True)
         assert np.isclose(cgf_to_test.dK0, dcgf(0))
+    # Test stored derivatives
+    assert np.isclose(cgf_to_test.dK0, dcgf(0))
+    assert np.isclose(cgf_to_test.d2K0, d2cgf(0))
+    assert np.isclose(cgf_to_test.d3K0, d3cgf(0))
     # Test multiplication and division with scalar
     for t in ts:
         # Test cumulant generating function
