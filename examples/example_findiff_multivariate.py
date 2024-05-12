@@ -41,7 +41,6 @@ def gradf(t):
     # TODO: look at the example in a bit more detail
     x = np.array([t - h, t, t + h])
     X, Y, Z = np.meshgrid(x[0], x[1], x[2], indexing="ij")
-
     retval = grad(K(np.array([t - h, t, t + h])))[1]
     sel = np.isnan(retval)
     if not sel.any():
