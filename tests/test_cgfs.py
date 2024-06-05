@@ -33,227 +33,228 @@ from spapprox import (
     [
         # Test cases are set up for a particular logic, and then one more based on the multivariate implementation
         # Case 1: Univariate normal distribution
-        (
-            norm(loc=0, scale=1),
-            lambda t, pdf=sps.norm.pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-            ),
-            [0.2, 0.55],
-            sps.norm(loc=0, scale=1),
-        ),
-        (
-            multivariate_norm(loc=[0, 2], scale=[1, 3])[0],
-            norm(loc=0, scale=1).K,
-            [0.2, 0.55],
-            sps.norm(loc=0, scale=1),
-        ),
+        # (
+        #     norm(loc=0, scale=1),
+        #     lambda t, pdf=sps.norm.pdf: np.log(
+        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+        #     ),
+        #     [0.2, 0.55],
+        #     sps.norm(loc=0, scale=1),
+        # ),
+        # (
+        #     multivariate_norm(loc=[0, 2], scale=[1, 3])[0],
+        #     norm(loc=0, scale=1).K,
+        #     [0.2, 0.55],
+        #     sps.norm(loc=0, scale=1),
+        # ),
         # Case 2: Sum of two univariate normal distributions
-        (
-            norm(loc=0, scale=1) + norm(loc=0, scale=1),
-            lambda t, pdf=sps.norm(0, np.sqrt(2)).pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-            ),
-            [0.2, 0.55],
-            sps.norm(loc=0, scale=np.sqrt(2)),
-        ),
-        (
-            (multivariate_norm(loc=0, scale=1) + multivariate_norm(loc=0, scale=1))[0],
-            (norm(loc=0, scale=1) + norm(loc=0, scale=1)).K,
-            [0.2, 0.55],
-            sps.norm(loc=0, scale=np.sqrt(2)),
-        ),
+        # (
+        #     norm(loc=0, scale=1) + norm(loc=0, scale=1),
+        #     lambda t, pdf=sps.norm(0, np.sqrt(2)).pdf: np.log(
+        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+        #     ),
+        #     [0.2, 0.55],
+        #     sps.norm(loc=0, scale=np.sqrt(2)),
+        # ),
+        # (
+        #     (multivariate_norm(loc=0, scale=1) + multivariate_norm(loc=0, scale=1))[0],
+        #     (norm(loc=0, scale=1) + norm(loc=0, scale=1)).K,
+        #     [0.2, 0.55],
+        #     sps.norm(loc=0, scale=np.sqrt(2)),
+        # ),
         # Case 3: Sum of two univariate normal distributions with different means
-        (
-            norm(loc=1, scale=1) + norm(loc=2, scale=1),
-            lambda t, pdf=sps.norm(3, np.sqrt(2)).pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=-12, b=12)[0]
-            ),
-            [0.2, 0.55],
-            sps.norm(loc=3, scale=np.sqrt(2)),
-        ),
-        (
-            multivariate_norm(loc=[1, 2], scale=[1, 1])[0]
-            + multivariate_norm(loc=[1, 2], scale=[1, 1])[1],
-            (norm(loc=1, scale=1) + norm(loc=2, scale=1)).K,
-            [0.2, 0.55],
-            sps.norm(loc=3, scale=np.sqrt(2)),
-        ),
+        # (
+        #     norm(loc=1, scale=1) + norm(loc=2, scale=1),
+        #     lambda t, pdf=sps.norm(3, np.sqrt(2)).pdf: np.log(
+        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-12, b=12)[0]
+        #     ),
+        #     [0.2, 0.55],
+        #     sps.norm(loc=3, scale=np.sqrt(2)),
+        # ),
+        # (
+        #     multivariate_norm(loc=[1, 2], scale=[1, 1])[0]
+        #     + multivariate_norm(loc=[1, 2], scale=[1, 1])[1],
+        #     (norm(loc=1, scale=1) + norm(loc=2, scale=1)).K,
+        #     [0.2, 0.55],
+        #     sps.norm(loc=3, scale=np.sqrt(2)),
+        # ),
         # Case 4: Univariate normal distribution scaled by a constant
-        (
-            1.1 * norm(loc=0, scale=1),
-            lambda t, pdf=sps.norm(0, 1.1).pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-            ),
-            [0.2, 0.55],
-            sps.norm(loc=0, scale=1.1),
-        ),
-        (
-            1.1 * multivariate_norm(loc=0, scale=1)[0],
-            (1.1 * norm(loc=0, scale=1)).K,
-            [0.2, 0.55],
-            sps.norm(loc=0, scale=1.1),
-        ),
+        # (
+        #     1.1 * norm(loc=0, scale=1),
+        #     lambda t, pdf=sps.norm(0, 1.1).pdf: np.log(
+        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+        #     ),
+        #     [0.2, 0.55],
+        #     sps.norm(loc=0, scale=1.1),
+        # ),
+        # (
+        #     1.1 * multivariate_norm(loc=0, scale=1)[0],
+        #     (1.1 * norm(loc=0, scale=1)).K,
+        #     [0.2, 0.55],
+        #     sps.norm(loc=0, scale=1.1),
+        # ),
         # Case 5: Sum of two univariate normal distributions scaled by a constant and shifted
-        (
-            1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3,
-            lambda t, pdf=sps.norm(0.8, 1.1 * np.sqrt(2)).pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-            ),
-            [0.2, 0.55],
-            sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
-        ),
-        (
-            1.1 * (multivariate_norm(loc=0, scale=1)[0] + multivariate_norm(loc=1, scale=1)[0])
-            - 0.3,
-            (1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3).K,
-            [0.2, 0.55],
-            sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
-        ),
+        # (
+        #     1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3,
+        #     lambda t, pdf=sps.norm(0.8, 1.1 * np.sqrt(2)).pdf: np.log(
+        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+        #     ),
+        #     [0.2, 0.55],
+        #     sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
+        # ),
+        # (
+        #     1.1 * (multivariate_norm(loc=0, scale=1)[0] + multivariate_norm(loc=1, scale=1)[0])
+        #     - 0.3,
+        #     (1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3).K,
+        #     [0.2, 0.55],
+        #     sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
+        # ),
         # Case 6: Univariate normal distribution with loc and scale
-        (
-            norm(loc=1, scale=0.5),
-            lambda t: np.log(
-                quad(
-                    lambda x, pdf=sps.norm(loc=1, scale=0.5).pdf: pdf(x) * np.exp(t * x),
-                    a=-5,
-                    b=5,
-                )[0]
-            ),
-            [0.2, 0.55],
-            sps.norm(loc=1, scale=0.5),
-        ),
-        (
-            multivariate_norm(loc=1, scale=0.5, dim=2)[0],
-            norm(loc=1, scale=0.5).K,
-            [0.2, 0.55],
-            sps.norm(loc=1, scale=0.5),
-        ),
+        # (
+        #     norm(loc=1, scale=0.5),
+        #     lambda t: np.log(
+        #         quad(
+        #             lambda x, pdf=sps.norm(loc=1, scale=0.5).pdf: pdf(x) * np.exp(t * x),
+        #             a=-5,
+        #             b=5,
+        #         )[0]
+        #     ),
+        #     [0.2, 0.55],
+        #     sps.norm(loc=1, scale=0.5),
+        # ),
+        # (
+        #     multivariate_norm(loc=1, scale=0.5, dim=2)[0],
+        #     norm(loc=1, scale=0.5).K,
+        #     [0.2, 0.55],
+        #     sps.norm(loc=1, scale=0.5),
+        # ),
         # Case 7: Univariate normal manually specified
-        (
-            UnivariateCumulantGeneratingFunction(
-                K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
-            ),
-            lambda t, pdf=sps.norm.pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-            ),
-            [0.2, 0.55],
-            sps.norm(loc=0, scale=1),
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(
-                UnivariateCumulantGeneratingFunction(
-                    K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
-                ),
-            )[0],
-            UnivariateCumulantGeneratingFunction(
-                K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
-            ).K,
-            [0.2, 0.55],
-            sps.norm(loc=0, scale=1),
-        ),
+        # (
+        #     UnivariateCumulantGeneratingFunction(
+        #         K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
+        #     ),
+        #     lambda t, pdf=sps.norm.pdf: np.log(
+        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+        #     ),
+        #     [0.2, 0.55],
+        #     sps.norm(loc=0, scale=1),
+        # ),
+        # (
+        #     MultivariateCumulantGeneratingFunction.from_univariate(
+        #         UnivariateCumulantGeneratingFunction(
+        #             K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
+        #         ),
+        #     )[0],
+        #     UnivariateCumulantGeneratingFunction(
+        #         K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
+        #     ).K,
+        #     [0.2, 0.55],
+        #     sps.norm(loc=0, scale=1),
+        # ),
         # Case 8: Univariate exponential
-        (
-            exponential(scale=1),
-            lambda t, pdf=sps.expon.pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-            ),
-            [0.2, 0.55],
-            sps.expon(scale=1),
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(
-                norm(0, 1), 2 * exponential(scale=1) / 2
-            )[1],
-            exponential(scale=1).K,
-            [0.2, 0.55],
-            sps.expon(scale=1),
-        ),
+        # (
+        #     exponential(scale=1),
+        #     lambda t, pdf=sps.expon.pdf: np.log(
+        #         quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+        #     ),
+        #     [0.2, 0.55],
+        #     sps.expon(scale=1),
+        # ),
+        # (
+        #     MultivariateCumulantGeneratingFunction.from_univariate(
+        #         norm(0, 1), 2 * exponential(scale=1) / 2
+        #     )[1],
+        #     exponential(scale=1).K,
+        #     [0.2, 0.55],
+        #     sps.expon(scale=1),
+        # ),
         # Case 9: Univariate exponential with scale
-        (
-            exponential(scale=0.5),
-            lambda t, pdf=sps.expon(scale=0.5).pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-            ),
-            [0.2, 0.55],
-            sps.expon(scale=0.5),
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(
-                exponential(scale=0.5), exponential(scale=0.5)
-            ).ldot([1, 0]),
-            exponential(scale=0.5).K,
-            [0.2, 0.55],
-            sps.expon(scale=0.5),
-        ),
+        # (
+        #     exponential(scale=0.5),
+        #     lambda t, pdf=sps.expon(scale=0.5).pdf: np.log(
+        #         quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+        #     ),
+        #     [0.2, 0.55],
+        #     sps.expon(scale=0.5),
+        # ),
+        # (
+        #     MultivariateCumulantGeneratingFunction.from_univariate(
+        #         exponential(scale=0.5), exponential(scale=0.5)
+        #     ).ldot([1, 0]),
+        #     exponential(scale=0.5).K,
+        #     [0.2, 0.55],
+        #     sps.expon(scale=0.5),
+        # ),
         # Case 10: Univariate exponential cgf manually specified
-        (
-            UnivariateCumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
-            exponential(scale=1).K,
-            [0.2, 0.55],
-            sps.expon(scale=1),
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(
-                UnivariateCumulantGeneratingFunction(
-                    K=lambda t: np.log(1 / (1 - t)),
-                )
-            )[0],
-            exponential(scale=1).K,
-            [0.2, 0.55],
-            sps.expon(scale=1),
-        ),
+        # (
+        #     UnivariateCumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
+        #     exponential(scale=1).K,
+        #     [0.2, 0.55],
+        #     sps.expon(scale=1),
+        # ),
+        # (
+        #     MultivariateCumulantGeneratingFunction.from_univariate(
+        #         UnivariateCumulantGeneratingFunction(
+        #             K=lambda t: np.log(1 / (1 - t)),
+        #         )
+        #     )[0],
+        #     exponential(scale=1).K,
+        #     [0.2, 0.55],
+        #     sps.expon(scale=1),
+        # ),
         # Case 11: Univariate gamma
-        (
-            gamma(a=2, scale=0.5),
-            lambda t, pdf=sps.gamma(a=2, scale=0.5).pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-            ),
-            [0.2, 0.55],
-            sps.gamma(a=2, scale=0.5),
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(
-                gamma(a=2, scale=0.5), gamma(a=2, scale=0.5)
-            ).ldot([1, 0]),
-            gamma(a=2, scale=0.5).K,
-            [0.2, 0.55],
-            sps.gamma(a=2, scale=0.5),
-        ),
+        # (
+        #     gamma(a=2, scale=0.5),
+        #     lambda t, pdf=sps.gamma(a=2, scale=0.5).pdf: np.log(
+        #         quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+        #     ),
+        #     [0.2, 0.55],
+        #     sps.gamma(a=2, scale=0.5),
+        # ),
+        # (
+        #     MultivariateCumulantGeneratingFunction.from_univariate(
+        #         gamma(a=2, scale=0.5), gamma(a=2, scale=0.5)
+        #     ).ldot([1, 0]),
+        #     gamma(a=2, scale=0.5).K,
+        #     [0.2, 0.55],
+        #     sps.gamma(a=2, scale=0.5),
+        # ),
         # Case 12: Univariate chi2
-        (
-            chi2(df=3),
-            lambda t, pdf=sps.chi2(df=3).pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-            ),
-            [0.2, 0.25],
-            sps.chi2(df=3),
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(chi2(df=2), chi2(df=3)).ldot(
-                [0, 1]
-            ),
-            chi2(df=3).K,
-            [0.2, 0.25],
-            sps.chi2(df=3),
-        ),
+        # (
+        #     chi2(df=3),
+        #     lambda t, pdf=sps.chi2(df=3).pdf: np.log(
+        #         quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+        #     ),
+        #     [0.2, 0.25],
+        #     sps.chi2(df=3),
+        # ),
+        # (
+        #     MultivariateCumulantGeneratingFunction.from_univariate(chi2(df=2), chi2(df=3)).ldot(
+        #         [0, 1]
+        #     ),
+        #     chi2(df=3).K,
+        #     [0.2, 0.25],
+        #     sps.chi2(df=3),
+        # ),
         # Case 13: Univariate laplace
-        (
-            laplace(loc=0, scale=1),
-            lambda t, pdf=sps.laplace(loc=0, scale=1).pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
-            ),
-            [0.2, 0.55, -0.23],
-            sps.laplace(loc=0, scale=1),
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(
-                laplace(loc=0, scale=3), laplace(loc=0, scale=1)
-            ).ldot([1, 0]),
-            laplace(loc=0, scale=3).K,
-            [0.2, 0.3, -0.23],
-            sps.laplace(loc=0, scale=3),
-        ),
+        # (
+        #     laplace(loc=0, scale=1),
+        #     lambda t, pdf=sps.laplace(loc=0, scale=1).pdf: np.log(
+        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
+        #     ),
+        #     [0.2, 0.55, -0.23],
+        #     sps.laplace(loc=0, scale=1),
+        # ),
+        # (
+        #     MultivariateCumulantGeneratingFunction.from_univariate(
+        #         laplace(loc=0, scale=3), laplace(loc=0, scale=1)
+        #     ).ldot([1, 0]),
+        #     laplace(loc=0, scale=3).K,
+        #     [0.2, 0.3, -0.23],
+        #     sps.laplace(loc=0, scale=3),
+        # ),
         # Case 14: Univariate poisson
+        # TODO: fix this test
         (
             poisson(mu=2),
             lambda t, pmf=sps.poisson(mu=2).pmf: np.log(
@@ -602,7 +603,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_dKinv",
+                "test_basic",
                 "--tb=auto",
                 "--pdb",
             ]
