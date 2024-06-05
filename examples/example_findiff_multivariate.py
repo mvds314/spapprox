@@ -14,6 +14,7 @@ import findiff as fd
 
 
 cgf = spr.multivariate_norm(dim=3)
+cgf.domain = spr.Domain(dim=3, l=[10, 1 + 5e-7, 10])
 
 K = cgf.K
 dK = cgf.dK
@@ -21,41 +22,49 @@ d2K = cgf.d2K
 d3K = cgf.d3K
 
 ts = np.random.randn(1000, 3)
+ts = ts[0]
+ts = np.array([1, 1, 1]).astype(np.float64)
+
 h = 1e-6
 
-
-ts = ts[0]
-
-
-# This covers the univariate case
-
-
-# First order derivative
+# Gradient
 grad = fd.Gradient(h=[h, h, h])
+
+# TODO: continue here, why doesn't this work yet, 1+1e-6 should be outside of the domain
 
 
 def gradf(t):
     global grad
     # use central differences by default
+    x = np.array([t - h, t, t + h]).T
+    Xis = (
+        np.array(np.meshgrid(x[0], x[1], x[2], indexing="ij"))
+        .reshape((cgf.dim, cgf.dim**cgf.dim))
+        .T
+    )
+    retval = K(Xis).reshape(tuple([cgf.dim] * cgf.dim))
+    retval = grad(retval)
+    # select central differences value
+    retval = retval[*([1] * cgf.dim)]
+    # TODO: contine here, what to select if there are nans?
+    import pdb
 
-    # TODO: look at the example in a bit more detail
-    x = np.array([t - h, t, t + h])
-    X, Y, Z = np.meshgrid(x[0], x[1], x[2], indexing="ij")
-
-    retval = grad(K(np.array([t - h, t, t + h])))[1]
+    pdb.set_trace()
     sel = np.isnan(retval)
     if not sel.any():
         return retval
-    # fall back to left
-    tsel = t[sel]
-    retval[sel] = d_dt(K(np.array([tsel, tsel + h, tsel + 2 * h])))[0]
-    sel = np.isnan(retval)
-    if not sel.any():
-        return retval
-    # or to right
-    tsel = t[sel]
-    retval[sel] = d_dt(K(np.array([t[sel] - 2 * h, t[sel] - h, tsel])))[-1]
-    return retval
+    else:
+        import pdb
+
+        pdb.set_trace()
+        raise NotImplementedError("Dealing with nan values not implemented")
+
+
+# TODO: how to deal with the edge cases
+# TODO: specify domain
+
+
+# TODO: how to deal with higher order derivatives
 
 
 # # Second order derivative
