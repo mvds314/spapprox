@@ -35,8 +35,41 @@ grad = fd.Gradient(h=[h, h, h])
 
 def gradf(t):
     global grad
-    # use central differences by default
+    t = np.asanyarray(t)
+    # Handle vectorized evaluation
+    if t.ndim == 2:
+        return np.array([gradf(tt) for tt in t])
+    assert t.ndim == 1, "Only vector or list of vector evaluations are supported"
+    assert len(t) == cgf.dim, "Dimension does not match"
+    # Handle case where t is not the domain
+    if np.isnan(K(t)):
+        return np.full(cgf.dim, np.nan)
+    # Handle case where t+h or t-h is not in the domain
+    assert not np.isnan(K(np.zeros(cgf.dim))), "Zeros is assumed to be in the domain"
+    # Use central differences by default
     x = np.array([t - h, t, t + h]).T
+    sel = [1] * cgf.dim
+    # But adjust if t-h or t+h is not in the domain (for any of the components)
+    for i in range(cgf.dim):
+        xx = np.zeros((cgf.dim, 3))
+        xx[:, i] = x[i]
+        Kxx = K(xx)
+        if not np.isnan(Kxx).any():
+            continue
+        assert not np.isnan(Kxx[1]).any(), "Domain is assumed to be rectangular"
+        if np.isnan(Kxx[0]).any():
+            # Shift to the right
+            assert not np.isnan(Kxx[-1]).any(), "Either t-h, or t+h should be in the domain"
+            sel[i] += -1
+            x[i] += h
+        elif np.isnan(Kxx[-1]).any():
+            assert not np.isnan(Kxx[0]).any(), "Either t-h, or t+h should be in the domain"
+            # Shift to the left
+            sel[i] += 1
+            x[i] += -h
+        else:
+            raise RuntimeError("This should never happen, all cases should be handled")
+    # TODO: test if the above logic works
     Xis = (
         np.array(np.meshgrid(x[0], x[1], x[2], indexing="ij"))
         .reshape((cgf.dim, cgf.dim**cgf.dim))
@@ -44,25 +77,14 @@ def gradf(t):
     )
     retval = K(Xis).reshape(tuple([cgf.dim] * cgf.dim))
     retval = grad(retval)
-    # select central differences value
-    
-    retval = retval[*([1] * cgf.dim)]
-    # TODO: contine here, what to select if there are nans?
-    import pdb
-
-    pdb.set_trace()
-    sel = np.isnan(retval)
-    if not sel.any():
+    retval = retval[*sel]
+    if not np.isnan(retval).any():
         return retval
     else:
-        import pdb
-
-        pdb.set_trace()
-        raise NotImplementedError("Dealing with nan values not implemented")
+        raise RuntimeError("Not able to handle nan values, probably domain is not rectangular")
 
 
-# TODO: how to deal with the edge cases
-# TODO: specify domain
+# TODO: continue here and implement higher order derivatives
 
 
 # TODO: how to deal with higher order derivatives
