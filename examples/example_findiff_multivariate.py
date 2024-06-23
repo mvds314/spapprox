@@ -84,6 +84,14 @@ def gradf(t):
         raise RuntimeError("Not able to handle nan values, probably domain is not rectangular")
 
 
+def hessf(f):
+    """
+    The Hessian matrix
+    """
+    # TODO: figure out what would be the best way to implement this?
+    pass
+
+
 # TODO: continue here and implement higher order derivatives
 
 
