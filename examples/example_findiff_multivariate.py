@@ -31,6 +31,7 @@ h = 1e-6
 grad = fd.Gradient(h=[h, h, h])
 
 # TODO: continue here, why doesn't this work yet, 1+1e-6 should be outside of the domain
+# TODO: but it does work right now, correct?
 
 
 def gradf(t):
@@ -84,15 +85,69 @@ def gradf(t):
         raise RuntimeError("Not able to handle nan values, probably domain is not rectangular")
 
 
-def hessf(f):
+# TODO: also create class for the gradient
+
+
+class PartialDerivative:
+    r"""
+    Implements tha partial derivative w.r.t. t:
+
+    .. math::
+        \sum_k \partial^{\alpha_k}_k f(t),
+
+    where the :math:`\alpha_k` form a tuple with integers, and :math:`\alpha_k`
+    differentiates w.r.t. the :math:`k`-th component of :math:`t`.
+
+
+    Parameters
+    ----------
+    f : callable
+        Function
+    t : vector
+        point at which to evaluate the derivative
+    *orders : tuple with integers
+        Derivatives w.r.t. arguments of f.
+    """
+
+    def __init__(self, f, *orders, h=1e-6):
+        self.f = f
+        self.orders = orders
+        self.h = h
+
+    @property
+    def dim(self):
+        return len(self.orders)
+
+    @property
+    def _findiff(self):
+        """
+        See the documentation: https://findiff.readthedocs.io/en/latest/source/examples-basic.html#general-linear-differential-operators
+        """
+        if not hasattr(self, "_findiff_cache"):
+            self._findiff_cache = fd.FinDiff([(i, h, self.orders[i]) for i in range(self.dim)])
+        return self._findiff_cache
+
+    def __call__(self, t):
+        """
+        Evaluate the derivative at t
+        """
+        assert len(t) == self.dim
+        # TODO: evaluate at t
+        raise NotImplementedError("Implement this")
+        # TODO: create a meshgrid, and evaluate at findiff
+        self._findiff
+
+
+def hessf(f, t):
     """
     The Hessian matrix
     """
-    # TODO: figure out what would be the best way to implement this?
+    # TODO: implement component wise
     pass
 
 
 # TODO: continue here and implement higher order derivatives
+# TODO: proceed as here: https://findiff.readthedocs.io/en/latest/source/examples-basic.html#general-linear-differential-operators
 
 
 # TODO: how to deal with higher order derivatives
