@@ -67,16 +67,11 @@ class FindiffBase(ABC):
         # Handle case where t+h or t-h is not in the domain
         assert not np.isnan(self.f(np.zeros(self.dim))), "Zeros is assumed to be in the domain"
         # Use central differences by default
-        # TODO: this should work for first derivative, probably we need more grid points for higher ones
-        # TODO: add  check
-        assert (
-            np.max(self.orders) <= 1
-        ), "Only first order derivatives are implemented, grid should be extended for higher order"
         x = np.array([t - self.h, t, t + self.h]).T
         sel = [1] * self.dim
         # But adjust if t-h or t+h is not in the domain (for any of the components)
         for i in range(self.dim):
-            xx = np.zeros((self.dim, 3))
+            xx = np.zeros((3, self.dim))
             xx[:, i] = x[i]
             fxx = self.f(xx)
             if not np.isnan(fxx).any():
@@ -193,3 +188,11 @@ class PartialDerivative(FindiffBase):
                 *[(i, self._h_vect[i], order) for i, order in enumerate(self.orders) if order > 0]
             )
         return self._findiff_cache
+
+    def __call__(self, *args, **kwargs):
+        # TODO: this should work for first derivative, probably we need more grid points for higher ones
+        # TODO: add  check
+        assert (
+            np.max(self.orders) <= 1
+        ), "Only first order derivatives are implemented, grid should be extended for higher order"
+        return super().__call__(*args, **kwargs)
