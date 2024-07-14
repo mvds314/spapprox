@@ -92,8 +92,8 @@ class FindiffBase(ABC):
                 raise RuntimeError("This should never happen, all cases should be handled")
         # TODO: test if the above logic works
         return (
-            np.array(np.meshgrid(x[0], x[1], x[2], indexing="ij"))
-            .reshape((self.dim, self.dim**self.dim))
+            np.array(np.meshgrid(*[x[i] for i in range(self.dim)], indexing="ij"))
+            .reshape((self.dim, 3**self.dim))
             .T
         ), sel
 
