@@ -12,7 +12,7 @@ from spapprox.diff import Gradient
     "f, df, dim, h, points",
     [
         (
-            lambda x: np.sum(np.square(x)),
+            lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             2,
             1e-6,
@@ -35,6 +35,6 @@ if __name__ == "__main__":
                 "-k",
                 "test_grad",
                 "--tb=auto",
-                "--pdb",
+                # "--pdb",
             ]
         )

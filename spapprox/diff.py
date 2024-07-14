@@ -99,7 +99,7 @@ class FindiffBase(ABC):
 
     def __call__(self, t):
         Xis, sel = self._build_grid(t)
-        retval = self.f(Xis).reshape(tuple([self.dim] * self.dim))
+        retval = self.f(Xis).reshape(tuple([3] * self.dim))
         # TODO: there is some error here, why doesn't it work?
         retval = self._findiff(retval)
         retval = retval[*sel]
@@ -140,7 +140,7 @@ class Gradient(FindiffBase):
     def _findiff(self):
         if not hasattr(self, "_findiff_cache"):
             self._findiff_cache = fd.Gradient(
-                h=[self.h] * self.dim if np.iscalar(self.h) else self.h
+                h=[self.h] * self.dim if np.isscalar(self.h) else self.h
             )
         return self._findiff_cache
 
