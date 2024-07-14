@@ -102,7 +102,7 @@ class FindiffBase(ABC):
         retval = self.f(Xis).reshape(tuple([3] * self.dim))
         # TODO: there is some error here, why doesn't it work?
         retval = self._findiff(retval)
-        retval = retval[*sel]
+        retval = retval.T[*sel]
         if not np.isnan(retval).any():
             return retval
         else:

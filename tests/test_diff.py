@@ -24,7 +24,7 @@ def test_grad(f, df, dim, h, points):
     grad = Gradient(f, dim, h=h)
     for p in points:
         assert np.allclose(grad(p), df(p), atol=1e-6)
-    # TODO: start to evaluate at some points
+    # TODO: continue here with testing
 
 
 if __name__ == "__main__":
