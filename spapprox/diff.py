@@ -102,7 +102,6 @@ class FindiffBase(ABC):
             .T
         ), sel
 
-    @abstractmethod
     def __call__(self, t):
         Xis, sel = self._build_grid(t)
         retval = self.f(Xis).reshape(tuple([self.dim] * self.dim))
