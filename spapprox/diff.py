@@ -55,11 +55,6 @@ class FindiffBase(ABC):
 
     def _build_grid(self, t):
         t = np.asanyarray(t)
-        # Handle vectorized evaluation
-        if t.ndim == 2:
-            return np.array([self(tt) for tt in t])
-        # Process input
-        assert t.ndim == 1, "Only vector or list of vector evaluations are supported"
         assert len(t) == self.dim, "Dimension does not match"
         # Handle case where t is not the domain
         if np.isnan(self.f(t)):
@@ -98,6 +93,14 @@ class FindiffBase(ABC):
         ), sel
 
     def __call__(self, t):
+        t = np.asanyarray(t)
+        # Handle vectorized evaluation
+        if t.ndim == 2:
+            # TODO: number of return values do not match
+            return np.array([self(tt) for tt in t])
+        # Process input
+        assert t.ndim == 1, "Only vector or list of vector evaluations are supported"
+        assert len(t) == self.dim, "Dimension does not match"
         Xis, sel = self._build_grid(t)
         retval = self.f(Xis).reshape(tuple([3] * self.dim))
         # TODO: there is some error here, why doesn't it work?

@@ -24,6 +24,7 @@ def test_grad(f, df, dim, h, points):
     grad = Gradient(f, dim, h=h)
     for p in points:
         assert np.allclose(grad(p), df(p), atol=1e-6)
+    assert np.allclose(grad(points), df(points))
     # TODO: continue here with testing
 
 
