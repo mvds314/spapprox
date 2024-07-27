@@ -18,6 +18,7 @@ from spapprox.diff import Gradient
             1e-6,
             np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
         )
+        # TODO: what other cases to test?
     ],
 )
 def test_grad(f, df, dim, h, points):
@@ -25,7 +26,7 @@ def test_grad(f, df, dim, h, points):
     for p in points:
         assert np.allclose(grad(p), df(p), atol=1e-6)
     assert np.allclose(grad(points), df(points))
-    # TODO: continue here with testing
+    # TODO: what else to test?
 
 
 if __name__ == "__main__":
