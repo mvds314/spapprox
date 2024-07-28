@@ -71,6 +71,9 @@ class FindiffBase(ABC):
                 fxx = self.f(xx)
                 if not np.isnan(fxx).any():
                     continue
+                import pdb
+
+                pdb.set_trace()
                 raise NotImplementedError("Shifts are not implemented yet")
                 # TODO: continue here and check this logic
                 assert not np.isnan(fxx[1]).any(), "Domain is assumed to be rectangular"
