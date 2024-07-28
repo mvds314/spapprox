@@ -58,34 +58,38 @@ class FindiffBase(ABC):
         assert len(t) == self.dim, "Dimension does not match"
         # Handle case where t is not the domain
         if np.isnan(self.f(t)):
-            return np.full(self.dim, np.nan)
-        # Handle case where t+h or t-h is not in the domain
-        assert not np.isnan(self.f(np.zeros(self.dim))), "Zeros is assumed to be in the domain"
-        # Use central differences by default
-        x = np.array([t - self.h, t, t + self.h]).T
-        sel = [1] * self.dim
-        # But adjust if t-h or t+h is not in the domain (for any of the components)
-        for i in range(self.dim):
-            xx = np.zeros((3, self.dim))
-            xx[:, i] = x[i]
-            fxx = self.f(xx)
-            if not np.isnan(fxx).any():
-                continue
-            raise NotImplementedError("Shifts are not implemented yet")
-            assert not np.isnan(fxx[1]).any(), "Domain is assumed to be rectangular"
-            if np.isnan(fxx[0]).any():
-                # Shift to the right
-                assert not np.isnan(fxx[-1]).any(), "Either t-h, or t+h should be in the domain"
-                sel[i] += -1
-                x[i] += self.h
-            elif np.isnan(fxx[-1]).any():
-                assert not np.isnan(fxx[0]).any(), "Either t-h, or t+h should be in the domain"
-                # Shift to the left
-                sel[i] += 1
-                x[i] += -self.h
-            else:
-                raise RuntimeError("This should never happen, all cases should be handled")
-        # TODO: test if the above logic works
+            x = np.array([t - self.h, t, t + self.h]).T
+            sel = [1] * self.dim
+        else:
+            # Handle case where t+h or t-h is not in the domain
+            assert not np.isnan(self.f(np.zeros(self.dim))), "Zeros is assumed to be in the domain"
+            # Use central differences by default
+            x = np.array([t - self.h, t, t + self.h]).T
+            sel = [1] * self.dim
+            # But adjust if t-h or t+h is not in the domain (for any of the components)
+            for i in range(self.dim):
+                xx = np.zeros((3, self.dim))
+                xx[:, i] = x[i]
+                fxx = self.f(xx)
+                if not np.isnan(fxx).any():
+                    continue
+                raise NotImplementedError("Shifts are not implemented yet")
+                assert not np.isnan(fxx[1]).any(), "Domain is assumed to be rectangular"
+                if np.isnan(fxx[0]).any():
+                    # Shift to the right
+                    assert not np.isnan(
+                        fxx[-1]
+                    ).any(), "Either t-h, or t+h should be in the domain"
+                    sel[i] += -1
+                    x[i] += self.h
+                elif np.isnan(fxx[-1]).any():
+                    assert not np.isnan(fxx[0]).any(), "Either t-h, or t+h should be in the domain"
+                    # Shift to the left
+                    sel[i] += 1
+                    x[i] += -self.h
+                else:
+                    raise RuntimeError("This should never happen, all cases should be handled")
+            # TODO: test if the above logic works
         return (
             np.array(np.meshgrid(*[x[i] for i in range(self.dim)], indexing="ij"))
             .reshape((self.dim, 3**self.dim))
@@ -102,6 +106,9 @@ class FindiffBase(ABC):
         assert t.ndim == 1, "Only vector or list of vector evaluations are supported"
         assert len(t) == self.dim, "Dimension does not match"
         Xis, sel = self._build_grid(t)
+        import pdb
+
+        pdb.set_trace()
         retval = self.f(Xis).reshape(tuple([3] * self.dim))
         # TODO: there is some error here, why doesn't it work?
         retval = self._findiff(retval)
