@@ -113,10 +113,7 @@ class FindiffBase(ABC):
         # TODO: there is some error here, why doesn't it work?
         retval = self._findiff(retval)
         retval = retval.T[*sel]
-        if not np.isnan(retval).any():
-            return retval
-        else:
-            raise RuntimeError("Not able to handle nan values, probably domain is not rectangular")
+        return retval
 
 
 class Gradient(FindiffBase):
