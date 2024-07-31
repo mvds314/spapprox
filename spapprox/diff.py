@@ -56,16 +56,17 @@ class FindiffBase(ABC):
     def _build_grid(self, t):
         t = np.asanyarray(t)
         assert len(t) == self.dim, "Dimension does not match"
+        assert not np.isnan(self.f(t)), "t should be in the domain"
         # Use central differences by default
         x = np.array([t - self.h, t, t + self.h]).T
         sel = [1] * self.dim
-        # Handle case where t is not the domain
-        if np.isnan(self.f(t)):
-            # Use central differences by default
-            x = np.array([t - self.h, t, t + self.h]).T
-            sel = [1] * self.dim
-            # But adjust if t-h or t+h is not in the domain (for any of the components)
+        # But adjust if t-h or t+h is not in the domain (for any of the components)
+        if np.isnan(self.f(x)).any():
+            assert not np.isnan(self.f(np.zeros_like(t))), "Zeros is asserted to be in the domain"
+            # TODO: do we need to assume zero is in the domain?
+            # Because of the rectangular domain?
             for i in range(self.dim):
+                # TODO: what is the logic here, why use zeros?
                 xx = np.zeros((3, self.dim))
                 xx[:, i] = x[i]
                 import ipdb
@@ -77,9 +78,9 @@ class FindiffBase(ABC):
                 ), "f is assumed to be scalar, 3 retval are expected when feeding t-h, t and t+h"
                 if not np.isnan(fxx).any():
                     continue
-                import pdb
+                import ipdb
 
-                pdb.set_trace()
+                ipdb.set_trace()
                 raise NotImplementedError("Shifts are not implemented yet")
                 # TODO: I'm confused about the shape of x, shouldn't it be transposed?
                 # TODO: continue here and check this logic
