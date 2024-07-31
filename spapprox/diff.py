@@ -56,11 +56,11 @@ class FindiffBase(ABC):
     def _build_grid(self, t):
         t = np.asanyarray(t)
         assert len(t) == self.dim, "Dimension does not match"
+        # Use central differences by default
+        x = np.array([t - self.h, t, t + self.h]).T
+        sel = [1] * self.dim
         # Handle case where t is not the domain
         if np.isnan(self.f(t)):
-            x = np.array([t - self.h, t, t + self.h]).T
-            sel = [1] * self.dim
-        else:
             # Use central differences by default
             x = np.array([t - self.h, t, t + self.h]).T
             sel = [1] * self.dim
@@ -68,13 +68,20 @@ class FindiffBase(ABC):
             for i in range(self.dim):
                 xx = np.zeros((3, self.dim))
                 xx[:, i] = x[i]
+                import ipdb
+
+                ipdb.set_trace()
                 fxx = self.f(xx)
+                assert (
+                    len(fxx) == 3
+                ), "f is assumed to be scalar, 3 retval are expected when feeding t-h, t and t+h"
                 if not np.isnan(fxx).any():
                     continue
                 import pdb
 
                 pdb.set_trace()
                 raise NotImplementedError("Shifts are not implemented yet")
+                # TODO: I'm confused about the shape of x, shouldn't it be transposed?
                 # TODO: continue here and check this logic
                 assert not np.isnan(fxx[1]).any(), "Domain is assumed to be rectangular"
                 if np.isnan(fxx[0]).any():

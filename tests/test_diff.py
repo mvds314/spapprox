@@ -40,6 +40,8 @@ def test_grad(f, df, dim, h, points):
     # assert np.allclose(grad(points), df(points))
 
 
+# TODO: test higher order derivatives
+
 if __name__ == "__main__":
     if True:
         pytest.main(
