@@ -49,7 +49,8 @@ if __name__ == "__main__":
                 str(Path(__file__)),
                 "-k",
                 "test_grad",
-                "--tb=auto",
+                # "--tb=auto",
                 # "--pdb",
+                "-s",
             ]
         )
