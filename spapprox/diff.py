@@ -115,11 +115,14 @@ class FindiffBase(ABC):
         # Process input
         assert t.ndim == 1, "Only vector or list of vector evaluations are supported"
         assert len(t) == self.dim, "Dimension does not match"
-        Xis, sel = self._build_grid(t)
-        retval = self.f(Xis).reshape(tuple([3] * self.dim))
-        # TODO: there is some error here, why doesn't it work?
-        retval = self._findiff(retval)
-        retval = retval.T[*sel]
+        if np.isnan(self.f(t)):
+            retval = np.full(self.dim, np.nan)
+        else:
+            Xis, sel = self._build_grid(t)
+            retval = self.f(Xis).reshape(tuple([3] * self.dim))
+            # TODO: there is some error here, why doesn't it work?
+            retval = self._findiff(retval)
+            retval = retval.T[*sel]
         return retval
 
 
