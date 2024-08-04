@@ -37,6 +37,7 @@ def test_grad(f, df, dim, h, points):
         equal = np.allclose(grad(p), df(p), atol=1e-6)
         allnan = np.isnan(df(p)).all() and np.isnan(grad(p)).all()
         assert equal or allnan
+        # TODO: add one that is one border
     # assert np.allclose(grad(points), df(points))
 
 
