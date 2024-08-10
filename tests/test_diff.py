@@ -11,14 +11,13 @@ from spapprox.diff import Gradient
 @pytest.mark.parametrize(
     "f, df, dim, h, points",
     [
-        # (
-        #     lambda x: np.sum(np.square(x), axis=-1),
-        #     lambda x: 2 * x,
-        #     2,
-        #     1e-6,
-        #     np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
-        # ),
-        # TODO: fix this unittest
+        (
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+        ),
         (
             lambda x: np.where(np.all(x > 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
             lambda x: np.where(
@@ -28,17 +27,25 @@ from spapprox.diff import Gradient
             1e-6,
             np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
         ),
+        (
+            lambda x: np.where(np.all(x >= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
+            lambda x: np.where(
+                np.tile(np.all(x >= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
+            ).squeeze(),
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+        ),
+        # TODO: add a test with a >= domain so that we get a border case
         # TODO: what other cases to test?
     ],
 )
 def test_grad(f, df, dim, h, points):
     grad = Gradient(f, dim, h=h)
     for p in points:
-        # TODO: check logic in debug mode
         equal = np.allclose(grad(p), df(p), atol=1e-6)
         allnan = np.isnan(df(p)).all() and np.isnan(grad(p)).all()
         assert equal or allnan
-        # TODO: add one that is one border
     # TODO: fix the vectorized test
     # assert np.allclose(grad(points), df(points))
 
