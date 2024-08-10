@@ -66,21 +66,20 @@ class FindiffBase(ABC):
             # TODO: do we need to assume zero is in the domain?
             # Because of the rectangular domain?
             for i in range(self.dim):
-                # TODO: what is the logic here, why use zeros?
                 xx = np.zeros((3, self.dim))
                 xx[:, i] = x[i]
-                import ipdb
+                import pdb
 
-                ipdb.set_trace()
+                pdb.set_trace()
                 fxx = self.f(xx)
                 assert (
                     len(fxx) == 3
                 ), "f is assumed to be scalar, 3 retval are expected when feeding t-h, t and t+h"
                 if not np.isnan(fxx).any():
                     continue
-                import ipdb
+                import pdb
 
-                ipdb.set_trace()
+                pdb.set_trace()
                 raise NotImplementedError("Shifts are not implemented yet")
                 # TODO: I'm confused about the shape of x, shouldn't it be transposed?
                 # TODO: continue here and check this logic
@@ -110,7 +109,6 @@ class FindiffBase(ABC):
         t = np.asanyarray(t)
         # Handle vectorized evaluation
         if t.ndim == 2:
-            # TODO: number of return values do not match
             return np.array([self(tt) for tt in t])
         # Process input
         assert t.ndim == 1, "Only vector or list of vector evaluations are supported"
@@ -120,7 +118,6 @@ class FindiffBase(ABC):
         else:
             Xis, sel = self._build_grid(t)
             retval = self.f(Xis).reshape(tuple([3] * self.dim))
-            # TODO: there is some error here, why doesn't it work?
             retval = self._findiff(retval)
             retval = retval.T[*sel]
         return retval
