@@ -34,10 +34,12 @@ from spapprox.diff import Gradient
 def test_grad(f, df, dim, h, points):
     grad = Gradient(f, dim, h=h)
     for p in points:
+        # TODO: check logic in debug mode
         equal = np.allclose(grad(p), df(p), atol=1e-6)
         allnan = np.isnan(df(p)).all() and np.isnan(grad(p)).all()
         assert equal or allnan
         # TODO: add one that is one border
+    # TODO: fix the vectorized test
     # assert np.allclose(grad(points), df(points))
 
 
