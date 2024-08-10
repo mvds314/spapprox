@@ -67,9 +67,6 @@ class FindiffBase(ABC):
             for i in range(self.dim):
                 xx = np.zeros((3, self.dim))
                 xx[:, i] = x[i]
-                import pdb
-
-                pdb.set_trace()
                 fxx = self.f(xx)
                 assert (
                     len(fxx) == 3
@@ -96,6 +93,7 @@ class FindiffBase(ABC):
                     x[i] += -self.h
                 else:
                     raise RuntimeError("This should never happen, all cases should be handled")
+                assert not np.isnan(fxx).any(), "Shifts are assumed to fix any domain issues"
             # TODO: test if the above logic works
         return (
             np.array(np.meshgrid(*[x[i] for i in range(self.dim)], indexing="ij"))
