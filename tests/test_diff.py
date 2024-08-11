@@ -50,9 +50,7 @@ from spapprox.diff import Gradient, PartialDerivative
 def test_grad(f, df, dim, h, points):
     grad = Gradient(f, dim, h=h)
     for p in points:
-        equal = np.allclose(grad(p), df(p), atol=1e-6)
-        allnan = np.isnan(df(p)).all() and np.isnan(grad(p)).all()
-        assert equal or allnan
+        assert np.allclose(grad(p), df(p), atol=1e-6, equal_nan=True)
     assert np.allclose(grad(points), df(points), equal_nan=True)
 
 
