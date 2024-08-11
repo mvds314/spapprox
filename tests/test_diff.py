@@ -97,7 +97,9 @@ def test_grad(f, df, dim, h, points):
 )
 def test_partial_derivative(f, df, dim, h, points):
     for i in range(dim):
-        gradi = PartialDerivative(f, i, dim, h=h)
+        orders = [0] * dim
+        orders[i] = 1
+        gradi = PartialDerivative(f, *orders, h=h)
         for p in points:
             assert np.allclose(gradi(p), df(p)[i], atol=1e-6, equal_nan=True)
         assert np.allclose(gradi(points), df(points)[i], equal_nan=True)
@@ -113,7 +115,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 "-k",
-                "test_grad",
+                "test_partial_derivative",
                 # "--tb=auto",
                 # "--pdb",
                 "-s",
