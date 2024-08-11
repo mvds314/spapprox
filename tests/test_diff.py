@@ -11,23 +11,22 @@ from spapprox.diff import Gradient
 @pytest.mark.parametrize(
     "f, df, dim, h, points",
     [
-        # (
-        #     lambda x: np.sum(np.square(x), axis=-1),
-        #     lambda x: 2 * x,
-        #     2,
-        #     1e-6,
-        #     np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
-        # ),
-        # (
-        #     lambda x: np.where(np.all(x > 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
-        #     lambda x: np.where(
-        #         np.tile(np.all(x > 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
-        #     ).squeeze(),
-        #     2,
-        #     1e-6,
-        #     np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
-        # ),
-        # TODO: fix this unittest
+        (
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+        ),
+        (
+            lambda x: np.where(np.all(x > 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
+            lambda x: np.where(
+                np.tile(np.all(x > 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
+            ).squeeze(),
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+        ),
         (
             lambda x: np.where(np.all(x >= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
             lambda x: np.where(
@@ -37,8 +36,15 @@ from spapprox.diff import Gradient
             1e-6,
             np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
         ),
-        # TODO: add a test with a >= domain so that we get a border case
-        # TODO: what other cases to test?
+        (
+            lambda x: np.where(np.all(x <= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
+            lambda x: np.where(
+                np.tile(np.all(x <= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
+            ).squeeze(),
+            2,
+            1e-6,
+            np.array([np.linspace(-1, 0, 10), np.linspace(-1, 0, 10)]).T,
+        ),
     ],
 )
 def test_grad(f, df, dim, h, points):

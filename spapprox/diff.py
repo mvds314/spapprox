@@ -73,11 +73,6 @@ class FindiffBase(ABC):
                 ), "f is assumed to be scalar, 3 retval are expected when feeding t-h, t and t+h"
                 if not np.isnan(fxx).any():
                     continue
-                import pdb
-
-                pdb.set_trace()
-                # TODO: I'm confused about the shape of x, shouldn't it be transposed?
-                # TODO: continue here and check this logic
                 assert not np.isnan(fxx[1]).any(), "Domain is assumed to be rectangular"
                 if np.isnan(fxx[0]).any():
                     # Shift to the right
@@ -93,8 +88,10 @@ class FindiffBase(ABC):
                     x[i] += -self.h
                 else:
                     raise RuntimeError("This should never happen, all cases should be handled")
-                assert not np.isnan(fxx).any(), "Shifts are assumed to fix any domain issues"
-            # TODO: test if the above logic works
+                assert not np.isnan(
+                    self.f(x[i])
+                ).any(), "Shifts are assumed to fix any domain issues"
+            assert not np.isnan(self.f(x.T)).any(), "Shifts are assumed to fix any domain issues"
         return (
             np.array(np.meshgrid(*[x[i] for i in range(self.dim)], indexing="ij"))
             .reshape((self.dim, 3**self.dim))
