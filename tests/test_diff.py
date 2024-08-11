@@ -95,12 +95,16 @@ def test_grad(f, df, dim, h, points):
         ),
     ],
 )
-def test_partial_derivative():
-    pass
-    if True:
-        pass
-    # TODO: first test equivalance partial derivative and the gradient
-    # TODO: test higher order derivatives
+def test_partial_derivative(f, df, dim, h, points):
+    for i in range(dim):
+        gradi = PartialDerivative(f, i, dim, h=h)
+        for p in points:
+            assert np.allclose(gradi(p), df(p)[i], atol=1e-6, equal_nan=True)
+        assert np.allclose(gradi(points), df(points)[i], equal_nan=True)
+
+
+# TODO: first test equivalance partial derivative and the gradient
+# TODO: test higher order derivatives
 
 
 if __name__ == "__main__":
