@@ -40,13 +40,13 @@ class FindiffBase(ABC):
         raise NotImplementedError
 
     @property
-    def _h_vect(self, t):
+    def _h_vect(self):
         """
         Return the vector of h's
         """
         if not hasattr(self, "_h_vect_cache"):
             h = np.asanyarray(self.h)
-            if h.dim > 0:
+            if h.ndim > 0:
                 assert len(h) == self.dim, "h should be a scalar or a vector of length dim"
                 self._h_vect_cache = h
             else:

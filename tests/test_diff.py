@@ -97,10 +97,10 @@ def test_partial_derivative(f, df, dim, h, points):
     for i in range(dim):
         orders = [0] * dim
         orders[i] = 1
-        gradi = PartialDerivative(f, *orders, h=h)
+        pdi = PartialDerivative(f, *orders, h=h)
         for p in points:
-            assert np.allclose(gradi(p), df(p)[i], atol=1e-6, equal_nan=True)
-        assert np.allclose(gradi(points), df(points)[i], equal_nan=True)
+            assert np.allclose(pdi(p), df(p)[i], atol=1e-6, equal_nan=True)
+        assert np.allclose(pdi(points), df(points)[i], equal_nan=True)
 
 
 # TODO: first test equivalance partial derivative and the gradient
