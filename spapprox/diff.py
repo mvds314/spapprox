@@ -36,6 +36,14 @@ class FindiffBase(ABC):
 
     @property
     @abstractmethod
+    def dim_image(self):
+        """
+        Dimension of the image of the derivative
+        """
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
     def _findiff(self):
         raise NotImplementedError
 
@@ -107,7 +115,7 @@ class FindiffBase(ABC):
         assert t.ndim == 1, "Only vector or list of vector evaluations are supported"
         assert len(t) == self.dim, "Dimension does not match"
         if np.isnan(self.f(t)):
-            retval = np.full(self.dim, np.nan)
+            retval = np.full(self.dim_image, np.nan)
         else:
             Xis, sel = self._build_grid(t)
             retval = self.f(Xis).reshape(tuple([3] * self.dim))
@@ -142,6 +150,13 @@ class Gradient(FindiffBase):
     @property
     def dim(self):
         return self._dim
+
+    @property
+    def dim_image(self):
+        """
+        Dimension of the image of the gradient
+        """
+        return self.dim
 
     @property
     def _findiff(self):
@@ -184,6 +199,13 @@ class PartialDerivative(FindiffBase):
     @property
     def dim(self):
         return len(self.orders)
+
+    @property
+    def dim_image(self):
+        """
+        Dimension of the image of the partial derivative
+        """
+        return 1
 
     @property
     def _findiff(self):
