@@ -100,11 +100,14 @@ def test_partial_derivative(f, df, dim, h, points):
         pdi = PartialDerivative(f, *orders, h=h)
         for p in points:
             assert np.allclose(pdi(p), df(p)[i], atol=1e-6, equal_nan=True)
-        assert np.allclose(pdi(points), df(points)[i], equal_nan=True)
+        assert np.allclose(pdi(points), df(points)[:, i], equal_nan=True)
 
 
-# TODO: first test equivalance partial derivative and the gradient
-# TODO: test higher order derivatives
+# TODO: test gradient in 1 dim case -> does it get squeezed, and do we want that?
+
+# TODO: test equivalance partial derivative and the gradient
+
+# TODO: build and test higher order derivatives
 
 
 if __name__ == "__main__":
@@ -115,7 +118,7 @@ if __name__ == "__main__":
                 "-k",
                 "test_partial_derivative",
                 # "--tb=auto",
-                # "--pdb",
+                "--pdb",
                 "-s",
             ]
         )

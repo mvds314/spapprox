@@ -110,7 +110,7 @@ class FindiffBase(ABC):
         t = np.asanyarray(t)
         # Handle vectorized evaluation
         if t.ndim == 2:
-            return np.array([self(tt) for tt in t])
+            return np.array([np.squeeze(self(tt)) for tt in t])
         # Process input
         assert t.ndim == 1, "Only vector or list of vector evaluations are supported"
         assert len(t) == self.dim, "Dimension does not match"
