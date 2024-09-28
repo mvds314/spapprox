@@ -99,7 +99,7 @@ def test_grad(f, df, dim, h, points, error):
 
 
 @pytest.mark.parametrize(
-    "f, df, dim, h, points",
+    "f, df, dim, h, points, error",
     [
         (
             lambda x: np.sum(np.square(x), axis=-1),
@@ -107,6 +107,7 @@ def test_grad(f, df, dim, h, points, error):
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            None,
         ),
         (
             lambda x: np.where(np.all(x > 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
@@ -116,6 +117,7 @@ def test_grad(f, df, dim, h, points, error):
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            None,
         ),
         (
             lambda x: np.where(np.all(x >= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
@@ -125,6 +127,7 @@ def test_grad(f, df, dim, h, points, error):
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            None,
         ),
         (
             lambda x: np.where(np.all(x <= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
@@ -134,17 +137,30 @@ def test_grad(f, df, dim, h, points, error):
             2,
             1e-6,
             np.array([np.linspace(-1, 0, 10), np.linspace(-1, 0, 10)]).T,
+            None,
         ),
     ],
 )
-def test_partial_derivative(f, df, dim, h, points):
-    for i in range(dim):
-        orders = [0] * dim
-        orders[i] = 1
-        pdi = PartialDerivative(f, *orders, h=h)
-        for p in points:
-            assert np.allclose(pdi(p), df(p)[i], atol=1e-6, equal_nan=True)
-        assert np.allclose(pdi(points), df(points)[:, i], equal_nan=True)
+def test_partial_derivative(f, df, dim, h, points, error):
+    if error is None:
+        for i in range(dim):
+            orders = [0] * dim
+            orders[i] = 1
+            pdi = PartialDerivative(f, *orders, h=h)
+            for p in points:
+                assert np.allclose(pdi(p), df(p)[i], atol=1e-6, equal_nan=True)
+            assert np.allclose(pdi(points), df(points)[:, i], equal_nan=True)
+    else:
+        for i in range(dim):
+            orders = [0] * dim
+            orders[i] = 1
+            for p in points:
+                with pytest.raises(error):
+                    pdi = PartialDerivative(f, *orders, h=h)
+                    pdi(p)
+            with pytest.raises(error):
+                pdi = PartialDerivative(f, *orders, h=h)
+                pdi(points)
 
 
 # TODO: test gradient in 1 dim case -> does it get squeezed, and do we want that?
