@@ -18,6 +18,18 @@ class FindiffBase(ABC):
     Based on the findiff package. Which only works for a grid of points.
     This class creates an appropriate grid around a point where to evaluate the derivative.
     And then applies the findiff package to evaluate the derivative.
+
+    The function :math:`f`, to which the derivative is applied, is assumed to be a scalar-valued function.
+    The domain of the function can either be field of scalars, i.e., the real numbers or some interval, or a vector space, i.e.,
+    :math:`\mathbb{R}^d`, where :math:`d\geq1`.
+
+    Domains are assumed to be rectangular, i.e., a Cartesian product of intervals.
+    Domains are not explicitly defined, but are assumed to be implicitly defined by the function :math:`f`.
+    The function should map to NaN if the point is not in the domain.
+
+    The derivative itself can be vector valued, e.g., a gradient, or scalar valued, e.g., a partial derivative.
+    Scalar valued derivatives have dimension 0.
+    The function :math:`f` is assumed be scalar valued, but should support vector valued evaluation.
     """
 
     def __init__(self, f, h=1e-6):
@@ -30,7 +42,8 @@ class FindiffBase(ABC):
     @abstractmethod
     def dim(self):
         """
-        Dimension of the function to be evaluated
+        Dimension of the domain function to be evaluated.
+        For a field of scalars, this is 0.
         """
         raise NotImplementedError
 
@@ -39,6 +52,7 @@ class FindiffBase(ABC):
     def dim_image(self):
         """
         Dimension of the image of the derivative
+        If if the derivative is scalar valued, this is 0.
         """
         raise NotImplementedError
 
