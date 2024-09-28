@@ -12,7 +12,7 @@ import numpy as np
 
 
 class FindiffBase(ABC):
-    """
+    r"""
     Base class for numerical differentiation
 
     Based on the findiff package. Which only works for a grid of points.
