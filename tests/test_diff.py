@@ -9,7 +9,7 @@ from spapprox.diff import Gradient, PartialDerivative
 
 
 @pytest.mark.parametrize(
-    "f, df, dim, h, points",
+    "f, df, dim, h, points, error",
     [
         (
             lambda x: np.sum(np.square(x), axis=-1),
@@ -17,6 +17,7 @@ from spapprox.diff import Gradient, PartialDerivative
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            None,
         ),
         (
             lambda x: np.where(np.all(x > 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
@@ -26,6 +27,7 @@ from spapprox.diff import Gradient, PartialDerivative
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            None,
         ),
         (
             lambda x: np.where(np.all(x >= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
@@ -35,6 +37,7 @@ from spapprox.diff import Gradient, PartialDerivative
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            None,
         ),
         (
             lambda x: np.where(np.all(x <= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
@@ -44,6 +47,7 @@ from spapprox.diff import Gradient, PartialDerivative
             2,
             1e-6,
             np.array([np.linspace(-1, 0, 10), np.linspace(-1, 0, 10)]).T,
+            None,
         ),
         (
             lambda x: np.sum(np.square(x), axis=-1),
@@ -51,14 +55,36 @@ from spapprox.diff import Gradient, PartialDerivative
             1,
             1e-6,
             np.atleast_2d(np.linspace(0, 1, 10)).T,
+            None,
+        ),
+        (
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            1,
+            1e-6,
+            np.linspace(0, 1, 10),
+            ValueError,
         ),
     ],
 )
-def test_grad(f, df, dim, h, points):
-    grad = Gradient(f, dim, h=h)
-    for p in points:
-        assert np.allclose(grad(p), df(p), atol=1e-6, equal_nan=True)
-    assert np.allclose(grad(points), df(points), equal_nan=True)
+def test_grad(f, df, dim, h, points, error):
+    if error is None:
+        grad = Gradient(f, dim, h=h)
+        for p in points:
+            gp = grad(p)
+            dfp = df(p)
+            assert gp.ndim == dfp.ndim == 1
+            assert len(gp) == len(dfp) == dim
+            assert np.allclose(gp, dfp, atol=1e-6, equal_nan=True)
+        assert np.allclose(grad(points), df(points), equal_nan=True)
+    else:
+        for p in points:
+            with pytest.raises(error):
+                grad = Gradient(f, dim, h=h)
+                grad(p)
+        with pytest.raises(error):
+            grad = Gradient(f, dim, h=h)
+            grad(points)
 
 
 # TODO: something seems inconsistent, grad does not accept scalar input, but does provide the result of scalar output!

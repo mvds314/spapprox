@@ -94,7 +94,7 @@ class FindiffBase(ABC):
             grid, sel = self._build_grid(t, dim=1)
             return np.sqeeze(grid), sel
         # Continue with the dim>=1 case
-        assert dim > 1, "Domain is assumed to be a vector space at this point"
+        assert dim >= 1, "Domain is assumed to be a vector space at this point"
         # Use central differences by default
         x = np.array([t - self.h, t, t + self.h]).T
         sel = [1] * dim
@@ -144,7 +144,8 @@ class FindiffBase(ABC):
         # Handle vectorized evaluation
         if t.ndim == 2:
             return np.array([self(tt) for tt in t])
-        assert t.ndim == self.dim == 0 or len(t) == self.dim, "Dimensions do not match"
+        if not (t.ndim == self.dim == 0 or (t.ndim > 0 and len(t) == self.dim)):
+            raise ValueError("Dimensions do not match")
         if np.isnan(self.f(t)).any():
             retval = np.nan if self.dim_image == 0 else np.full(self.dim_image, np.nan)
         else:
