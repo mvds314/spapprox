@@ -174,7 +174,8 @@ class Gradient(FindiffBase):
     """
 
     def __init__(self, f, dim, h=1e-6):
-        assert isinstance(dim, int) and dim > 0, "dim should be a positive integer"
+        if not isinstance(dim, int) or dim <= 0:
+            raise ValueError("dim should be a positive integer")
         self._dim = dim
         assert np.isscalar(h) or len(h) == dim, "h should be a scalar or a vector of length dim"
         super().__init__(f, h)
