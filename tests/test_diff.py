@@ -61,6 +61,9 @@ def test_grad(f, df, dim, h, points):
     assert np.allclose(grad(points), df(points), equal_nan=True)
 
 
+# TODO: something seems inconsistent, grad does not accept scalar input, but does provide the result of scalar output!
+
+
 @pytest.mark.parametrize(
     "f, df, dim, h, points",
     [

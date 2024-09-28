@@ -120,6 +120,8 @@ class FindiffBase(ABC):
             .T
         ), sel
 
+    # TODO: this implementation seems inconsistent
+    # TODO: why woudl we squeeze? This should be a propoerty of the implemented function
     def __call__(self, t):
         t = np.asanyarray(t)
         # Handle vectorized evaluation
