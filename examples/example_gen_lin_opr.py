@@ -5,6 +5,7 @@ Created on Sun Jul 14 10:09:21 2024
 
 @author: martins
 """
+
 import numpy as np
 from findiff import FinDiff, coefficients, Coefficient
 
