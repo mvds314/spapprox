@@ -125,8 +125,9 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_partial_derivative",
+                # str(Path(__file__)) + "::test_grad",
+                # "-k",
+                # "test_partial_derivative",
                 # "--tb=auto",
                 "--pdb",
                 "-s",
