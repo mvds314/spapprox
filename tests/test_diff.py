@@ -45,6 +45,13 @@ from spapprox.diff import Gradient, PartialDerivative
             1e-6,
             np.array([np.linspace(-1, 0, 10), np.linspace(-1, 0, 10)]).T,
         ),
+        (
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            1,
+            1e-6,
+            np.atleast_2d(np.linspace(0, 1, 10)).T,
+        ),
     ],
 )
 def test_grad(f, df, dim, h, points):
