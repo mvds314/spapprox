@@ -22,6 +22,7 @@ class FindiffBase(ABC):
     The function :math:`f`, to which the derivative is applied, is assumed to be a scalar-valued function.
     The domain of the function can either be field of scalars, i.e., the real numbers or some interval, or a vector space, i.e.,
     :math:`\mathbb{R}^d`, where :math:`d\geq1`.
+    For a scalar valued domain, we still assume vector valued evaluation is possible!
 
     Domains are assumed to be rectangular, i.e., a Cartesian product of intervals.
     Domains are not explicitly defined, but are assumed to be implicitly defined by the function :math:`f`.
@@ -85,15 +86,15 @@ class FindiffBase(ABC):
         if dim is None:
             dim = self.dim
         t = np.asanyarray(t)
-        assert t.ndim == self.dim == 0 or len(t) == self.dim, "Dimensions do not match"
-        t = np.atleast_1d(t)  # Make the below work for vector valued input
         assert not np.isnan(self.f(t)).any(), "t should be in the domain"
         # Handle dim=0 case by handling at as a 1-dim vector case
-        if dim == 0:
-            # TODO: check return values -> maybe we need to squeeze something
+        if t.ndim == 0 and dim <= 1:
+            # Note this case is currently redundant, but we keep it for completeness, and for inheritance
+            t = np.atleast_1d(t)  # Make the below work for vector valued input
             grid, sel = self._build_grid(t, dim=1)
-            return np.sqeeze(grid), sel
+            return grid.squeeze(), sel
         # Continue with the dim>=1 case
+        assert t.ndim == dim == 0 or len(t) == dim, "Dimensions do not match"
         assert dim >= 1, "Domain is assumed to be a vector space at this point"
         # Use central differences by default
         x = np.array([t - self.h, t, t + self.h]).T
@@ -142,17 +143,35 @@ class FindiffBase(ABC):
             t.ndim <= 2
         ), "Only scalar, vector, or vectorized, as in lists with scalars or lists with vectors, evaluations are supported"
         # Handle vectorized evaluation
-        if t.ndim == 2:
+        if t.ndim > self.dim:
             return np.array([self(tt) for tt in t])
-        if not (t.ndim == self.dim == 0 or (t.ndim > 0 and len(t) == self.dim)):
+        if self.dim == 0:
+            if t.ndim not in [0, 1]:
+                raise ValueError(
+                    "Only scalar or vector input is supported for scalar valued functions"
+                )
+        elif t.ndim == 0 or len(t) != self.dim:
             raise ValueError("Dimensions do not match")
         if np.isnan(self.f(t)).any():
             retval = np.nan if self.dim_image == 0 else np.full(self.dim_image, np.nan)
         else:
-            Xis, sel = self._build_grid(t)
-            retval = self.f(Xis).reshape(tuple([3] * self.dim))
-            retval = self._findiff(retval)
-            retval = retval.T[*sel]
+            if self.dim == 0:
+                # Cast to 1-dim vector case
+                Xis, sel = self._build_grid(np.expand_dims(t, axis=-1), dim=1)
+                retval = self.f(Xis).reshape((3))
+                retval = self._findiff(retval)
+                retval = retval.T[*sel]
+                assert (
+                    t.ndim > 0 or retval.ndim == 0
+                ), "Return value should be scalar for scalar input"
+            else:
+                Xis, sel = self._build_grid(t)
+                retval = self.f(Xis).reshape(tuple([3] * self.dim))
+                retval = self._findiff(retval)
+                retval = retval.T[*sel]
+                assert (
+                    t.ndim > 0 or retval.ndim == 0
+                ), "Return value should be scalar for scalar input"
         return retval
 
 
@@ -223,13 +242,19 @@ class PartialDerivative(FindiffBase):
         if not np.isscalar(h):
             assert len(h) == len(orders), "h should be a scalar or a vector of length len(orders)"
         super().__init__(f, h)
-        assert np.asanyarray(orders).ndim == 1, "orders should be a vector"
-        assert np.all(np.asanyarray(orders) >= 0), "orders should be non-negative"
         self.orders = orders
 
     @property
     def dim(self):
-        return len(self.orders)
+        if not hasattr(self, "_dim_cache"):
+            if np.isscalar(self.orders):
+                dim = 0
+            else:
+                dim = len(self.orders)
+                # For 1 dim case, we assume scalar instead of vector input
+                dim = 0 if dim == 1 else dim
+            self._dim_cache = dim
+        return self._dim_cache
 
     @property
     def dim_image(self):
@@ -239,17 +264,45 @@ class PartialDerivative(FindiffBase):
         return 0
 
     @property
+    def orders(self):
+        return self._orders
+
+    @orders.setter
+    def orders(self, orders):
+        # Validation
+        if not (np.isscalar(orders) or np.asanyarray(orders).ndim <= 1):
+            raise ValueError("orders should be a scalar or vector")
+        if not np.all(np.asanyarray(orders) == np.round(np.asanyarray(orders))):
+            raise ValueError("orders should be integers")
+        # Set value
+        if np.isscalar(orders) or np.asanyarray(orders).ndim == 0:
+            self._orders = int(orders)
+        elif np.asanyarray(orders).ndim == 1:
+            self._orders = int(orders[0])
+        else:
+            self._orders = tuple(int(i) for i in orders)
+
+    @property
     def _findiff(self):
         """
         See the documentation: https://findiff.readthedocs.io/en/latest/source/examples-basic.html#general-linear-differential-operators
         """
         if not hasattr(self, "_findiff_cache"):
-            self._findiff_cache = fd.FinDiff(
-                *[(i, self._h_vect[i], order) for i, order in enumerate(self.orders) if order > 0]
-            )
+            if self.dim == 0:
+                if not np.isscalar(self.orders):
+                    raise RuntimeError("Scalar valued input should have scalar valued orders")
+                self._findiff_cache = fd.FinDiff(0, self._h_vect, self.orders)
+            else:
+                self._findiff_cache = fd.FinDiff(
+                    *[
+                        (i, self._h_vect[i], order)
+                        for i, order in enumerate(self.orders)
+                        if order > 0
+                    ]
+                )
         return self._findiff_cache
 
-    def __call__(self, t, *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         # TODO: this should work for first derivative, probably we need more grid points for higher ones
         assert (
             np.max(self.orders) <= 1

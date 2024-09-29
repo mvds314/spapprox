@@ -95,11 +95,8 @@ def test_grad(f, df, dim, h, points, error):
             grad(points)
 
 
-# TODO: something seems inconsistent, grad does not accept scalar input, but does provide the result of scalar output!
-
-
 @pytest.mark.parametrize(
-    "f, df, dim, h, points, error",
+    "f, df, ndim, h, points, error",
     [
         (
             lambda x: np.sum(np.square(x), axis=-1),
@@ -139,20 +136,44 @@ def test_grad(f, df, dim, h, points, error):
             np.array([np.linspace(-1, 0, 10), np.linspace(-1, 0, 10)]).T,
             None,
         ),
+        (
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            1,
+            1e-6,
+            np.linspace(0, 1, 10),
+            None,
+        ),
     ],
 )
-def test_partial_derivative(f, df, dim, h, points, error):
+def test_partial_derivative(f, df, ndim, h, points, error):
     if error is None:
-        for i in range(dim):
-            orders = [0] * dim
-            orders[i] = 1
-            pdi = PartialDerivative(f, *orders, h=h)
+        assert ndim >= 1, "Invalid test"
+        for i in range(ndim):
+            # Note we only test first order derivatives here
+            if ndim == 1:
+                orders = 1
+                pdi = PartialDerivative(f, orders, h=h)
+            else:
+                orders = [0] * ndim
+                orders[i] = 1
+                pdi = PartialDerivative(f, *orders, h=h)
             for p in points:
-                assert np.allclose(pdi(p), df(p)[i], atol=1e-6, equal_nan=True)
-            assert np.allclose(pdi(points), df(points)[:, i], equal_nan=True)
+                dfp = df(p)
+                dfpi = dfp if np.isscalar(dfp) else dfp[i]
+                pdip = pdi(p)
+                assert np.asanyarray(p).ndim <= 1, "Invalid test case"
+                assert np.isscalar(pdip)
+                assert np.allclose(pdip, dfpi, atol=1e-6, equal_nan=True)
+            dpipoints = pdi(points)
+            assert dpipoints.ndim == 1, "A vector is expected as return value"
+            if ndim <= 1:
+                assert np.allclose(dpipoints, df(points), equal_nan=True)
+            else:
+                assert np.allclose(dpipoints, df(points)[:, i], equal_nan=True)
     else:
-        for i in range(dim):
-            orders = [0] * dim
+        for i in range(ndim):
+            orders = [0] * ndim
             orders[i] = 1
             for p in points:
                 with pytest.raises(error):
@@ -163,7 +184,7 @@ def test_partial_derivative(f, df, dim, h, points, error):
                 pdi(points)
 
 
-# TODO: test gradient in 1 dim case -> does it get squeezed, and do we want that?
+# TODO: test why scalar case now breaks general case
 
 # TODO: test equivalance partial derivative and the gradient
 
