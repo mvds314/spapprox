@@ -84,6 +84,13 @@ def test_grad(f, df, dim, h, points, error):
             assert gp.ndim == dfp.ndim == 1
             assert len(gp) == len(dfp) == dim
             assert np.allclose(gp, dfp, atol=1e-6, equal_nan=True)
+            grad_from_partial = np.array(
+                [
+                    PartialDerivative(f, *np.eye(dim, dtype=int)[i].tolist(), h=grad._h_vect[i])(p)
+                    for i in range(dim)
+                ]
+            )
+            assert np.allclose(grad_from_partial, gp, atol=1e-6, equal_nan=True)
         assert np.allclose(grad(points), df(points), equal_nan=True)
     else:
         for p in points:
@@ -213,8 +220,7 @@ def test_partial_derivative(f, df, ndim, h, points, error):
                 orders = 1
                 pdi = PartialDerivative(f, orders, h=h)
             else:
-                orders = [0] * ndim
-                orders[i] = 1
+                orders = np.eye(ndim, dtype=int)[i].tolist()
                 pdi = PartialDerivative(f, *orders, h=h)
             for p in points:
                 dfp = df(p)
@@ -231,8 +237,7 @@ def test_partial_derivative(f, df, ndim, h, points, error):
                 assert np.allclose(dpipoints, df(points)[:, i], equal_nan=True)
     else:
         for i in range(ndim):
-            orders = [0] * ndim
-            orders[i] = 1
+            orders = np.eye(ndim, dtype=int)[i].tolist()
             for p in points:
                 with pytest.raises(error):
                     pdi = PartialDerivative(f, *orders, h=h)
