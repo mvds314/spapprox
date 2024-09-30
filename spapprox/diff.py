@@ -36,7 +36,8 @@ class FindiffBase(ABC):
     def __init__(self, f, h=1e-6):
         assert callable(f), "f should be callable"
         self.f = f
-        assert np.all(np.asanyarray(h) > 0), "h should be positive"
+        if not np.all(np.asanyarray(h) > 0):
+            raise ValueError("h should be positive")
         self.h = h
 
     @property
@@ -241,8 +242,8 @@ class PartialDerivative(FindiffBase):
     """
 
     def __init__(self, f, *orders, h=1e-6):
-        if not np.isscalar(h):
-            assert len(h) == len(orders), "h should be a scalar or a vector of length len(orders)"
+        if not np.isscalar(h) and len(h) != len(orders):
+            raise ValueError("h should be a scalar or a vector of length len(orders)")
         super().__init__(f, h)
         self.orders = orders
 

@@ -177,6 +177,31 @@ def test_grad(f, df, dim, h, points, error):
             np.linspace(-1, 0, 10),
             None,
         ),
+        # Those should raise an error
+        (
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            2,
+            1e-6,
+            np.linspace(-1, 0, 10),
+            ValueError,
+        ),
+        (
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            2,
+            -1e-6,
+            np.linspace(-1, 0, 10),
+            ValueError,
+        ),
+        (
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            1,
+            [1e-6, 1e-6],
+            np.linspace(-1, 0, 10),
+            ValueError,
+        ),
     ],
 )
 def test_partial_derivative(f, df, ndim, h, points, error):
@@ -216,8 +241,6 @@ def test_partial_derivative(f, df, ndim, h, points, error):
                 pdi = PartialDerivative(f, *orders, h=h)
                 pdi(points)
 
-
-# TODO: add some tests that actually raise an error
 
 # TODO: test equivalance partial derivative and the gradient
 
