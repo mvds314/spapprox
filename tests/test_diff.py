@@ -184,7 +184,7 @@ def test_partial_derivative(f, df, ndim, h, points, error):
                 pdi(points)
 
 
-# TODO: test why scalar case now breaks general case
+# TODO: add more tests for scalar case
 
 # TODO: test equivalance partial derivative and the gradient
 
@@ -196,7 +196,7 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                # str(Path(__file__)) + "::test_grad",
+                # str(Path(__file__)) + "::test_partial_derivative",
                 # "-k",
                 # "test_partial_derivative",
                 # "--tb=auto",
