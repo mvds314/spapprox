@@ -143,7 +143,9 @@ class FindiffBase(ABC):
             t.ndim <= 2
         ), "Only scalar, vector, or vectorized, as in lists with scalars or lists with vectors, evaluations are supported"
         # Handle vectorized evaluation
-        if t.ndim > self.dim:
+        if t.ndim > 1:
+            return np.array([self(tt) for tt in t])
+        elif t.ndim == 1 and self.dim == 0:
             return np.array([self(tt) for tt in t])
         if self.dim == 0:
             if t.ndim not in [0, 1]:
@@ -277,7 +279,7 @@ class PartialDerivative(FindiffBase):
         # Set value
         if np.isscalar(orders) or np.asanyarray(orders).ndim == 0:
             self._orders = int(orders)
-        elif np.asanyarray(orders).ndim == 1:
+        elif np.asanyarray(orders).ndim == 1 and len(orders) == 1:
             self._orders = int(orders[0])
         else:
             self._orders = tuple(int(i) for i in orders)
