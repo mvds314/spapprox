@@ -16,7 +16,7 @@ from spapprox.diff import Gradient, PartialDerivative
             lambda x: 2 * x,
             2,
             1e-6,
-            np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
         ),
         (
@@ -26,7 +26,7 @@ from spapprox.diff import Gradient, PartialDerivative
             ).squeeze(),
             2,
             1e-6,
-            np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
         ),
         (
@@ -36,7 +36,7 @@ from spapprox.diff import Gradient, PartialDerivative
             ).squeeze(),
             2,
             1e-6,
-            np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
         ),
         (
@@ -71,6 +71,22 @@ from spapprox.diff import Gradient, PartialDerivative
             0,
             1e-6,
             np.linspace(0, 1, 10),
+            ValueError,
+        ),
+        (
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            1,
+            -1e-6,
+            np.linspace(0, 1, 10),
+            ValueError,
+        ),
+        (
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 3).T,
             ValueError,
         ),
     ],
@@ -111,7 +127,7 @@ def test_grad(f, df, dim, h, points, error):
             lambda x: 2 * x,
             2,
             1e-6,
-            np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
         ),
         # Vector case with different domain constraints
@@ -122,7 +138,7 @@ def test_grad(f, df, dim, h, points, error):
             ).squeeze(),
             2,
             1e-6,
-            np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
         ),
         (
@@ -132,7 +148,7 @@ def test_grad(f, df, dim, h, points, error):
             ).squeeze(),
             2,
             1e-6,
-            np.array([np.linspace(0, 1, 10), np.linspace(0, 1, 10)]).T,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
         ),
         (
@@ -142,7 +158,7 @@ def test_grad(f, df, dim, h, points, error):
             ).squeeze(),
             2,
             1e-6,
-            np.array([np.linspace(-1, 0, 10), np.linspace(-1, 0, 10)]).T,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
         ),
         # Tests for the scalar case
@@ -246,8 +262,6 @@ def test_partial_derivative(f, df, ndim, h, points, error):
                 pdi = PartialDerivative(f, *orders, h=h)
                 pdi(points)
 
-
-# TODO: test equivalance partial derivative and the gradient
 
 # TODO: build and test higher order derivatives
 
