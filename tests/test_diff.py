@@ -265,6 +265,8 @@ def test_partial_derivative(f, df, ndim, h, points, error):
 
 # TODO: build and test higher order derivatives
 
+# TODO: maybe it already works for points in the domain out of the box
+
 
 if __name__ == "__main__":
     if True:
