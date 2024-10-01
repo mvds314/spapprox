@@ -256,11 +256,9 @@ def test_first_order_partial_derivatives(f, df, ndim, h, points, error):
             orders = np.eye(ndim, dtype=int)[i].tolist()
             for p in points:
                 with pytest.raises(error):
-                    pdi = PartialDerivative(f, *orders, h=h)
-                    pdi(p)
+                    PartialDerivative(f, *orders, h=h)(p)
             with pytest.raises(error):
-                pdi = PartialDerivative(f, *orders, h=h)
-                pdi(points)
+                PartialDerivative(f, *orders, h=h)(points)
 
 
 @pytest.mark.parametrize(
