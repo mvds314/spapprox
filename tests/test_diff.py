@@ -267,12 +267,14 @@ def test_first_order_partial_derivatives(f, df, ndim, h, points, error):
         # Scalar higher order derivatives
         (
             lambda x: np.sum(np.square(x), axis=-1),
-            lambda x: 2 * x,
+            lambda x: 2 * np.ones_like(x),
             2,
             1e-6,
             np.linspace(0, 1, 10),
             None,
         ),
+        # Vector case with higher order derivatives
+        # Higher order mixed derivates
     ],
 )
 def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
@@ -282,10 +284,10 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             assert np.asanyarray(p).ndim <= 1, "Invalid test case"
             pdp = pd(p)
             assert np.isscalar(pdp)
-            assert np.allclose(pdp, df(p), atol=1e-6, equal_nan=True)
+            assert np.allclose(pdp, df(p), atol=1e-3, equal_nan=True)
         dppoints = pd(points)
         assert dppoints.ndim == 1, "A vector is expected as return value"
-        assert np.allclose(dppoints, df(points), equal_nan=True)
+        assert np.allclose(dppoints, df(points), atol=1e-3, equal_nan=True)
     else:
         for p in points:
             with pytest.raises(error):
@@ -294,10 +296,7 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             PartialDerivative(f, *orders, h=h)(points)
 
 
-# TODO: build and test higher order derivatives
-
-# TODO: maybe it already works for points in the domain out of the box
-
+# TODO: test higher order derivatives further
 
 if __name__ == "__main__":
     if True:

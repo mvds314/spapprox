@@ -158,6 +158,7 @@ class FindiffBase(ABC):
                     raise RuntimeError("This should never happen, all cases should be handled")
                 if np.isnan(self.f(x[i])).any():
                     raise AssertionError("Shifts are assumed to fix any domain issues")
+            # TODO: continue here and check the rest of the logic, with the debugger
             if np.isnan(self.f(x.T)).any():
                 raise AssertionError("Shifts are assumed to fix any domain issues")
         return (
@@ -189,7 +190,7 @@ class FindiffBase(ABC):
             if self.dim == 0:
                 # Cast to 1-dim vector case
                 Xis, sel = self._build_grid(np.expand_dims(t, axis=-1), dim=1)
-                retval = self.f(Xis).reshape((3))
+                retval = self.f(Xis).reshape((2 * self._max_order + 1))
                 retval = self._findiff(retval)
                 retval = retval.T[*sel]
                 assert (
