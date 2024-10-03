@@ -112,43 +112,57 @@ class FindiffBase(ABC):
         assert t.ndim == dim == 0 or len(t) == dim, "Dimensions do not match"
         assert dim >= 1, "Domain is assumed to be a vector space at this point"
         # Use central differences by default
-        x = np.array([t - self.h, t, t + self.h]).T
-        sel = [1] * dim
+        sel = [self._max_order] * dim
+        x = np.array([t - i * self.h for i in range(-self._max_order, self._max_order + 1)]).T
         # But adjust if t-h or t+h is not in the domain (for any of the components)
         if np.isnan(self.f(x)).any():
             assert not np.isnan(self.f(np.zeros_like(t))), "Zeros is asserted to be in the domain"
-            # Because of the rectangular domain?
             for i in range(dim):
-                xx = np.zeros((3, dim))
+                xx = np.zeros((2 * self._max_order + 1, dim))
                 xx[:, i] = x[i]
                 fxx = self.f(xx)
                 assert (
-                    len(fxx) == 3
-                ), "f is assumed to be scalar, 3 retval are expected when feeding t-h, t and t+h"
+                    len(fxx) == 2 * self._max_order + 1
+                ), f"f is assumed to be scalar, {2*self._max_order+1} retvals are expected when feeding t-{self._max_order}h,.., t,.. t+{self._max_order}h"
                 if not np.isnan(fxx).any():
                     continue
-                assert not np.isnan(fxx[1]).any(), "Domain is assumed to be rectangular"
-                if np.isnan(fxx[0]).any():
+                if np.isnan(fxx[self._max_order]).any():
+                    raise AssertionError("Domain is assumed to be rectangular")
+                if np.isnan(fxx[: self._max_order]).any():
                     # Shift to the right
-                    assert not np.isnan(
-                        fxx[-1]
-                    ).any(), "Either t-h, or t+h should be in the domain"
-                    sel[i] += -1
-                    x[i] += self.h
+                    if np.isnan(fxx[self._max_order :]).any():
+                        raise AssertionError(
+                            f"Either t - {self._max_order}h up to t, or t up to t + {self._max_order}h should be in the domain"
+                        )
+                    shift = next(
+                        i
+                        for i in range(self._max_order + 1)
+                        if not np.isnan(fxx[i : self._max_order]).any()
+                    )
+                    sel[i] += -shift
+                    x[i] += self.h * shift
                 elif np.isnan(fxx[-1]).any():
-                    assert not np.isnan(fxx[0]).any(), "Either t-h, or t+h should be in the domain"
+                    if np.isnan(fxx[: self._max_order]).any():
+                        raise AssertionError(
+                            f"Either t - {self._max_order}h up to t, or t up to t + {self._max_order}h should be in the domain"
+                        )
+                    shift = next(
+                        i
+                        for i in range(self._max_order + 1)
+                        if not np.isnan(fxx[self._max_order : 2 * self._max_order + 1 - i]).any()
+                    )
                     # Shift to the left
-                    sel[i] += 1
-                    x[i] += -self.h
+                    sel[i] += shift
+                    x[i] += -self.h * shift
                 else:
                     raise RuntimeError("This should never happen, all cases should be handled")
-                assert not np.isnan(
-                    self.f(x[i])
-                ).any(), "Shifts are assumed to fix any domain issues"
-            assert not np.isnan(self.f(x.T)).any(), "Shifts are assumed to fix any domain issues"
+                if np.isnan(self.f(x[i])).any():
+                    raise AssertionError("Shifts are assumed to fix any domain issues")
+            if np.isnan(self.f(x.T)).any():
+                raise AssertionError("Shifts are assumed to fix any domain issues")
         return (
             np.array(np.meshgrid(*[x[i] for i in range(dim)], indexing="ij"))
-            .reshape((dim, 3**dim))
+            .reshape((dim, (2 * self._max_order + 1) ** dim))
             .T
         ), sel
 
