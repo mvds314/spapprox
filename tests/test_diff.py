@@ -284,18 +284,43 @@ def test_first_order_partial_derivatives(f, gradf, ndim, h, points, error):
         (
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * np.ones_like(x),
-            2,
+            [2],
+            1e-6,
+            np.linspace(0, 1, 10),
+            None,
+        ),
+        (
+            lambda x: np.sum(np.power(x, 3), axis=-1),
+            lambda x: 3 * 2 * x,
+            [2],
             1e-6,
             np.linspace(0, 1, 10),
             None,
         ),
         # Vector case with higher order derivatives
+        (
+            lambda x: np.sum(np.power(x, 2), axis=-1),
+            lambda x: np.sum(np.zeros_like(x), axis=-1),
+            [1, 1],
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+        ),
         # Higher order mixed derivates
+        # Should raise Errors
+        (
+            lambda x: np.sum(np.power(x, 3), axis=-1),
+            lambda x: 3 * 2 * x,
+            [2, 2],
+            1e-6,
+            np.linspace(0, 1, 10),
+            ValueError,
+        ),
     ],
 )
 def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
     if error is None:
-        pd = PartialDerivative(f, orders, h=h)
+        pd = PartialDerivative(f, *orders, h=h)
         for p in points:
             assert np.asanyarray(p).ndim <= 1, "Invalid test case"
             pdp = pd(p)
@@ -319,9 +344,9 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
+                # str(Path(__file__)) + "::test_grad",
                 # str(Path(__file__)) + "::test_first_order_partial_derivatives",
                 # str(Path(__file__)) + "::test_higher_order_partial_derivatives",
-                # str(Path(__file__)) + "::test_grad",
                 # "-k",
                 # "test_partial_derivative",
                 # "--tb=auto",
