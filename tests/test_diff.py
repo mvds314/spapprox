@@ -20,6 +20,14 @@ from spapprox.diff import Gradient, PartialDerivative
             None,
         ),
         (
+            lambda x: np.sum(np.square(x) * np.array([1, 2]), axis=-1),
+            lambda x: 2 * x * np.array([1, 2]),
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+        ),
+        (
             lambda x: np.where(np.all(x > 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
             lambda x: np.where(
                 np.tile(np.all(x > 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
@@ -125,6 +133,14 @@ def test_grad(f, gradf, dim, h, points, error):
         (
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+        ),
+        (
+            lambda x: np.sum(np.square(x) * np.array([1, 2]), axis=-1),
+            lambda x: 2 * x * np.array([1, 2]),
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
