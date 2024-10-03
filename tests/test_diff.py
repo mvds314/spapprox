@@ -262,53 +262,36 @@ def test_first_order_partial_derivatives(f, df, ndim, h, points, error):
 
 
 @pytest.mark.parametrize(
-    "f, df, ndim, h, points, error",
+    "f, df, orders, h, points, error",
     [
-        # Tests for the vector case
+        # Scalar higher order derivatives
         (
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             2,
             1e-6,
-            np.array([np.linspace(0, 1, 10)] * 2).T,
+            np.linspace(0, 1, 10),
             None,
         ),
     ],
 )
-def test_higher_order_partial_derivatives(f, df, ndim, h, points, error):
+def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
     if error is None:
-        assert ndim >= 1, "Invalid test"
-        for i in range(ndim):
-            # Note we only test first order derivatives here
-            if ndim == 1:
-                orders = 1
-                pdi = PartialDerivative(f, orders, h=h)
-            else:
-                orders = np.eye(ndim, dtype=int)[i].tolist()
-                pdi = PartialDerivative(f, *orders, h=h)
-            for p in points:
-                dfp = df(p)
-                dfpi = dfp if np.isscalar(dfp) or dfp.ndim == 0 else dfp[i]
-                pdip = pdi(p)
-                assert np.asanyarray(p).ndim <= 1, "Invalid test case"
-                assert np.isscalar(pdip)
-                assert np.allclose(pdip, dfpi, atol=1e-6, equal_nan=True)
-            dpipoints = pdi(points)
-            assert dpipoints.ndim == 1, "A vector is expected as return value"
-            if ndim <= 1:
-                assert np.allclose(dpipoints, df(points), equal_nan=True)
-            else:
-                assert np.allclose(dpipoints, df(points)[:, i], equal_nan=True)
+        pd = PartialDerivative(f, orders, h=h)
+        for p in points:
+            assert np.asanyarray(p).ndim <= 1, "Invalid test case"
+            pdp = pd(p)
+            assert np.isscalar(pdp)
+            assert np.allclose(pdp, df(p), atol=1e-6, equal_nan=True)
+        dppoints = pd(points)
+        assert dppoints.ndim == 1, "A vector is expected as return value"
+        assert np.allclose(dppoints, df(points), equal_nan=True)
     else:
-        for i in range(ndim):
-            orders = np.eye(ndim, dtype=int)[i].tolist()
-            for p in points:
-                with pytest.raises(error):
-                    pdi = PartialDerivative(f, *orders, h=h)
-                    pdi(p)
+        for p in points:
             with pytest.raises(error):
-                pdi = PartialDerivative(f, *orders, h=h)
-                pdi(points)
+                PartialDerivative(f, *orders, h=h)(p)
+        with pytest.raises(error):
+            PartialDerivative(f, *orders, h=h)(points)
 
 
 # TODO: build and test higher order derivatives
