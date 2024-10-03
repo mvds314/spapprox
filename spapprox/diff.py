@@ -115,7 +115,7 @@ class FindiffBase(ABC):
         sel = [self._max_order] * dim
         x = np.array([t + i * self.h for i in range(-self._max_order, self._max_order + 1)]).T
         # But adjust if t-h or t+h is not in the domain (for any of the components)
-        if np.isnan(self.f(x)).any():
+        if np.isnan(self.f(x.T)).any():
             assert not np.isnan(self.f(np.zeros_like(t))), "Zeros is asserted to be in the domain"
             for i in range(dim):
                 xx = np.zeros((2 * self._max_order + 1, dim))
