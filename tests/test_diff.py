@@ -9,7 +9,7 @@ from spapprox.diff import Gradient, PartialDerivative
 
 
 @pytest.mark.parametrize(
-    "f, df, dim, h, points, error",
+    "f, gradf, dim, h, points, error",
     [
         (
             lambda x: np.sum(np.square(x), axis=-1),
@@ -91,15 +91,15 @@ from spapprox.diff import Gradient, PartialDerivative
         ),
     ],
 )
-def test_grad(f, df, dim, h, points, error):
+def test_grad(f, gradf, dim, h, points, error):
     if error is None:
         grad = Gradient(f, dim, h=h)
         for p in points:
             gp = grad(p)
-            dfp = df(p)
-            assert gp.ndim == dfp.ndim == 1
-            assert len(gp) == len(dfp) == dim
-            assert np.allclose(gp, dfp, atol=1e-6, equal_nan=True)
+            gradfp = gradf(p)
+            assert gp.ndim == gradfp.ndim == 1
+            assert len(gp) == len(gradfp) == dim
+            assert np.allclose(gp, gradfp, atol=1e-6, equal_nan=True)
             grad_from_partial = np.array(
                 [
                     PartialDerivative(f, *np.eye(dim, dtype=int)[i].tolist(), h=grad._h_vect[i])(p)
@@ -107,7 +107,7 @@ def test_grad(f, df, dim, h, points, error):
                 ]
             )
             assert np.allclose(grad_from_partial, gp, atol=1e-6, equal_nan=True)
-        assert np.allclose(grad(points), df(points), equal_nan=True)
+        assert np.allclose(grad(points), gradf(points), equal_nan=True)
     else:
         for p in points:
             with pytest.raises(error):
@@ -119,7 +119,7 @@ def test_grad(f, df, dim, h, points, error):
 
 
 @pytest.mark.parametrize(
-    "f, df, ndim, h, points, error",
+    "f, gradf, ndim, h, points, error",
     [
         # Tests for the vector case
         (
@@ -227,7 +227,7 @@ def test_grad(f, df, dim, h, points, error):
         ),
     ],
 )
-def test_first_order_partial_derivatives(f, df, ndim, h, points, error):
+def test_first_order_partial_derivatives(f, gradf, ndim, h, points, error):
     if error is None:
         assert ndim >= 1, "Invalid test"
         for i in range(ndim):
@@ -239,18 +239,18 @@ def test_first_order_partial_derivatives(f, df, ndim, h, points, error):
                 orders = np.eye(ndim, dtype=int)[i].tolist()
                 pdi = PartialDerivative(f, *orders, h=h)
             for p in points:
-                dfp = df(p)
-                dfpi = dfp if np.isscalar(dfp) or dfp.ndim == 0 else dfp[i]
+                gradfp = gradf(p)
+                gradfpi = gradfp if np.isscalar(gradfp) or gradfp.ndim == 0 else gradfp[i]
                 pdip = pdi(p)
                 assert np.asanyarray(p).ndim <= 1, "Invalid test case"
                 assert np.isscalar(pdip)
-                assert np.allclose(pdip, dfpi, atol=1e-6, equal_nan=True)
+                assert np.allclose(pdip, gradfpi, atol=1e-6, equal_nan=True)
             dpipoints = pdi(points)
             assert dpipoints.ndim == 1, "A vector is expected as return value"
             if ndim <= 1:
-                assert np.allclose(dpipoints, df(points), equal_nan=True)
+                assert np.allclose(dpipoints, gradf(points), equal_nan=True)
             else:
-                assert np.allclose(dpipoints, df(points)[:, i], equal_nan=True)
+                assert np.allclose(dpipoints, gradf(points)[:, i], equal_nan=True)
     else:
         for i in range(ndim):
             orders = np.eye(ndim, dtype=int)[i].tolist()
