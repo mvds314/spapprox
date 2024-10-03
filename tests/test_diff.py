@@ -297,7 +297,42 @@ def test_first_order_partial_derivatives(f, gradf, ndim, h, points, error):
             np.linspace(0, 1, 10),
             None,
         ),
+        # TODO: fix this test
+        # (
+        #     lambda x: np.sum(np.power(x, 3), axis=-1),
+        #     lambda x: 3 * 2 * np.ones_like(x),
+        #     [3],
+        #     1e-6,
+        #     np.linspace(0, 1, 10),
+        #     None,
+        # ),
         # Vector case with higher order derivatives
+        (
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * np.ones_like(x.take(0, axis=-1)),
+            [2, 0],
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+        ),
+        (
+            lambda x: np.sum(np.power(x, 3), axis=-1),
+            lambda x: 3 * 2 * x.take(1, axis=-1),
+            [0, 2],
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+        ),
+        # TODO: this one doesn't work
+        # (
+        #     lambda x: np.sum(np.power(x, 3), axis=-1),
+        #     lambda x: 3 * 2 * np.ones_like(x.take(0, axis=-1)),
+        #     [3, 0],
+        #     1e-6,
+        #     np.array([np.linspace(0, 1, 10)] * 2).T,
+        #     None,
+        # ),
+        # Higher order mixed derivates
         (
             lambda x: np.sum(np.power(x, 2), axis=-1),
             lambda x: np.sum(np.zeros_like(x), axis=-1),
@@ -306,7 +341,14 @@ def test_first_order_partial_derivatives(f, gradf, ndim, h, points, error):
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
         ),
-        # Higher order mixed derivates
+        (
+            lambda x: np.prod(np.power(x, 2), axis=-1),
+            lambda x: 4 * np.prod(x, axis=-1),
+            [1, 1],
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+        ),
         # Should raise Errors
         (
             lambda x: np.sum(np.power(x, 3), axis=-1),
