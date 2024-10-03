@@ -51,6 +51,20 @@ class FindiffBase(ABC):
 
     @property
     @abstractmethod
+    def orders(self):
+        """
+        Orders of the derivative per dimension
+        """
+        raise NotImplementedError
+
+    @property
+    def _max_order(self):
+        if not hasattr(self, "_max_order_cache"):
+            self._max_order_cache = int(np.max(self.orders))
+        return self._max_order_cache
+
+    @property
+    @abstractmethod
     def dim_image(self):
         """
         Dimension of the image of the derivative
@@ -212,6 +226,12 @@ class Gradient(FindiffBase):
         Dimension of the image of the gradient
         """
         return self.dim
+
+    @property
+    def orders(self):
+        if not hasattr(self, "_orders_cache"):
+            self._orders_cache = tuple([1] * self.dim)
+        return self._orders_cache
 
     @property
     def _findiff(self):
