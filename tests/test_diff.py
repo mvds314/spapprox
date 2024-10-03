@@ -304,7 +304,9 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                # str(Path(__file__)) + "::test_partial_derivative",
+                # str(Path(__file__)) + "::test_first_order_partial_derivatives",
+                # str(Path(__file__)) + "::test_higher_order_partial_derivatives",
+                # str(Path(__file__)) + "::test_grad",
                 # "-k",
                 # "test_partial_derivative",
                 # "--tb=auto",

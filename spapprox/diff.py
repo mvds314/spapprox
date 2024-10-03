@@ -113,7 +113,7 @@ class FindiffBase(ABC):
         assert dim >= 1, "Domain is assumed to be a vector space at this point"
         # Use central differences by default
         sel = [self._max_order] * dim
-        x = np.array([t - i * self.h for i in range(-self._max_order, self._max_order + 1)]).T
+        x = np.array([t + i * self.h for i in range(-self._max_order, self._max_order + 1)]).T
         # But adjust if t-h or t+h is not in the domain (for any of the components)
         if np.isnan(self.f(x)).any():
             assert not np.isnan(self.f(np.zeros_like(t))), "Zeros is asserted to be in the domain"
@@ -197,7 +197,7 @@ class FindiffBase(ABC):
                 ), "Return value should be scalar for scalar input"
             else:
                 Xis, sel = self._build_grid(t)
-                retval = self.f(Xis).reshape(tuple([3] * self.dim))
+                retval = self.f(Xis).reshape(tuple([2 * self._max_order + 1] * self.dim))
                 retval = self._findiff(retval)
                 retval = retval.T[*sel]
                 assert (
@@ -338,10 +338,3 @@ class PartialDerivative(FindiffBase):
                     ]
                 )
         return self._findiff_cache
-
-    def __call__(self, *args, **kwargs):
-        # TODO: this should work for first derivative, probably we need more grid points for higher ones
-        assert (
-            np.max(self.orders) <= 1
-        ), "Only first order derivatives are implemented, grid should be extended for higher order"
-        return super().__call__(*args, **kwargs)
