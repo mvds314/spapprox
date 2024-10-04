@@ -33,12 +33,14 @@ class FindiffBase(ABC):
     The function :math:`f` is assumed be scalar valued, but should support vector valued evaluation.
     """
 
-    def __init__(self, f, h=1e-6):
+    def __init__(self, f, h=1e-6, acc=2):
         assert callable(f), "f should be callable"
         self.f = f
         if not np.all(np.asanyarray(h) > 0):
             raise ValueError("h should be positive")
         self.h = h
+        assert isinstance(acc, int) and acc >= 2, "accuracy should be an integer >= 2"
+        self.acc = acc
 
     @property
     @abstractmethod
@@ -257,7 +259,7 @@ class Gradient(FindiffBase):
     @property
     def _findiff(self):
         if not hasattr(self, "_findiff_cache"):
-            self._findiff_cache = fd.Gradient(h=self._h_vect)
+            self._findiff_cache = fd.Gradient(h=self._h_vect, acc=self.acc)
         return self._findiff_cache
 
 
@@ -335,13 +337,14 @@ class PartialDerivative(FindiffBase):
             if self.dim == 0:
                 if not np.isscalar(self.orders):
                     raise RuntimeError("Scalar valued input should have scalar valued orders")
-                self._findiff_cache = fd.FinDiff(0, self._h_vect, self.orders)
+                self._findiff_cache = fd.FinDiff(0, self._h_vect, self.orders, acc=self.acc)
             else:
                 self._findiff_cache = fd.FinDiff(
                     *[
                         (i, self._h_vect[i], order)
                         for i, order in enumerate(self.orders)
                         if order > 0
-                    ]
+                    ],
+                    acc=self.acc,
                 )
         return self._findiff_cache
