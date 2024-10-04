@@ -64,6 +64,12 @@ class FindiffBase(ABC):
         return self._max_order_cache
 
     @property
+    def _grid_size(self):
+        if not hasattr(self, "_grid_size_cache"):
+            self._grid_size_cache = 2 * self._max_order + 1
+        return self._grid_size_cache
+
+    @property
     @abstractmethod
     def dim_image(self):
         """
@@ -118,12 +124,12 @@ class FindiffBase(ABC):
         if np.isnan(self.f(x.T)).any():
             assert not np.isnan(self.f(np.zeros_like(t))), "Zeros is asserted to be in the domain"
             for i in range(dim):
-                xx = np.zeros((2 * self._max_order + 1, dim))
+                xx = np.zeros((self._grid_size, dim))
                 xx[:, i] = x[i]
                 fxx = self.f(xx)
                 assert (
-                    len(fxx) == 2 * self._max_order + 1
-                ), f"f is assumed to be scalar, {2*self._max_order+1} retvals are expected when feeding t-{self._max_order}h,.., t,.. t+{self._max_order}h"
+                    len(fxx) == self._grid_size
+                ), f"f is assumed to be scalar, {self._grid_size} retvals are expected when feeding t-{self._max_order}h,.., t,.. t+{self._max_order}h"
                 if not np.isnan(fxx).any():
                     continue
                 if np.isnan(fxx[self._max_order]).any():
@@ -149,7 +155,7 @@ class FindiffBase(ABC):
                     shift = next(
                         i
                         for i in range(self._max_order + 1)
-                        if not np.isnan(fxx[self._max_order : 2 * self._max_order + 1 - i]).any()
+                        if not np.isnan(fxx[self._max_order : self._grid_size - i]).any()
                     )
                     # Shift to the left
                     sel[i] += shift
@@ -163,7 +169,7 @@ class FindiffBase(ABC):
                 raise AssertionError("Shifts are assumed to fix any domain issues")
         return (
             np.array(np.meshgrid(*[x[i] for i in range(dim)], indexing="ij"))
-            .reshape((dim, (2 * self._max_order + 1) ** dim))
+            .reshape((dim, self._grid_size**dim))
             .T
         ), sel
 
@@ -190,7 +196,7 @@ class FindiffBase(ABC):
             if self.dim == 0:
                 # Cast to 1-dim vector case
                 Xis, sel = self._build_grid(np.expand_dims(t, axis=-1), dim=1)
-                retval = self.f(Xis).reshape((2 * self._max_order + 1))
+                retval = self.f(Xis).reshape(self._grid_size)
                 retval = self._findiff(retval)
                 retval = retval.T[*sel]
                 assert (
@@ -198,7 +204,7 @@ class FindiffBase(ABC):
                 ), "Return value should be scalar for scalar input"
             else:
                 Xis, sel = self._build_grid(t)
-                retval = self.f(Xis).reshape(tuple([2 * self._max_order + 1] * self.dim))
+                retval = self.f(Xis).reshape(tuple([self._grid_size] * self.dim))
                 retval = self._findiff(retval)
                 retval = retval.T[*sel]
                 assert (
