@@ -228,16 +228,20 @@ class Gradient(FindiffBase):
     ----------
     f : callable
         Function
-    t : vector
-        point at which to evaluate the derivative
+    dim : int
+        Dimension of the domain of the function
+    h : scalar or vector
+        Step size for the derivative
+    acc : int
+        Accuracy of the finite difference scheme
     """
 
-    def __init__(self, f, dim, h=1e-6):
+    def __init__(self, f, dim, h=1e-6, acc=2):
         if not isinstance(dim, int) or dim <= 0:
             raise ValueError("dim should be a positive integer")
         self._dim = dim
         assert np.isscalar(h) or len(h) == dim, "h should be a scalar or a vector of length dim"
-        super().__init__(f, h)
+        super().__init__(f, h=h, acc=acc)
 
     @property
     def dim(self):
@@ -282,12 +286,16 @@ class PartialDerivative(FindiffBase):
         point at which to evaluate the derivative
     *orders : tuple with integers
         Derivatives w.r.t. arguments of f.
+    h : scalar or vector
+        Step size for the derivative
+    acc : int
+        Accuracy of the finite difference scheme
     """
 
-    def __init__(self, f, *orders, h=1e-6):
+    def __init__(self, f, *orders, h=1e-6, acc=2):
         if not np.isscalar(h) and len(h) != len(orders):
             raise ValueError("h should be a scalar or a vector of length len(orders)")
-        super().__init__(f, h)
+        super().__init__(f, h=h, acc=acc)
         self.orders = orders
 
     @property
