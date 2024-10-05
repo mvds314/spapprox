@@ -33,11 +33,10 @@ class FindiffBase(ABC):
     The function :math:`f` is assumed be scalar valued, but should support vector valued evaluation.
     """
 
-    def __init__(self, f, h=1e-6, acc=2):
-        assert callable(f), "f should be callable"
+    def __init__(self, f, h=None, acc=2):
+        if not callable(f):
+            raise TypeError("f should be callable")
         self.f = f
-        if not np.all(np.asanyarray(h) > 0):
-            raise ValueError("h should be positive")
         self.h = h
         assert isinstance(acc, int) and acc >= 2, "accuracy should be an integer >= 2"
         self.acc = acc
@@ -84,6 +83,27 @@ class FindiffBase(ABC):
     @abstractmethod
     def _findiff(self):
         raise NotImplementedError
+
+    @property
+    def h(self):
+        """
+        Step size for the derivative
+        """
+        return self._h
+
+    @h.setter
+    def h(self, h):
+        """
+        Note for an n-th order derivative, one has to divide by :math:`h^n`.
+        So, :math:`h^n` should not be too small, as this can lead to numerical instability.
+        We aim aim for :math:`h^n~1e-8`, leading to a step size of :math:`h = 1e-8^{1/n}`.
+        """
+        if h is None:
+            self._h = np.power(1e-8, 1 / self._max_order)
+        elif np.all(np.asanyarray(h) > 0):
+            self._h = h
+        else:
+            raise ValueError("h should be positive")
 
     @property
     def _h_vect(self):
@@ -236,12 +256,13 @@ class Gradient(FindiffBase):
         Accuracy of the finite difference scheme
     """
 
-    def __init__(self, f, dim, h=1e-6, acc=2):
+    def __init__(self, f, dim, h=None, acc=2):
         if not isinstance(dim, int) or dim <= 0:
             raise ValueError("dim should be a positive integer")
         self._dim = dim
-        assert np.isscalar(h) or len(h) == dim, "h should be a scalar or a vector of length dim"
         super().__init__(f, h=h, acc=acc)
+        if not np.isscalar(self.h) and len(self.h) != dim:
+            raise ValueError("h should be a scalar or a vector of length dim")
 
     @property
     def dim(self):
@@ -292,10 +313,10 @@ class PartialDerivative(FindiffBase):
         Accuracy of the finite difference scheme
     """
 
-    def __init__(self, f, *orders, h=1e-6, acc=2):
-        if not np.isscalar(h) and len(h) != len(orders):
-            raise ValueError("h should be a scalar or a vector of length len(orders)")
+    def __init__(self, f, *orders, h=None, acc=2):
         super().__init__(f, h=h, acc=acc)
+        if not np.isscalar(self.h) and len(self.h) != len(orders):
+            raise ValueError(f"h should be a scalar or a vector of length {len(orders)}")
         self.orders = orders
 
     @property
