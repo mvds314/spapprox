@@ -385,7 +385,7 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             PartialDerivative(f, *orders, h=h)(points)
 
 
-# TODO: test higher order derivatives further
+# TODO: implement matrices with derivatives, including Hessian, and higher order Hessian matrix
 
 if __name__ == "__main__":
     if True:
