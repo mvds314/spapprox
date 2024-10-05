@@ -99,7 +99,7 @@ class FindiffBase(ABC):
         We aim aim for :math:`h^n~1e-8`, leading to a step size of :math:`h = 1e-8^{1/n}`.
         """
         if h is None:
-            self._h = np.power(1e-8, 1 / self._max_order)
+            self._h = np.power(1e-8, 1 / np.sum(self.orders))
         elif np.all(np.asanyarray(h) > 0):
             self._h = h
         else:
@@ -314,10 +314,10 @@ class PartialDerivative(FindiffBase):
     """
 
     def __init__(self, f, *orders, h=None, acc=2):
+        self.orders = orders
         super().__init__(f, h=h, acc=acc)
         if not np.isscalar(self.h) and len(self.h) != len(orders):
             raise ValueError(f"h should be a scalar or a vector of length {len(orders)}")
-        self.orders = orders
 
     @property
     def dim(self):
