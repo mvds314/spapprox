@@ -18,6 +18,7 @@ except ImportError:
 
 from .domain import Domain
 from .util import fib, type_wrapper
+from .diff import Gradient, PartialDerivative
 
 # TODO: sort out how _diK0 and _diK0_cache are handled
 
@@ -83,6 +84,7 @@ class CumulantGeneratingFunction(ABC):
         d2K0=None,
         d3K0=None,
         domain=None,
+        numdiff_backend="numdifftools",
     ):
         self._K = K
         self._dK = dK
@@ -98,6 +100,9 @@ class CumulantGeneratingFunction(ABC):
         self.domain = domain
         self.loc = loc
         self.scale = scale
+        if numdiff_backend not in ["numdifftools", "findiff"]:
+            raise ValueError("numdiff_backend should be 'numdifftools' or 'findiff'")
+        self._numdiff_backend = numdiff_backend
 
     @property
     def loc(self):
@@ -266,6 +271,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         d2K0=None,
         d3K0=None,
         domain=None,
+        **kwargs,
     ):
         super().__init__(
             K,
@@ -279,6 +285,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             dK0=dK0,
             d2K0=d2K0,
             d3K0=d3K0,
+            **kwargs,
         )
 
     @CumulantGeneratingFunction.loc.setter
@@ -329,8 +336,14 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         # Initialize
         if self._dK is None:
-            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._dK = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=1)
+            if self._numdiff_backend == "findiff":
+                self._dK = PartialDerivative(lambda tt: self.K(tt, loc=0, scale=1), 1)
+            elif self._numdiff_backend == "numdifftools":
+                if not has_numdifftools:
+                    raise ImportError("Numdifftools is required if derivatives are not provided")
+                self._dK = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=1)
+            else:
+                raise ValueError("Invalid numdiff_backend")
         loc = self.loc if loc is None else loc
         scale = self.scale if scale is None else scale
         assert np.isscalar(loc) and np.isscalar(scale), "loc and scale should be scalars"
@@ -506,8 +519,12 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         # Initialize
         if self._d2K is None:
-            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._d2K = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=2)
+            if self._numdiff_backend == "findiff":
+                self._d2K = PartialDerivative(lambda tt: self.K(tt, loc=0, scale=1), 2)
+            elif self._numdiff_backend == "numdifftools":
+                if not has_numdifftools:
+                    raise ImportError("Numdifftools is required if derivatives are not provided")
+                self._d2K = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=2)
         scale = self.scale if scale is None else scale
         assert np.isscalar(scale), "scale should be a scalar"
         st = scale * t
@@ -522,8 +539,14 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     def d3K(self, t, fillna=np.nan, loc=None, scale=None):
         # Initialize
         if self._d3K is None:
-            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._d3K = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=3)
+            if self._numdiff_backend == "findiff":
+                self._d3K = PartialDerivative(lambda tt: self.K(tt, loc=0, scale=1), 3)
+            elif self._numdiff_backend == "numdifftools":
+                if not has_numdifftools:
+                    raise ImportError("Numdifftools is required if derivatives are not provided")
+                self._d3K = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=3)
+            else:
+                raise ValueError("Invalid numdiff_backend")
         scale = self.scale if scale is None else scale
         assert np.isscalar(scale), "scale should be a scalar"
         st = scale * t
@@ -591,6 +614,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     d2K0=self._d2K0,
                     d3K0=self._d3K0,
                     domain=self.domain,
+                    numdiff_backend=self._numdiff_backend,
                 )
         elif isinstance(other, UnivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for UnivariateCumulantGeneratingFunction"
@@ -612,6 +636,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 )
                 + other.d3K(t, scale=so, loc=lo),
                 domain=self.domain.intersect(other.domain),
+                numdiff_backend=self._numdiff_backend,
             )
         else:
             raise ValueError(
@@ -651,6 +676,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     d2K0=self._d2K0,
                     d3K0=self._d3K0,
                     domain=self.domain,
+                    numdiff_backend=self._numdiff_backend,
                 )
         else:
             raise ValueError("Can only multiply with a scalar")
@@ -719,6 +745,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         d2K0=None,
         d3K0=None,
         domain=None,
+        **kwargs,
     ):
         assert (
             pd.api.types.is_integer(dim) and dim > 0
@@ -743,6 +770,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             dK0=dK0,
             d2K0=d2K0,
             d3K0=d3K0,
+            **kwargs,
         )
 
     @property
