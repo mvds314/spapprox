@@ -10,5 +10,9 @@ setup(
     keywords="statistics",
     packages=["spapprox"],
     install_requires=["numpy", "scipy", "pandas", "statsmodels"],
-    extras_require={"diff": ["numdifftools"], "fastnorm": ["fastnorm"]},
+    extras_require={
+        "findiff": ["findiff"],  # Fast implementation of finite difference schemes
+        "numdiff": ["numdifftools"],  # Alternative to findiff, seems slower
+        "fastnorm": ["fastnorm"],
+    },
 )
