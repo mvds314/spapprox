@@ -226,7 +226,7 @@ class FindiffBase(ABC):
             if self.dim == 0:
                 # Cast to 1-dim vector case
                 Xis, sel = self._build_grid(np.expand_dims(t, axis=-1), dim=1)
-                retval = self.f(Xis).reshape(self._grid_size)
+                retval = self.f(Xis.squeeze())
                 retval = self._findiff(retval)
                 retval = retval.T[*sel]
                 assert (
