@@ -279,10 +279,12 @@ if __name__ == "__main__":
     if True:
         pytest.main(
             [
-                str(Path(__file__)),
-                "-k",
-                "test_bvar_spa",
+                # str(Path(__file__)),
+                str(Path(__file__)) + "::test_bvar_spa",
+                # "-k",
+                # "test_bvar_spa",
                 "--tb=auto",
                 "--pdb",
+                "-s",
             ]
         )

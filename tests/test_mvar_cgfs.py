@@ -534,9 +534,11 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_dKinv",
-                "--tb=auto",
+                # str(Path(__file__)) + "::test_dKinv",
+                # "-k",
+                # "test_dKinv",
+                # "--tb=auto",
                 "--pdb",
+                "-s",
             ]
         )
