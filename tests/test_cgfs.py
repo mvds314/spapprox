@@ -26,6 +26,7 @@ from spapprox import (
     univariate_empirical,
     univariate_sample_mean,
 )
+from spapprox.diff import PartialDerivative
 
 
 @pytest.mark.parametrize(
@@ -328,10 +329,9 @@ def test_basic(cgf_to_test, cgf, ts, dist):
     # Test function evaluations
     assert isinstance(cgf_to_test, UnivariateCumulantGeneratingFunction)
     for t in ts:
-        (cgf_to_test.K(t),)
         assert np.isclose(cgf(t), cgf_to_test.K(t), atol=1e-4)
-        dcgf = nd.Derivative(cgf_to_test.K, n=1)
-        assert np.isclose(dcgf(t), cgf_to_test.dK(t))
+        for dcgf in [nd.Derivative(cgf_to_test.K, n=1), PartialDerivative(cgf_to_test.K, 1)]:
+            assert np.isclose(dcgf(t), cgf_to_test.dK(t))
         d2cgf = nd.Derivative(cgf_to_test.K, n=2)
         assert np.isclose(d2cgf(t), cgf_to_test.d2K(t))
         d3cgf = nd.Derivative(cgf_to_test.K, n=3)
