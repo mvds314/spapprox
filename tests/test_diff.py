@@ -5,9 +5,10 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from spapprox.diff import Gradient, PartialDerivative
+from spapprox.diff import Gradient, PartialDerivative, _has_findiff
 
 
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
 @pytest.mark.parametrize(
     "f, gradf, dim, h, points, error",
     [
@@ -126,6 +127,7 @@ def test_grad(f, gradf, dim, h, points, error):
             grad(points)
 
 
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
 @pytest.mark.parametrize(
     "f, gradf, ndim, h, points, error",
     [
@@ -277,6 +279,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, h, points, error):
                 PartialDerivative(f, *orders, h=h)(points)
 
 
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
 @pytest.mark.parametrize(
     "f, df, orders, h, points, error",
     [
