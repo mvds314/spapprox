@@ -7,8 +7,14 @@ https://findiff.readthedocs.io/en/latest/
 
 from abc import ABC, abstractmethod
 
-import findiff as fd
 import numpy as np
+
+try:
+    import findiff as fd
+except ImportError:
+    _has_findiff = False
+else:
+    _has_findiff = True
 
 
 class FindiffBase(ABC):
@@ -34,6 +40,8 @@ class FindiffBase(ABC):
     """
 
     def __init__(self, f, h=None, acc=2):
+        if not _has_findiff:
+            raise ImportError("The findiff package is required for this functionality")
         if not callable(f):
             raise TypeError("f should be callable")
         self.f = f
