@@ -31,10 +31,6 @@ from spapprox import (
 from spapprox.diff import PartialDerivative
 
 
-@pytest.mark.skipif(
-    not has_numdifftools or not has_findiff,
-    reason="Numerical differentiation libraries not installed",
-)
 @pytest.mark.parametrize(
     "cgf_to_test, cgf, ts, dist, backend",
     [
