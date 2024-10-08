@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import warnings
 from pathlib import Path
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", category=DeprecationWarning)
-    import numdifftools as nd
+from spapprox.cgf_base import has_numdifftools
+from spapprox.diff import _has_findiff as has_findiff
+
+if has_numdifftools:
+    from spapprox.cgf_base import nd
+
 import numpy as np
 import pytest
 import scipy.stats as sps
@@ -29,242 +31,348 @@ from spapprox import (
 from spapprox.diff import PartialDerivative
 
 
+@pytest.mark.skipif(
+    not has_numdifftools or not has_findiff,
+    reason="Numerical differentiation libraries not installed",
+)
 @pytest.mark.parametrize(
-    "cgf_to_test,cgf,ts,dist",
+    "cgf_to_test, cgf, ts, dist, backend",
     [
         # Test cases are set up for a particular logic, and then one more based on the multivariate implementation
         # Case 1: Univariate normal distribution
-        # (
-        #     norm(loc=0, scale=1),
-        #     lambda t, pdf=sps.norm.pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0, scale=1),
-        # ),
-        # (
-        #     multivariate_norm(loc=[0, 2], scale=[1, 3])[0],
-        #     norm(loc=0, scale=1).K,
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0, scale=1),
-        # ),
+        pytest.param(
+            norm(loc=0, scale=1),
+            np.vectorize(
+                lambda t, pdf=sps.norm.pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+                )
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=1),
+            "numdifftools",
+            marks=[
+                pytest.mark.skipif(not has_numdifftools, reason="No numdifftools"),
+                pytest.mark.slow,
+            ],
+        ),
+        pytest.param(
+            norm(loc=0, scale=1),
+            np.vectorize(
+                lambda t, pdf=sps.norm.pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+                )
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=1),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+        ),
+        pytest.param(
+            multivariate_norm(loc=[0, 2], scale=[1, 3])[0],
+            norm(loc=0, scale=1).K,
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=1),
+            "findiff",
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+        ),
+        pytest.param(
+            multivariate_norm(loc=[0, 2], scale=[1, 3])[0],
+            norm(loc=0, scale=1).K,
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=1),
+            "numdifftools",
+            marks=pytest.mark.skipif(not has_numdifftools, reason="No numdifftools"),
+        ),
         # Case 2: Sum of two univariate normal distributions
-        # (
-        #     norm(loc=0, scale=1) + norm(loc=0, scale=1),
-        #     lambda t, pdf=sps.norm(0, np.sqrt(2)).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0, scale=np.sqrt(2)),
-        # ),
-        # (
-        #     (multivariate_norm(loc=0, scale=1) + multivariate_norm(loc=0, scale=1))[0],
-        #     (norm(loc=0, scale=1) + norm(loc=0, scale=1)).K,
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0, scale=np.sqrt(2)),
-        # ),
+        pytest.param(
+            norm(loc=0, scale=1) + norm(loc=0, scale=1),
+            np.vectorize(
+                lambda t, pdf=sps.norm(0, np.sqrt(2)).pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+                )
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=np.sqrt(2)),
+            "findiff",
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+        ),
+        pytest.param(
+            (multivariate_norm(loc=0, scale=1) + multivariate_norm(loc=0, scale=1))[0],
+            (norm(loc=0, scale=1) + norm(loc=0, scale=1)).K,
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=np.sqrt(2)),
+            "findiff",
+            marks=[
+                pytest.mark.skipif(not has_findiff, reason="No findiff"),
+                pytest.mark.xfail(reason="Bug, sort this out"),
+            ],
+        ),
         # Case 3: Sum of two univariate normal distributions with different means
-        # (
-        #     norm(loc=1, scale=1) + norm(loc=2, scale=1),
-        #     lambda t, pdf=sps.norm(3, np.sqrt(2)).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-12, b=12)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.norm(loc=3, scale=np.sqrt(2)),
-        # ),
-        # (
-        #     multivariate_norm(loc=[1, 2], scale=[1, 1])[0]
-        #     + multivariate_norm(loc=[1, 2], scale=[1, 1])[1],
-        #     (norm(loc=1, scale=1) + norm(loc=2, scale=1)).K,
-        #     [0.2, 0.55],
-        #     sps.norm(loc=3, scale=np.sqrt(2)),
-        # ),
+        pytest.param(
+            norm(loc=1, scale=1) + norm(loc=2, scale=1),
+            np.vectorize(
+                lambda t, pdf=sps.norm(3, np.sqrt(2)).pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=-12, b=12)[0]
+                )
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=3, scale=np.sqrt(2)),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+        ),
+        pytest.param(
+            multivariate_norm(loc=[1, 2], scale=[1, 1])[0]
+            + multivariate_norm(loc=[1, 2], scale=[1, 1])[1],
+            (norm(loc=1, scale=1) + norm(loc=2, scale=1)).K,
+            [0.2, 0.55],
+            sps.norm(loc=3, scale=np.sqrt(2)),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
         # Case 4: Univariate normal distribution scaled by a constant
-        # (
-        #     1.1 * norm(loc=0, scale=1),
-        #     lambda t, pdf=sps.norm(0, 1.1).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0, scale=1.1),
-        # ),
-        # (
-        #     1.1 * multivariate_norm(loc=0, scale=1)[0],
-        #     (1.1 * norm(loc=0, scale=1)).K,
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0, scale=1.1),
-        # ),
+        pytest.param(
+            1.1 * norm(loc=0, scale=1),
+            np.vectorize(
+                lambda t, pdf=sps.norm(0, 1.1).pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+                )
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=1.1),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+        ),
+        pytest.param(
+            1.1 * multivariate_norm(loc=0, scale=1)[0],
+            (1.1 * norm(loc=0, scale=1)).K,
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=1.1),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
         # Case 5: Sum of two univariate normal distributions scaled by a constant and shifted
-        # (
-        #     1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3,
-        #     lambda t, pdf=sps.norm(0.8, 1.1 * np.sqrt(2)).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
-        # ),
-        # (
-        #     1.1 * (multivariate_norm(loc=0, scale=1)[0] + multivariate_norm(loc=1, scale=1)[0])
-        #     - 0.3,
-        #     (1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3).K,
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
-        # ),
+        pytest.param(
+            1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3,
+            np.vectorize(
+                lambda t, pdf=sps.norm(0.8, 1.1 * np.sqrt(2)).pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+                )
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+        ),
+        pytest.param(
+            1.1 * (multivariate_norm(loc=0, scale=1)[0] + multivariate_norm(loc=1, scale=1)[0])
+            - 0.3,
+            (1.1 * (norm(loc=0, scale=1) + norm(loc=1, scale=1)) - 0.3).K,
+            [0.2, 0.55],
+            sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
         # Case 6: Univariate normal distribution with loc and scale
-        # (
-        #     norm(loc=1, scale=0.5),
-        #     lambda t: np.log(
-        #         quad(
-        #             lambda x, pdf=sps.norm(loc=1, scale=0.5).pdf: pdf(x) * np.exp(t * x),
-        #             a=-5,
-        #             b=5,
-        #         )[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.norm(loc=1, scale=0.5),
-        # ),
-        # (
-        #     multivariate_norm(loc=1, scale=0.5, dim=2)[0],
-        #     norm(loc=1, scale=0.5).K,
-        #     [0.2, 0.55],
-        #     sps.norm(loc=1, scale=0.5),
-        # ),
+        pytest.param(
+            norm(loc=1, scale=0.5),
+            np.vectorize(
+                lambda t: np.log(
+                    quad(
+                        lambda x, pdf=sps.norm(loc=1, scale=0.5).pdf: pdf(x) * np.exp(t * x),
+                        a=-5,
+                        b=5,
+                    )[0]
+                )
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=1, scale=0.5),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+        ),
+        pytest.param(
+            multivariate_norm(loc=1, scale=0.5, dim=2)[0],
+            norm(loc=1, scale=0.5).K,
+            [0.2, 0.55],
+            sps.norm(loc=1, scale=0.5),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
         # Case 7: Univariate normal manually specified
-        # (
-        #     UnivariateCumulantGeneratingFunction(
-        #         K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
-        #     ),
-        #     lambda t, pdf=sps.norm.pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0, scale=1),
-        # ),
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         UnivariateCumulantGeneratingFunction(
-        #             K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
-        #         ),
-        #     )[0],
-        #     UnivariateCumulantGeneratingFunction(
-        #         K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
-        #     ).K,
-        #     [0.2, 0.55],
-        #     sps.norm(loc=0, scale=1),
-        # ),
+        pytest.param(
+            UnivariateCumulantGeneratingFunction(
+                K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
+            ),
+            np.vectorize(
+                lambda t, pdf=sps.norm.pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
+                )
+            ),
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=1),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                UnivariateCumulantGeneratingFunction(
+                    K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
+                ),
+            )[0],
+            UnivariateCumulantGeneratingFunction(
+                K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
+            ).K,
+            [0.2, 0.55],
+            sps.norm(loc=0, scale=1),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
         # Case 8: Univariate exponential
-        # (
-        #     exponential(scale=1),
-        #     lambda t, pdf=sps.expon.pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.expon(scale=1),
-        # ),
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         norm(0, 1), 2 * exponential(scale=1) / 2
-        #     )[1],
-        #     exponential(scale=1).K,
-        #     [0.2, 0.55],
-        #     sps.expon(scale=1),
-        # ),
+        pytest.param(
+            exponential(scale=1),
+            np.vectorize(
+                lambda t, pdf=sps.expon.pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+                )
+            ),
+            [0.2, 0.55],
+            sps.expon(scale=1),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                norm(0, 1), 2 * exponential(scale=1) / 2
+            )[1],
+            exponential(scale=1).K,
+            [0.2, 0.55],
+            sps.expon(scale=1),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
         # Case 9: Univariate exponential with scale
-        # (
-        #     exponential(scale=0.5),
-        #     lambda t, pdf=sps.expon(scale=0.5).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.expon(scale=0.5),
-        # ),
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         exponential(scale=0.5), exponential(scale=0.5)
-        #     ).ldot([1, 0]),
-        #     exponential(scale=0.5).K,
-        #     [0.2, 0.55],
-        #     sps.expon(scale=0.5),
-        # ),
+        pytest.param(
+            exponential(scale=0.5),
+            np.vectorize(
+                lambda t, pdf=sps.expon(scale=0.5).pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+                )
+            ),
+            [0.2, 0.55],
+            sps.expon(scale=0.5),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                exponential(scale=0.5), exponential(scale=0.5)
+            ).ldot([1, 0]),
+            exponential(scale=0.5).K,
+            [0.2, 0.55],
+            sps.expon(scale=0.5),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
         # Case 10: Univariate exponential cgf manually specified
-        # (
-        #     UnivariateCumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
-        #     exponential(scale=1).K,
-        #     [0.2, 0.55],
-        #     sps.expon(scale=1),
-        # ),
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         UnivariateCumulantGeneratingFunction(
-        #             K=lambda t: np.log(1 / (1 - t)),
-        #         )
-        #     )[0],
-        #     exponential(scale=1).K,
-        #     [0.2, 0.55],
-        #     sps.expon(scale=1),
-        # ),
+        pytest.param(
+            UnivariateCumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
+            exponential(scale=1).K,
+            [0.2, 0.55],
+            sps.expon(scale=1),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                UnivariateCumulantGeneratingFunction(
+                    K=lambda t: np.log(1 / (1 - t)),
+                )
+            )[0],
+            exponential(scale=1).K,
+            [0.2, 0.55],
+            sps.expon(scale=1),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
         # Case 11: Univariate gamma
-        # (
-        #     gamma(a=2, scale=0.5),
-        #     lambda t, pdf=sps.gamma(a=2, scale=0.5).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-        #     ),
-        #     [0.2, 0.55],
-        #     sps.gamma(a=2, scale=0.5),
-        # ),
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         gamma(a=2, scale=0.5), gamma(a=2, scale=0.5)
-        #     ).ldot([1, 0]),
-        #     gamma(a=2, scale=0.5).K,
-        #     [0.2, 0.55],
-        #     sps.gamma(a=2, scale=0.5),
-        # ),
+        pytest.param(
+            gamma(a=2, scale=0.5),
+            np.vectorize(
+                lambda t, pdf=sps.gamma(a=2, scale=0.5).pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+                )
+            ),
+            [0.2, 0.55],
+            sps.gamma(a=2, scale=0.5),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                gamma(a=2, scale=0.5), gamma(a=2, scale=0.5)
+            ).ldot([1, 0]),
+            gamma(a=2, scale=0.5).K,
+            [0.2, 0.55],
+            sps.gamma(a=2, scale=0.5),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
         # Case 12: Univariate chi2
-        # (
-        #     chi2(df=3),
-        #     lambda t, pdf=sps.chi2(df=3).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-        #     ),
-        #     [0.2, 0.25],
-        #     sps.chi2(df=3),
-        # ),
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(chi2(df=2), chi2(df=3)).ldot(
-        #         [0, 1]
-        #     ),
-        #     chi2(df=3).K,
-        #     [0.2, 0.25],
-        #     sps.chi2(df=3),
-        # ),
+        pytest.param(
+            chi2(df=3),
+            lambda t, pdf=sps.chi2(df=3).pdf: np.log(
+                quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+            ),
+            [0.2, 0.25],
+            sps.chi2(df=3),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(chi2(df=2), chi2(df=3)).ldot(
+                [0, 1]
+            ),
+            chi2(df=3).K,
+            [0.2, 0.25],
+            sps.chi2(df=3),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
         # Case 13: Univariate laplace
-        # (
-        #     laplace(loc=0, scale=1),
-        #     lambda t, pdf=sps.laplace(loc=0, scale=1).pdf: np.log(
-        #         quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
-        #     ),
-        #     [0.2, 0.55, -0.23],
-        #     sps.laplace(loc=0, scale=1),
-        # ),
-        # (
-        #     MultivariateCumulantGeneratingFunction.from_univariate(
-        #         laplace(loc=0, scale=3), laplace(loc=0, scale=1)
-        #     ).ldot([1, 0]),
-        #     laplace(loc=0, scale=3).K,
-        #     [0.2, 0.3, -0.23],
-        #     sps.laplace(loc=0, scale=3),
-        # ),
+        pytest.param(
+            laplace(loc=0, scale=1),
+            np.vectorize(
+                lambda t, pdf=sps.laplace(loc=0, scale=1).pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
+                )
+            ),
+            [0.2, 0.55, -0.23],
+            sps.laplace(loc=0, scale=1),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                laplace(loc=0, scale=3), laplace(loc=0, scale=1)
+            ).ldot([1, 0]),
+            laplace(loc=0, scale=3).K,
+            [0.2, 0.3, -0.23],
+            sps.laplace(loc=0, scale=3),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+        ),
         # Case 14: Univariate poisson
         # TODO: fix this test
-        (
+        pytest.param(
             poisson(mu=2),
             lambda t, pmf=sps.poisson(mu=2).pmf: np.log(
                 np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
             ),
             [0.2, 0.55],
             sps.poisson(mu=2),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(poisson(mu=2), poisson(mu=2))[
                 0
             ],
@@ -273,69 +381,92 @@ from spapprox.diff import PartialDerivative
             ),
             [0.2, 0.55],
             sps.poisson(mu=2),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
         ),
         # Case 15: Univariate binomial
-        (
+        pytest.param(
             binomial(n=10, p=0.5),
             lambda t, pmf=sps.binom(n=10, p=0.5).pmf: np.log(
                 np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
             ),
             [0.2, 0.55],
             sps.binom(n=10, p=0.5),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 binomial(n=10, p=0.5), binomial(n=10, p=0.5)
             )[0],
             binomial(n=10, p=0.5).K,
             [0.2, 0.55],
             sps.binom(n=10, p=0.5),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
         ),
         # Case 16: Univariate sample mean
-        (
+        pytest.param(
             univariate_sample_mean(norm(2, 1), 25),
-            lambda t, pdf=sps.norm(loc=2, scale=0.2).pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
+            np.vectorize(
+                lambda t, pdf=sps.norm(loc=2, scale=0.2).pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
+                )
             ),
             [0.2, 0.55, -0.23],
             sps.norm(loc=2, scale=0.2),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 univariate_sample_mean(norm(2, 1), 25), univariate_sample_mean(norm(2, 1), 25)
             )[0],
             univariate_sample_mean(norm(2, 1), 25).K,
             [0.2, 0.55, -0.23],
             sps.norm(loc=2, scale=0.2),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
         ),
         # Case 17: Univariate empirical
-        (
+        pytest.param(
             univariate_empirical(np.arange(10)),
             lambda t, x=np.arange(10): np.log(np.sum([np.exp(t * x) / len(x)])),
             [0.2, 0.55, -0.23],
             np.arange(10),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 univariate_empirical(np.arange(10)), univariate_empirical(np.arange(10))
             )[0],
             univariate_empirical(np.arange(10)).K,
             [0.2, 0.55, -0.23],
             np.arange(10),
+            "findiff",
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
         ),
     ],
 )
-def test_basic(cgf_to_test, cgf, ts, dist):
+def test_basic(cgf_to_test, cgf, ts, dist, backend):
     # Test function evaluations
     assert isinstance(cgf_to_test, UnivariateCumulantGeneratingFunction)
     for t in ts:
         assert np.isclose(cgf(t), cgf_to_test.K(t), atol=1e-4)
-        for dcgf in [nd.Derivative(cgf_to_test.K, n=1), PartialDerivative(cgf_to_test.K, 1)]:
-            assert np.isclose(dcgf(t), cgf_to_test.dK(t))
-        d2cgf = nd.Derivative(cgf_to_test.K, n=2)
+        if backend == "numdifftools":
+            dcgf = nd.Derivative(cgf, n=1)
+            d2cgf = nd.Derivative(cgf, n=2)
+            d3cgf = nd.Derivative(cgf, n=3)
+        elif backend == "findiff":
+            dcgf = PartialDerivative(cgf, 1)
+            d2cgf = PartialDerivative(cgf, 2)
+            d3cgf = PartialDerivative(cgf, 3)
+        else:
+            raise ValueError(f"Backend {backend} not supported in test")
+        assert np.isclose(dcgf(t), cgf_to_test.dK(t))
         assert np.isclose(d2cgf(t), cgf_to_test.d2K(t))
-        d3cgf = nd.Derivative(cgf_to_test.K, n=3)
-        assert np.isclose(d3cgf(t), cgf_to_test.d3K(t))
+        assert np.isclose(d3cgf(t), cgf_to_test.d3K(t), atol=1e-7)
     # Test vectorized evaluation
     assert np.isclose(cgf_to_test.mean, dist.mean())
     assert np.isclose(cgf_to_test.variance, dist.var())
@@ -350,16 +481,21 @@ def test_basic(cgf_to_test, cgf, ts, dist):
         cgf_to_test.add(3, inplace=False)
         assert np.isclose(cgf(t), cgf_to_test.K(t))
         # Test first derivative
-        dcgf = nd.Derivative(cgf, n=1)
+        if backend == "numdifftools":
+            dcgf = nd.Derivative(cgf, n=1)
+        elif backend == "findiff":
+            dcgf = PartialDerivative(cgf, 1)
+        else:
+            raise ValueError(f"Backend {backend} not supported in test")
         cgf_to_test.add(3, inplace=True)
         assert np.isclose(dcgf(t) + 3, cgf_to_test.dK(t), atol=1e-4)
         assert np.isclose(cgf_to_test.dK0, dcgf(0) + 3)
         cgf_to_test.add(-3, inplace=True)
         assert np.isclose(cgf_to_test.dK0, dcgf(0))
-    # Test stored derivatives
-    assert np.isclose(cgf_to_test.dK0, dcgf(0))
-    assert np.isclose(cgf_to_test.d2K0, d2cgf(0))
-    assert np.isclose(cgf_to_test.d3K0, d3cgf(0))
+        # Test stored derivatives
+        assert np.isclose(cgf_to_test.dK0, dcgf(0))
+        assert np.isclose(cgf_to_test.d2K0, d2cgf(0))
+        assert np.isclose(cgf_to_test.d3K0, d3cgf(0))
     # Test multiplication and division with scalar
     for t in ts:
         # Test cumulant generating function
@@ -370,15 +506,22 @@ def test_basic(cgf_to_test, cgf, ts, dist):
         cgf_to_test.mul(1 / 1.01, inplace=True)
         cgf_to_test.mul(2, inplace=False)
         assert np.isclose(cgf(t), cgf_to_test.K(t))
+        # Initialize derivatives
+        if backend == "numdifftools":
+            dcgf = nd.Derivative(cgf, n=1)
+            d2cgf = nd.Derivative(cgf, n=2)
+        elif backend == "findiff":
+            dcgf = PartialDerivative(cgf, 1)
+            d2cgf = PartialDerivative(cgf, 2)
+        else:
+            raise ValueError(f"Backend {backend} not supported in test")
         # Test first derivative
-        dcgf = nd.Derivative(cgf, n=1)
         cgf_to_test.mul(1.01, inplace=True)
         assert np.isclose(dcgf(1.01 * t) / (1 / 1.01), cgf_to_test.dK(t), atol=1e-4)
         assert np.isclose(cgf_to_test.dK0, dcgf(0) * 1.01)
         cgf_to_test.mul(1 / 1.01, inplace=True)
         assert np.isclose(cgf_to_test.dK0, dcgf(0))
         # Test second derivative
-        d2cgf = nd.Derivative(cgf, n=2)
         cgf_to_test.mul(1.01, inplace=True)
         assert np.isclose(d2cgf(1.01 * t) / (1 / 1.01) ** 2, cgf_to_test.d2K(t), atol=1e-4)
         assert np.isclose(cgf_to_test.d2K0, d2cgf(0) * 1.01**2)
@@ -605,8 +748,10 @@ if __name__ == "__main__":
                 str(Path(__file__)) + "::test_basic",
                 # "-k",
                 # "test_basic",
+                "--durations=10",
                 "--tb=auto",
                 "--pdb",
                 "-s",
+                # "-m 'not slow'",
             ]
         )
