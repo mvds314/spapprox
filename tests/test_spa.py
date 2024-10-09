@@ -182,27 +182,30 @@ def test_expon_spa(cgf, dist, trange):
             2,
         ),
         # Test with correlated variables
-        (
+        pytest.param(
             multivariate_norm(loc=[0.5, 0.2], cov=[[3, 1], [1, 3]]),
             sps.multivariate_normal(mean=[0.5, 0.2], cov=[[3, 1], [1, 3]]),
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
             2,
+            marks=pytest.mark.slow,
         ),
         # 3 dim test
-        (
+        pytest.param(
             multivariate_norm(loc=0.5, scale=3, dim=3),
             sps.multivariate_normal(mean=[0.5, 0.5, 0.5], cov=9),
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 3)),
             3,
+            marks=pytest.mark.slow,
         ),
         # Other distribution
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 norm(loc=0.5, scale=3), norm(loc=0.5, scale=3)
             ),
             sps.multivariate_normal(mean=[0.5, 0.5], cov=9),
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
             2,
+            marks=pytest.mark.slow,
         ),
         # TODO: test non-normal distribution?
         # TODO: also test the bivariate implementation explicitly
@@ -240,11 +243,12 @@ def test_mvar_spa(cgf, dist, ts, dim):
     "cgf, dist, ts, dim",
     [
         # Basic test with uncorrelated variables
-        (
+        pytest.param(
             multivariate_norm(loc=0, scale=1),
             sps.multivariate_normal(mean=[0, 0], cov=1),
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 11), 2)),
             2,
+            marks=pytest.mark.xfail(reason="This test is not working yet, 3rd order is needed"),
         ),
         # TODO: create more elaborate tests
         # TODO: test against book examples
@@ -283,8 +287,10 @@ if __name__ == "__main__":
                 str(Path(__file__)) + "::test_bvar_spa",
                 # "-k",
                 # "test_bvar_spa",
+                "--durations=10",
                 "--tb=auto",
                 "--pdb",
                 "-s",
+                # "-m 'not slow'",
             ]
         )

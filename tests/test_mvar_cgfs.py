@@ -29,6 +29,7 @@ from spapprox.util import type_wrapper
 from statsmodels.stats.moment_helpers import cov2corr
 
 
+@pytest.mark.slow
 def test_2d_from_uniform():
     cgf1 = norm()
     cgf2 = norm()
@@ -538,7 +539,9 @@ if __name__ == "__main__":
                 # "-k",
                 # "test_dKinv",
                 # "--tb=auto",
+                "--durations=10",
                 "--pdb",
                 "-s",
+                # "-m 'not slow'",
             ]
         )
