@@ -181,7 +181,7 @@ def test_grad(f, gradf, dim, h, points, error):
         ),
         # Tests for the scalar case
         (
-            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: np.square(x),
             lambda x: 2 * x,
             1,
             1e-6,
