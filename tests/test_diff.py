@@ -59,7 +59,7 @@ from spapprox.diff import Gradient, PartialDerivative, _has_findiff
             None,
         ),
         (
-            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: np.square(x),
             lambda x: 2 * x,
             1,
             1e-6,
@@ -402,6 +402,7 @@ if __name__ == "__main__":
                 # "test_partial_derivative",
                 # "--tb=auto",
                 "--pdb",
+                # "-m tofix",
                 "-s",
             ]
         )
