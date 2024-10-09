@@ -285,7 +285,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, h, points, error):
     [
         # Scalar higher order derivatives
         (
-            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: np.square(x),
             lambda x: 2 * np.ones_like(x),
             [2],
             None,
@@ -293,7 +293,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, h, points, error):
             None,
         ),
         (
-            lambda x: np.sum(np.power(x, 3), axis=-1),
+            lambda x: np.power(x, 3),
             lambda x: 3 * 2 * x,
             [2],
             None,
