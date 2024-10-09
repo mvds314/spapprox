@@ -98,10 +98,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.norm(loc=0, scale=np.sqrt(2)),
             "findiff",
-            marks=[
-                pytest.mark.skipif(not has_findiff, reason="No findiff"),
-                pytest.mark.xfail(reason="Bug, sort this out"),
-            ],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
         ),
         # Case 3: Sum of two univariate normal distributions with different means
         pytest.param(
@@ -123,7 +120,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.norm(loc=3, scale=np.sqrt(2)),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
         ),
         # Case 4: Univariate normal distribution scaled by a constant
         pytest.param(
@@ -144,7 +141,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.norm(loc=0, scale=1.1),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
         ),
         # Case 5: Sum of two univariate normal distributions scaled by a constant and shifted
         pytest.param(
@@ -166,7 +163,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
         ),
         # Case 6: Univariate normal distribution with loc and scale
         pytest.param(
@@ -191,7 +188,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.norm(loc=1, scale=0.5),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
         ),
         # Case 7: Univariate normal manually specified
         pytest.param(
@@ -220,7 +217,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.norm(loc=0, scale=1),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
         ),
         # Case 8: Univariate exponential
         pytest.param(
@@ -266,7 +263,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.expon(scale=0.5),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
         ),
         # Case 10: Univariate exponential cgf manually specified
         pytest.param(
@@ -310,7 +307,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.gamma(a=2, scale=0.5),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
         ),
         # Case 12: Univariate chi2
         pytest.param(
@@ -422,7 +419,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55, -0.23],
             sps.norm(loc=2, scale=0.2),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
         ),
         # Case 17: Univariate empirical
         pytest.param(
@@ -431,7 +428,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55, -0.23],
             np.arange(10),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.tofix],
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
