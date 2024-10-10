@@ -284,88 +284,98 @@ def test_first_order_partial_derivatives(f, gradf, ndim, h, points, error):
     "f, df, orders, h, points, error",
     [
         # Scalar higher order derivatives
-        (
+        pytest.param(
             lambda x: np.square(x),
             lambda x: 2 * np.ones_like(x),
             [2],
             None,
             np.linspace(0, 1, 10),
             None,
+            id="Scalar square second order",
         ),
-        (
+        pytest.param(
             lambda x: np.power(x, 3),
             lambda x: 3 * 2 * x,
             [2],
             None,
             np.linspace(0, 1, 10),
             None,
+            id="Scalar cube second order",
         ),
-        (
+        pytest.param(
             lambda x: np.power(x, 3),
             lambda x: 3 * 2 * np.ones_like(x),
             [3],
             None,
             np.linspace(0, 1, 2),
             None,
+            id="Scalar cube third order",
         ),
-        (
+        pytest.param(
             lambda x: np.power(x, 4),
             lambda x: 4 * 3 * 2 * np.ones_like(x),
             [4],
             None,
             np.linspace(0, 1, 10),
             None,
+            id="Scalar fourth order",
         ),
         # Vector case with higher order derivatives
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * np.ones_like(x.take(0, axis=-1)),
             [2, 0],
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Vector square second order",
         ),
-        (
+        pytest.param(
             lambda x: np.sum(np.power(x, 3), axis=-1),
             lambda x: 3 * 2 * x.take(1, axis=-1),
             [0, 2],
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Vector cube second order",
         ),
-        (
+        pytest.param(
             lambda x: np.sum(np.power(x, 3), axis=-1),
             lambda x: 3 * 2 * np.ones_like(x.take(0, axis=-1)),
             [3, 0],
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Vector cube third order",
         ),
         # Higher order mixed derivates
-        (
+        pytest.param(
             lambda x: np.sum(np.power(x, 2), axis=-1),
             lambda x: np.sum(np.zeros_like(x), axis=-1),
             [1, 1],
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Vector square second order mixed",
         ),
-        (
+        pytest.param(
             lambda x: np.prod(np.power(x, 2), axis=-1),
             lambda x: 4 * np.prod(x, axis=-1),
             [1, 1],
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Vector product second order mixed",
         ),
         # Should raise Errors
-        (
+        pytest.param(
             lambda x: np.sum(np.power(x, 3), axis=-1),
             lambda x: 3 * 2 * x,
             [2, 2],
             1e-6,
             np.linspace(0, 1, 10),
             ValueError,
+            id="ValueError, vector case with scalar input",
         ),
     ],
 )
