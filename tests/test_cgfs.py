@@ -386,15 +386,12 @@ from spapprox.diff import PartialDerivative
         pytest.param(
             poisson(mu=2),
             lambda t, pmf=sps.poisson(mu=2).pmf: np.log(
-                np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
+                np.sum(np.exp(t * x) * pmf(x) for x in range(100))
             ),
             [0.2, 0.55],
             sps.poisson(mu=2),
             "findiff",
-            marks=[
-                pytest.mark.skipif(not has_findiff, reason="No findiff"),
-                pytest.mark.xfail,
-            ],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate poisson",
         ),
         pytest.param(
