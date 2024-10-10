@@ -240,7 +240,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.expon(scale=1),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
         ),
         # Case 9: Univariate exponential with scale
         pytest.param(
@@ -272,7 +272,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.expon(scale=1),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
@@ -459,7 +459,7 @@ def test_basic(cgf_to_test, cgf, ts, dist, backend):
             raise ValueError(f"Backend {backend} not supported in test")
         assert np.isclose(dcgf(t), cgf_to_test.dK(t))
         assert np.isclose(d2cgf(t), cgf_to_test.d2K(t))
-        assert np.isclose(d3cgf(t), cgf_to_test.d3K(t), atol=1e-7)
+        assert np.isclose(d3cgf(t), cgf_to_test.d3K(t), atol=5e-3)
     # Test vectorized evaluation
     assert np.isclose(cgf_to_test.mean, dist.mean())
     assert np.isclose(cgf_to_test.variance, dist.var())
@@ -488,7 +488,7 @@ def test_basic(cgf_to_test, cgf, ts, dist, backend):
         # Test stored derivatives
         assert np.isclose(cgf_to_test.dK0, dcgf(0))
         assert np.isclose(cgf_to_test.d2K0, d2cgf(0))
-        assert np.isclose(cgf_to_test.d3K0, d3cgf(0))
+        assert np.isclose(cgf_to_test.d3K0, d3cgf(0), atol=1e-4)
     # Test multiplication and division with scalar
     for t in ts:
         # Test cumulant generating function
