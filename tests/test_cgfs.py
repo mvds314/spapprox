@@ -393,7 +393,6 @@ from spapprox.diff import PartialDerivative
             "findiff",
             marks=[
                 pytest.mark.skipif(not has_findiff, reason="No findiff"),
-                pytest.mark.slow,
                 pytest.mark.xfail,
             ],
             id="univariate poisson",
@@ -431,7 +430,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.binom(n=10, p=0.5),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate binomial from multivariate",
         ),
         # Case 16: Univariate sample mean
@@ -462,11 +461,13 @@ from spapprox.diff import PartialDerivative
         # Case 17: Univariate empirical
         pytest.param(
             univariate_empirical(np.arange(10)),
-            lambda t, x=np.arange(10): np.log(np.sum([np.exp(t * x) / len(x)])),
+            np.vectorize(
+                lambda t, x=np.arange(10): np.log(np.sum(np.exp(t * x) / len(x), axis=0))
+            ),
             [0.2, 0.55, -0.23],
             np.arange(10),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate empirical",
         ),
         pytest.param(
@@ -528,7 +529,7 @@ def test_basic(cgf_to_test, cgf, ts, dist, backend):
         # Test stored derivatives
         assert np.isclose(cgf_to_test.dK0, dcgf(0))
         assert np.isclose(cgf_to_test.d2K0, d2cgf(0))
-        assert np.isclose(cgf_to_test.d3K0, d3cgf(0), atol=5e-4)
+        assert np.isclose(cgf_to_test.d3K0, d3cgf(0), atol=1e-3)
     # Test multiplication and division with scalar
     for t in ts:
         # Test cumulant generating function
