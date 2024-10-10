@@ -399,7 +399,7 @@ from spapprox.diff import PartialDerivative
                 0
             ],
             lambda t, pmf=sps.poisson(mu=2).pmf: np.log(
-                np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
+                np.sum([np.exp(t * x) * pmf(x) for x in np.arange(100)], axis=0)
             ),
             [0.2, 0.55],
             sps.poisson(mu=2),
@@ -780,9 +780,11 @@ if __name__ == "__main__":
                 # "-k",
                 # "test_basic",
                 "--durations=10",
-                "--tb=auto",
+                # "--tb=auto",
+                "--tb=no",
                 "--pdb",
                 "-s",
                 # "-m 'not slow'",
+                # "-m tofix",
             ]
         )
