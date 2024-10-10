@@ -50,6 +50,7 @@ from spapprox.diff import PartialDerivative
                 pytest.mark.skipif(not has_numdifftools, reason="No numdifftools"),
                 pytest.mark.slow,
             ],
+            id="univariate normal numdifftools",
         ),
         pytest.param(
             norm(loc=0, scale=1),
@@ -62,6 +63,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=0, scale=1),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="univariate normal findiff",
         ),
         pytest.param(
             multivariate_norm(loc=[0, 2], scale=[1, 3])[0],
@@ -70,6 +72,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=0, scale=1),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="univariate normal from multivariate findiff",
         ),
         pytest.param(
             multivariate_norm(loc=[0, 2], scale=[1, 3])[0],
@@ -78,6 +81,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=0, scale=1),
             "numdifftools",
             marks=pytest.mark.skipif(not has_numdifftools, reason="No numdifftools"),
+            id="univariate normal from multivariate numdifftools",
         ),
         # Case 2: Sum of two univariate normal distributions
         pytest.param(
@@ -91,6 +95,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=0, scale=np.sqrt(2)),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="sum of two univariate normal distributions",
         ),
         pytest.param(
             (multivariate_norm(loc=0, scale=1) + multivariate_norm(loc=0, scale=1))[0],
@@ -99,6 +104,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=0, scale=np.sqrt(2)),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="sum of two univariate normal distributions from multivariate",
         ),
         # Case 3: Sum of two univariate normal distributions with different means
         pytest.param(
@@ -112,6 +118,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=3, scale=np.sqrt(2)),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="sum of two univariate normal distributions with different means",
         ),
         pytest.param(
             multivariate_norm(loc=[1, 2], scale=[1, 1])[0]
@@ -121,6 +128,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=3, scale=np.sqrt(2)),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="sum of two univariate normal distributions with different means from multivariate",
         ),
         # Case 4: Univariate normal distribution scaled by a constant
         pytest.param(
@@ -134,6 +142,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=0, scale=1.1),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="univariate normal distribution scaled by a constant",
         ),
         pytest.param(
             1.1 * multivariate_norm(loc=0, scale=1)[0],
@@ -142,6 +151,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=0, scale=1.1),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="univariate normal distribution scaled by a constant from multivariate",
         ),
         # Case 5: Sum of two univariate normal distributions scaled by a constant and shifted
         pytest.param(
@@ -155,6 +165,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="sum of two univariate normal distributions scaled by a constant and shifted",
         ),
         pytest.param(
             1.1 * (multivariate_norm(loc=0, scale=1)[0] + multivariate_norm(loc=1, scale=1)[0])
@@ -164,6 +175,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="sum of two univariate normal distributions scaled by a constant and shifted from multivariate",
         ),
         # Case 6: Univariate normal distribution with loc and scale
         pytest.param(
@@ -181,6 +193,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=1, scale=0.5),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="univariate normal distribution with loc and scale",
         ),
         pytest.param(
             multivariate_norm(loc=1, scale=0.5, dim=2)[0],
@@ -189,6 +202,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=1, scale=0.5),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="univariate normal distribution with loc and scale from multivariate",
         ),
         # Case 7: Univariate normal manually specified
         pytest.param(
@@ -204,6 +218,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=0, scale=1),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="univariate normal manually specified",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
@@ -218,6 +233,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=0, scale=1),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="univariate normal manually specified from multivariate",
         ),
         # Case 8: Univariate exponential
         pytest.param(
@@ -231,6 +247,7 @@ from spapprox.diff import PartialDerivative
             sps.expon(scale=1),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="univariate exponential",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
@@ -241,6 +258,7 @@ from spapprox.diff import PartialDerivative
             sps.expon(scale=1),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="univariate exponential from multivariate",
         ),
         # Case 9: Univariate exponential with scale
         pytest.param(
@@ -254,6 +272,7 @@ from spapprox.diff import PartialDerivative
             sps.expon(scale=0.5),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="univariate exponential with scale",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
@@ -264,6 +283,7 @@ from spapprox.diff import PartialDerivative
             sps.expon(scale=0.5),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="univariate exponential with scale from multivariate",
         ),
         # Case 10: Univariate exponential cgf manually specified
         pytest.param(
@@ -273,6 +293,7 @@ from spapprox.diff import PartialDerivative
             sps.expon(scale=1),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="univariate exponential cgf manually specified",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
@@ -285,6 +306,7 @@ from spapprox.diff import PartialDerivative
             sps.expon(scale=1),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            id="univariate exponential cgf manually specified from multivariate",
         ),
         # Case 11: Univariate gamma
         pytest.param(
@@ -298,6 +320,7 @@ from spapprox.diff import PartialDerivative
             sps.gamma(a=2, scale=0.5),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="univariate gamma",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
@@ -308,6 +331,7 @@ from spapprox.diff import PartialDerivative
             sps.gamma(a=2, scale=0.5),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="univariate gamma from multivariate",
         ),
         # Case 12: Univariate chi2
         pytest.param(
@@ -319,6 +343,7 @@ from spapprox.diff import PartialDerivative
             sps.chi2(df=3),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="univariate chi2",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(chi2(df=2), chi2(df=3)).ldot(
@@ -329,6 +354,7 @@ from spapprox.diff import PartialDerivative
             sps.chi2(df=3),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            id="univariate chi2 from multivariate",
         ),
         # Case 13: Univariate laplace
         pytest.param(
@@ -342,6 +368,7 @@ from spapprox.diff import PartialDerivative
             sps.laplace(loc=0, scale=1),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="univariate laplace",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
@@ -352,6 +379,7 @@ from spapprox.diff import PartialDerivative
             sps.laplace(loc=0, scale=3),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            id="univariate laplace from multivariate",
         ),
         # Case 14: Univariate poisson
         # TODO: fix this test
@@ -364,6 +392,7 @@ from spapprox.diff import PartialDerivative
             sps.poisson(mu=2),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            id="univariate poisson",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(poisson(mu=2), poisson(mu=2))[
@@ -376,6 +405,7 @@ from spapprox.diff import PartialDerivative
             sps.poisson(mu=2),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            id="univariate poisson from multivariate",
         ),
         # Case 15: Univariate binomial
         pytest.param(
@@ -387,6 +417,7 @@ from spapprox.diff import PartialDerivative
             sps.binom(n=10, p=0.5),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            id="univariate binomial",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
@@ -397,6 +428,7 @@ from spapprox.diff import PartialDerivative
             sps.binom(n=10, p=0.5),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            id="univariate binomial from multivariate",
         ),
         # Case 16: Univariate sample mean
         pytest.param(
@@ -410,6 +442,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=2, scale=0.2),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            id="univariate sample mean",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
@@ -420,6 +453,7 @@ from spapprox.diff import PartialDerivative
             sps.norm(loc=2, scale=0.2),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="univariate sample mean from multivariate",
         ),
         # Case 17: Univariate empirical
         pytest.param(
@@ -429,6 +463,7 @@ from spapprox.diff import PartialDerivative
             np.arange(10),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            id="univariate empirical",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
@@ -439,6 +474,7 @@ from spapprox.diff import PartialDerivative
             np.arange(10),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            id="univariate empirical from multivariate",
         ),
     ],
 )
