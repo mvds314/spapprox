@@ -478,7 +478,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55, -0.23],
             np.arange(10),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate empirical from multivariate",
         ),
     ],
