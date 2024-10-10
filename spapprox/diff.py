@@ -107,7 +107,8 @@ class FindiffBase(ABC):
         We aim aim for :math:`h^n~1e-8`, leading to a step size of :math:`h = 1e-8^{1/n}`.
         """
         if h is None:
-            self._h = np.power(1e-8, 1 / np.sum(self.orders))
+            sumord = int(np.sum(self.orders))
+            self.h = min(np.power(1e-9, 1 / sumord), 1e-4)
         elif np.all(np.asanyarray(h) > 0):
             self._h = h
         else:

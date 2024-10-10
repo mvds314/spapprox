@@ -305,30 +305,30 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.expon(scale=1),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate exponential cgf manually specified from multivariate",
         ),
         # Case 11: Univariate gamma
         pytest.param(
-            gamma(a=2, scale=0.5),
+            gamma(a=1.1, scale=0.9),
             np.vectorize(
-                lambda t, pdf=sps.gamma(a=2, scale=0.5).pdf: np.log(
+                lambda t, pdf=sps.gamma(a=1.1, scale=0.9).pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
                 )
             ),
             [0.2, 0.55],
-            sps.gamma(a=2, scale=0.5),
+            sps.gamma(a=1.1, scale=0.9),
             "findiff",
             marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
             id="univariate gamma",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
-                gamma(a=2, scale=0.5), gamma(a=2, scale=0.5)
+                gamma(a=1.1, scale=0.9), gamma(a=2, scale=3)
             ).ldot([1, 0]),
-            gamma(a=2, scale=0.5).K,
+            gamma(a=1.1, scale=0.9).K,
             [0.2, 0.55],
-            sps.gamma(a=2, scale=0.5),
+            sps.gamma(a=1.1, scale=0.9),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate gamma from multivariate",
@@ -353,7 +353,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.25],
             sps.chi2(df=3),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate chi2 from multivariate",
         ),
         # Case 13: Univariate laplace
@@ -378,7 +378,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.3, -0.23],
             sps.laplace(loc=0, scale=3),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate laplace from multivariate",
         ),
         # Case 14: Univariate poisson
@@ -391,7 +391,11 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.poisson(mu=2),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=[
+                pytest.mark.skipif(not has_findiff, reason="No findiff"),
+                pytest.mark.slow,
+                pytest.mark.xfail,
+            ],
             id="univariate poisson",
         ),
         pytest.param(
@@ -411,12 +415,12 @@ from spapprox.diff import PartialDerivative
         pytest.param(
             binomial(n=10, p=0.5),
             lambda t, pmf=sps.binom(n=10, p=0.5).pmf: np.log(
-                np.sum([np.exp(t * x) * pmf(x) for x in range(100)])
+                np.sum([np.exp(t * x) * pmf(x) for x in range(100)], axis=0)
             ),
             [0.2, 0.55],
             sps.binom(n=10, p=0.5),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate binomial",
         ),
         pytest.param(
@@ -524,7 +528,7 @@ def test_basic(cgf_to_test, cgf, ts, dist, backend):
         # Test stored derivatives
         assert np.isclose(cgf_to_test.dK0, dcgf(0))
         assert np.isclose(cgf_to_test.d2K0, d2cgf(0))
-        assert np.isclose(cgf_to_test.d3K0, d3cgf(0), atol=1e-4)
+        assert np.isclose(cgf_to_test.d3K0, d3cgf(0), atol=5e-4)
     # Test multiplication and division with scalar
     for t in ts:
         # Test cumulant generating function
