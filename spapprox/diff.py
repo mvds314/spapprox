@@ -504,6 +504,9 @@ class Tressian(TensorDerivative):
 
     where :math:`i,j,k` are the indices of the tensor.
 
+    See also the discussion on on stackexchange:
+    https://math.stackexchange.com/questions/556951/third-order-term-in-taylor-series
+
     Parameters
     ----------
     f : callable

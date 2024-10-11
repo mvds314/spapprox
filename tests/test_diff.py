@@ -398,10 +398,14 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             PartialDerivative(f, *orders, h=h)(points)
 
 
-# TODO: implement matrices with derivatives, including Hessian, and Tressian matrix
+# TODO: consider implementing the Hession directly
+
+# TODO: adjust the grad test to include the Tensor derivative
+# TODO: test the tensor derivative
 # TODO: integrate those in multivariate cgfs
 # TODO: test that stuff
 # TODO: resolve remaining xfails
+
 
 if __name__ == "__main__":
     if True:
