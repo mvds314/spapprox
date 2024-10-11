@@ -8,6 +8,7 @@ https://findiff.readthedocs.io/en/latest/
 from abc import ABC, abstractmethod
 
 import numpy as np
+import itertools
 
 try:
     import findiff as fd
@@ -386,3 +387,134 @@ class PartialDerivative(FindiffBase):
                     acc=self.acc,
                 )
         return self._findiff_cache
+
+
+class TensorDerivative:
+    """
+    Base for n-th order tensor derivatives.
+
+    First order would be gradient, second order a Hessian, Tressian, etc.
+    """
+
+    def __init__(self, f, dim, order, h=None, acc=2):
+        if not isinstance(dim, int) or dim <= 0:
+            raise ValueError("dim should be a positive integer")
+        if h is None or np.asanyarray(h).ndim == 0:
+            h = np.full((dim, dim), h)
+        else:
+            h = np.asanyarray(h)
+        if h.ndim != 2 or h.shape != (dim, dim):
+            raise ValueError(f"h should be a scalar or a matrix of size {dim}x{dim}")
+        if np.asanyarray(acc).ndim == 0:
+            acc = np.full((dim, dim), acc, dtype=int)
+        else:
+            acc = np.asanyarray(acc, dtype=int)
+        if acc.ndim != 2 or acc.shape != (dim, dim):
+            raise ValueError(f"acc should be a scalar or a matrix of size {dim}x{dim}")
+        assert isinstance(order, int) and order >= 2, "order should be an integer >= 2"
+        self._partials = np.full(tuple([dim] * order), None, dtype=object)
+        for ijk in itertools.product(*[range(dim)] * order):
+            self._partials[ijk] = PartialDerivative(f, *ijk, h=h[ijk], acc=acc[ijk])
+
+    @property
+    def order(self):
+        return self._partials.ndim
+
+    @property
+    def dim(self):
+        return self.shape[0]
+
+    @property
+    def f(self):
+        if not hasattr(self, "_f_cache"):
+            self._f_cache = self._partials[(0,) * self.order].f
+            assert all(p.f is self.f for p in self), "All functions should be the same"
+        return self._f_cache
+
+    @property
+    def h(self):
+        if not hasattr(self, "_h_cache"):
+            self._h_cache = np.array([p.h for p in self]).reshape(self._partials.shape)
+        return self._h_cache
+
+    @property
+    def acc(self):
+        if not hasattr(self, "_acc_cache"):
+            self._acc_cache = np.array([p.acc for p in self]).reshape(self._partials.shape)
+        return self._acc_cache
+
+    @property
+    def shape(self):
+        if not hasattr(self, "_shape_cache"):
+            assert self._partials.ndim == self.order
+            assert self._partials.shape == tuple([self.dim] * self.order)
+            self._shape_cache = self._partials.shape
+        return self._shape_cache
+
+    def __getitem__(self, ijk):
+        return self._partials[*ijk]
+
+    def __iter__(self):
+        return np.nditer(self._partials, flags=["refs_ok"])
+
+    def __len__(self):
+        if not hasattr(self, "_len_cache"):
+            self._len_cache = len(self._partials)
+        return self._len_cache
+
+    def __call__(self, t):
+        return np.array([p(t) for p in self]).reshape(self._partials.shape)
+
+
+# TODO: do we want to implement the Hession directly using the package?
+
+
+class Hessian(TensorDerivative):
+    r"""
+    Implements the Hessian :math:`H(x)`, i.e., the second order tensor derivative, which is
+    a matrix of dimension equal to the dimension of the domain of the function, and with components
+
+    .. math::
+        \partial^2_{ij} f(t),
+
+    where :math:`i,j` are the indices of the matrix.
+
+    Parameters
+    ----------
+    f : callable
+        Function
+    dim : int
+        Dimension of the domain of the function
+    h : scalar or vector
+        Step size for the derivative
+    acc : int
+        Accuracy of the finite difference scheme
+    """
+
+    def __init__(self, f, dim, h=None, acc=2):
+        super().__init__(f, dim, 2, h=h, acc=acc)
+
+
+class Tressian(TensorDerivative):
+    """
+    Third order tensor derivative, i.e., a tensor with components
+
+    .. math::
+        \partial^3_{ijk} f(t),
+
+    where :math:`i,j,k` are the indices of the tensor.
+
+    Parameters
+    ----------
+    f : callable
+        Function
+    dim : int
+        Dimension of the domain of the function
+    h : scalar or vector
+        Step size for the derivative
+    acc : int
+        Accuracy of the finite difference scheme
+    """
+
+    def __init__(self, f, dim, h=None, acc=2):
+        super().__init__(f, dim, 3, h=h, acc=acc)
