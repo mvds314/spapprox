@@ -315,7 +315,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, h, points, error):
             lambda x: np.power(x, 4),
             lambda x: 4 * 3 * 2 * np.ones_like(x),
             [4],
-            None,
+            1e-2,
             np.linspace(0, 1, 10),
             None,
             id="Scalar fourth order",
