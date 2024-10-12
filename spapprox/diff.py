@@ -391,9 +391,19 @@ class PartialDerivative(FindiffBase):
 
 class TensorDerivative:
     """
-    Base for n-th order tensor derivatives.
-
+    Tensor derivative of order n for a function :math:`f` with a :math:`d`-dimensional domain.
     First order would be gradient, second order a Hessian, Tressian, etc.
+
+    The tensor derivative is a symmetric tensor :math:`T(x)` of order :math:`n`, and has components:
+
+    .. math::
+        T(x)_{i_0,\ldots,i_{n-1}} = \partial^n_{i_0,\ldots,i_{n-1}} f(t),
+
+    where :math:`0\leq i_0,\ldots,i_{n-1} < d` are the indices of the matrix and refer to the components of the
+    domain of :math:`f`, :math:`\partial^n_{i_0,\ldots,i_{n-1}}` indicates differentiation to both components,
+    :math:`i_0,\ldots,i_{n-1}` a number of times equal to their multiplicity.
+    So, particularly, :math:`\partial^n_{0,\ldots,0}` indicates differentiating :math:`n` times w.r.t
+    to the first component.
     """
 
     def __init__(self, f, dim, order, h=None, acc=2):
@@ -471,13 +481,17 @@ class TensorDerivative:
 
 class Hessian(TensorDerivative):
     r"""
-    Implements the Hessian :math:`H(x)`, i.e., the second order tensor derivative, which is
-    a matrix of dimension equal to the dimension of the domain of the function, and with components
+    Implements the Hessian :math:`H(x)`, i.e., the second order tensor derivative of a
+    function :math:`f` with a :math:`d`-dimensional domain.
+    The Hessian is a (symmetric) matrix of dimension :math:`d` with components:
 
     .. math::
-        \partial^2_{ij} f(t),
+        H(x)_{ij} = \partial^2_{ij} f(t),
 
-    where :math:`i,j` are the indices of the matrix.
+    where :math:`0\leq i,j < d` are the indices of the matrix and refer to the components of the
+    domain of :math:`f`, :math:`\partial^2_{ij}` indicates differentiation to both component :math:`i`,
+    and :math:`j`, and, particularly, :math:`\partial^2_{ii}` indicates differentiating twice w.r.t
+    to component :math:`i`.
 
     Parameters
     ----------
@@ -497,15 +511,22 @@ class Hessian(TensorDerivative):
 
 class Tressian(TensorDerivative):
     """
-    Third order tensor derivative, i.e., a tensor with components
+    Implements the third order tensor derivative :math:`T(x)` of a
+    function :math:`f` with a :math:`d`-dimensional domain.
+
+    On math.stackexchange, this derivative is, jokingly, referred to as the Tressian.
+    https://math.stackexchange.com/questions/556951/third-order-term-in-taylor-series
+
+    The Tressian is symmetric tensor :math:`T(x)` of order 3 with components:
 
     .. math::
-        \partial^3_{ijk} f(t),
+        T(x)_{ijk} = \partial^3_{ijk} f(t),
 
-    where :math:`i,j,k` are the indices of the tensor.
-
-    See also the discussion on on stackexchange:
-    https://math.stackexchange.com/questions/556951/third-order-term-in-taylor-series
+    where :math:`0\leq i,j,k < d` are the indices of the tensor and refer to the components of the
+    domain of :math:`f`, :math:`\partial^3_{ijk}` indicates differentiation w.r.t. components :math:`i`,
+    :math:`j` and :math:`k`. So, for example, both :math:`\partial^3_{010}` and :math:`\partial_{100}`
+    indicate differentiating twice w.r.t. the first component, and once w.r.t. to the second component
+    in the domain of :math:`f`.
 
     Parameters
     ----------
