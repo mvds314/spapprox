@@ -477,13 +477,34 @@ class TensorDerivative:
         for p in np.nditer(self._partials, flags=["refs_ok"]):
             yield p.tolist()
 
+    def values(self, gen=False):
+        if gen:
+            return (v for v in self)
+        else:
+            return list(self.values(gen=True))
+
+    def keys(self, gen=False):
+        if gen:
+            return (k for k in itertools.product(*[range(self.dim)] * self.order))
+        else:
+            return list(self.keys(gen=True))
+
     def __len__(self):
         if not hasattr(self, "_len_cache"):
             self._len_cache = len(self._partials)
         return self._len_cache
 
     def __call__(self, t):
-        return np.array([p(t) for p in self]).reshape(self._partials.shape)
+        import pdb
+
+        pdb.set_trace()
+        retval = np.full(self.shape, np.nan)
+        for ijk in itertools.combinations_with_replacement(range(self.dim)):
+            val = self[ijk](t)
+            # Set all the symmetrically equivalent values
+            for ijkp in itertools.permutations(ijk, self.dim):
+                retval[ijk] = val
+        # return np.array([p(t) for p in self]).reshape(self._partials.shape)
 
 
 # TODO: do we want to implement the Hession directly using the package?

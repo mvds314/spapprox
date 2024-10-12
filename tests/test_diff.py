@@ -428,6 +428,11 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
 
     for p in points:
         assert np.asanyarray(p).ndim <= 1, "Invalid test case"
+        # tdp = td(p)
+        # assert np.isscalar(tdp)
+        # assert np.allclose(tdp, df(p), atol=1e-3, equal_nan=True)
+
+
 # TODO: consider implementing the Hession directly
 
 # TODO: adjust the grad test to include the Tensor derivative
@@ -449,7 +454,7 @@ if __name__ == "__main__":
                 # "test_partial_derivative",
                 # "--tb=auto",
                 "--pdb",
-                # "-m tofix",
+                "-m tofix",
                 "-s",
             ]
         )
