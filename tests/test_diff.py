@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from spapprox.diff import Gradient, PartialDerivative, _has_findiff
+from spapprox.diff import Gradient, PartialDerivative, TensorDerivative, _has_findiff
 
 
 @pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
@@ -398,6 +398,29 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             PartialDerivative(f, *orders, h=h)(points)
 
 
+# TODO: continue here and test the tensor derivative
+@pytest.mark.parametrize(
+    "f, df, dim, order, h, points, error",
+    [
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            2,
+            2,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            marks=pytest.mark.tofix,
+        ),
+    ],
+)
+def test_tensor_derivative(f, df, dim, order, h, points, error):
+    td = TensorDerivative(f, dim, order, h=h, acc=2)
+    assert td.order == order
+    assert td.dim == dim
+    assert td.shape == (dim,) * order
+    for p in points:
+        assert np.asanyarray(p).ndim <= 1, "Invalid test case"
 # TODO: consider implementing the Hession directly
 
 # TODO: adjust the grad test to include the Tensor derivative
