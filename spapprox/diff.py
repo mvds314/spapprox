@@ -474,7 +474,8 @@ class TensorDerivative:
         return self._partials[*ijk]
 
     def __iter__(self):
-        return np.nditer(self._partials, flags=["refs_ok"])
+        for p in np.nditer(self._partials, flags=["refs_ok"]):
+            yield p.tolist()
 
     def __len__(self):
         if not hasattr(self, "_len_cache"):

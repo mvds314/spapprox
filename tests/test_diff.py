@@ -419,6 +419,13 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
     assert td.order == order
     assert td.dim == dim
     assert td.shape == (dim,) * order
+    assert td.f is f, "f should be unique and not be copied"
+    assert len(td) == dim
+    if dim > 1:
+        assert (
+            td[tuple(np.eye(td.dim, dtype=int)[0])] is td[tuple(np.eye(td.dim, dtype=int)[0])]
+        ), "Those two partials should be equal"
+
     for p in points:
         assert np.asanyarray(p).ndim <= 1, "Invalid test case"
 # TODO: consider implementing the Hession directly
