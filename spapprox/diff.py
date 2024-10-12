@@ -441,7 +441,7 @@ class TensorDerivative:
 
     @property
     def dim(self):
-        return self.shape[0]
+        return self._partials.shape[0]
 
     @property
     def f(self):
