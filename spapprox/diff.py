@@ -410,17 +410,17 @@ class TensorDerivative:
         if not isinstance(dim, int) or dim <= 0:
             raise ValueError("dim should be a positive integer")
         if h is None or np.asanyarray(h).ndim == 0:
-            h = np.full((dim, dim), h)
+            h = np.full((dim,) * order, h)
         else:
             h = np.asanyarray(h)
-        if h.ndim != 2 or h.shape != (dim, dim):
-            raise ValueError(f"h should be a scalar or a matrix of size {dim}x{dim}")
+        if h.ndim != order or h.shape != (dim,) * order:
+            raise ValueError(f"h should be a scalar or a matrix of size {dim}^{order}")
         if np.asanyarray(acc).ndim == 0:
-            acc = np.full((dim, dim), acc, dtype=int)
+            acc = np.full((dim,) * order, acc, dtype=int)
         else:
             acc = np.asanyarray(acc, dtype=int)
-        if acc.ndim != 2 or acc.shape != (dim, dim):
-            raise ValueError(f"acc should be a scalar or a matrix of size {dim}x{dim}")
+        if acc.ndim != order or acc.shape != (dim,) * order:
+            raise ValueError(f"acc should be a scalar or a matrix of size {dim}^{order}")
         assert isinstance(order, int) and order >= 2, "order should be an integer >= 2"
         self._partials = np.full(tuple([dim] * order), None, dtype=object)
         for ijk in itertools.product(*[range(dim)] * order):
