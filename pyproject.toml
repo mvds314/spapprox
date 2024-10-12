@@ -1,5 +1,10 @@
+[tool.ruff]
+line-length = 99
+
 [tool.pytest.ini_options]
 markers = [
   "slow: marks tests as slow (deselect with '-m \"not slow\"')",
   "tofix: marks tests as to be fixed (deselect with '-m \"not tofix\"')",
 ]
+ruff = false
+ruff_format = true
