@@ -398,13 +398,12 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             PartialDerivative(f, *orders, h=h)(points)
 
 
-# TODO: continue here and test the tensor derivative
 @pytest.mark.parametrize(
     "f, df, dim, order, h, points, error",
     [
         pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
-            lambda x: 2 * np.eye(2),
+            np.vectorize(lambda x: 2 * np.eye(2), signature="(n)->(n,n)"),
             2,
             2,
             None,
@@ -425,12 +424,15 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
         assert (
             td[tuple(np.eye(td.dim, dtype=int)[0])] is td[tuple(np.eye(td.dim, dtype=int)[0])]
         ), "Those two partials should be equal"
-
     for p in points:
         assert np.asanyarray(p).ndim <= 1, "Invalid test case"
         tdp = td(p)
         assert tdp.shape == td.shape
         assert np.allclose(tdp, df(p), atol=1e-3, equal_nan=True)
+    tdpoints = td(points)
+    assert tdpoints.ndim == td.dim + 1, "A tensor is expected as return value"
+    assert np.allclose(tdpoints, df(points), atol=1e-5)
+
     # TODO: continue here, and decide what else we want to test
 
 
@@ -454,7 +456,7 @@ if __name__ == "__main__":
                 # "-k",
                 # "test_partial_derivative",
                 # "--tb=auto",
-                "--pdb",
+                # "--pdb",
                 "-m tofix",
                 "-s",
             ]

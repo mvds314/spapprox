@@ -495,6 +495,21 @@ class TensorDerivative:
         return self._len_cache
 
     def __call__(self, t):
+        t = np.asanyarray(t)
+        # Handle vectorized evaluation
+        if t.ndim > 1:
+            return np.array([self(tt) for tt in t])
+        elif t.ndim == 1 and self.dim == 0:
+            return np.array([self(tt) for tt in t])
+        # Some checks
+        if self.dim == 0:
+            if t.ndim not in [0, 1]:
+                raise ValueError(
+                    "Only scalar or vector input is supported for scalar valued functions"
+                )
+        elif t.ndim == 0 or len(t) != self.dim:
+            raise ValueError("Dimensions do not match")
+        # Evaluate
         retval = np.full(self.shape, np.nan)
         for ijk in itertools.combinations_with_replacement(range(self.dim), self.dim):
             val = self[ijk](t)
