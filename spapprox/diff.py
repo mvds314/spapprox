@@ -424,7 +424,12 @@ class TensorDerivative:
         assert isinstance(order, int) and order >= 2, "order should be an integer >= 2"
         self._partials = np.full(tuple([dim] * order), None, dtype=object)
         for ijk in itertools.product(*[range(dim)] * order):
-            self._partials[ijk] = PartialDerivative(f, *ijk, h=h[ijk], acc=acc[ijk])
+            # Note, it is a symmetric tensor, so we only have to instantiate one of the equivalent components
+            sorted_ijk = np.sort(ijk)
+            if self._partials[sorted_ijk] is None:
+                orders = [int(np.equal(ijk, i).sum()) for i in range(dim)]
+                self._partials[sorted_ijk] = PartialDerivative(f, *orders, h=h[ijk], acc=acc[ijk])
+            self._partials[ijk] = self._partials[sorted_ijk]
 
     @property
     def order(self):
