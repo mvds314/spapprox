@@ -47,8 +47,10 @@ class FindiffBase(ABC):
             raise TypeError("f should be callable")
         self.f = f
         self.h = h
-        assert isinstance(acc, int) and acc >= 2, "accuracy should be an integer >= 2"
-        self.acc = acc
+        assert (
+            isinstance(acc, (int, np.integer)) and acc >= 2
+        ), "accuracy should be an integer >= 2"
+        self.acc = int(acc)
 
     @property
     @abstractmethod
@@ -424,8 +426,10 @@ class TensorDerivative:
         assert isinstance(order, int) and order >= 2, "order should be an integer >= 2"
         self._partials = np.full(tuple([dim] * order), None, dtype=object)
         for ijk in itertools.product(*[range(dim)] * order):
+            if self._partials[ijk] is not None:
+                continue
             # Note, it is a symmetric tensor, so we only have to instantiate one of the equivalent components
-            sorted_ijk = np.sort(ijk)
+            sorted_ijk = tuple(np.sort(ijk).tolist())
             if self._partials[sorted_ijk] is None:
                 orders = [int(np.equal(ijk, i).sum()) for i in range(dim)]
                 self._partials[sorted_ijk] = PartialDerivative(f, *orders, h=h[ijk], acc=acc[ijk])
