@@ -495,16 +495,13 @@ class TensorDerivative:
         return self._len_cache
 
     def __call__(self, t):
-        import pdb
-
-        pdb.set_trace()
         retval = np.full(self.shape, np.nan)
-        for ijk in itertools.combinations_with_replacement(range(self.dim)):
+        for ijk in itertools.combinations_with_replacement(range(self.dim), self.dim):
             val = self[ijk](t)
             # Set all the symmetrically equivalent values
-            for ijkp in itertools.permutations(ijk, self.dim):
-                retval[ijk] = val
-        # return np.array([p(t) for p in self]).reshape(self._partials.shape)
+            for ijkp in set(itertools.permutations(ijk, self.dim)):
+                retval[ijkp] = val
+        return retval
 
 
 # TODO: do we want to implement the Hession directly using the package?
