@@ -390,7 +390,7 @@ class PartialDerivative(FindiffBase):
 
 
 class TensorDerivative:
-    """
+    r"""
     Tensor derivative of order n for a function :math:`f` with a :math:`d`-dimensional domain.
     First order would be gradient, second order a Hessian, Tressian, etc.
 
@@ -510,7 +510,7 @@ class Hessian(TensorDerivative):
 
 
 class Tressian(TensorDerivative):
-    """
+    r"""
     Implements the third order tensor derivative :math:`T(x)` of a
     function :math:`f` with a :math:`d`-dimensional domain.
 
