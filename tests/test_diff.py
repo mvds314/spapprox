@@ -403,7 +403,7 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
     [
         pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
-            np.vectorize(lambda x: 2 * np.eye(2), signature="(n)->(n,n)"),
+            np.vectorize(lambda x: 2 * np.eye(2), signature="(2)->(2,2)"),
             2,
             2,
             None,
