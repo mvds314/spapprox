@@ -410,7 +410,13 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
             marks=pytest.mark.tofix,
+            id="Simple 2D square",
         ),
+        # TODO: continue here and add these tests
+        # TODO: Add another hessian case test
+        # TODO: Try to see if gradient also works
+        # TODO: test the tressian case
+        # TODO: test Hessian and Tressian explicitly
     ],
 )
 def test_tensor_derivative(f, df, dim, order, h, points, error):
@@ -433,13 +439,10 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
     assert tdpoints.ndim == td.dim + 1, "A tensor is expected as return value"
     assert np.allclose(tdpoints, df(points), atol=1e-5)
 
-    # TODO: continue here, and decide what else we want to test
-
 
 # TODO: consider implementing the Hession directly
 
 # TODO: adjust the grad test to include the Tensor derivative
-# TODO: test the tensor derivative
 # TODO: integrate those in multivariate cgfs
 # TODO: test that stuff
 # TODO: resolve remaining xfails
