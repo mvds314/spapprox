@@ -409,7 +409,7 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
-            id="Simple 2D square",
+            id="Simple 2D square, Hessian",
         ),
         pytest.param(
             lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
@@ -421,7 +421,18 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
-            id="2D polynomial",
+            id="2D polynomial, Hessian",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            np.vectorize(lambda x: 2 * x, signature="(2)->(2)"),
+            2,
+            1,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            marks=pytest.mark.tofix,
+            id="Tensor derivate 1D gradient",
         ),
         # TODO: continue here and add these tests
         # TODO: Try to see if gradient also works

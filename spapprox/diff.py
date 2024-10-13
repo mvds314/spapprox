@@ -423,7 +423,7 @@ class TensorDerivative:
             acc = np.asanyarray(acc, dtype=int)
         if acc.ndim != order or acc.shape != (dim,) * order:
             raise ValueError(f"acc should be a scalar or a matrix of size {dim}^{order}")
-        assert isinstance(order, int) and order >= 2, "order should be an integer >= 2"
+        assert isinstance(order, int) and order >= 1, "order should be an integer >= 2"
         self._partials = np.full(tuple([dim] * order), None, dtype=object)
         for ijk in itertools.product(*[range(dim)] * order):
             if self._partials[ijk] is not None:
