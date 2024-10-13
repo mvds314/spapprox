@@ -409,11 +409,21 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
-            marks=pytest.mark.tofix,
             id="Simple 2D square",
         ),
+        pytest.param(
+            lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
+            np.vectorize(
+                lambda x: np.diag(x) + np.ones((2, 2)) - np.eye(2), signature="(2)->(2,2)"
+            ),
+            2,
+            2,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="2D polynomial",
+        ),
         # TODO: continue here and add these tests
-        # TODO: Add another hessian case test
         # TODO: Try to see if gradient also works
         # TODO: test the tressian case
         # TODO: test Hessian and Tressian explicitly
