@@ -449,7 +449,7 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
     assert len(td) == dim
     if dim > 1:
         assert (
-            td[tuple(np.eye(td.dim, dtype=int)[0])] is td[tuple(np.eye(td.dim, dtype=int)[0])]
+            td[tuple(np.eye(td.dim, dtype=int)[0])] is td[tuple(np.eye(td.dim, dtype=int)[1])]
         ), "Those two partials should be equal"
     for p in points:
         assert np.asanyarray(p).ndim <= 1, "Invalid test case"
