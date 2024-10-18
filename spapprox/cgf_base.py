@@ -1350,22 +1350,27 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         if t.ndim == 0:
             t = np.full(self.dim, t)
         if self._dK is None:
-            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            grad = nd.Gradient(lambda tt: self.K(tt, loc=0, scale=1))
+            if self._numdiff_backend == "numdifftools":
+                if not has_numdifftools:
+                    raise ValueError("Numdifftools is required if derivatives are not provided")
+                grad = nd.Gradient(lambda tt: self.K(tt, loc=0, scale=1))
 
-            def _dK(tt):
-                """
-                Note vectorize gradient does not seem to work, return shape is
-                not a vector for 1 dim evaluations.
-                """
-                tt = np.asanyarray(tt)
-                if tt.ndim == 2:
-                    return np.asanyarray([grad(ttt) for ttt in tt])
-                elif tt.ndim == 1:
-                    return np.atleast_1d(grad(tt))
-                else:
-                    raise ValueError("Invalid shape")
-
+                def _dK(tt):
+                    """
+                    Note vectorize gradient does not seem to work, return shape is
+                    not a vector for 1 dim evaluations.
+                    """
+                    tt = np.asanyarray(tt)
+                    if tt.ndim == 2:
+                        return np.asanyarray([grad(ttt) for ttt in tt])
+                    elif tt.ndim == 1:
+                        return np.atleast_1d(grad(tt))
+                    else:
+                        raise ValueError("Invalid shape")
+            elif self._numdiff_backend == "findiff":
+                raise NotImplementedError("Findiff is not yet implemented")
+            else:
+                raise ValueError("Invalid numdiff backend")
             self._dK = _dK
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
@@ -1539,13 +1544,21 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         # Initialize
         if t.ndim == 0:
+            # TODO: is this correct?
             t = np.full(self.dim, t)
         if self._d2K is None:
-            assert has_numdifftools, "Numdifftools is required if derivatives are not provided"
-            self._d2K = np.vectorize(
-                nd.Hessian(lambda tt: self.K(tt, loc=0, scale=1)),
-                signature="(n)->(n,n)",
-            )
+            if self._numdiff_backend == "numdifftools":
+                if not has_numdifftools:
+                    raise ValueError("Numdifftools is required if derivatives are not provided")
+                _d2K = np.vectorize(
+                    nd.Hessian(lambda tt: self.K(tt, loc=0, scale=1)),
+                    signature="(n)->(n,n)",
+                )
+            elif self._numdiff_backend == "findiff":
+                raise NotImplementedError("Findiff is not yet implemented")
+            else:
+                raise ValueError("Invalid numdiff backend")
+            self._d2K = _d2K
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
         assert self._d2K is not None, "d2K must be specified"
