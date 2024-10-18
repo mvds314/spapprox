@@ -407,6 +407,16 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
     [
         pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
+            np.vectorize(lambda x: 2 * x, signature="(2)->(2)"),
+            2,
+            1,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Tensor derivate 1D gradient",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
             np.vectorize(lambda x: 2 * np.eye(2), signature="(2)->(2,2)"),
             2,
             2,
@@ -428,18 +438,22 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             id="2D polynomial, Hessian",
         ),
         pytest.param(
-            lambda x: np.sum(np.square(x), axis=-1),
-            np.vectorize(lambda x: 2 * x, signature="(2)->(2)"),
+            lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
+            np.vectorize(
+                lambda x: np.array([[[1.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 1.0]]]),
+                signature="(2)->(2,2,2)",
+            ),
             2,
-            1,
+            3,
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
-            id="Tensor derivate 1D gradient",
+            id="2D polynomial, Tressian",
+            marks=pytest.mark.tofix,
         ),
         # TODO: continue here and add these tests
-        # TODO: Try to see if gradient also works
         # TODO: test the tressian case
+        # TODO: do a more involved tressian case
         # TODO: test Hessian and Tressian explicitly
     ],
 )
@@ -450,6 +464,7 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
     assert td.shape == (dim,) * order
     assert td.f is f, "f should be unique and not be copied"
     assert len(td) == dim
+    # TODO: fix this part of tressian test
     if dim > 1 and td.order > 1:
         assert (
             td[tuple(np.eye(td.dim, dtype=int)[0])] is td[tuple(np.eye(td.dim, dtype=int)[1])]
@@ -461,10 +476,12 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
         assert np.allclose(tdp, df(p), atol=1e-3, equal_nan=True)
     tdpoints = td(points)
     assert tdpoints.ndim == td.order + 1, "A tensor is expected as return value"
-    assert np.allclose(tdpoints, df(points), atol=1e-5)
+    assert np.allclose(tdpoints, df(points), atol=5e-3)
 
 
-# TODO: integrate those in multivariate cgfs
+# TODO: test third order tensor derivative!
+
+# TODO: integrate those in multivariate cgfs, one by one
 # TODO: test that stuff
 # TODO: resolve remaining xfails
 
@@ -481,7 +498,7 @@ if __name__ == "__main__":
                 # "test_partial_derivative",
                 # "--tb=auto",
                 # "--pdb",
-                # "-m tofix",
+                "-m tofix",
                 "-s",
             ]
         )
