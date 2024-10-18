@@ -109,6 +109,7 @@ def test_grad(f, gradf, dim, h, points, error):
             assert gp.ndim == gradfp.ndim == 1
             assert len(gp) == len(gradfp) == dim
             assert np.allclose(gp, gradfp, atol=1e-6, equal_nan=True)
+            # Test versus partial
             grad_from_partial = np.array(
                 [
                     PartialDerivative(f, *np.eye(dim, dtype=int)[i].tolist(), h=grad._h_vect[i])(p)
@@ -116,6 +117,9 @@ def test_grad(f, gradf, dim, h, points, error):
                 ]
             )
             assert np.allclose(grad_from_partial, gp, atol=1e-6, equal_nan=True)
+            # Test versus tensor derivative
+            tdp = TensorDerivative(f, dim, 1, h=h, acc=2)(p)
+            assert np.allclose(tdp, gp, atol=1e-6, equal_nan=True)
         assert np.allclose(grad(points), gradf(points), equal_nan=True)
     else:
         for p in points:
@@ -462,7 +466,6 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
 
 # TODO: consider implementing the Hession directly
 
-# TODO: adjust the grad test to include the Tensor derivative
 # TODO: integrate those in multivariate cgfs
 # TODO: test that stuff
 # TODO: resolve remaining xfails
