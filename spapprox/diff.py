@@ -511,10 +511,10 @@ class TensorDerivative:
             raise ValueError("Dimensions do not match")
         # Evaluate
         retval = np.full(self.shape, np.nan)
-        for ijk in itertools.combinations_with_replacement(range(self.dim), self.dim):
+        for ijk in itertools.combinations_with_replacement(range(self.dim), self.order):
             val = self[ijk](t)
             # Set all the symmetrically equivalent values
-            for ijkp in set(itertools.permutations(ijk, self.dim)):
+            for ijkp in set(itertools.permutations(ijk, self.order)):
                 retval[ijkp] = val
         return retval
 

@@ -431,7 +431,6 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
-            marks=pytest.mark.tofix,
             id="Tensor derivate 1D gradient",
         ),
         # TODO: continue here and add these tests
@@ -447,7 +446,7 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
     assert td.shape == (dim,) * order
     assert td.f is f, "f should be unique and not be copied"
     assert len(td) == dim
-    if dim > 1:
+    if dim > 1 and td.order > 1:
         assert (
             td[tuple(np.eye(td.dim, dtype=int)[0])] is td[tuple(np.eye(td.dim, dtype=int)[1])]
         ), "Those two partials should be equal"
@@ -457,7 +456,7 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
         assert tdp.shape == td.shape
         assert np.allclose(tdp, df(p), atol=1e-3, equal_nan=True)
     tdpoints = td(points)
-    assert tdpoints.ndim == td.dim + 1, "A tensor is expected as return value"
+    assert tdpoints.ndim == td.order + 1, "A tensor is expected as return value"
     assert np.allclose(tdpoints, df(points), atol=1e-5)
 
 
@@ -481,7 +480,7 @@ if __name__ == "__main__":
                 # "test_partial_derivative",
                 # "--tb=auto",
                 # "--pdb",
-                "-m tofix",
+                # "-m tofix",
                 "-s",
             ]
         )
