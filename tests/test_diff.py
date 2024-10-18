@@ -464,8 +464,6 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
     assert np.allclose(tdpoints, df(points), atol=1e-5)
 
 
-# TODO: consider implementing the Hession directly
-
 # TODO: integrate those in multivariate cgfs
 # TODO: test that stuff
 # TODO: resolve remaining xfails
