@@ -774,6 +774,11 @@ def test_dKinv(cgf, ts):
     assert np.allclose(cgf.dK_inv(cgf.dK(ts)), [cgf.dK_inv(cgf.dK(t)) for t in ts])
 
 
+# TODO: integrate diff in multivariate cgfs, one by one
+# TODO: test that stuff
+# TODO: resolve remaining xfails in this file
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(

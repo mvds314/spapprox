@@ -527,11 +527,6 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
     assert np.allclose(tdpoints, df(points), atol=5e-3)
 
 
-# TODO: integrate those in multivariate cgfs, one by one
-# TODO: test that stuff
-# TODO: resolve remaining xfails
-
-
 if __name__ == "__main__":
     if True:
         pytest.main(

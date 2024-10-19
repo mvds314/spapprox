@@ -198,7 +198,6 @@ class FindiffBase(ABC):
                     raise RuntimeError("This should never happen, all cases should be handled")
                 if np.isnan(self.f(x[i])).any():
                     raise AssertionError("Shifts are assumed to fix any domain issues")
-            # TODO: continue here and check the rest of the logic, with the debugger
             if np.isnan(self.f(x.T)).any():
                 raise AssertionError("Shifts are assumed to fix any domain issues")
         return (
@@ -530,9 +529,6 @@ class TensorDerivative:
             for ijkp in set(itertools.permutations(ijk, self.order)):
                 retval[ijkp] = val
         return retval
-
-
-# TODO: do we want to implement the Hession directly using the package?
 
 
 class Hessian(TensorDerivative):
