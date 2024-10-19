@@ -470,6 +470,30 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             id="2D polynomial, Tressian",
         ),
         pytest.param(
+            lambda x: 1 / 24 * np.prod(np.power(x, 4), axis=-1),
+            np.vectorize(
+                lambda x: np.array(
+                    [
+                        [
+                            [1.0 * x[0] * x[1] ** 4, 2.0 * x[0] ** 2 * x[1] ** 3],
+                            [2.0 * x[0] ** 2 * x[1] ** 3, 2.0 * x[0] ** 3 * x[1] ** 2],
+                        ],
+                        [
+                            [2.0 * x[0] ** 2 * x[1] ** 3, 2.0 * x[0] ** 3 * x[1] ** 2],
+                            [2.0 * x[0] ** 3 * x[1] ** 2, 1.0 * x[0] ** 4 * x[1]],
+                        ],
+                    ]
+                ),
+                signature="(2)->(2,2,2)",
+            ),
+            2,
+            3,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Involved Tressian",
+        ),
+        pytest.param(
             lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
             Tressian(lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1), 2),
             2,
@@ -479,8 +503,6 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             None,
             id="Explicit Tressian test",
         ),
-        # TODO: continue here and add these tests
-        # TODO: do a more involved tressian case
     ],
 )
 def test_tensor_derivative(f, df, dim, order, h, points, error):
@@ -505,8 +527,6 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
     assert np.allclose(tdpoints, df(points), atol=5e-3)
 
 
-# TODO: test third order tensor derivative!
-
 # TODO: integrate those in multivariate cgfs, one by one
 # TODO: test that stuff
 # TODO: resolve remaining xfails
@@ -524,7 +544,7 @@ if __name__ == "__main__":
                 # "test_partial_derivative",
                 # "--tb=auto",
                 # "--pdb",
-                "-m tofix",
+                # "-m tofix",
                 "-s",
             ]
         )
