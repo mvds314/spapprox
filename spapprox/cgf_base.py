@@ -1544,7 +1544,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         # Initialize
         if t.ndim == 0:
-            # TODO: is this correct?
+            assert self.dim == 0, "t should be a vector"
             t = np.full(self.dim, t)
         if self._d2K is None:
             if self._numdiff_backend == "numdifftools":
