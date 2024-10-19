@@ -7,7 +7,14 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from spapprox.diff import Gradient, PartialDerivative, TensorDerivative, _has_findiff
+from spapprox.diff import (
+    Gradient,
+    Hessian,
+    Tressian,
+    PartialDerivative,
+    TensorDerivative,
+    _has_findiff,
+)
 
 
 @pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
@@ -441,6 +448,16 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
         ),
         pytest.param(
             lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
+            Hessian(lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1), 2),
+            2,
+            2,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Explicit Hessian test",
+        ),
+        pytest.param(
+            lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
             np.vectorize(
                 lambda x: np.array([[[1.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 1.0]]]),
                 signature="(2)->(2,2,2)",
@@ -452,9 +469,18 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             None,
             id="2D polynomial, Tressian",
         ),
+        pytest.param(
+            lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
+            Tressian(lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1), 2),
+            2,
+            3,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Explicit Tressian test",
+        ),
         # TODO: continue here and add these tests
         # TODO: do a more involved tressian case
-        # TODO: test Hessian and Tressian explicitly
     ],
 )
 def test_tensor_derivative(f, df, dim, order, h, points, error):
