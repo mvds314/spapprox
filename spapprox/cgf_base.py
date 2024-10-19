@@ -18,7 +18,7 @@ except ImportError:
 
 from .domain import Domain
 from .util import fib, type_wrapper
-from .diff import Gradient, PartialDerivative
+from .diff import Gradient, Hessian, Tressian, PartialDerivative
 
 # TODO: sort out how _diK0 and _diK0_cache are handled
 
@@ -1018,7 +1018,14 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         In the multivariate case, we merely implement the diagonal
         """
-        raise NotImplementedError()
+        if not hasattr(self, "_d3K0_cache"):
+            # TODO: incorporate the loc and scale properly
+            self._d3K0_cache = self.d3K(
+                np.zeros(self.domain.dim),
+                loc=self.loc,
+                scale=self.scale,
+            )
+        return self._d3K0_cache
 
     def __getitem__(self, item):
         """
@@ -1368,7 +1375,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     else:
                         raise ValueError("Invalid shape")
             elif self._numdiff_backend == "findiff":
-                raise NotImplementedError("Findiff is not yet implemented")
+                _dK = Gradient(self.K, self.dim)
             else:
                 raise ValueError("Invalid numdiff backend")
             self._dK = _dK
@@ -1555,7 +1562,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     signature="(n)->(n,n)",
                 )
             elif self._numdiff_backend == "findiff":
-                raise NotImplementedError("Findiff is not yet implemented")
+                _d2K = Hessian(lambda tt: self.K(tt, loc=0, scale=1), self.dim)
             else:
                 raise ValueError("Invalid numdiff backend")
             self._d2K = _d2K
@@ -1582,14 +1589,14 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 elif y.ndim == 3:
                     y = np.array([diagscalemult(yy) for yy in y])
                 else:
-                    raise IndexError("retval should a matrix of list of matrices")
+                    raise IndexError("retval should be a matrix or list of matrices")
             else:
                 if y.ndim == 2:
                     y = np.dot(np.dot(scale, y), scale.T)
                 elif y.ndim == 3:
                     y = np.array([np.dot(np.dot(scale, yy), scale.T) for yy in y])
                 else:
-                    raise IndexError("retval should a matrix of list of matrices")
+                    raise IndexError("retval should be a matrix or list of matrices")
 
             if np.isscalar(cond):
                 if cond:
