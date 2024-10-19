@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import itertools
 from pathlib import Path
 
 import numpy as np
 import pytest
+
 from spapprox.diff import Gradient, PartialDerivative, TensorDerivative, _has_findiff
 
 
@@ -449,10 +451,8 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
             id="2D polynomial, Tressian",
-            marks=pytest.mark.tofix,
         ),
         # TODO: continue here and add these tests
-        # TODO: test the tressian case
         # TODO: do a more involved tressian case
         # TODO: test Hessian and Tressian explicitly
     ],
@@ -464,11 +464,11 @@ def test_tensor_derivative(f, df, dim, order, h, points, error):
     assert td.shape == (dim,) * order
     assert td.f is f, "f should be unique and not be copied"
     assert len(td) == dim
-    # TODO: fix this part of tressian test
-    if dim > 1 and td.order > 1:
-        assert (
-            td[tuple(np.eye(td.dim, dtype=int)[0])] is td[tuple(np.eye(td.dim, dtype=int)[1])]
-        ), "Those two partials should be equal"
+    # Partial derivatives are only instantiated uniquely up to permutation
+    for ijk in td.keys(unique=True):
+        partial = td[ijk]
+        for ijkp in set(itertools.permutations(ijk, td.order)):
+            assert partial is td[ijkp], "Those two partials should be equal"
     for p in points:
         assert np.asanyarray(p).ndim <= 1, "Invalid test case"
         tdp = td(p)
