@@ -483,11 +483,24 @@ class TensorDerivative:
         else:
             return list(self.values(gen=True))
 
-    def keys(self, gen=False):
+    def keys(self, gen=False, unique=False):
+        """
+        Return the keys of the tensor derivative
+
+        Parameters
+        ----------
+        gen : bool
+            If True, return a generator
+        unique : bool
+            If True, return the keys are unique upon permutation of the indices
+        """
         if gen:
-            return (k for k in itertools.product(*[range(self.dim)] * self.order))
+            if unique:
+                return itertools.combinations_with_replacement(range(self.dim), self.order)
+            else:
+                return (k for k in itertools.product(*[range(self.dim)] * self.order))
         else:
-            return list(self.keys(gen=True))
+            return list(self.keys(gen=True, unique=unique))
 
     def __len__(self):
         if not hasattr(self, "_len_cache"):
@@ -511,7 +524,7 @@ class TensorDerivative:
             raise ValueError("Dimensions do not match")
         # Evaluate
         retval = np.full(self.shape, np.nan)
-        for ijk in itertools.combinations_with_replacement(range(self.dim), self.order):
+        for ijk in self.keys(unique=True):
             val = self[ijk](t)
             # Set all the symmetrically equivalent values
             for ijkp in set(itertools.permutations(ijk, self.order)):
