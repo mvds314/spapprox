@@ -722,7 +722,6 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             raise ValueError("Can only multiply with a scalar")
 
 
-# TODO Update the documentation regarding scaling and translation for this one
 class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     r"""
     Class for cumulant generating function of a multivariate distribution
@@ -760,12 +759,24 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Cumulant generating function
     dim : int, optional
         Dimension of the random vector
+    loc : float, array_like, optional
+        Location parameter of the distribution. If provided, the provided :math:`K` corresponds to the cumulant
+        generating function of the standardized random variable :math:`Z`, and :math:`x=\text{scale}\times Z + \text{loc}`.
+    scale : float, array_like, optional
+        Scale parameter of the distribution. If provided, the provided :math:`K` corresponds to the cumulant
+        generating function of the standardized random variable :math:`Z`, and :math:`x=\text{scale}\times Z + \text{loc}`.
     dK : callable, optional
-        First derivative of the cumulant generating function
+        First derivative of the cumulant generating function, unscaled and untranslated, i.e., corresponding to :math:`K` as provided above.
     d2K : callable, optional
-        Second derivative of the cumulant generating function
+        Second derivative of the cumulant generating function, unscaled and untranslated, i.e., corresponding to :math:`K` as provided above.
     d3K : callable, optional
-        Third derivative of the cumulant generating function
+        Third derivative of the cumulant generating function, unscaled and untranslated, i.e., corresponding to :math:`K` as provided above.
+    dK0 : float, array_like, optional
+        If provided, the derivative of the cumulant generating function at 0, i.e., :math:`K'(0)`, also unscaled and untranslated.
+    d2K0 : float, array_like, optional
+        If provided, the second derivative of the cumulant generating function at 0, i.e., :math:`K''(0)`, also unscaled and untranslated.
+    d3K0 : float, array_like, optional
+        If provided, the third derivative of the cumulant generating function at 0, i.e., :math:`K'''(0)`, also unscaled and untranslated.
     domain : Domain or None, optional
         Should correspond to the functions :math:`K` as provided above.
         Note that these can be of higher dimension when scale is a projection matrix.
