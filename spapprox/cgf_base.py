@@ -20,8 +20,6 @@ from .domain import Domain
 from .util import fib, type_wrapper
 from .diff import Gradient, Hessian, Tressian, PartialDerivative, transform_rank3_tensor
 
-# TODO: sort out how _diK0 and _diK0_cache are handled
-
 
 class CumulantGeneratingFunction(ABC):
     r"""
@@ -664,15 +662,15 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     t, scale=ss, loc=ls
                 )
                 + other.d3K(t, scale=so, loc=lo),
-                # Extract scaled derivatives and pass them if they are already computed
+                # Extract scaled derivatives and pass them if unscaled derivatives are already computed
                 dK0=self.dK0 + other.dK0
-                if hasattr(self, "_dK0_cache") and hasattr(other, "_dK0_cache")
+                if self._dK0 is not None and other._dK0 is not None
                 else None,
                 d2K0=self.d2K0 + other.d2K0
-                if hasattr(self, "_d2K0_cache") and hasattr(other, "_d2K0_cache")
+                if self._d2K0 is not None and other._d2K0 is not None
                 else None,
                 d3K0=self.d3K0 + other.d3K0
-                if hasattr(self, "_d3K0_cache") and hasattr(other, "_d3K0_cache")
+                if self._d3K0 is not None and other._d3K0 is not None
                 else None,
                 # Other arguments
                 domain=self.domain.intersect(other.domain),
@@ -1067,7 +1065,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
         return self._d3K0_cache
 
-    # TODO: include the dK0, d2K0, d3K0 in the constructor
     def __getitem__(self, item):
         """
         Just set the other components to zero
@@ -1080,7 +1077,11 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 lambda t, mcgf=mcgf: mcgf.K(np.expand_dims(t, -1)),
                 dK=lambda t, mcgf=mcgf: mcgf.dK(np.expand_dims(t, -1)).squeeze(),
                 d2K=lambda t, mcgf=mcgf: mcgf.d2K(np.expand_dims(t, -1)).squeeze(),
-                d3K=None,  # TODO: implement this one properly
+                # TODO: implement this one properly
+                d3K=None,
+                dK0=mcgf.dK0.squeeze() if mcgf._dK0 is not None else None,
+                d2K0=mcgf.d2K0.squeeze() if mcgf._d2K0 is not None else None,
+                d3K0=mcgf.d3K0.squeeze() if mcgf._d3K0 is not None else None,
                 domain=mcgf.domain,
                 loc=0,
                 scale=1,
@@ -1120,7 +1121,18 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     if self._d2K is None
                     else lambda t, loc=loc, scale=scale: (self.d2K(t, loc=loc, scale=scale))
                 ),
-                d3K=None,  # TODO: implement this one properly
+                # TODO: implement this one properly
+                d3K=None,
+                # Note these derivatives if they are already computed
+                dK0=self.dK0[item]
+                if self._dK0 is not None or hasattr(self, "_dK0_cache")
+                else None,
+                d2K0=self.d2K0[item]
+                if self._d2K0 is not None or hasattr(self, "_d2K0_cache")
+                else None,
+                d3K0=self.d3K0[item]
+                if self._d3K0 is not None or hasattr(self, "_d3K0_cache")
+                else None,
                 domain=self.domain.ldotinv(scale.T),
                 loc=0,
                 scale=1,
@@ -1128,7 +1140,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             raise ValueError("Invalid index")
 
-    # TODO: include the dK0, d2K0, d3K0 in the constructor
     def add(self, other, inplace=True):
         r"""
         We use the following properties of the cumulant generating function
@@ -1195,8 +1206,18 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 d3K=lambda t: np.apply_along_axis(
                     lambda x: np.add(x, other.d3K(np.sum(t, axis=-1))), 0, self.d3K(t)
                 ),
+                # Extract scaled derivatives and pass them if unscaled derivatives are already computed
+                # TODO: test if this is correct
+                dK0=self.dK0 + other.dK0
+                if self._dK0 is not None and other._dK0 is not None
+                else None,
+                d2K0=self.d2K0 + other.d2K0
+                if self._d2K0 is not None and other._d2K0 is not None
+                else None,
+                d3K0=self.d3K0 + other.d3K0
+                if self._d3K0 is not None and other._d3K0 is not None
+                else None,
                 domain=self.domain.intersect(other.domain.ldotinv(np.ones((1, self.dim)))),
-                # TODO: we could set diK0 if they are already computed for both
             )
         elif isinstance(other, MultivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for MultivariateCumulantGeneratingFunction"
@@ -1218,13 +1239,21 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     t, scale=ss, loc=ls
                 )
                 + other.d3K(t, scale=so, loc=lo),
+                # Extract scaled derivatives and pass them if unscaled derivatives are already computed
+                dK0=self.dK0 + other.dK0
+                if self._dK0 is not None and other._dK0 is not None
+                else None,
+                d2K0=self.d2K0 + other.d2K0
+                if self._d2K0 is not None and other._d2K0 is not None
+                else None,
+                d3K0=self.d3K0 + other.d3K0
+                if self._d3K0 is not None and other._d3K0 is not None
+                else None,
                 domain=self.domain.intersect(other.domain),
-                # TODO: we could set diK0 if they are already computed for both
             )
         else:
             raise ValueError("Can only add a scalar or another CumulantGeneratingFunction")
 
-    # TODO: include the dK0, d2K0, d3K0 in the constructor
     def mul(self, other, inplace=False):
         r"""
         We use the following properties of the cumulant generating function
@@ -1294,7 +1323,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             raise ValueError("Can only multiply with a scalar or vector")
 
-    # TODO: include the dK0, d2K0, d3K0 in the constructor
     def ldot(self, A, inplace=False):
         """
         Dot product with a matrix or vector.
@@ -1718,6 +1746,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             d2K=lambda t, cgfs=cgfs: np.apply_along_axis(
                 np.diag, 0, np.array([cgf.d2K(ti) for ti, cgf in zip(t.T, cgfs)])
             ).swapaxes(0, -1),
+            # TODO: add d3K appropriately
+            d3K=None,
+            # TODO: add derivatives at zero
             domain=Domain.from_domains(*[cgf.domain for cgf in cgfs]),
         )
 
@@ -1772,6 +1803,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     return np.array([d2K(tt) for tt in t])
                 else:
                     raise
+
+            # TODO: add d2K appropriately
+            # TODO: add derivatives at zero
 
             domain = Domain.from_domains(*[cgf.domain for cgf in cgfs])
             return cls(K, dim=dims.sum(), loc=0, scale=1, dK=dK, d2K=d2K, domain=domain)
