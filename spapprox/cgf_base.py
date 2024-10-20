@@ -60,12 +60,15 @@ class CumulantGeneratingFunction(ABC):
       If not provided, numerical differentiation is used.
     dK0 : float, or array_like (of for random vectors) optional
       If provided, the derivative of the cumulant generating function at 0, i.e., :math:`K'(0)`.
+      It should be provided unscaled and untranslated, i.e., corresponding `dK` which is also unscaled and untranslated.
       If not provided, it is computed and cached once needed.
     d2K0 : float, or array_like (of for random vectors) optional
       If provided, the second derivative of the cumulant generating function at 0, i.e., :math:`K''(0)`.
+      It should be provided unscaled and untranslated, i.e., corresponding `d2K` which is also unscaled and untranslated.
       If not provided, it is computed and cached once needed.
     d3K0 : float, or array_like (of for random vectors) optional
       If provided, the third derivative of the cumulant generating function at 0, i.e., :math:`K'''(0)`.
+      It should be provided unscaled and untranslated, i.e., corresponding `d3K` which is also unscaled and untranslated.
       If not provided, it is computed and cached once needed.
     domain : Domain or None, optional
       If not provided, the domain is assumed to be :math:`(-\infty, \infty)`.
@@ -149,18 +152,27 @@ class CumulantGeneratingFunction(ABC):
 
     @property
     def dK0(self):
+        """
+        Note this property stores the unscaled and untranslated derivative at zero.
+        """
         if self._dK0 is None:
             self._dK0 = self.dK(0, loc=0, scale=1)
         return self._dK0
 
     @property
     def d2K0(self):
+        """
+        Note this property stores the unscaled and untranslated second order derivative at zero.
+        """
         if self._d2K0 is None:
             self._d2K0 = self.d2K(0, loc=0, scale=1)
         return self._d2K0
 
     @property
     def d3K0(self):
+        """
+        Note this property stores the unscaled and untranslated third order derivative at zero.
+        """
         if self._d3K0 is None:
             self._d3K0 = self.d3K(0, loc=0, scale=1)
         return self._d3K0
@@ -247,15 +259,27 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     Parameters
     ----------
     K : callable
-        Cumulant generating function
+        Cumulant generating function (unscaled and untranslated)
+    loc : float, optional
+      Location parameter of the distribution. If provided, the provided :math:`K` corresponds to the cumulant
+      generating function of the standardized random variable :math:`Z`, and :math:`x=\text{scale}\times Z + \text{loc}`.
+    scale : float, optional
+      Scale parameter of the distribution. If provided, the provided :math:`K` corresponds to the cumulant
+      generating function of the standardized random variable :math:`Z`, and :math:`x=\text{scale}\times Z + \text{loc}`.
     dK : callable, optional
-        First derivative of the cumulant generating function
+        First derivative of the cumulant generating function, unscaled and untranslated, i.e., corresponding to :math:`K` as provided above.
     d2K : callable, optional
-        Second derivative of the cumulant generating function
+        Second derivative of the cumulant generating function, unscaled and untranslated, i.e., corresponding to :math:`K` as provided above.
     d3K : callable, optional
-        Third derivative of the cumulant generating function
+        Third derivative of the cumulant generating function, unscaled and untranslated, i.e., corresponding to :math:`K` as provided above.
     domain : Domain or None, optional
         If not provided, the domain is assumed to be :math:`(-\infty, \infty)`.
+    dK0 : float, optional
+        If provided, the derivative of the cumulant generating function at 0, i.e., :math:`K'(0)`, also unscaled and untranslated.
+    d2K0 : float, optional
+        If provided, the second derivative of the cumulant generating function at 0, i.e., :math:`K''(0)`, also unscaled and untranslated.
+    d3K0 : float, optional
+        If provided, the third derivative of the cumulant generating function at 0, i.e., :math:`K'''(0)`, also unscaled and untranslated.
     """
 
     def __init__(
@@ -560,18 +584,21 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @property
     def dK0(self):
         if not hasattr(self, "_dK0_cache"):
+            # Note the fget gets the unscaled and untranslated value, as stored in _dK0
             self._dK0_cache = self.scale * CumulantGeneratingFunction.dK0.fget(self) + self.loc
         return self._dK0_cache
 
     @property
     def d2K0(self):
         if not hasattr(self, "_d2K0_cache"):
+            # Note the fget gets the unscaled and untranslated value, as stored in _d2K0
             self._d2K0_cache = self.scale**2 * CumulantGeneratingFunction.d2K0.fget(self)
         return self._d2K0_cache
 
     @property
     def d3K0(self):
         if not hasattr(self, "_d3K0_cache"):
+            # Note the fget gets the unscaled and untranslated value, as stored in _d3K0
             self._d3K0_cache = self.scale**3 * CumulantGeneratingFunction.d3K0.fget(self)
         return self._d3K0_cache
 
@@ -610,6 +637,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     dK_inv=self._dK_inv,
                     d2K=self._d2K,
                     d3K=self._d3K,
+                    # Note these derivatives are already scaled and translated!
                     dK0=self._dK0,
                     d2K0=self._d2K0,
                     d3K0=self._d3K0,
@@ -619,6 +647,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         elif isinstance(other, UnivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for UnivariateCumulantGeneratingFunction"
             return UnivariateCumulantGeneratingFunction(
+                # Pass cumulant generating function and its derivatives
                 lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.K(
                     t, scale=ss, loc=ls
                 )
@@ -635,6 +664,17 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     t, scale=ss, loc=ls
                 )
                 + other.d3K(t, scale=so, loc=lo),
+                # Extract scaled derivatives and pass them if they are already computed
+                dK0=self.dK0 + other.dK0
+                if hasattr(self, "_dK0_cache") and hasattr(other, "_dK0_cache")
+                else None,
+                d2K0=self.d2K0 + other.d2K0
+                if hasattr(self, "_d2K0_cache") and hasattr(other, "_d2K0_cache")
+                else None,
+                d3K0=self.d3K0 + other.d3K0
+                if hasattr(self, "_d3K0_cache") and hasattr(other, "_d3K0_cache")
+                else None,
+                # Other arguments
                 domain=self.domain.intersect(other.domain),
                 numdiff_backend=self._numdiff_backend,
             )
