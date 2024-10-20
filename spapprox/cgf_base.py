@@ -722,6 +722,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             raise ValueError("Can only multiply with a scalar")
 
 
+# TODO Update the documentation regarding scaling and translation for this one
 class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     r"""
     Class for cumulant generating function of a multivariate distribution
@@ -863,7 +864,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             "_scale_inv_cache",
             "_scale_mat_inv_cache",
             "_scale_is_invertible_cache",
-            "_d3K0_cache",
         ]:
             if hasattr(self, attr):
                 delattr(self, attr)
@@ -1033,22 +1033,14 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @property
     def dK0(self):
         if not hasattr(self, "_dK0_cache"):
-            self._dK0_cache = (
-                self.scale.dot(
-                    self.dK(np.zeros(self.domain.dim), loc=0, scale=np.ones(self.domain.dim))
-                )
-                + self.loc
-            )
+            self._dK0_cache = self.scale.dot(CumulantGeneratingFunction.dK0.fget(self)) + self.loc
         return self._dK0_cache
 
     @property
     def d2K0(self):
         if not hasattr(self, "_d2K0_cache"):
             self._d2K0_cache = np.dot(
-                np.dot(
-                    self.scale,
-                    self.d2K(np.zeros(self.domain.dim), loc=0, scale=np.ones(self.domain.dim)),
-                ),
+                np.dot(self.scale, CumulantGeneratingFunction.d2K0.fget(self)),
                 self.scale.T,
             )
         return self._d2K0_cache
@@ -1058,16 +1050,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         In the multivariate case, we merely implement the diagonal
         """
-        # TODO: is this implementation correct?
-        # TODO: is this supposed to store the scaled or unscaled value?
         if not hasattr(self, "_d3K0_cache"):
-            self._d3K0_cache = self.d3K(
-                np.zeros(self.domain.dim),
-                loc=self.loc,
-                scale=self.scale,
+            self._d3K0_cache = transform_rank3_tensor(
+                CumulantGeneratingFunction.d3K0.fget(self), self.scale
             )
         return self._d3K0_cache
 
+    # TODO: include the dK0, d2K0, d3K0 in the constructor
     def __getitem__(self, item):
         """
         Just set the other components to zero
@@ -1128,6 +1117,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             raise ValueError("Invalid index")
 
+    # TODO: include the dK0, d2K0, d3K0 in the constructor
     def add(self, other, inplace=True):
         r"""
         We use the following properties of the cumulant generating function
@@ -1223,6 +1213,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             raise ValueError("Can only add a scalar or another CumulantGeneratingFunction")
 
+    # TODO: include the dK0, d2K0, d3K0 in the constructor
     def mul(self, other, inplace=False):
         r"""
         We use the following properties of the cumulant generating function
@@ -1292,6 +1283,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             raise ValueError("Can only multiply with a scalar or vector")
 
+    # TODO: include the dK0, d2K0, d3K0 in the constructor
     def ldot(self, A, inplace=False):
         """
         Dot product with a matrix or vector.
@@ -1694,6 +1686,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 y[~cond] = fillna
                 return y
 
+    # TODO: include the dK0, d2K0, d3K0 in the constructor
     @classmethod
     def from_univariate(cls, *cgfs):
         """
@@ -1717,6 +1710,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             domain=Domain.from_domains(*[cgf.domain for cgf in cgfs]),
         )
 
+    # TODO: include the dK0, d2K0, d3K0 in the constructor
     @classmethod
     def from_cgfs(cls, *cgfs):
         """
