@@ -18,6 +18,41 @@ else:
     _has_findiff = True
 
 
+def transform_rank3_tensor(T, *A):
+    """
+    Transform a rank 3 tensor T with a transformation matrix A, along each axis.
+
+    The transformation is given by:
+
+    .. math::
+        T_{ijk} = \sum_{l,m,n} A_{il} A_{jm} A_{kn} T_{lmn},
+
+    which in matrix notation can be written as:
+
+    .. math::
+        T = A \cdot T \cdot A^T \cdot A^T \cdot A^T.
+
+    Parameters
+    ----------
+    T : np.ndarray
+        Rank 3 tensor
+    *A : np.ndarray
+        Transformation matrices, one, or three (one for each axis).
+        They can also be provided as vectors, in which case they are assumed to be diagonal matrices with the diagonal given.
+    """
+    assert T.ndim == 3, "Input tensor should be rank 3"
+    if len(A) == 1:
+        A = [A[0]] * 3
+    for i, Ai in enumerate(A):
+        if Ai.ndim == 1:
+            shape = [1] * T.ndim
+            shape[i] = len(Ai)
+            T *= Ai.reshape(shape)
+        else:
+            T = np.tensordot(Ai, T, axes=(1, i))
+    return T
+
+
 class FindiffBase(ABC):
     r"""
     Base class for numerical differentiation

@@ -18,7 +18,7 @@ except ImportError:
 
 from .domain import Domain
 from .util import fib, type_wrapper
-from .diff import Gradient, Hessian, Tressian, PartialDerivative
+from .diff import Gradient, Hessian, Tressian, PartialDerivative, transform_rank3_tensor
 
 # TODO: sort out how _diK0 and _diK0_cache are handled
 
@@ -1018,8 +1018,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         In the multivariate case, we merely implement the diagonal
         """
+        # TODO: is this implementation correct?
+        # TODO: is this supposed to store the scaled or unscaled value?
         if not hasattr(self, "_d3K0_cache"):
-            # TODO: incorporate the loc and scale properly
             self._d3K0_cache = self.d3K(
                 np.zeros(self.domain.dim),
                 loc=self.loc,
@@ -1615,8 +1616,43 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         See Kolassa 2006, Chapter 6 for some insights
         """
-        raise NotImplementedError()
-        # TODO: I'm not sure what this is supposed to be, some kind of tensor?
+        # Initialize
+        if t.ndim == 0:
+            assert self.dim == 0, "t should be a vector"
+            t = np.full(self.dim, t)
+        if self._d3K is None:
+            # TODO: implement also with numdifftools backend?
+            self._d3K = Tressian(lambda tt: self.K(tt, loc=0, scale=1), self.dim)
+        loc = self.loc if loc is None else np.asanyarray(loc)
+        scale = self.scale if scale is None else np.asanyarray(scale)
+        assert self._d3K is not None, "d2K must be specified"
+        t = np.asanyarray(t)
+        ts = self._scale_t(t, scale=scale)
+        cond = self.domain.is_in_domain(ts)
+        ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
+        with warnings.catch_warnings():
+            warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
+            y = self._d3K(ts)
+            if scale.ndim == 0:
+                y *= scale**3
+            else:
+                if y.ndim == 3:
+                    y = transform_rank3_tensor(y, scale)
+                elif y.ndim == 4:
+                    y = np.array([transform_rank3_tensor(yy, scale) for yy in y])
+                else:
+                    raise IndexError("retval should a matrix of list of matrices")
+            if np.isscalar(cond):
+                if cond:
+                    return y
+                elif np.isscalar(y):
+                    return fillna
+                else:
+                    return np.full(np.asanyarray(y).shape, fillna)
+            else:
+                y = y.astype(np.float64)
+                y[~cond] = fillna
+                return y
 
     @classmethod
     def from_univariate(cls, *cgfs):
