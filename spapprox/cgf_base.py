@@ -737,7 +737,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         \frac{\partial^m}{\partial^i t_i} K_X(t),
     and where in the denominator we multiply over :math:`i` combinations that sum up to m,
     are supposed to take the form of numpy arrays with m indices.
-    By doing so, the first derivatives, becomes the gradient, the second the Hessian, and the the third, an array with matrices, etc.
+    By doing so, the first derivatives, becomes the gradient, the second the Hessian, and the third
+    the third order tensor derivative (the "Tression"), etc.
 
     References
     ----------
@@ -1119,7 +1120,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 d2K=(
                     None
                     if self._d2K is None
-                    else lambda t, loc=loc, scale=scale: (self.d2K(t, loc=loc, scale=scale))
+                    else lambda t, loc=loc, scale=scale: self.d2K(t, loc=loc, scale=scale)
                 ),
                 # TODO: implement this one properly
                 d3K=None,
@@ -1726,6 +1727,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 return y
 
     # TODO: include the dK0, d2K0, d3K0 in the constructor
+    # TODO: add some documentation for this one
     @classmethod
     def from_univariate(cls, *cgfs):
         """
