@@ -1727,11 +1727,17 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 return y
 
     # TODO: include the dK0, d2K0, d3K0 in the constructor
-    # TODO: add some documentation for this one
     @classmethod
     def from_univariate(cls, *cgfs):
         """
         Create a multivariate cgf from a list of univariate cgfs.
+
+        It follows directly from the definition of the cumulant generating function
+        that the cumulant generating function of independent random variables :math:`X_i`
+        stacked in a vector :math:`X` is the sum of the cumulant generating functions.
+
+        .. math::
+           K_X(t) = \mathbb{E} \exp{<t,X>} = \sum_i K_{X_i}(t_i).
         """
         assert (
             len(cgfs) >= 1
@@ -1759,6 +1765,11 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     def from_cgfs(cls, *cgfs):
         """
         Create a multivariate cgf from a list of univariate cgfs.
+
+        Als with the univariate case, the cumulant generating function of
+        independent random vectors :math:`X_i` staced to a vector :math:`X` is
+        the sum of the cumulant generating functions. This follows directly from
+        the definition of the cumulant generating function.
         """
         assert len(cgfs) > 1, "at least 2 cumulant generating functions should be supplied"
         assert all(
