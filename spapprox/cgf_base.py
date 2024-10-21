@@ -18,7 +18,14 @@ except ImportError:
 
 from .domain import Domain
 from .util import fib, type_wrapper
-from .diff import Gradient, Hessian, Tressian, PartialDerivative, transform_rank3_tensor
+from .diff import (
+    Gradient,
+    Hessian,
+    Tressian,
+    PartialDerivative,
+    transform_rank3_tensor,
+    block_diag_3d,
+)
 
 
 class CumulantGeneratingFunction(ABC):
@@ -1078,8 +1085,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 lambda t, mcgf=mcgf: mcgf.K(np.expand_dims(t, -1)),
                 dK=lambda t, mcgf=mcgf: mcgf.dK(np.expand_dims(t, -1)).squeeze(),
                 d2K=lambda t, mcgf=mcgf: mcgf.d2K(np.expand_dims(t, -1)).squeeze(),
-                # TODO: implement this one properly
-                d3K=None,
+                # TODO: test this one!
+                d3K=lambda t, mcgf=mcgf: mcgf.d3K(np.expand_dims(t, -1)).squeeze(),
                 dK0=mcgf.dK0.squeeze() if mcgf._dK0 is not None else None,
                 d2K0=mcgf.d2K0.squeeze() if mcgf._d2K0 is not None else None,
                 d3K0=mcgf.d3K0.squeeze() if mcgf._d3K0 is not None else None,
@@ -1122,8 +1129,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     if self._d2K is None
                     else lambda t, loc=loc, scale=scale: self.d2K(t, loc=loc, scale=scale)
                 ),
-                # TODO: implement this one properly
-                d3K=None,
+                # TODO: test this one!
+                d3K=(
+                    None
+                    if self._d3K is None
+                    else lambda t, loc=loc, scale=scale: self.d3K(t, loc=loc, scale=scale)
+                ),
                 # Note these derivatives if they are already computed
                 dK0=self.dK0[item]
                 if self._dK0 is not None or hasattr(self, "_dK0_cache")
@@ -1726,7 +1737,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 y[~cond] = fillna
                 return y
 
-    # TODO: include the dK0, d2K0, d3K0 in the constructor
+    # TODO: add option for force initialization of derivatives at zero -> maybe also at other places
     @classmethod
     def from_univariate(cls, *cgfs):
         """
@@ -1745,22 +1756,38 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         assert all(
             isinstance(cgf, UnivariateCumulantGeneratingFunction) for cgf in cgfs
         ), "All cgfs must be univariate"
+        dim = len(cgfs)
         return cls(
             lambda t, cgfs=cgfs: np.sum([cgf.K(ti) for ti, cgf in zip(t.T, cgfs)], axis=0),
-            dim=len(cgfs),
+            dim=dim,
             loc=0,
             scale=1,
             dK=lambda t, cgfs=cgfs: np.array([cgf.dK(ti) for ti, cgf in zip(t.T, cgfs)]).T,
+            # TODO: maybe also refactor this one as well to einsum
             d2K=lambda t, cgfs=cgfs: np.apply_along_axis(
                 np.diag, 0, np.array([cgf.d2K(ti) for ti, cgf in zip(t.T, cgfs)])
             ).swapaxes(0, -1),
-            # TODO: add d3K appropriately
-            d3K=None,
-            # TODO: add derivatives at zero
+            # TODO: test this one!
+            d3K=lambda t, cgfs=cgfs: np.einsum(
+                "i,ijk->ijk",
+                np.array([cgf.d3K(ti) for ti, cgf in zip(t.T, cgfs)]),
+                np.eye(dim, dim, dim),
+            ),
+            # TODO: test derivatives at zero
+            dK0=np.array([cgf.dK0 for cgf in cgfs])
+            if all(cgf._dK0 is not None for cgf in cgfs)
+            else None,
+            d2K0=np.einsum("i,ij->ij", np.array([cgf.d2K0 for cgf in cgfs]), np.eye(dim, dim))
+            if all(cgf._d2K0 is not None for cgf in cgfs)
+            else None,
+            d3K0=np.einsum(
+                "i,ijk->ijk", np.array([cgf.d3K0 for cgf in cgfs]), np.eye(dim, dim, dim)
+            )
+            if all(cgf._d3K0 is not None for cgf in cgfs)
+            else None,
             domain=Domain.from_domains(*[cgf.domain for cgf in cgfs]),
         )
 
-    # TODO: include the dK0, d2K0, d3K0 in the constructor
     @classmethod
     def from_cgfs(cls, *cgfs):
         """
@@ -1807,18 +1834,51 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     vals = [v.reshape(dims[i]) for i, v in enumerate(vals)]
                 return np.concatenate(vals, axis=-1)
 
+            # TODO: is this one correct?, where do we test it?
             @type_wrapper(xloc=0)
             def d2K(t):
                 if t.ndim == 1:
                     return sp.linalg.block_diag(*[cgf.d2K(ti(t, i)) for i, cgf in enumerate(cgfs)])
                 elif t.ndim == 2:
                     return np.array([d2K(tt) for tt in t])
-                    return np.array([d2K(tt) for tt in t])
                 else:
-                    raise
+                    raise ValueError("Invalid shape")
 
-            # TODO: add d2K appropriately
-            # TODO: add derivatives at zero
+            # TODO: test this one!
+            @type_wrapper(xloc=0)
+            def d3K(t):
+                if t.ndim == 1:
+                    return block_diag_3d(*[cgf.d3K(ti(t, i)) for i, cgf in enumerate(cgfs)])
+                elif t.ndim == 2:
+                    return np.array([d3K(tt) for tt in t])
+                else:
+                    raise ValueError("Invalid shape")
+
+            # TODO: test derivatives at zero
+            if all(cgf._dK0 is not None for cgf in cgfs):
+                dK0 = np.concatenate([cgf.dK0 for cgf in cgfs], axis=-1)
+            else:
+                dK0 = None
+            if all(cgf._d2K0 is not None for cgf in cgfs):
+                d2K0 = sp.linalg.block_diag(*[cgf.d2K0 for cgf in cgfs])
+            else:
+                d2K0 = None
+            if all(cgf._d3K0 is not None for cgf in cgfs):
+                d3K0 = block_diag_3d(*[cgf.d3K0 for cgf in cgfs])
+            else:
+                d3K0 = None
 
             domain = Domain.from_domains(*[cgf.domain for cgf in cgfs])
-            return cls(K, dim=dims.sum(), loc=0, scale=1, dK=dK, d2K=d2K, domain=domain)
+            return cls(
+                K,
+                dim=dims.sum(),
+                loc=0,
+                scale=1,
+                dK=dK,
+                d2K=d2K,
+                d3K=d3K,
+                dK0=dK0,
+                d2K0=d2K0,
+                d3K0=d3K0,
+                domain=domain,
+            )

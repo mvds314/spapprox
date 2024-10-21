@@ -53,6 +53,28 @@ def transform_rank3_tensor(T, *A):
     return T
 
 
+def block_diag_3d(*tensors):
+    """
+    Equivalent to scipy.linalg.block_diag, but for 3d tensors.
+    """
+    assert all(tensor.ndim == 3 for tensor in tensors), "All tensors should be rank 3"
+    # Determine the shape of the resulting tensor
+    dim = sum(tensor.shape[0] for tensor in tensors)
+    # Initialize the resulting tensor with zeros
+    result = np.zeros((dim, dim, dim), dtype=tensors[0].dtype)
+    # Place each input tensor along the diagonal
+    current_index = 0
+    for tensor in tensors:
+        dim = tensor.shape[0]
+        result[
+            current_index : current_index + dim,
+            current_index : current_index + dim,
+            current_index : current_index + dim,
+        ] = tensor
+        current_index += dim
+    return result
+
+
 class FindiffBase(ABC):
     r"""
     Base class for numerical differentiation
