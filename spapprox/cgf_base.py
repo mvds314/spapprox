@@ -670,15 +670,21 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 )
                 + other.d3K(t, scale=so, loc=lo),
                 # Extract scaled derivatives and pass them if unscaled derivatives are already computed
-                dK0=self.dK0 + other.dK0
-                if self._dK0 is not None and other._dK0 is not None
-                else None,
-                d2K0=self.d2K0 + other.d2K0
-                if self._d2K0 is not None and other._d2K0 is not None
-                else None,
-                d3K0=self.d3K0 + other.d3K0
-                if self._d3K0 is not None and other._d3K0 is not None
-                else None,
+                dK0=(
+                    self.dK0 + other.dK0
+                    if self._dK0 is not None and other._dK0 is not None
+                    else None
+                ),
+                d2K0=(
+                    self.d2K0 + other.d2K0
+                    if self._d2K0 is not None and other._d2K0 is not None
+                    else None
+                ),
+                d3K0=(
+                    self.d3K0 + other.d3K0
+                    if self._d3K0 is not None and other._d3K0 is not None
+                    else None
+                ),
                 # Other arguments
                 domain=self.domain.intersect(other.domain),
                 numdiff_backend=self._numdiff_backend,
@@ -1136,15 +1142,21 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     else lambda t, loc=loc, scale=scale: self.d3K(t, loc=loc, scale=scale)
                 ),
                 # Note these derivatives if they are already computed
-                dK0=self.dK0[item]
-                if self._dK0 is not None or hasattr(self, "_dK0_cache")
-                else None,
-                d2K0=self.d2K0[item]
-                if self._d2K0 is not None or hasattr(self, "_d2K0_cache")
-                else None,
-                d3K0=self.d3K0[item]
-                if self._d3K0 is not None or hasattr(self, "_d3K0_cache")
-                else None,
+                dK0=(
+                    self.dK0[item]
+                    if self._dK0 is not None or hasattr(self, "_dK0_cache")
+                    else None
+                ),
+                d2K0=(
+                    self.d2K0[item]
+                    if self._d2K0 is not None or hasattr(self, "_d2K0_cache")
+                    else None
+                ),
+                d3K0=(
+                    self.d3K0[item]
+                    if self._d3K0 is not None or hasattr(self, "_d3K0_cache")
+                    else None
+                ),
                 domain=self.domain.ldotinv(scale.T),
                 loc=0,
                 scale=1,
@@ -1220,15 +1232,21 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 ),
                 # Extract scaled derivatives and pass them if unscaled derivatives are already computed
                 # TODO: test if this is correct
-                dK0=self.dK0 + other.dK0
-                if self._dK0 is not None and other._dK0 is not None
-                else None,
-                d2K0=self.d2K0 + other.d2K0
-                if self._d2K0 is not None and other._d2K0 is not None
-                else None,
-                d3K0=self.d3K0 + other.d3K0
-                if self._d3K0 is not None and other._d3K0 is not None
-                else None,
+                dK0=(
+                    self.dK0 + other.dK0
+                    if self._dK0 is not None and other._dK0 is not None
+                    else None
+                ),
+                d2K0=(
+                    self.d2K0 + other.d2K0
+                    if self._d2K0 is not None and other._d2K0 is not None
+                    else None
+                ),
+                d3K0=(
+                    self.d3K0 + other.d3K0
+                    if self._d3K0 is not None and other._d3K0 is not None
+                    else None
+                ),
                 domain=self.domain.intersect(other.domain.ldotinv(np.ones((1, self.dim)))),
             )
         elif isinstance(other, MultivariateCumulantGeneratingFunction):
@@ -1252,15 +1270,21 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 )
                 + other.d3K(t, scale=so, loc=lo),
                 # Extract scaled derivatives and pass them if unscaled derivatives are already computed
-                dK0=self.dK0 + other.dK0
-                if self._dK0 is not None and other._dK0 is not None
-                else None,
-                d2K0=self.d2K0 + other.d2K0
-                if self._d2K0 is not None and other._d2K0 is not None
-                else None,
-                d3K0=self.d3K0 + other.d3K0
-                if self._d3K0 is not None and other._d3K0 is not None
-                else None,
+                dK0=(
+                    self.dK0 + other.dK0
+                    if self._dK0 is not None and other._dK0 is not None
+                    else None
+                ),
+                d2K0=(
+                    self.d2K0 + other.d2K0
+                    if self._d2K0 is not None and other._d2K0 is not None
+                    else None
+                ),
+                d3K0=(
+                    self.d3K0 + other.d3K0
+                    if self._d3K0 is not None and other._d3K0 is not None
+                    else None
+                ),
                 domain=self.domain.intersect(other.domain),
             )
         else:
@@ -1458,6 +1482,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         return np.atleast_1d(grad(tt))
                     else:
                         raise ValueError("Invalid shape")
+
             elif self._numdiff_backend == "findiff":
                 _dK = Gradient(self.K, self.dim)
             else:
@@ -1708,7 +1733,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             self._d3K = Tressian(lambda tt: self.K(tt, loc=0, scale=1), self.dim)
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
-        assert self._d3K is not None, "d2K must be specified"
+        assert self._d3K is not None, "d3K must be specified"
         t = np.asanyarray(t)
         ts = self._scale_t(t, scale=scale)
         cond = self.domain.is_in_domain(ts)
@@ -1774,17 +1799,23 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 np.eye(dim, dim, dim),
             ),
             # TODO: test derivatives at zero
-            dK0=np.array([cgf.dK0 for cgf in cgfs])
-            if all(cgf._dK0 is not None for cgf in cgfs)
-            else None,
-            d2K0=np.einsum("i,ij->ij", np.array([cgf.d2K0 for cgf in cgfs]), np.eye(dim, dim))
-            if all(cgf._d2K0 is not None for cgf in cgfs)
-            else None,
-            d3K0=np.einsum(
-                "i,ijk->ijk", np.array([cgf.d3K0 for cgf in cgfs]), np.eye(dim, dim, dim)
-            )
-            if all(cgf._d3K0 is not None for cgf in cgfs)
-            else None,
+            dK0=(
+                np.array([cgf.dK0 for cgf in cgfs])
+                if all(cgf._dK0 is not None for cgf in cgfs)
+                else None
+            ),
+            d2K0=(
+                np.einsum("i,ij->ij", np.array([cgf.d2K0 for cgf in cgfs]), np.eye(dim, dim))
+                if all(cgf._d2K0 is not None for cgf in cgfs)
+                else None
+            ),
+            d3K0=(
+                np.einsum(
+                    "i,ijk->ijk", np.array([cgf.d3K0 for cgf in cgfs]), np.eye(dim, dim, dim)
+                )
+                if all(cgf._d3K0 is not None for cgf in cgfs)
+                else None
+            ),
             domain=Domain.from_domains(*[cgf.domain for cgf in cgfs]),
         )
 
