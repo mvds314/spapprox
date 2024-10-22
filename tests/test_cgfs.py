@@ -580,8 +580,12 @@ def test_basic(cgf_to_test, cgf, ts, dist, backend):
             cgf_to_test.add(cgf_to_test, inplace=True)
 
 
-@pytest.mark.xfail
+# @pytest.mark.xfail
+@pytest.mark.tofix
 def test_domain():
+    import pdb
+
+    pdb.set_trace()
     # Test simple domain
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
@@ -622,6 +626,10 @@ def test_domain():
     assert np.isnan(cgf.d2K(0.5))
     assert not np.isnan(cgf.d2K(1.5))
     assert np.isnan(cgf.d3K(0.5))
+    # TODO: continue here and fix this one
+    import pdb
+
+    pdb.set_trace()
     assert not np.isnan(cgf.d3K(1.5))
     # Another test
     cgf = UnivariateCumulantGeneratingFunction(
@@ -796,8 +804,8 @@ if __name__ == "__main__":
     if True:
         pytest.main(
             [
-                # str(Path(__file__)),
-                str(Path(__file__)) + "::test_basic",
+                str(Path(__file__)),
+                # str(Path(__file__)) + "::test_basic",
                 # "-k",
                 # "test_basic",
                 "--durations=10",
