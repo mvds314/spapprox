@@ -155,24 +155,26 @@ def test_grad(f, gradf, dim, h, points, error):
     "f, gradf, ndim, h, points, error",
     [
         # Tests for the vector case
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Simple 2D square",
         ),
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x) * np.array([1, 2]), axis=-1),
             lambda x: 2 * x * np.array([1, 2]),
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Simple 2D square with weights",
         ),
         # Vector case with different domain constraints
-        (
+        pytest.param(
             lambda x: np.where(np.all(x > 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
             lambda x: np.where(
                 np.tile(np.all(x > 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
@@ -181,8 +183,9 @@ def test_grad(f, gradf, dim, h, points, error):
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Simple 2D square with domain constraint",
         ),
-        (
+        pytest.param(
             lambda x: np.where(np.all(x >= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
             lambda x: np.where(
                 np.tile(np.all(x >= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
@@ -191,8 +194,9 @@ def test_grad(f, gradf, dim, h, points, error):
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Simple 2D square with domain constraint",
         ),
-        (
+        pytest.param(
             lambda x: np.where(np.all(x <= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
             lambda x: np.where(
                 np.tile(np.all(x <= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
@@ -201,17 +205,19 @@ def test_grad(f, gradf, dim, h, points, error):
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Simple 2D square with domain constraint",
         ),
         # Tests for the scalar case
-        (
+        pytest.param(
             lambda x: np.square(x),
             lambda x: 2 * x,
             1,
             1e-6,
             np.linspace(0, 1, 10),
             None,
+            id="Scalar square",
         ),
-        (
+        pytest.param(
             lambda x: np.where(np.asanyarray(x) > 0, np.square(x), np.nan),
             lambda x: np.where(
                 np.asanyarray(x) > 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
@@ -220,8 +226,9 @@ def test_grad(f, gradf, dim, h, points, error):
             1e-6,
             np.linspace(0, 1, 10),
             None,
+            id="Scalar square with domain constraint",
         ),
-        (
+        pytest.param(
             lambda x: np.where(np.asanyarray(x) >= 0, np.square(x), np.nan),
             lambda x: np.where(
                 np.asanyarray(x) >= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
@@ -230,8 +237,9 @@ def test_grad(f, gradf, dim, h, points, error):
             1e-6,
             np.linspace(0, 1, 10),
             None,
+            id="Scalar square with domain constraint",
         ),
-        (
+        pytest.param(
             lambda x: np.where(np.asanyarray(x) <= 0, np.square(x), np.nan),
             lambda x: np.where(
                 np.asanyarray(x) <= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
@@ -240,31 +248,35 @@ def test_grad(f, gradf, dim, h, points, error):
             1e-6,
             np.linspace(-1, 0, 10),
             None,
+            id="Scalar square with domain constraint",
         ),
         # Those should raise an error
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             2,
             1e-6,
             np.linspace(-1, 0, 10),
             ValueError,
+            id="ValueError, 2D square",
         ),
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             2,
             -1e-6,
             np.linspace(-1, 0, 10),
             ValueError,
+            id="ValueError, negative h",
         ),
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             1,
             [1e-6, 1e-6],
             np.linspace(-1, 0, 10),
             ValueError,
+            id="ValueError, 1D square with 2D h",
         ),
     ],
 )
