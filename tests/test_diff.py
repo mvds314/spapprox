@@ -21,23 +21,25 @@ from spapprox.diff import (
 @pytest.mark.parametrize(
     "f, gradf, dim, h, points, error",
     [
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Simple 2D square",
         ),
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x) * np.array([1, 2]), axis=-1),
             lambda x: 2 * x * np.array([1, 2]),
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Simple 2D square with weights",
         ),
-        (
+        pytest.param(
             lambda x: np.where(np.all(x > 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
             lambda x: np.where(
                 np.tile(np.all(x > 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
@@ -46,8 +48,9 @@ from spapprox.diff import (
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Simple 2D square with domain constraint",
         ),
-        (
+        pytest.param(
             lambda x: np.where(np.all(x >= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
             lambda x: np.where(
                 np.tile(np.all(x >= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
@@ -56,8 +59,9 @@ from spapprox.diff import (
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
+            id="Simple 2D square with domain constraint",
         ),
-        (
+        pytest.param(
             lambda x: np.where(np.all(x <= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
             lambda x: np.where(
                 np.tile(np.all(x <= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
@@ -66,46 +70,52 @@ from spapprox.diff import (
             1e-6,
             np.array([np.linspace(-1, 0, 10), np.linspace(-1, 0, 10)]).T,
             None,
+            id="Simple 2D square with domain constraint",
         ),
-        (
+        pytest.param(
             lambda x: np.square(x),
             lambda x: 2 * x,
             1,
             1e-6,
             np.atleast_2d(np.linspace(0, 1, 10)).T,
             None,
+            id="Simple 1D square",
         ),
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             1,
             1e-6,
             np.linspace(0, 1, 10),
             ValueError,
+            id="ValueError, 1D square",
         ),
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             0,
             1e-6,
             np.linspace(0, 1, 10),
             ValueError,
+            id="ValueError, 0D square",
         ),
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             1,
             -1e-6,
             np.linspace(0, 1, 10),
             ValueError,
+            id="ValueError, negative h",
         ),
-        (
+        pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 3).T,
             ValueError,
+            id="ValueError, 3D square",
         ),
     ],
 )
