@@ -557,11 +557,13 @@ if __name__ == "__main__":
                 # str(Path(__file__)) + "::test_grad",
                 # str(Path(__file__)) + "::test_first_order_partial_derivatives",
                 # str(Path(__file__)) + "::test_higher_order_partial_derivatives",
+                # str(Path(__file__)) + "::test_tensor_derivative",
                 # "-k",
                 # "test_partial_derivative",
                 # "--tb=auto",
                 # "--pdb",
                 # "-m tofix",
+                # "-W error::DeprecationWarning",
                 "-s",
             ]
         )

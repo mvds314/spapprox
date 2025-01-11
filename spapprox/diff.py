@@ -457,7 +457,7 @@ class TensorDerivative:
     .. math::
         T(x)_{i_0,\ldots,i_{n-1}} = \partial^n_{i_0,\ldots,i_{n-1}} f(t),
 
-    where :math:`0\leq i_0,\ldots,i_{n-1} < d` are the indices of the matrix and refer to the components of the
+    where :math:`0\leq i_0,\ldots,i_{n-1} < d` are the indices of the tensor and refer to the components of the
     domain of :math:`f`, :math:`\partial^n_{i_0,\ldots,i_{n-1}}` indicates differentiation to both components,
     :math:`i_0,\ldots,i_{n-1}` a number of times equal to their multiplicity.
     So, particularly, :math:`\partial^n_{0,\ldots,0}` indicates differentiating :math:`n` times w.r.t
@@ -488,7 +488,12 @@ class TensorDerivative:
             sorted_ijk = tuple(np.sort(ijk).tolist())
             if self._partials[sorted_ijk] is None:
                 orders = [int(np.equal(ijk, i).sum()) for i in range(dim)]
-                self._partials[sorted_ijk] = PartialDerivative(f, *orders, h=h[ijk], acc=acc[ijk])
+                pd = PartialDerivative(f, *orders, h=h[ijk], acc=acc[ijk])
+                if len(orders) == 1:
+                    # Note: prevent that the 1D case gets cast to scalar as orders unpack to to a scalar
+                    self._partials[sorted_ijk] = lambda x: pd(x)
+                else:
+                    self._partials[sorted_ijk] = pd
             self._partials[ijk] = self._partials[sorted_ijk]
 
     @property
