@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 from pathlib import Path
 
 from spapprox.cgf_base import has_numdifftools
