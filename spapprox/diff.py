@@ -206,7 +206,8 @@ class FindiffBase(ABC):
             grid, sel = self._build_grid(t, dim=1)
             return grid.squeeze(), sel
         # Continue with the dim>=1 case
-        assert t.ndim == dim == 0 or len(t) == dim, "Dimensions do not match"
+        if not (t.ndim == dim == 0 or len(t) == dim):
+            raise ValueError("Dimensions do not match")
         assert dim >= 1, "Domain is assumed to be a vector space at this point"
         # Use central differences by default
         sel = [self._max_order] * dim

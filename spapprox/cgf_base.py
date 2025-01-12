@@ -1015,7 +1015,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             scale = np.asanyarray(scale)
         ts = scale * t if scale.ndim <= 1 else np.dot(t, scale)
-        assert ts.shape[-1] == self.domain.dim, "Dimensions do not match"
+        if ts.shape[-1] != self.domain.dim:
+            raise AssertionError("Dimensions do not match")
         return ts
 
     @type_wrapper(xloc=1)
@@ -1037,7 +1038,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             inv_scale = np.asanyarray(inv_scale)
             self._validate_scale_inv(inv_scale)
         t = ts * inv_scale if inv_scale.ndim <= 1 else np.dot(ts, inv_scale)
-        assert t.shape[-1] == self.dim, "Dimensions do not match"
+        if t.shape[-1] != self.dim:
+            raise AssertionError("Dimensions do not match")
         return t
 
     @property
@@ -1197,7 +1199,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             if isinstance(other, list):
                 other = np.asanyarray(other)
             if isinstance(other, np.ndarray):
-                assert len(other) == self.dim, "Dimensions do not match"
+                if len(other) != self.dim:
+                    raise AssertionError("Dimensions do not match")
             if inplace:
                 self.loc = self.loc + other
                 if hasattr(self, "_dK0_cache"):
