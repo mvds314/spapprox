@@ -811,9 +811,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         domain=None,
         **kwargs,
     ):
-        assert (
-            pd.api.types.is_integer(dim) and dim > 0
-        ), "dimimension must be an integer greater than 0"
+        assert pd.api.types.is_integer(dim) and dim > 0, (
+            "dimimension must be an integer greater than 0"
+        )
         self.dim = dim
         if domain is None:
             if pd.api.types.is_array_like(loc):
@@ -923,9 +923,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         elif isinstance(scale, np.ndarray) and scale.ndim == 1:
             return not np.isclose(scale, 0).any()
         elif isinstance(scale, np.ndarray) and scale.ndim == 2:
-            assert (
-                scale.shape[0] == scale.shape[1]
-            ), "Scale matrix is expected to be square if dim equals dim of domain"
+            assert scale.shape[0] == scale.shape[1], (
+                "Scale matrix is expected to be square if dim equals dim of domain"
+            )
             return np.linalg.matrix_rank(scale) == self.dim
         else:
             raise RuntimeError("Unexpected type or scale of shape")
