@@ -1099,6 +1099,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 domain=mcgf.domain,
                 loc=0,
                 scale=1,
+                numdiff_backend=self._numdiff_backend,
             )
         elif isinstance(item, slice):
             return self[list(range(self.dim))[item]]
@@ -1160,6 +1161,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 domain=self.domain.ldotinv(scale.T),
                 loc=0,
                 scale=1,
+                numdiff_backend=self._numdiff_backend,
             )
         else:
             raise ValueError("Invalid index")
@@ -1215,6 +1217,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     d2K0=self._d2K0,
                     d3K0=self._d3K0,
                     domain=self.domain,
+                    numdiff_backend=self._numdiff_backend,
                 )
         elif isinstance(other, UnivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for UnivariateCumulantGeneratingFunction"
@@ -1248,6 +1251,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     else None
                 ),
                 domain=self.domain.intersect(other.domain.ldotinv(np.ones((1, self.dim)))),
+                numdiff_backend=self._numdiff_backend,
             )
         elif isinstance(other, MultivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for MultivariateCumulantGeneratingFunction"
@@ -1286,6 +1290,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     else None
                 ),
                 domain=self.domain.intersect(other.domain),
+                numdiff_backend=self._numdiff_backend,
             )
         else:
             raise ValueError("Can only add a scalar or another CumulantGeneratingFunction")
@@ -1328,6 +1333,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     d3K0=self._d3K0,
                     domain=self.domain,
                     dim=self.dim,
+                    numdiff_backend=self._numdiff_backend,
                 )
         elif isinstance(other, list):
             return self.mul(np.asanyarray(other), inplace=inplace)
@@ -1355,6 +1361,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     d3K0=None,
                     domain=self.domain,
                     dim=self.dim,
+                    numdiff_backend=self._numdiff_backend,
                 )
         else:
             raise ValueError("Can only multiply with a scalar or vector")
@@ -1415,6 +1422,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     d2K0=self._d2K0,
                     d3K0=self._d3K0,
                     domain=self.domain,
+                    numdiff_backend=self._numdiff_backend,
                 )
         else:
             raise ValueError("Invalid shape")
@@ -1764,7 +1772,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     # TODO: add option for force initialization of derivatives at zero -> maybe also at other places
     @classmethod
-    def from_univariate(cls, *cgfs):
+    def from_univariate(cls, *cgfs, numdiff_backend=None):
         """
         Create a multivariate cgf from a list of univariate cgfs.
 
@@ -1817,10 +1825,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 else None
             ),
             domain=Domain.from_domains(*[cgf.domain for cgf in cgfs]),
+            numdiff_backend=next(c._numdiff_backend for c in cgfs)
+            if numdiff_backend is None
+            else numdiff_backend,
         )
 
     @classmethod
-    def from_cgfs(cls, *cgfs):
+    def from_cgfs(cls, *cgfs, numdiff_backend=None):
         """
         Create a multivariate cgf from a list of univariate cgfs.
 
@@ -1912,4 +1923,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 d2K0=d2K0,
                 d3K0=d3K0,
                 domain=domain,
+                numdiff_backend=next(c._numdiff_backend for c in cgfs)
+                if numdiff_backend is None
+                else numdiff_backend,
             )
