@@ -492,7 +492,7 @@ class TensorDerivative:
                 pd = PartialDerivative(f, *orders, h=h[ijk], acc=acc[ijk])
                 if len(orders) == 1:
                     # Note: prevent that the 1D case gets cast to scalar as orders unpack to to a scalar
-                    self._partials[sorted_ijk] = lambda x: pd(x)
+                    self._partials[sorted_ijk] = lambda x, pd=pd: pd(x).squeeze()
                 else:
                     self._partials[sorted_ijk] = pd
             self._partials[ijk] = self._partials[sorted_ijk]

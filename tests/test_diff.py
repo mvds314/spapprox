@@ -561,6 +561,7 @@ if __name__ == "__main__":
                 # "-k",
                 # "test_partial_derivative",
                 # "--tb=auto",
+                # "-v",
                 # "--pdb",
                 # "-m tofix",
                 # "-W error::DeprecationWarning",
