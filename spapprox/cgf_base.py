@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import warnings
 from abc import ABC, abstractmethod
 
@@ -1503,7 +1502,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         scale = self.scale if scale is None else np.asanyarray(scale)
         ts = self._scale_t(t, scale=scale)
         cond = np.squeeze(self.domain.is_in_domain(ts))
-        ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
+        ts = np.where(cond, ts.T, 0).T  # Package numdifftools doesn't work if any evaluates to NaN
         # Evaluate
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
@@ -1608,7 +1607,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             # Post processing
             t = self._inv_scale_t(t, inv_scale=scale_inv)
         else:
-            # Test if x - loc is in the range of A, if not, there is no solution
+            # Test if x - loc is in the range of A, otherwise, there is no solution
             if not scale_is_invertible:
                 assert isinstance(scale_inv, np.ndarray) and scale_inv.ndim == 2, (
                     "The (pseudo)-inverse should be matrix"
@@ -1692,7 +1691,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         t = np.asanyarray(t)
         ts = self._scale_t(t, scale=scale)
         cond = self.domain.is_in_domain(ts)
-        ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
+        ts = np.where(cond, ts.T, 0).T  # Package numdifftools doesn't work if any evaluates to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             y = self._d2K(ts)
@@ -1748,7 +1747,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         t = np.asanyarray(t)
         ts = self._scale_t(t, scale=scale)
         cond = self.domain.is_in_domain(ts)
-        ts = np.where(cond, ts.T, 0).T  # numdifftools doesn't work if any evaluates to NaN
+        ts = np.where(cond, ts.T, 0).T  # Package numdifftools doesn't work if any evaluates to NaN
         with warnings.catch_warnings():
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             y = self._d3K(ts)
