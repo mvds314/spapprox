@@ -1399,9 +1399,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             return self.ldot(np.asanyarray(A), inplace=inplace)
         elif isinstance(A, np.ndarray) and A.ndim == 2 and A.shape[1] == self.dim:
             if inplace:
-                assert (
-                    A.shape[0] == self.dim
-                ), "inplace ldot only possible if dimension remains the same"
+                assert A.shape[0] == self.dim, (
+                    "inplace ldot only possible if dimension remains the same"
+                )
                 self.loc = A.dot(self.loc_vect)
                 self.scale = A.dot(self.scale_mat)
                 for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
@@ -1607,9 +1607,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             # Test if x - loc is in the range of A, if not, there is no solution
             if not scale_is_invertible:
-                assert (
-                    isinstance(scale_inv, np.ndarray) and scale_inv.ndim == 2
-                ), "The (pseudo)-inverse should be matrix"
+                assert isinstance(scale_inv, np.ndarray) and scale_inv.ndim == 2, (
+                    "The (pseudo)-inverse should be matrix"
+                )
                 if not np.allclose(scale.dot(scale_inv.dot(x - loc)), x):
                     return np.full(self.dim, fillna)
             # Proceed with finding a solution numerically
@@ -1783,12 +1783,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         .. math::
            K_X(t) = \mathbb{E} \exp{<t,X>} = \sum_i K_{X_i}(t_i).
         """
-        assert (
-            len(cgfs) >= 1
-        ), "at least 2 Univariate cumulant generating functions should be supplied"
-        assert all(
-            isinstance(cgf, UnivariateCumulantGeneratingFunction) for cgf in cgfs
-        ), "All cgfs must be univariate"
+        assert len(cgfs) >= 1, (
+            "at least 2 Univariate cumulant generating functions should be supplied"
+        )
+        assert all(isinstance(cgf, UnivariateCumulantGeneratingFunction) for cgf in cgfs), (
+            "All cgfs must be univariate"
+        )
         dim = len(cgfs)
         return cls(
             lambda t, cgfs=cgfs: np.sum([cgf.K(ti) for ti, cgf in zip(t.T, cgfs)], axis=0),
@@ -1841,9 +1841,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         the definition of the cumulant generating function.
         """
         assert len(cgfs) > 1, "at least 2 cumulant generating functions should be supplied"
-        assert all(
-            isinstance(cgf, CumulantGeneratingFunction) for cgf in cgfs
-        ), "All cgfs must be CumulantGeneratingFunction"
+        assert all(isinstance(cgf, CumulantGeneratingFunction) for cgf in cgfs), (
+            "All cgfs must be CumulantGeneratingFunction"
+        )
         if all(isinstance(cgf, UnivariateCumulantGeneratingFunction) for cgf in cgfs):
             return cls.from_univariate(*cgfs)
         else:
