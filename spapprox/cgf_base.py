@@ -1450,6 +1450,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 val += np.atleast_2d(t).T.dot(loc).squeeze()
             elif pd.api.types.is_array_like(val) and val.ndim == 1:
                 val += np.sum((loc * t).T, axis=0)
+            elif isinstance(val, np.ndarray) and val.ndim == 0:
+                # Then it's a scalar packaged as numpy array
+                val += np.sum(loc * t)
             else:
                 raise RuntimeError("Only scalar and vector valued return values are supported")
             return np.where(cond, val, fillna)
