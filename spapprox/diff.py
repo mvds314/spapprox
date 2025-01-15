@@ -104,9 +104,9 @@ class FindiffBase(ABC):
             raise TypeError("f should be callable")
         self.f = f
         self.h = h
-        assert (
-            isinstance(acc, (int, np.integer)) and acc >= 2
-        ), "accuracy should be an integer >= 2"
+        assert isinstance(acc, (int, np.integer)) and acc >= 2, (
+            "accuracy should be an integer >= 2"
+        )
         self.acc = int(acc)
 
     @property
@@ -219,9 +219,9 @@ class FindiffBase(ABC):
                 xx = np.zeros((self._grid_size, dim))
                 xx[:, i] = x[i]
                 fxx = self.f(xx)
-                assert (
-                    len(fxx) == self._grid_size
-                ), f"f is assumed to be scalar, {self._grid_size} retvals are expected when feeding t-{self._max_order}h,.., t,.. t+{self._max_order}h"
+                assert len(fxx) == self._grid_size, (
+                    f"f is assumed to be scalar, {self._grid_size} retvals are expected when feeding t-{self._max_order}h,.., t,.. t+{self._max_order}h"
+                )
                 if not np.isnan(fxx).any():
                     continue
                 if np.isnan(fxx[self._max_order]).any():
@@ -266,9 +266,9 @@ class FindiffBase(ABC):
 
     def __call__(self, t):
         t = np.asanyarray(t)
-        assert (
-            t.ndim <= 2
-        ), "Only scalar, vector, or vectorized, as in lists with scalars or lists with vectors, evaluations are supported"
+        assert t.ndim <= 2, (
+            "Only scalar, vector, or vectorized, as in lists with scalars or lists with vectors, evaluations are supported"
+        )
         # Handle vectorized evaluation
         if t.ndim > 1:
             return np.array([self(tt) for tt in t])
@@ -290,17 +290,17 @@ class FindiffBase(ABC):
                 retval = self.f(Xis.squeeze())
                 retval = self._findiff(retval)
                 retval = retval.T[*sel]
-                assert (
-                    t.ndim > 0 or retval.ndim == 0
-                ), "Return value should be scalar for scalar input"
+                assert t.ndim > 0 or retval.ndim == 0, (
+                    "Return value should be scalar for scalar input"
+                )
             else:
                 Xis, sel = self._build_grid(t)
                 retval = self.f(Xis).reshape(tuple([self._grid_size] * self.dim))
                 retval = self._findiff(retval)
                 retval = retval.T[*sel]
-                assert (
-                    t.ndim > 0 or retval.ndim == 0
-                ), "Return value should be scalar for scalar input"
+                assert t.ndim > 0 or retval.ndim == 0, (
+                    "Return value should be scalar for scalar input"
+                )
         return retval
 
 
@@ -491,8 +491,7 @@ class TensorDerivative:
                 orders = [int(np.equal(ijk, i).sum()) for i in range(dim)]
                 pd = PartialDerivative(f, *orders, h=h[ijk], acc=acc[ijk])
                 if len(orders) == 1:
-                    # Note: prevent that the 1D case gets cast to scalar as orders unpack to to a scalar
-                    self._partials[sorted_ijk] = lambda x, pd=pd: pd(x).squeeze()
+                    # Note: prevent that the 1D case gets cast to scalar as orders unpack to a scalar
                 else:
                     self._partials[sorted_ijk] = pd
             self._partials[ijk] = self._partials[sorted_ijk]
