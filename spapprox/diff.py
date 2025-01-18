@@ -362,11 +362,14 @@ class PartialDerivative(FindiffBase):
     Implements the partial derivative w.r.t. t:
 
     .. math::
-        \sum_k \partial^{\alpha_k}_k f(t),
+        \partial^{\sum_k \alpha_k}_\alpha f(t),
 
-    where the :math:`\alpha_k` form a tuple with integers, and :math:`\alpha_k`
-    differentiates w.r.t. the :math:`k`-th component of :math:`t`.
+    where the :math:`\alpha_k` form a tuple :math:`\alpha` with integers,
+    indicating to differentiate :math:`\alpha_k` w.r.t. the :math:`k`-th
+    component of :math:`t`.
 
+    Note, this implementation does does not support the 1-dim case.
+    Those should be cast to scalar input.
 
     Parameters
     ----------
