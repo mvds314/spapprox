@@ -367,9 +367,6 @@ class PartialDerivative(FindiffBase):
     indicating to differentiate :math:`\alpha_k` w.r.t. the :math:`k`-th
     component of :math:`t`.
 
-    Note, this implementation does does not support the 1-dim case.
-    Those should be cast to scalar input.
-
     Parameters
     ----------
     f : callable
@@ -378,6 +375,9 @@ class PartialDerivative(FindiffBase):
         point at which to evaluate the derivative
     *orders : tuple with integers
         Derivatives w.r.t. arguments of f.
+    dim : int or None, default None
+        Used to prevent the 1-dim to be cast to scalar, i.e., if orders has lenght 1, the default is scalar.
+        When None, it is inferred from orders, if set it should be consistent with orders.
     h : scalar or vector
         Step size for the derivative
     acc : int
