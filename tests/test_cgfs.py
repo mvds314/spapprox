@@ -577,15 +577,10 @@ def test_basic(cgf_to_test, cgf, ts, dist, backend):
             cgf_to_test.add(cgf_to_test, inplace=True)
 
 
-# @pytest.mark.xfail
-@pytest.mark.tofix
 def test_domain():
-    import pdb
-
-    pdb.set_trace()
     # Test simple domain
     cgf = UnivariateCumulantGeneratingFunction(
-        K=lambda t: t**4,
+        K=lambda t: np.power(t, 4),
         domain=Domain(l=1),
     )
     assert np.isclose(cgf.K(0.5), 0.0625)
@@ -598,7 +593,7 @@ def test_domain():
     assert np.isnan(cgf.d3K(1.5))
     # Test domain with bounds
     cgf = UnivariateCumulantGeneratingFunction(
-        K=lambda t: t**4,
+        K=lambda t: np.power(t, 4),
         domain=Domain(g=1, l=2),
     )
     assert np.isnan(cgf.K(0.5))
@@ -610,12 +605,15 @@ def test_domain():
     assert np.isnan(cgf.d3K(0.5))
     assert not np.isnan(cgf.d3K(1.5))
     # Test by indexing MultivariateCumulantGeneratingFunction
-    cgf = MultivariateCumulantGeneratingFunction(
-        K=lambda t: np.sum(t**4),
+    mvcgf = MultivariateCumulantGeneratingFunction(
+        K=np.vectorize(lambda t: np.sum(t**4), signature="(2)->()"),
         domain=Domain(ge=[1, 0], l=[2, 2], dim=2),
         dim=2,
+        numdiff_backend="findiff",
     )
-    cgf = cgf[0]
+    cgf = mvcgf[0]
+    assert np.allclose(cgf.K(1), cgf.K([1, 1]))
+    assert np.allclose(cgf.K(1), mvcgf.K([1, 0]))
     assert np.isnan(cgf.K(0.5))
     assert not np.isnan(cgf.K(1.5))
     assert np.isnan(cgf.dK(0.5))
@@ -623,11 +621,21 @@ def test_domain():
     assert np.isnan(cgf.d2K(0.5))
     assert not np.isnan(cgf.d2K(1.5))
     assert np.isnan(cgf.d3K(0.5))
-    # TODO: continue here and fix this one
-    import pdb
-
-    pdb.set_trace()
     assert not np.isnan(cgf.d3K(1.5))
+    # Test by indexing MultivariateCumulantGeneratingFunction
+    mvcgf = MultivariateCumulantGeneratingFunction(
+        K=np.vectorize(lambda t: np.sum(t**4), signature="(2)->()"),
+        domain=Domain(ge=[1, 0], l=[2, 2], dim=2),
+        dim=2,
+        numdiff_backend="numdifftools",
+    )
+    cgf = mvcgf[0]
+    assert np.allclose(cgf.K(1), cgf.K([1, 1]))
+    assert np.allclose(cgf.K(1), mvcgf.K([1, 0]))
+    assert np.isnan(cgf.K(0.5))
+    assert not np.isnan(cgf.K(1.5))
+    assert np.isnan(cgf.dK(0.5))
+    assert not np.isnan(cgf.dK(1.5))
     # Another test
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**4,
