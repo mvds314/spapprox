@@ -1684,6 +1684,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     signature="(n)->(n,n)",
                 )
             elif self._numdiff_backend == "findiff":
+                assert self.dim > 0
                 _d2K = Hessian(lambda tt: self.K(tt, loc=0, scale=1), self.dim)
             else:
                 raise ValueError("Invalid numdiff backend")
@@ -1830,9 +1831,11 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 else None
             ),
             domain=Domain.from_domains(*[cgf.domain for cgf in cgfs]),
-            numdiff_backend=next(c._numdiff_backend for c in cgfs)
-            if numdiff_backend is None
-            else numdiff_backend,
+            numdiff_backend=(
+                next(c._numdiff_backend for c in cgfs)
+                if numdiff_backend is None
+                else numdiff_backend
+            ),
         )
 
     @classmethod
@@ -1928,7 +1931,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 d2K0=d2K0,
                 d3K0=d3K0,
                 domain=domain,
-                numdiff_backend=next(c._numdiff_backend for c in cgfs)
-                if numdiff_backend is None
-                else numdiff_backend,
+                numdiff_backend=(
+                    next(c._numdiff_backend for c in cgfs)
+                    if numdiff_backend is None
+                    else numdiff_backend
+                ),
             )
