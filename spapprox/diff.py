@@ -307,59 +307,6 @@ class FindiffBase(ABC):
         return retval
 
 
-class Gradient(FindiffBase):
-    r"""
-    Implements the gradient derivative w.r.t. t:
-
-    .. math::
-        [\partial_1 f(t), \partial_2 f(t), \ldots, \partial_d f(t)],
-
-    where :math:`d` is the dimension of :math:`t`.
-
-    Parameters
-    ----------
-    f : callable
-        Function
-    dim : int
-        Dimension of the domain of the function
-    h : scalar or vector
-        Step size for the derivative
-    acc : int
-        Accuracy of the finite difference scheme
-    """
-
-    def __init__(self, f, dim, h=None, acc=2):
-        if not isinstance(dim, int) or dim <= 0:
-            raise ValueError("dim should be a positive integer")
-        self._dim = dim
-        super().__init__(f, h=h, acc=acc)
-        if not np.isscalar(self.h) and len(self.h) != dim:
-            raise ValueError("h should be a scalar or a vector of length dim")
-
-    @property
-    def dim(self):
-        return self._dim
-
-    @property
-    def dim_image(self):
-        """
-        Dimension of the image of the gradient
-        """
-        return self.dim
-
-    @property
-    def orders(self):
-        if not hasattr(self, "_orders_cache"):
-            self._orders_cache = tuple([1] * self.dim)
-        return self._orders_cache
-
-    @property
-    def _findiff(self):
-        if not hasattr(self, "_findiff_cache"):
-            self._findiff_cache = fd.Gradient(h=self._h_vect, acc=self.acc)
-        return self._findiff_cache
-
-
 class PartialDerivative(FindiffBase):
     r"""
     Implements the partial derivative w.r.t. t:
@@ -627,6 +574,31 @@ class TensorDerivative:
             for ijkp in set(itertools.permutations(ijk, self.order)):
                 retval[ijkp] = val
         return retval
+
+
+class Gradient(TensorDerivative):
+    r"""
+    Implements the gradient derivative w.r.t. t:
+
+    .. math::
+        [\partial_1 f(t), \partial_2 f(t), \ldots, \partial_d f(t)],
+
+    where :math:`d` is the dimension of :math:`t`.
+
+    Parameters
+    ----------
+    f : callable
+        Function
+    dim : int
+        Dimension of the domain of the function
+    h : scalar or vector
+        Step size for the derivative
+    acc : int
+        Accuracy of the finite difference scheme
+    """
+
+    def __init__(self, f, dim, h=None, acc=2):
+        super().__init__(f, dim, 1, h=h, acc=acc)
 
 
 class Hessian(TensorDerivative):
