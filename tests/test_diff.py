@@ -70,7 +70,7 @@ from spapprox.diff import (
             id="Simple 2D square with domain constraint",
         ),
         pytest.param(
-            lambda x: np.square(x),
+            lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             1,
             1e-6,
@@ -128,7 +128,7 @@ def test_grad(f, gradf, dim, h, points, error):
             # Test versus partial
             grad_from_partial = np.array(
                 [
-                    PartialDerivative(f, *np.eye(dim, dtype=int)[i].tolist(), h=grad._h_vect[i])(p)
+                    PartialDerivative(f, *np.eye(dim, dtype=int)[i].tolist(), h=h)(p)
                     for i in range(dim)
                 ]
             )
@@ -343,7 +343,6 @@ def test_grad(f, gradf, dim, h, points, error):
             np.linspace(0, 1, 10),
             ValueError,
             id="ValueError, 1D case with scalar input",
-            marks=pytest.mark.tofix,
         ),
     ],
 )
@@ -556,13 +555,12 @@ def test_higher_order_partial_derivatives(f, df, orders, dim, h, points, error):
     [
         pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
-            np.vectorize(lambda x: 2 * x, signature="(2)->(2)"),
+            np.vectorize(lambda x: 2 * x, signature="(1)->(1)"),
             1,
             1,
             None,
-            np.array([np.linspace(0, 1, 10)] * 2).T,
+            np.array([np.linspace(0, 1, 10)]).T,
             None,
-            marks=pytest.mark.tofix,
             id="Tensor derivate 1D gradient",
         ),
         pytest.param(
@@ -577,11 +575,11 @@ def test_higher_order_partial_derivatives(f, df, orders, dim, h, points, error):
         ),
         pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
-            np.vectorize(lambda x: 2 * np.eye(2), signature="(2)->(2,2)"),
+            np.vectorize(lambda x: 2 * np.eye(1), signature="(1)->(1,1)"),
             1,
             2,
             None,
-            np.array([np.linspace(0, 1, 10)] * 2).T,
+            np.array([np.linspace(0, 1, 10)]).T,
             None,
             marks=pytest.mark.tofix,
             id="Simple 1D square, Hessian",
