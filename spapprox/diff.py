@@ -294,8 +294,12 @@ class FindiffBase(ABC):
                 )
             else:
                 Xis, sel = self._build_grid(t)
-                retval = self.f(Xis).reshape(tuple([self._grid_size] * self.dim))
-                retval = self._findiff(retval)
+                if self.dim == 1:
+                    retval = self.f(Xis).reshape((self._grid_size, 1))
+                    retval = self._findiff(retval).squeeze()
+                else:
+                    retval = self.f(Xis).reshape(tuple([self._grid_size] * self.dim))
+                    retval = self._findiff(retval)
                 retval = retval.T[*sel]
                 assert t.ndim > 0 or retval.ndim == 0, (
                     "Return value should be scalar for scalar input"
@@ -417,6 +421,8 @@ class PartialDerivative(FindiffBase):
                     raise ValueError("Cannot set dim to value inconsistent with orders")
             elif len(self.orders) != dim:
                 raise ValueError("Cannot set dim to value inconsistent with orders")
+            if dim == 1 and np.isscalar(self.orders):
+                self._orders = (self.orders,)
             self._dim = dim
 
     @dim.deleter
@@ -443,6 +449,7 @@ class PartialDerivative(FindiffBase):
         if not np.all(np.asanyarray(orders) == np.round(np.asanyarray(orders))):
             raise ValueError("orders should be integers")
         # Set value
+        del self.dim
         if np.isscalar(orders) or np.asanyarray(orders).ndim == 0:
             self._orders = int(orders)
         elif np.asanyarray(orders).ndim == 1 and len(orders) == 1:

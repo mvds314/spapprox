@@ -169,7 +169,7 @@ def test_grad(f, gradf, dim, h, points, error):
             lambda x: np.sum(np.square(x) * np.array([1, 2]), axis=-1),
             lambda x: 2 * x * np.array([1, 2]),
             2,
-            2,
+            None,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
@@ -194,7 +194,7 @@ def test_grad(f, gradf, dim, h, points, error):
                 np.tile(np.all(x >= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
             ).squeeze(),
             2,
-            2,
+            None,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
@@ -212,12 +212,59 @@ def test_grad(f, gradf, dim, h, points, error):
             None,
             id="Simple 2D square with domain constraint",
         ),
+        # Tests for the 1D vector case
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            1,
+            1,
+            1e-6,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D square",
+        ),
+        pytest.param(
+            lambda x: np.where(np.asanyarray(x) > 0, np.square(x), np.nan),
+            lambda x: np.where(
+                np.asanyarray(x) > 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
+            ),
+            1,
+            1,
+            1e-6,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D square with domain constraint",
+        ),
+        pytest.param(
+            lambda x: np.where(np.asanyarray(x) >= 0, np.square(x), np.nan),
+            lambda x: np.where(
+                np.asanyarray(x) >= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
+            ),
+            1,
+            1,
+            1e-6,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D square with domain constraint",
+        ),
+        pytest.param(
+            lambda x: np.where(np.asanyarray(x) <= 0, np.square(x), np.nan),
+            lambda x: np.where(
+                np.asanyarray(x) <= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
+            ),
+            1,
+            1,
+            1e-6,
+            np.expand_dims(np.linspace(-1, 0, 10), axis=-1),
+            None,
+            id="1D square with domain constraint",
+        ),
         # Tests for the scalar case
         pytest.param(
             lambda x: np.square(x),
             lambda x: 2 * x,
             1,
-            1,
+            0,
             1e-6,
             np.linspace(0, 1, 10),
             None,
@@ -229,7 +276,7 @@ def test_grad(f, gradf, dim, h, points, error):
                 np.asanyarray(x) > 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
             ),
             1,
-            1,
+            None,
             1e-6,
             np.linspace(0, 1, 10),
             None,
@@ -241,7 +288,7 @@ def test_grad(f, gradf, dim, h, points, error):
                 np.asanyarray(x) >= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
             ),
             1,
-            1,
+            0,
             1e-6,
             np.linspace(0, 1, 10),
             None,
@@ -253,7 +300,7 @@ def test_grad(f, gradf, dim, h, points, error):
                 np.asanyarray(x) <= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
             ),
             1,
-            1,
+            None,
             1e-6,
             np.linspace(-1, 0, 10),
             None,
@@ -290,22 +337,30 @@ def test_grad(f, gradf, dim, h, points, error):
             ValueError,
             id="ValueError, 1D square with 2D h",
         ),
+        pytest.param(
+            lambda x: np.square(x),
+            lambda x: 2 * x,
+            1,
+            1,
+            1e-6,
+            np.linspace(0, 1, 10),
+            ValueError,
+            id="ValueError, 1D case with scalar input",
+            marks=pytest.mark.tofix,
+        ),
     ],
 )
 def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
     if error is None:
         assert ndim >= 1, "Invalid test"
-        assert ndim == dim or (dim == 0 and ndim == 1), (
+        assert dim is None or ndim == dim or (dim == 0 and ndim == 1), (
             "Invalid test, ndim can only differ from dim in scalar case"
         )
         for i in range(ndim):
             # Note we only test first order derivatives here
-            if ndim == 1:
-                orders = 1
-                pdi = PartialDerivative(f, orders, h=h)
-            else:
-                orders = np.eye(ndim, dtype=int)[i].tolist()
-                pdi = PartialDerivative(f, *orders, h=h)
+            orders = np.eye(ndim, dtype=int)[i].tolist()
+            pdi = PartialDerivative(f, *orders, dim=dim, h=h)
+            assert dim is None or pdi.dim == dim
             for p in points:
                 gradfp = gradf(p)
                 gradfpi = gradfp if np.isscalar(gradfp) or gradfp.ndim == 0 else gradfp[i]
@@ -315,7 +370,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
                 assert np.allclose(pdip, gradfpi, atol=1e-6, equal_nan=True)
             dpipoints = pdi(points)
             assert dpipoints.ndim == 1, "A vector is expected as return value"
-            if ndim <= 1:
+            if pdi.dim == 0:
                 assert np.allclose(dpipoints, gradf(points), equal_nan=True)
             else:
                 assert np.allclose(dpipoints, gradf(points)[:, i], equal_nan=True)
@@ -324,9 +379,9 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
             orders = np.eye(ndim, dtype=int)[i].tolist()
             for p in points:
                 with pytest.raises(error):
-                    PartialDerivative(f, *orders, h=h)(p)
+                    PartialDerivative(f, *orders, dim=dim, h=h)(p)
             with pytest.raises(error):
-                PartialDerivative(f, *orders, h=h)(points)
+                PartialDerivative(f, *orders, dim=dim, h=h)(points)
 
 
 @pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
