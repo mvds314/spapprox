@@ -819,7 +819,7 @@ if __name__ == "__main__":
                 "-v",
                 # "--pdb",
                 "-s",
-                # "-m 'not slow'",
-                "-m tofix",
+                # "-m not slow",
+                # "-m tofix",
             ]
         )
