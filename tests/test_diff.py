@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import itertools
 from pathlib import Path
 
@@ -386,13 +383,14 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
 
 @pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
 @pytest.mark.parametrize(
-    "f, df, orders, h, points, error",
+    "f, df, orders, dim, h, points, error",
     [
         # Scalar higher order derivatives
         pytest.param(
             lambda x: np.square(x),
             lambda x: 2 * np.ones_like(x),
             [2],
+            0,
             None,
             np.linspace(0, 1, 10),
             None,
@@ -403,6 +401,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
             lambda x: 3 * 2 * x,
             [2],
             None,
+            None,
             np.linspace(0, 1, 10),
             None,
             id="Scalar cube second order",
@@ -411,6 +410,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
             lambda x: np.power(x, 3),
             lambda x: 3 * 2 * np.ones_like(x),
             [3],
+            0,
             None,
             np.linspace(0, 1, 2),
             None,
@@ -420,6 +420,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
             lambda x: np.power(x, 4),
             lambda x: 4 * 3 * 2 * np.ones_like(x),
             [4],
+            None,
             1e-2,
             np.linspace(0, 1, 10),
             None,
@@ -430,6 +431,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * np.ones_like(x.take(0, axis=-1)),
             [2, 0],
+            2,
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
@@ -440,6 +442,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
             lambda x: 3 * 2 * x.take(1, axis=-1),
             [0, 2],
             None,
+            None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
             id="Vector cube second order",
@@ -448,16 +451,59 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
             lambda x: np.sum(np.power(x, 3), axis=-1),
             lambda x: 3 * 2 * np.ones_like(x.take(0, axis=-1)),
             [3, 0],
+            2,
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
             id="Vector cube third order",
         ),
-        # Higher order mixed derivates
+        # 1D vector higher order derivatives
+        pytest.param(
+            lambda x: np.square(x),
+            lambda x: 2 * np.ones_like(x),
+            [2],
+            1,
+            None,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D square second order",
+        ),
+        pytest.param(
+            lambda x: np.power(x, 3),
+            np.vectorize(lambda x: 3 * 2 * x.squeeze(), signature="(1)->()"),
+            [2],
+            1,
+            None,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D cube second order",
+        ),
+        pytest.param(
+            lambda x: np.power(x, 3),
+            lambda x: 3 * 2 * np.ones_like(x),
+            [3],
+            1,
+            None,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D cube third order",
+        ),
+        pytest.param(
+            lambda x: np.power(x, 4),
+            lambda x: 4 * 3 * 2 * np.ones_like(x),
+            [4],
+            1,
+            1e-2,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D fourth order",
+        ),
+        # Higher order mixed derivatives
         pytest.param(
             lambda x: np.sum(np.power(x, 2), axis=-1),
             lambda x: np.sum(np.zeros_like(x), axis=-1),
             [1, 1],
+            None,
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
@@ -467,6 +513,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
             lambda x: np.prod(np.power(x, 2), axis=-1),
             lambda x: 4 * np.prod(x, axis=-1),
             [1, 1],
+            2,
             None,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
@@ -477,6 +524,7 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
             lambda x: np.sum(np.power(x, 3), axis=-1),
             lambda x: 3 * 2 * x,
             [2, 2],
+            None,
             1e-6,
             np.linspace(0, 1, 10),
             ValueError,
@@ -484,9 +532,9 @@ def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
         ),
     ],
 )
-def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
+def test_higher_order_partial_derivatives(f, df, orders, dim, h, points, error):
     if error is None:
-        pd = PartialDerivative(f, *orders, h=h, acc=2)
+        pd = PartialDerivative(f, *orders, dim=dim, h=h, acc=2)
         for p in points:
             assert np.asanyarray(p).ndim <= 1, "Invalid test case"
             pdp = pd(p)
@@ -498,9 +546,9 @@ def test_higher_order_partial_derivatives(f, df, orders, h, points, error):
     else:
         for p in points:
             with pytest.raises(error):
-                PartialDerivative(f, *orders, h=h, acc=2)(p)
+                PartialDerivative(f, *orders, dim=dim, h=h, acc=2)(p)
         with pytest.raises(error):
-            PartialDerivative(f, *orders, h=h)(points)
+            PartialDerivative(f, *orders, dim=dim, h=h)(points)
 
 
 @pytest.mark.parametrize(
