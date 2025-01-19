@@ -816,6 +816,7 @@ if __name__ == "__main__":
                 "--durations=10",
                 # "--tb=auto",
                 "--tb=no",
+                "-v",
                 # "--pdb",
                 "-s",
                 # "-m 'not slow'",
