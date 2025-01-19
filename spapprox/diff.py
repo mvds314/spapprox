@@ -521,7 +521,7 @@ class TensorDerivative:
             sorted_ijk = tuple(np.sort(ijk).tolist())
             if self._partials[sorted_ijk] is None:
                 orders = [int(np.equal(ijk, i).sum()) for i in range(dim)]
-                pd = PartialDerivative(f, *orders, h=h[ijk], acc=acc[ijk])
+                pd = PartialDerivative(f, *orders, dim=dim, h=h[ijk], acc=acc[ijk])
                 self._partials[sorted_ijk] = pd
             self._partials[ijk] = self._partials[sorted_ijk]
 
@@ -538,9 +538,14 @@ class TensorDerivative:
     @property
     def f(self):
         if not hasattr(self, "_f_cache"):
-            self._f_cache = self._partials[(0,) * self.order].f
+            self.f = self._partials[(0,) * self.order].f
             assert all(p.f is self.f for p in self), "All functions should be the same"
         return self._f_cache
+
+    @f.setter
+    def f(self, f):
+        assert callable(f)
+        self._f_cache = f
 
     @property
     def h(self):
