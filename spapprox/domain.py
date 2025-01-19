@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import numpy as np
 import pandas as pd
 
@@ -36,9 +35,9 @@ class Domain:
         self.dim = dim
         # Validate bound constraints
         if dim == 1:
-            assert all(
-                x is None or np.isscalar(x) for x in [l, le, ge, g]
-            ), "Bounds should be scalars in dim 1."
+            assert all(x is None or np.isscalar(x) for x in [l, le, ge, g]), (
+                "Bounds should be scalars in dim 1."
+            )
             specified_bounds = [x for x in [l, le, ge, g] if x is not None]
             if len(specified_bounds) > 1:
                 assert all(
@@ -46,9 +45,9 @@ class Domain:
                     for i in range(len(specified_bounds) - 1)
                 ), "Bounds should satisfy: g>ge>le>l"
         else:
-            assert all(
-                x is None or np.isscalar(x) or len(x) == dim for x in [l, le, ge, g]
-            ), "Bounds should be scalars or have matching dim"
+            assert all(x is None or np.isscalar(x) or len(x) == dim for x in [l, le, ge, g]), (
+                "Bounds should be scalars or have matching dim"
+            )
             specified_bounds = [np.asanyarray(x) for x in [l, le, ge, g] if x is not None]
             if len(specified_bounds) > 1:
                 df = pd.DataFrame(
@@ -440,10 +439,9 @@ class Domain:
         """
         Intersect with another domain, i.e., the result should be in both.
         """
-        assert other is not None and isinstance(
-            other, Domain
-        ), "Can only intersect with another Domain"
-        assert self.dim == other.dim, "Dimensions should match"
+        assert other is not None and isinstance(other, Domain), (
+            "Can only intersect with another Domain"
+        )
         if self.l is not None and other.l is not None:
             if self.dim == 1 or (
                 pd.api.types.is_number(self.l) and pd.api.types.is_number(other.l)

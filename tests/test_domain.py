@@ -249,8 +249,9 @@ if __name__ == "__main__":
                 # str(Path(__file__)) + "::test_from_domains",
                 # "-k",
                 # "test_domain_nD",
-                # "--tb=auto",
-                "--pdb",
+                "--tb=no",
+                "-v",
+                # "--pdb",
                 "-s",
             ]
         )
