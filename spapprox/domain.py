@@ -442,6 +442,8 @@ class Domain:
         assert other is not None and isinstance(other, Domain), (
             "Can only intersect with another Domain"
         )
+        if self.dim != other.dim:
+            raise AssertionError("Dimensions should match")
         if self.l is not None and other.l is not None:
             if self.dim == 1 or (
                 pd.api.types.is_number(self.l) and pd.api.types.is_number(other.l)
