@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Wrappers around the findiff package for fast numerical differentiation
 https://pypi.org/project/findiff/
