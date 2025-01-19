@@ -71,7 +71,7 @@ from spapprox.diff import (
         ),
         pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
-            lambda x: 2 * x,
+            np.vectorize(lambda x: 2 * x, signature="(1)->(1)"),
             1,
             1e-6,
             np.atleast_2d(np.linspace(0, 1, 10)).T,
@@ -80,7 +80,7 @@ from spapprox.diff import (
         ),
         pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
-            lambda x: 2 * x,
+            np.vectorize(lambda x: 2 * x, signature="(1)->(1)"),
             1,
             1e-6,
             np.linspace(0, 1, 10),
@@ -128,7 +128,7 @@ def test_grad(f, gradf, dim, h, points, error):
             # Test versus partial
             grad_from_partial = np.array(
                 [
-                    PartialDerivative(f, *np.eye(dim, dtype=int)[i].tolist(), h=h)(p)
+                    PartialDerivative(f, *np.eye(dim, dtype=int)[i].tolist(), dim=dim, h=h)(p)
                     for i in range(dim)
                 ]
             )
@@ -697,8 +697,8 @@ if __name__ == "__main__":
                 # str(Path(__file__)) + "::test_tensor_derivative",
                 # "-k",
                 # "test_partial_derivative",
-                # "--tb=auto",
-                # "-v",
+                "--tb=no",
+                "-v",
                 # "--pdb",
                 # "-m tofix",
                 # "-W error::DeprecationWarning",
