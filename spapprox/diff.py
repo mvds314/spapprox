@@ -384,23 +384,45 @@ class PartialDerivative(FindiffBase):
         Accuracy of the finite difference scheme
     """
 
-    def __init__(self, f, *orders, h=None, acc=2):
+    def __init__(self, f, *orders, dim=None, h=None, acc=2):
         self.orders = orders
+        self.dim = dim
         super().__init__(f, h=h, acc=acc)
         if not np.isscalar(self.h) and len(self.h) != len(orders):
             raise ValueError(f"h should be a scalar or a vector of length {len(orders)}")
 
     @property
     def dim(self):
-        if not hasattr(self, "_dim_cache"):
+        if not hasattr(self, "_dim"):
             if np.isscalar(self.orders):
                 dim = 0
             else:
                 dim = len(self.orders)
                 # For 1 dim case, we assume scalar instead of vector input
                 dim = 0 if dim == 1 else dim
-            self._dim_cache = dim
-        return self._dim_cache
+            self.dim = dim
+        return self._dim
+
+    @dim.setter
+    def dim(self, dim):
+        if dim is None:
+            del self.dim
+        else:
+            if not isinstance(dim, int) or dim < 0:
+                raise ValueError("dim should be a positive integer")
+            if not hasattr(self, "_orders"):
+                raise AssertionError("Cannot set dim before orders are specified")
+            if np.isscalar(self.orders):
+                if dim not in [0, 1]:
+                    raise ValueError("Cannot set dim to value inconsistent with orders")
+            elif len(self.orders) != dim:
+                raise ValueError("Cannot set dim to value inconsistent with orders")
+            self._dim = dim
+
+    @dim.deleter
+    def dim(self):
+        if hasattr(self, "_dim"):
+            delattr(self, "_dim")
 
     @property
     def dim_image(self):
@@ -483,6 +505,7 @@ class TensorDerivative:
         if acc.ndim != order or acc.shape != (dim,) * order:
             raise ValueError(f"acc should be a scalar or a matrix of size {dim}^{order}")
         assert isinstance(order, int) and order >= 1, "order should be an integer >= 2"
+        self.f = f
         self._partials = np.full(tuple([dim] * order), None, dtype=object)
         for ijk in itertools.product(*[range(dim)] * order):
             if self._partials[ijk] is not None:
@@ -492,10 +515,7 @@ class TensorDerivative:
             if self._partials[sorted_ijk] is None:
                 orders = [int(np.equal(ijk, i).sum()) for i in range(dim)]
                 pd = PartialDerivative(f, *orders, h=h[ijk], acc=acc[ijk])
-                if len(orders) == 1:
-                    # Note: prevent that the 1D case gets cast to scalar as orders unpack to a scalar
-                else:
-                    self._partials[sorted_ijk] = pd
+                self._partials[sorted_ijk] = pd
             self._partials[ijk] = self._partials[sorted_ijk]
 
     @property
@@ -504,6 +524,8 @@ class TensorDerivative:
 
     @property
     def dim(self):
+        if self._partials.shape[0] == 0:
+            raise AssertionError("Tensor derivatives cannot have dimension 0")
         return self._partials.shape[0]
 
     @property

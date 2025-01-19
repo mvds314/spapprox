@@ -152,12 +152,13 @@ def test_grad(f, gradf, dim, h, points, error):
 
 @pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
 @pytest.mark.parametrize(
-    "f, gradf, ndim, h, points, error",
+    "f, gradf, ndim, dim, h, points, error",
     [
         # Tests for the vector case
         pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
+            2,
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
@@ -167,6 +168,7 @@ def test_grad(f, gradf, dim, h, points, error):
         pytest.param(
             lambda x: np.sum(np.square(x) * np.array([1, 2]), axis=-1),
             lambda x: 2 * x * np.array([1, 2]),
+            2,
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
@@ -180,6 +182,7 @@ def test_grad(f, gradf, dim, h, points, error):
                 np.tile(np.all(x > 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
             ).squeeze(),
             2,
+            2,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
@@ -190,6 +193,7 @@ def test_grad(f, gradf, dim, h, points, error):
             lambda x: np.where(
                 np.tile(np.all(x >= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
             ).squeeze(),
+            2,
             2,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
@@ -202,6 +206,7 @@ def test_grad(f, gradf, dim, h, points, error):
                 np.tile(np.all(x <= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
             ).squeeze(),
             2,
+            2,
             1e-6,
             np.array([np.linspace(0, 1, 10)] * 2).T,
             None,
@@ -211,6 +216,7 @@ def test_grad(f, gradf, dim, h, points, error):
         pytest.param(
             lambda x: np.square(x),
             lambda x: 2 * x,
+            1,
             1,
             1e-6,
             np.linspace(0, 1, 10),
@@ -223,6 +229,7 @@ def test_grad(f, gradf, dim, h, points, error):
                 np.asanyarray(x) > 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
             ),
             1,
+            1,
             1e-6,
             np.linspace(0, 1, 10),
             None,
@@ -233,6 +240,7 @@ def test_grad(f, gradf, dim, h, points, error):
             lambda x: np.where(
                 np.asanyarray(x) >= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
             ),
+            1,
             1,
             1e-6,
             np.linspace(0, 1, 10),
@@ -245,6 +253,7 @@ def test_grad(f, gradf, dim, h, points, error):
                 np.asanyarray(x) <= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
             ),
             1,
+            1,
             1e-6,
             np.linspace(-1, 0, 10),
             None,
@@ -255,6 +264,7 @@ def test_grad(f, gradf, dim, h, points, error):
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             2,
+            2,
             1e-6,
             np.linspace(-1, 0, 10),
             ValueError,
@@ -263,6 +273,7 @@ def test_grad(f, gradf, dim, h, points, error):
         pytest.param(
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
+            2,
             2,
             -1e-6,
             np.linspace(-1, 0, 10),
@@ -273,6 +284,7 @@ def test_grad(f, gradf, dim, h, points, error):
             lambda x: np.sum(np.square(x), axis=-1),
             lambda x: 2 * x,
             1,
+            1,
             [1e-6, 1e-6],
             np.linspace(-1, 0, 10),
             ValueError,
@@ -280,9 +292,12 @@ def test_grad(f, gradf, dim, h, points, error):
         ),
     ],
 )
-def test_first_order_partial_derivatives(f, gradf, ndim, h, points, error):
+def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
     if error is None:
         assert ndim >= 1, "Invalid test"
+        assert ndim == dim or (dim == 0 and ndim == 1), (
+            "Invalid test, ndim can only differ from dim in scalar case"
+        )
         for i in range(ndim):
             # Note we only test first order derivatives here
             if ndim == 1:
