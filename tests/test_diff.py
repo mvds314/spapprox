@@ -581,7 +581,6 @@ def test_higher_order_partial_derivatives(f, df, orders, dim, h, points, error):
             None,
             np.array([np.linspace(0, 1, 10)]).T,
             None,
-            marks=pytest.mark.tofix,
             id="Simple 1D square, Hessian",
         ),
         pytest.param(
