@@ -74,6 +74,7 @@ def block_diag_3d(*tensors):
     return result
 
 
+# TODO: integrate this one with Partial Derivative
 class FindiffBase(ABC):
     r"""
     Base class for numerical differentiation
@@ -192,76 +193,103 @@ class FindiffBase(ABC):
                 raise AssertionError("h can have at most 1 dimension")
         return self._h_vect_cache
 
-    def _build_grid(self, t, dim=None):
+    def _build_grid(self, t):
         # Initialize
-        if dim is None:
-            dim = self.dim
         t = np.asanyarray(t)
         assert not np.isnan(self.f(t)).any(), "t should be in the domain"
-        # Handle dim=0 case by handling at as a 1-dim vector case
-        if t.ndim == 0 and dim <= 1:
-            # Note this case is currently redundant, but we keep it for completeness, and for inheritance
-            t = np.atleast_1d(t)  # Make the below work for vector valued input
-            grid, sel = self._build_grid(t, dim=1)
-            return grid.squeeze(), sel
-        # Continue with the dim>=1 case
-        if not (t.ndim == dim == 0 or len(t) == dim):
+        if not (t.ndim == self.dim == 0 or len(t) == self.dim):
             raise ValueError("Dimensions do not match")
-        assert dim >= 1, "Domain is assumed to be a vector space at this point"
         # Use central differences by default
-        sel = [self._max_order] * dim
+        sel = [self._max_order] * self.dim if self.dim > 0 else [self._max_order]
         x = np.array([t + i * self.h for i in range(-self._max_order, self._max_order + 1)]).T
         # But adjust if t-h or t+h is not in the domain (for any of the components)
         if np.isnan(self.f(x.T)).any():
             assert not np.isnan(self.f(np.zeros_like(t))), "Zeros is asserted to be in the domain"
-            for i in range(dim):
-                xx = np.zeros((self._grid_size, dim))
-                xx[:, i] = x[i]
-                fxx = self.f(xx)
-                assert len(fxx) == self._grid_size, (
-                    f"f is assumed to be scalar, {self._grid_size} retvals are expected when feeding t-{self._max_order}h,.., t,.. t+{self._max_order}h"
-                )
-                if not np.isnan(fxx).any():
-                    continue
-                if np.isnan(fxx[self._max_order]).any():
-                    raise AssertionError("Domain is assumed to be rectangular")
-                if np.isnan(fxx[: self._max_order]).any():
+            if self.dim == 0:
+                fx = self.f(x)
+                if np.isnan(fx[self._max_order]):
+                    raise AssertionError("Cannot be none at point to be evaluated")
+                if np.isnan(fx[: self._max_order]).any():
                     # Shift to the right
-                    if np.isnan(fxx[self._max_order :]).any():
+                    if np.isnan(fx[self._max_order :]).any():
                         raise AssertionError(
                             f"Either t - {self._max_order}h up to t, or t up to t + {self._max_order}h should be in the domain"
                         )
                     shift = next(
                         i
                         for i in range(self._max_order + 1)
-                        if not np.isnan(fxx[i : self._max_order]).any()
+                        if not np.isnan(fx[i : self._max_order]).any()
                     )
-                    sel[i] += -shift
-                    x[i] += self.h * shift
-                elif np.isnan(fxx[-1]).any():
-                    if np.isnan(fxx[: self._max_order]).any():
+                    sel[0] += -shift
+                    x += self.h * shift
+                elif np.isnan(fx[-1]):
+                    # Shift to the left
+                    if np.isnan(fx[: self._max_order]).any():
                         raise AssertionError(
                             f"Either t - {self._max_order}h up to t, or t up to t + {self._max_order}h should be in the domain"
                         )
                     shift = next(
                         i
                         for i in range(self._max_order + 1)
-                        if not np.isnan(fxx[self._max_order : self._grid_size - i]).any()
+                        if not np.isnan(fx[self._max_order : self._grid_size - i]).any()
                     )
                     # Shift to the left
-                    sel[i] += shift
-                    x[i] += -self.h * shift
+                    sel[0] += shift
+                    x += -self.h * shift
                 else:
                     raise RuntimeError("This should never happen, all cases should be handled")
-                if np.isnan(self.f(x[i])).any():
-                    raise AssertionError("Shifts are assumed to fix any domain issues")
+            else:
+                for i in range(self.dim):
+                    xx = np.zeros((self._grid_size, self.dim))
+                    xx[:, i] = x[i]
+                    fxx = self.f(xx)
+                    assert len(fxx) == self._grid_size, (
+                        f"f is assumed to be scalar, {self._grid_size} retvals are expected when feeding t-{self._max_order}h,.., t,.. t+{self._max_order}h"
+                    )
+                    if not np.isnan(fxx).any():
+                        continue
+                    if np.isnan(fxx[self._max_order]).any():
+                        raise AssertionError("Domain is assumed to be rectangular")
+                    if np.isnan(fxx[: self._max_order]).any():
+                        # Shift to the right
+                        if np.isnan(fxx[self._max_order :]).any():
+                            raise AssertionError(
+                                f"Either t - {self._max_order}h up to t, or t up to t + {self._max_order}h should be in the domain"
+                            )
+                        shift = next(
+                            i
+                            for i in range(self._max_order + 1)
+                            if not np.isnan(fxx[i : self._max_order]).any()
+                        )
+                        sel[i] += -shift
+                        x[i] += self.h * shift
+                    elif np.isnan(fxx[-1]).any():
+                        if np.isnan(fxx[: self._max_order]).any():
+                            raise AssertionError(
+                                f"Either t - {self._max_order}h up to t, or t up to t + {self._max_order}h should be in the domain"
+                            )
+                        shift = next(
+                            i
+                            for i in range(self._max_order + 1)
+                            if not np.isnan(fxx[self._max_order : self._grid_size - i]).any()
+                        )
+                        # Shift to the left
+                        sel[i] += shift
+                        x[i] += -self.h * shift
+                    else:
+                        raise RuntimeError("This should never happen, all cases should be handled")
+                    if np.isnan(self.f(x[i])).any():
+                        raise AssertionError("Shifts are assumed to fix any domain issues")
             if np.isnan(self.f(x.T)).any():
                 raise AssertionError("Shifts are assumed to fix any domain issues")
-        return (
-            np.array(np.meshgrid(*[x[i] for i in range(dim)], indexing="ij"))
-            .reshape((dim, self._grid_size**dim))
-            .T
-        ), sel
+        if self.dim == 0:
+            return x, sel
+        else:
+            return (
+                np.array(np.meshgrid(*[x[i] for i in range(self.dim)], indexing="ij"))
+                .reshape((self.dim, self._grid_size**self.dim))
+                .T
+            ), sel
 
     def __call__(self, t):
         t = np.asanyarray(t)
@@ -283,27 +311,18 @@ class FindiffBase(ABC):
         if np.isnan(self.f(t)).any():
             retval = np.nan if self.dim_image == 0 else np.full(self.dim_image, np.nan)
         else:
+            Xis, sel = self._build_grid(t)
             if self.dim == 0:
-                # Cast to 1-dim vector case
-                Xis, sel = self._build_grid(np.expand_dims(t, axis=-1), dim=1)
-                retval = self.f(Xis.squeeze())
+                retval = self.f(Xis)
                 retval = self._findiff(retval)
-                retval = retval.T[*sel]
-                assert t.ndim > 0 or retval.ndim == 0, (
-                    "Return value should be scalar for scalar input"
-                )
+            elif self.dim == 1:
+                retval = self.f(Xis).reshape((self._grid_size, 1))
+                retval = self._findiff(retval).squeeze()
             else:
-                Xis, sel = self._build_grid(t)
-                if self.dim == 1:
-                    retval = self.f(Xis).reshape((self._grid_size, 1))
-                    retval = self._findiff(retval).squeeze()
-                else:
-                    retval = self.f(Xis).reshape(tuple([self._grid_size] * self.dim))
-                    retval = self._findiff(retval)
-                retval = retval.T[*sel]
-                assert t.ndim > 0 or retval.ndim == 0, (
-                    "Return value should be scalar for scalar input"
-                )
+                retval = self.f(Xis).reshape(tuple([self._grid_size] * self.dim))
+                retval = self._findiff(retval)
+            retval = retval.T[*sel]
+            assert t.ndim > 0 or retval.ndim == 0, "Return value should be scalar for scalar input"
         return retval
 
 
