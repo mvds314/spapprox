@@ -4,8 +4,6 @@ https://pypi.org/project/findiff/
 https://findiff.readthedocs.io/en/latest/
 """
 
-from abc import ABC, abstractmethod
-
 import numpy as np
 import itertools
 
@@ -74,10 +72,16 @@ def block_diag_3d(*tensors):
     return result
 
 
-# TODO: integrate this one with Partial Derivative
-class FindiffBase(ABC):
+class PartialDerivative:
     r"""
-    Base class for numerical differentiation
+    Implements the partial derivative w.r.t. t:
+
+    .. math::
+        \partial^{\sum_k \alpha_k}_\alpha f(t),
+
+    where the :math:`\alpha_k` form a tuple :math:`\alpha` with integers,
+    indicating to differentiate :math:`\alpha_k` w.r.t. the :math:`k`-th
+    component of :math:`t`.
 
     Based on the findiff package. Which only works for a grid of points.
     This class creates an appropriate grid around a point where to evaluate the derivative.
@@ -95,9 +99,26 @@ class FindiffBase(ABC):
     The derivative itself can be vector valued, e.g., a gradient, or scalar valued, e.g., a partial derivative.
     Scalar valued derivatives have dimension 0.
     The function :math:`f` is assumed be scalar valued, but should support vector valued evaluation.
+    Parameters
+    ----------
+    f : callable
+        Function
+    t : vector
+        point at which to evaluate the derivative
+    *orders : tuple with integers
+        Derivatives w.r.t. arguments of f.
+    dim : int or None, default None
+        Used to prevent the 1-dim to be cast to scalar, i.e., if orders has lenght 1, the default is scalar.
+        When None, it is inferred from orders, if set it should be consistent with orders.
+    h : scalar or vector
+        Step size for the derivative
+    acc : int
+        Accuracy of the finite difference scheme
     """
 
-    def __init__(self, f, h=None, acc=2):
+    def __init__(self, f, *orders, dim=None, h=None, acc=2):
+        self.orders = orders
+        self.dim = dim
         if not _has_findiff:
             raise ImportError("The findiff package is required for this functionality")
         if not callable(f):
@@ -108,23 +129,35 @@ class FindiffBase(ABC):
             "accuracy should be an integer >= 2"
         )
         self.acc = int(acc)
+        if not np.isscalar(self.h) and len(self.h) != len(orders):
+            raise ValueError(f"h should be a scalar or a vector of length {len(orders)}")
 
     @property
-    @abstractmethod
-    def dim(self):
+    def dim_image(self):
         """
-        Dimension of the domain function to be evaluated.
-        For a field of scalars, this is 0.
+        Dimension of the image of the partial derivative is scalar valued
         """
-        raise NotImplementedError
+        return 0
 
     @property
-    @abstractmethod
     def orders(self):
-        """
-        Orders of the derivative per dimension
-        """
-        raise NotImplementedError
+        return self._orders
+
+    @orders.setter
+    def orders(self, orders):
+        # Validation
+        if not (np.isscalar(orders) or np.asanyarray(orders).ndim <= 1):
+            raise ValueError("orders should be a scalar or vector")
+        if not np.all(np.asanyarray(orders) == np.round(np.asanyarray(orders))):
+            raise ValueError("orders should be integers")
+        # Set value
+        del self.dim
+        if np.isscalar(orders) or np.asanyarray(orders).ndim == 0:
+            self._orders = int(orders)
+        elif np.asanyarray(orders).ndim == 1 and len(orders) == 1:
+            self._orders = int(orders[0])
+        else:
+            self._orders = tuple(int(i) for i in orders)
 
     @property
     def _max_order(self):
@@ -137,20 +170,6 @@ class FindiffBase(ABC):
         if not hasattr(self, "_grid_size_cache"):
             self._grid_size_cache = 2 * self._max_order + 1
         return self._grid_size_cache
-
-    @property
-    @abstractmethod
-    def dim_image(self):
-        """
-        Dimension of the image of the derivative
-        If if the derivative is scalar valued, this is 0.
-        """
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def _findiff(self):
-        raise NotImplementedError
 
     @property
     def h(self):
@@ -325,42 +344,6 @@ class FindiffBase(ABC):
             assert t.ndim > 0 or retval.ndim == 0, "Return value should be scalar for scalar input"
         return retval
 
-
-class PartialDerivative(FindiffBase):
-    r"""
-    Implements the partial derivative w.r.t. t:
-
-    .. math::
-        \partial^{\sum_k \alpha_k}_\alpha f(t),
-
-    where the :math:`\alpha_k` form a tuple :math:`\alpha` with integers,
-    indicating to differentiate :math:`\alpha_k` w.r.t. the :math:`k`-th
-    component of :math:`t`.
-
-    Parameters
-    ----------
-    f : callable
-        Function
-    t : vector
-        point at which to evaluate the derivative
-    *orders : tuple with integers
-        Derivatives w.r.t. arguments of f.
-    dim : int or None, default None
-        Used to prevent the 1-dim to be cast to scalar, i.e., if orders has lenght 1, the default is scalar.
-        When None, it is inferred from orders, if set it should be consistent with orders.
-    h : scalar or vector
-        Step size for the derivative
-    acc : int
-        Accuracy of the finite difference scheme
-    """
-
-    def __init__(self, f, *orders, dim=None, h=None, acc=2):
-        self.orders = orders
-        self.dim = dim
-        super().__init__(f, h=h, acc=acc)
-        if not np.isscalar(self.h) and len(self.h) != len(orders):
-            raise ValueError(f"h should be a scalar or a vector of length {len(orders)}")
-
     @property
     def dim(self):
         if not hasattr(self, "_dim"):
@@ -395,33 +378,6 @@ class PartialDerivative(FindiffBase):
     def dim(self):
         if hasattr(self, "_dim"):
             delattr(self, "_dim")
-
-    @property
-    def dim_image(self):
-        """
-        Dimension of the image of the partial derivative is scalar valued
-        """
-        return 0
-
-    @property
-    def orders(self):
-        return self._orders
-
-    @orders.setter
-    def orders(self, orders):
-        # Validation
-        if not (np.isscalar(orders) or np.asanyarray(orders).ndim <= 1):
-            raise ValueError("orders should be a scalar or vector")
-        if not np.all(np.asanyarray(orders) == np.round(np.asanyarray(orders))):
-            raise ValueError("orders should be integers")
-        # Set value
-        del self.dim
-        if np.isscalar(orders) or np.asanyarray(orders).ndim == 0:
-            self._orders = int(orders)
-        elif np.asanyarray(orders).ndim == 1 and len(orders) == 1:
-            self._orders = int(orders[0])
-        else:
-            self._orders = tuple(int(i) for i in orders)
 
     @property
     def _findiff(self):
