@@ -800,6 +800,7 @@ def test_dKinv(cgf, ts):
 
 
 # TODO: fix warnings
+# TODO: handle todos in cgf base code
 # TODO: test everything, and continue with saddlepoint approx
 
 
