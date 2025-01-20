@@ -38,7 +38,8 @@ from spapprox.diff import PartialDerivative
             np.vectorize(
                 lambda t, pdf=sps.norm.pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55],
             sps.norm(loc=0, scale=1),
@@ -54,7 +55,8 @@ from spapprox.diff import PartialDerivative
             np.vectorize(
                 lambda t, pdf=sps.norm.pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55],
             sps.norm(loc=0, scale=1),
@@ -86,7 +88,8 @@ from spapprox.diff import PartialDerivative
             np.vectorize(
                 lambda t, pdf=sps.norm(0, np.sqrt(2)).pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55],
             sps.norm(loc=0, scale=np.sqrt(2)),
@@ -133,7 +136,8 @@ from spapprox.diff import PartialDerivative
             np.vectorize(
                 lambda t, pdf=sps.norm(0, 1.1).pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55],
             sps.norm(loc=0, scale=1.1),
@@ -156,7 +160,8 @@ from spapprox.diff import PartialDerivative
             np.vectorize(
                 lambda t, pdf=sps.norm(0.8, 1.1 * np.sqrt(2)).pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55],
             sps.norm(loc=0.8, scale=1.1 * np.sqrt(2)),
@@ -183,7 +188,8 @@ from spapprox.diff import PartialDerivative
                         lambda x, pdf=sps.norm(loc=1, scale=0.5).pdf: pdf(x) * np.exp(t * x),
                         a=-5,
                         b=5,
-                    )[0]
+                    )[0],
+                    signature="()->()",
                 )
             ),
             [0.2, 0.55],
@@ -209,7 +215,8 @@ from spapprox.diff import PartialDerivative
             np.vectorize(
                 lambda t, pdf=sps.norm.pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=-10, b=10)[0]
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55],
             sps.norm(loc=0, scale=1),
@@ -238,7 +245,8 @@ from spapprox.diff import PartialDerivative
             np.vectorize(
                 lambda t, pdf=sps.expon.pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55],
             sps.expon(scale=1),
@@ -263,7 +271,8 @@ from spapprox.diff import PartialDerivative
             np.vectorize(
                 lambda t, pdf=sps.expon(scale=0.5).pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55],
             sps.expon(scale=0.5),
@@ -311,7 +320,8 @@ from spapprox.diff import PartialDerivative
             np.vectorize(
                 lambda t, pdf=sps.gamma(a=1.1, scale=0.9).pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55],
             sps.gamma(a=1.1, scale=0.9),
@@ -333,8 +343,11 @@ from spapprox.diff import PartialDerivative
         # Case 12: Univariate chi2
         pytest.param(
             chi2(df=3),
-            lambda t, pdf=sps.chi2(df=3).pdf: np.log(
-                quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+            np.vectorize(
+                lambda t, pdf=sps.chi2(df=3).pdf: np.log(
+                    quad(lambda x: pdf(x) * np.exp(t * x), a=0, b=100)[0]
+                ),
+                signature="()->()",
             ),
             [0.2, 0.25],
             sps.chi2(df=3),
@@ -363,7 +376,8 @@ from spapprox.diff import PartialDerivative
             np.vectorize(
                 lambda t, pdf=sps.laplace(loc=0, scale=1).pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55, -0.23],
             sps.laplace(loc=0, scale=1),
@@ -437,7 +451,8 @@ from spapprox.diff import PartialDerivative
             np.vectorize(
                 lambda t, pdf=sps.norm(loc=2, scale=0.2).pdf: np.log(
                     quad(lambda x: pdf(x) * np.exp(t * x), a=-50, b=50)[0]
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55, -0.23],
             sps.norm(loc=2, scale=0.2),
