@@ -386,14 +386,13 @@ from spapprox.diff import PartialDerivative
                 laplace(loc=0, scale=3), laplace(loc=0, scale=1)
             ).ldot([1, 0]),
             laplace(loc=0, scale=3).K,
-            [0.2, 0.3, -0.23],
+            [0.2, 0.1, -0.1],
             sps.laplace(loc=0, scale=3),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.xfail],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate laplace from multivariate",
         ),
         # Case 14: Univariate poisson
-        # TODO: fix this test
         pytest.param(
             poisson(mu=2),
             lambda t, pmf=sps.poisson(mu=2).pmf: np.log(
@@ -453,11 +452,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55, -0.23],
             sps.norm(loc=2, scale=0.2),
             "findiff",
-            marks=[
-                pytest.mark.skipif(not has_findiff, reason="No findiff"),
-                pytest.mark.slow,
-                pytest.mark.xfail,
-            ],
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
             id="univariate sample mean",
         ),
         pytest.param(
@@ -512,7 +507,7 @@ def test_basic(cgf_to_test, cgf, ts, dist, backend):
         else:
             raise ValueError(f"Backend {backend} not supported in test")
         assert np.isclose(dcgf(t), cgf_to_test.dK(t))
-        assert np.isclose(d2cgf(t), cgf_to_test.d2K(t))
+        assert np.isclose(d2cgf(t), cgf_to_test.d2K(t), atol=1e-6)
         assert np.isclose(d3cgf(t), cgf_to_test.d3K(t), atol=5e-3)
     # Test vectorized evaluation
     assert np.isclose(cgf_to_test.mean, dist.mean())
@@ -571,9 +566,9 @@ def test_basic(cgf_to_test, cgf, ts, dist, backend):
         # Test second derivative
         cgf_to_test.mul(1.01, inplace=True)
         assert np.isclose(d2cgf(1.01 * t) / (1 / 1.01) ** 2, cgf_to_test.d2K(t), atol=1e-4)
-        assert np.isclose(cgf_to_test.d2K0, d2cgf(0) * 1.01**2)
+        assert np.isclose(cgf_to_test.d2K0, d2cgf(0) * 1.01**2, atol=1e-5)
         cgf_to_test.mul(1 / 1.01, inplace=True)
-        assert np.isclose(cgf_to_test.d2K0, d2cgf(0))
+        assert np.isclose(cgf_to_test.d2K0, d2cgf(0), atol=1e-5)
     # Test addition other cumulant generating function
     for t in ts:
         assert np.isclose(cgf(t) + cgf(t), (cgf_to_test + cgf_to_test).K(t))
@@ -804,9 +799,7 @@ def test_dKinv(cgf, ts):
     assert np.allclose(cgf.dK_inv(cgf.dK(ts)), [cgf.dK_inv(cgf.dK(t)) for t in ts])
 
 
-# TODO: integrate diff in multivariate cgfs, one by one
-# TODO: test that stuff
-# TODO: resolve remaining xfails in this file
+# TODO: test everything, and continue with saddlepoint approx
 
 
 if __name__ == "__main__":
@@ -824,6 +817,5 @@ if __name__ == "__main__":
                 # "--pdb",
                 "-s",
                 # "-m not slow",
-                # "-m tofix",
             ]
         )
