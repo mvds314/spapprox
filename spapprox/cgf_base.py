@@ -1810,7 +1810,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             d3K=lambda t, cgfs=cgfs: np.einsum(
                 "i,ijk->ijk",
                 np.array([cgf.d3K(ti) for ti, cgf in zip(t.T, cgfs)]),
-                np.eye(dim, dim, dim),
+                # Note this gives a multi-dimensional identity tensor
+                np.eye(dim).reshape((dim, dim, 1)) * np.eye(dim).reshape((1, dim, dim)),
             ),
             # TODO: test derivatives at zero
             dK0=(
