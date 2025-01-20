@@ -189,8 +189,8 @@ from spapprox.diff import PartialDerivative
                         a=-5,
                         b=5,
                     )[0],
-                    signature="()->()",
-                )
+                ),
+                signature="()->()",
             ),
             [0.2, 0.55],
             sps.norm(loc=1, scale=0.5),
