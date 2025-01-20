@@ -401,7 +401,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.poisson(mu=2),
             "findiff",
-            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.tofix],
             id="univariate poisson",
         ),
         pytest.param(
@@ -799,6 +799,7 @@ def test_dKinv(cgf, ts):
     assert np.allclose(cgf.dK_inv(cgf.dK(ts)), [cgf.dK_inv(cgf.dK(t)) for t in ts])
 
 
+# TODO: fix deprecation warning in univariate poisson
 # TODO: fix warnings
 # TODO: handle todos in cgf base code
 # TODO: test everything, and continue with saddlepoint approx
@@ -817,6 +818,7 @@ if __name__ == "__main__":
                 "--tb=no",
                 "-v",
                 # "--pdb",
+                "-W error",
                 "-s",
                 # "-m not slow",
             ]
