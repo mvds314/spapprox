@@ -352,11 +352,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.25],
             sps.chi2(df=3),
             "findiff",
-            marks=[
-                pytest.mark.skipif(not has_findiff, reason="No findiff"),
-                pytest.mark.slow,
-                pytest.mark.xfail,
-            ],
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
             id="univariate chi2",
         ),
         pytest.param(
