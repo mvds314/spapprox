@@ -1815,7 +1815,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             dK0 = np.array([cgf.dK0 for cgf in cgfs])
         if d2K0 is not None:
             d2K0 = np.asanyarray(d2K0)
-            assert d2K0.shape == (dim, dim), "Invalid shape"
+            if d2K0.shape != (dim, dim):
+                raise ValueError("Invalid shape for d2K0")
         elif all(cgf._d2K0 is not None for cgf in cgfs):
             # This einsum effectively puts the univariate derivatives on the diagonal
             d2K0 = np.einsum("i,ij->ij", np.array([cgf.d2K0 for cgf in cgfs]), np.eye(dim))
