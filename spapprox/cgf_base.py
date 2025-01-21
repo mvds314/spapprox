@@ -1774,9 +1774,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 y[~cond] = fillna
                 return y
 
-    # TODO: add option for force initialization of derivatives at zero -> maybe also at other places
+    # TODO: use this the added option to create a test
     @classmethod
-    def from_univariate(cls, *cgfs, numdiff_backend=None):
+    def from_univariate(cls, *cgfs, numdiff_backend=None, dK0=None, d2K0=None, d3K0=None):
         """
         Create a multivariate cgf from a list of univariate cgfs.
 
@@ -1786,6 +1786,19 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
         .. math::
            K_X(t) = \mathbb{E} \exp{<t,X>} = \sum_i K_{X_i}(t_i).
+
+        Parameters
+        ----------
+        cgfs : list
+            List of univariate cumulant generating functions
+        numdiff_backend : str
+            Numdiff backend to use for numerical differentiation, one of "numdifftools" or "findiff"
+        dK0 : numpy.ndarray
+            Explicitly set the derivatives at zero
+        d2K0 : numpy.ndarray
+            Explicitly set the second order derivatives at zero
+        d3K0 : numpy.ndarray
+            Explicitly set the third order derivatives at zero
         """
         assert len(cgfs) >= 1, (
             "at least 2 Univariate cumulant generating functions should be supplied"
@@ -1794,16 +1807,38 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             "All cgfs must be univariate"
         )
         dim = len(cgfs)
+        if dK0 is not None:
+            dK0 = np.asanyarray(dK0)
+            assert dK0.shape == (dim,), "Invalid shape"
+        elif all(cgf._dK0 is not None for cgf in cgfs):
+            dK0 = np.array([cgf.dK0 for cgf in cgfs])
+        if d2K0 is not None:
+            d2K0 = np.asanyarray(d2K0)
+            assert d2K0.shape == (dim, dim), "Invalid shape"
+        elif all(cgf._d2K0 is not None for cgf in cgfs):
+            # This einsum effectively puts the univariate derivatives on the diagonal
+            d2K0 = np.einsum("i,ij->ij", np.array([cgf.d2K0 for cgf in cgfs]), np.eye(dim))
+        if d3K0 is not None:
+            d3K0 = np.asanyarray(d3K0)
+            assert d3K0.shape == (dim, dim, dim), "Invalid shape"
+        elif all(cgf._d3K0 is not None for cgf in cgfs):
+            # This einsum effectively puts the univariate derivatives on the diagonal
+            d3K0 = np.einsum(
+                "i,ijk->ijk",
+                np.array([cgf.d3K0 for cgf in cgfs]),
+                # Note this gives a multi-dimensional identity tensor
+                np.eye(dim).reshape((dim, dim, 1)) * np.eye(dim).reshape((1, dim, dim)),
+            )
         return cls(
             lambda t, cgfs=cgfs: np.sum([cgf.K(ti) for ti, cgf in zip(t.T, cgfs)], axis=0),
             dim=dim,
             loc=0,
             scale=1,
             dK=lambda t, cgfs=cgfs: np.array([cgf.dK(ti) for ti, cgf in zip(t.T, cgfs)]).T,
-            # TODO: maybe also refactor this one as well to einsum
-            d2K=lambda t, cgfs=cgfs: np.apply_along_axis(
-                np.diag, 0, np.array([cgf.d2K(ti) for ti, cgf in zip(t.T, cgfs)])
-            ).swapaxes(0, -1),
+            # These einsums effectively put the univariate derivatives on the diagonal
+            d2K=lambda t, cgfs=cgfs: np.einsum(
+                "i,ij->ij", np.array([cgf.d2K(ti) for ti, cgf in zip(t.T, cgfs)]), np.eye(dim)
+            ),
             # TODO: test this one!
             d3K=lambda t, cgfs=cgfs: np.einsum(
                 "i,ijk->ijk",
@@ -1812,23 +1847,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 np.eye(dim).reshape((dim, dim, 1)) * np.eye(dim).reshape((1, dim, dim)),
             ),
             # TODO: test derivatives at zero
-            dK0=(
-                np.array([cgf.dK0 for cgf in cgfs])
-                if all(cgf._dK0 is not None for cgf in cgfs)
-                else None
-            ),
-            d2K0=(
-                np.einsum("i,ij->ij", np.array([cgf.d2K0 for cgf in cgfs]), np.eye(dim, dim))
-                if all(cgf._d2K0 is not None for cgf in cgfs)
-                else None
-            ),
-            d3K0=(
-                np.einsum(
-                    "i,ijk->ijk", np.array([cgf.d3K0 for cgf in cgfs]), np.eye(dim, dim, dim)
-                )
-                if all(cgf._d3K0 is not None for cgf in cgfs)
-                else None
-            ),
+            dK0=dK0,
+            d2K0=d2K0,
+            d3K0=d3K0,
             domain=Domain.from_domains(*[cgf.domain for cgf in cgfs]),
             numdiff_backend=(
                 next(c._numdiff_backend for c in cgfs)
