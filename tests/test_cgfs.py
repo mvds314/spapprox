@@ -572,6 +572,7 @@ def test_basic(cgf_to_test, cgf, ts, dist, backend):
         assert np.isclose(cgf_to_test.d2K0, d2cgf(0) * 1.01**2, atol=1e-5)
         cgf_to_test.mul(1 / 1.01, inplace=True)
         assert np.isclose(cgf_to_test.d2K0, d2cgf(0), atol=1e-5)
+        # TODO: test third derivative
     # Test addition other cumulant generating function
     for t in ts:
         assert np.isclose(cgf(t) + cgf(t), (cgf_to_test + cgf_to_test).K(t))

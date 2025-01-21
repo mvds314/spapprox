@@ -92,6 +92,7 @@ def test_2d_from_uniform():
     assert np.allclose(mcgf.d2K(ts), val)
     assert np.allclose(mcgf_from_univ.d2K(ts), val)
     assert np.allclose(mcgf_int.d2K(ts), val, atol=1e-3)
+    # TODO: test third order derivatives
 
 
 @pytest.mark.parametrize(
@@ -165,6 +166,7 @@ def test_statistics(mcgf, mean, cov):
             2,
             id="Addition with covariance structure",
         ),
+        # TODO: add a test with nonzero higher order derivatives
     ],
 )
 def test_addition(mcgf1, mcgf2, dim):
@@ -182,6 +184,7 @@ def test_addition(mcgf1, mcgf2, dim):
         assert np.allclose(getattr(mcgf2, f)(ts), val)
     assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
     assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
+    # TODO: test higher oder derivatives diK0
 
 
 @pytest.mark.parametrize(
