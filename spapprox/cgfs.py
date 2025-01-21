@@ -187,7 +187,7 @@ def univariate_empirical(x):
 
 # TODO: multivariate Gamma (See Butler 2007, page 77; Huzurbar 2012)
 
-# TODO: multinoimal distribution (see Butler 2007, page 80)
+# TODO: multinomial distribution (see Butler 2007, page 80)
 
 # TODO: add bivariate poisson distribution (see Butler 2007, page 81)
 
@@ -195,7 +195,7 @@ def univariate_empirical(x):
 
 # TODO: add multinomial bootstrap of the mean
 
-# TODO: see the exercise in Butler for negative binomial distribution, and multivariate logistc distribution
+# TODO: see the exercise in Butler for negative binomial distribution, and multivariate logistic distribution
 
 
 def poisson(mu=1):
