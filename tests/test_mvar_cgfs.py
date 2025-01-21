@@ -131,7 +131,7 @@ def test_statistics(mcgf, mean, cov):
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
-                norm() + 1, norm() + 2, dK0=[1, 2], d2K0=np.zeros((2, 2)), d3K0=np.zeros((2, 2, 2))
+                norm() + 1, norm() + 2, dK0=[1, 2], d2K0=np.eye(2), d3K0=np.zeros((2, 2, 2))
             ),
             multivariate_norm(loc=np.zeros(2), scale=1) + np.array([1, 2]),
             2,
