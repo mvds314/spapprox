@@ -184,9 +184,10 @@ def test_addition(mcgf1, mcgf2, dim):
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+        assert np.allclose(mcgf1.d3K(t), mcgf2.d3K(t))
         assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
         assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
-    for f in ["K", "dK", "d2K"]:
+    for f in ["K", "dK", "d2K", "d3K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
