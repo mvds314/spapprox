@@ -42,7 +42,7 @@ def multivariate_norm(loc=0, scale=None, dim=None, cov=None):
     ----------
     [1] Butler (2007) - Saddlepoint Approximations with Applications
     """
-    # Initiliaze scale
+    # Initialize scale
     if cov is None and scale is None:
         scale = 1
     elif cov is not None:
