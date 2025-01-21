@@ -1092,7 +1092,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 lambda t, mcgf=mcgf: mcgf.K(np.expand_dims(t, -1)),
                 dK=lambda t, mcgf=mcgf: mcgf.dK(np.expand_dims(t, -1)).squeeze(),
                 d2K=lambda t, mcgf=mcgf: mcgf.d2K(np.expand_dims(t, -1)).squeeze(),
-                # TODO: test this one!
                 d3K=lambda t, mcgf=mcgf: mcgf.d3K(np.expand_dims(t, -1)).squeeze(),
                 dK0=mcgf.dK0.squeeze() if mcgf._dK0 is not None else None,
                 d2K0=mcgf.d2K0.squeeze() if mcgf._d2K0 is not None else None,
@@ -1137,13 +1136,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     if self._d2K is None
                     else lambda t, loc=loc, scale=scale: self.d2K(t, loc=loc, scale=scale)
                 ),
-                # TODO: test this one!
                 d3K=(
                     None
                     if self._d3K is None
                     else lambda t, loc=loc, scale=scale: self.d3K(t, loc=loc, scale=scale)
                 ),
-                # Note these derivatives if they are already computed
+                # Note, store these derivatives if they are already computed
                 dK0=(
                     self.dK0[item]
                     if self._dK0 is not None or hasattr(self, "_dK0_cache")
