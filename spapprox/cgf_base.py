@@ -1671,7 +1671,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         # Initialize
         if t.ndim == 0:
-            assert self.dim == 0, "t should be a vector"
             t = np.full(self.dim, t)
         if self._d2K is None:
             if self._numdiff_backend == "numdifftools":
@@ -1738,7 +1737,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         # Initialize
         if t.ndim == 0:
-            assert self.dim == 0, "t should be a vector"
             t = np.full(self.dim, t)
         if self._d3K is None:
             # TODO: implement also with numdifftools backend?
@@ -1839,15 +1837,20 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             scale=1,
             dK=lambda t, cgfs=cgfs: np.array([cgf.dK(ti) for ti, cgf in zip(t.T, cgfs)]).T,
             # These einsums effectively put the univariate derivatives on the diagonal
-            d2K=lambda t, cgfs=cgfs: np.einsum(
-                "i,ij->ij", np.array([cgf.d2K(ti) for ti, cgf in zip(t.T, cgfs)]), np.eye(dim)
+            d2K=np.vectorize(
+                lambda t, cgfs=cgfs: np.einsum(
+                    "i,ij->ij", np.array([cgf.d2K(ti) for ti, cgf in zip(t.T, cgfs)]), np.eye(dim)
+                ),
+                signature=f"({dim})->({dim},{dim})",
             ),
-            # TODO: test this one!
-            d3K=lambda t, cgfs=cgfs: np.einsum(
-                "i,ijk->ijk",
-                np.array([cgf.d3K(ti) for ti, cgf in zip(t.T, cgfs)]),
-                # Note this gives a multi-dimensional identity tensor
-                np.eye(dim).reshape((dim, dim, 1)) * np.eye(dim).reshape((1, dim, dim)),
+            d3K=np.vectorize(
+                lambda t, cgfs=cgfs: np.einsum(
+                    "i,ijk->ijk",
+                    np.array([cgf.d3K(ti) for ti, cgf in zip(t.T, cgfs)]),
+                    # Note this gives a multi-dimensional identity tensor
+                    np.eye(dim).reshape((dim, dim, 1)) * np.eye(dim).reshape((1, dim, dim)),
+                ),
+                signature=f"({dim})->({dim},{dim},{dim})",
             ),
             # TODO: test derivatives at zero
             dK0=dK0,
