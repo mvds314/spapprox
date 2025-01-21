@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import numpy as np
 
 from .cgf_base import (
@@ -63,9 +62,9 @@ def multivariate_norm(loc=0, scale=None, dim=None, cov=None):
         else:
             dim = 2
     # Validate input
-    assert (
-        loc is None or loc.ndim == 0 or (loc.ndim == 1 and loc.shape[0] == dim)
-    ), "loc has wrong shape"
+    assert loc is None or loc.ndim == 0 or (loc.ndim == 1 and loc.shape[0] == dim), (
+        "loc has wrong shape"
+    )
     assert (
         scale is None
         or scale.ndim == 0
