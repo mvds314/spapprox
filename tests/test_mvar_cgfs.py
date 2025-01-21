@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 from pathlib import Path
 
 import numpy as np
@@ -20,8 +17,8 @@ from spapprox import (
 
 # gamma,
 # chi2,
-# laplace,
-# poisson,
+# Laplace,
+# Poisson,
 # binomial,
 # univariate_sample_mean,
 # univariate_empirical,
@@ -131,7 +128,7 @@ def test_statistics(mcgf, mean, cov):
             multivariate_norm(loc=np.zeros(2), scale=1) + np.array([1, 2]),
             2,
         ),
-        # add a vector in a different way
+        # Add a vector in a different way
         (
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.zeros(2), scale=1).add(np.array([1, 2])),
@@ -155,14 +152,14 @@ def test_statistics(mcgf, mean, cov):
             multivariate_norm(loc=np.ones(2), scale=1),
             2,
         ),
-        # Add multivariate cumulant genering function
+        # Add multivariate cumulant generating function
         (
             multivariate_norm(loc=np.ones(2), scale=1)
             + multivariate_norm(loc=np.zeros(2), scale=1),
             multivariate_norm(loc=np.ones(2), scale=np.sqrt(2)),
             2,
         ),
-        # Add multivariate cumulant genering function
+        # Add multivariate cumulant generating function
         (
             multivariate_norm(loc=np.ones(2), scale=1) + norm(loc=0, scale=1),
             multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]])),
@@ -190,7 +187,7 @@ def test_addition(mcgf1, mcgf2, dim):
 @pytest.mark.parametrize(
     "mcgf1,mcgf2,dim",
     [
-        # multiply by or divide by vector in several equivalent ways
+        # Multiply by or divide by vector in several equivalent ways
         (
             MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
             multivariate_norm(loc=np.zeros(2), scale=1) * np.array([1, 2]),
@@ -235,7 +232,7 @@ def test_addition(mcgf1, mcgf2, dim):
     ],
 )
 def test_multiplication_and_division(mcgf1, mcgf2, dim):
-    # multiply vector in several equivalent ways
+    # Multiply vector in several equivalent ways
     assert mcgf1.dim == mcgf2.dim == dim
     ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
     for t in ts:
