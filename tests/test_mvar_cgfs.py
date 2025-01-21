@@ -122,48 +122,48 @@ def test_statistics(mcgf, mean, cov):
 @pytest.mark.parametrize(
     "mcgf1,mcgf2,dim",
     [
-        # add vector
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.zeros(2), scale=1) + np.array([1, 2]),
             2,
+            id="Add vector",
         ),
-        # Add a vector in a different way
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.zeros(2), scale=1).add(np.array([1, 2])),
             2,
+            id="Add vector in a different way",
         ),
-        # add hen specified as loc
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.array([1, 2]), scale=1),
             2,
+            id="Add and compare using loc",
         ),
-        # Add a constant
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.array([0, 1]), scale=1) + 1,
             2,
+            id="Add a constant",
         ),
-        # add scalar
-        (
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1) + 1,
             multivariate_norm(loc=np.ones(2), scale=1),
             2,
+            id="Add scalar",
         ),
-        # Add multivariate cumulant generating function
-        (
+        pytest.param(
             multivariate_norm(loc=np.ones(2), scale=1)
             + multivariate_norm(loc=np.zeros(2), scale=1),
             multivariate_norm(loc=np.ones(2), scale=np.sqrt(2)),
             2,
+            id="Add multivariate cumulant generating function",
         ),
-        # Add multivariate cumulant generating function
-        (
+        pytest.param(
             multivariate_norm(loc=np.ones(2), scale=1) + norm(loc=0, scale=1),
             multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]])),
             2,
+            id="Addition with covariance structure",
         ),
     ],
 )
