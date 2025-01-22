@@ -803,6 +803,7 @@ def test_return_type(cgf):
             )[0],
             [0.2, 0.55, -0.23],
         ),
+        # TODO: add bivariate gamma
     ],
 )
 def test_dKinv(cgf, ts):

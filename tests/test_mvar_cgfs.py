@@ -106,6 +106,7 @@ def test_2d_from_uniform():
             [1, 2],
             np.arange(1, 5).reshape((2, 2)).dot(np.arange(1, 5).reshape((2, 2)).T),
         ),
+        # TODO: add bivariate gamma
     ],
 )
 def test_statistics(mcgf, mean, cov):
@@ -273,6 +274,7 @@ def test_addition(mcgf1, mcgf2, ts, dim):
             multivariate_norm(loc=np.array([0, 1]), scale=1) / (1 / 3),
             2,
         ),
+        # TODO: add bivariate gamma
     ],
 )
 def test_multiplication_and_division(mcgf1, mcgf2, dim):
@@ -285,6 +287,7 @@ def test_multiplication_and_division(mcgf1, mcgf2, dim):
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
         assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
         assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
+    # TODO: add d3K
     for f in ["K", "dK", "d2K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
@@ -337,6 +340,7 @@ def test_multiplication_and_division(mcgf1, mcgf2, dim):
             [[-1], [-2], [0], [2], [4]],
             None,
         ),
+        # TODO: add bivariate gamma
     ],
 )
 def test_ldot(mcgf1, mcgf2, ts, dim):
@@ -349,6 +353,7 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
         assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
         assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
+    # TODO: add d3K
     for f in ["K", "dK", "d2K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
@@ -404,10 +409,11 @@ def test_stack(mcgf1, mcgf2, dim):
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
         assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
         assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
-    for f in ["K", "dK", "d2K"]:
+        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+        assert np.allclose(mcgf1.d3K(t), mcgf2.d3K(t))
+    for f in ["K", "dK", "d2K", "d3K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
@@ -460,6 +466,7 @@ def test_stack(mcgf1, mcgf2, dim):
             [[-2, -1], [0, 1], [2, 0]],
             2,
         ),
+        # TODO: add bivariate gamma
     ],
 )
 def test_slicing(mcgf1, mcgf2, ts, dim):
@@ -472,6 +479,7 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
         assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
         assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
+    # TODO: add d3K
     for f in ["K", "dK", "d2K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
@@ -536,6 +544,7 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
             ),
             [[-2, -1], [0, -5], [-2, 0]],
         ),
+        # TODO: test also with bivariate gamma
     ],
 )
 def test_dKinv(mcgf, ts):

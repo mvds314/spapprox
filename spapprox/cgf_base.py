@@ -1782,7 +1782,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 y[~cond] = fillna
                 return y
 
-    # TODO: use this the added option to create a test
     @classmethod
     def from_univariate(cls, *cgfs, numdiff_backend=None, dK0=None, d2K0=None, d3K0=None):
         """
