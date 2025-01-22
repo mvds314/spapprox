@@ -11,6 +11,7 @@ from .cgfs import (  # noqa: F401
     chi2,
     exponential,
     gamma,
+    bivariate_gamma,
     laplace,
     multivariate_norm,
     norm,

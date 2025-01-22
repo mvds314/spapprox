@@ -18,6 +18,7 @@ from spapprox import (
     chi2,
     exponential,
     gamma,
+    bivariate_gamma,
     laplace,
     multivariate_norm,
     norm,
@@ -340,6 +341,15 @@ from spapprox.diff import PartialDerivative
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate gamma from multivariate",
         ),
+        pytest.param(
+            bivariate_gamma(a=[1.1, 1.2, 1.3], scale=1)[1],
+            (gamma(a=1.1, scale=1) + gamma(a=1.3, scale=1)).K,
+            [0.2, 0.55],
+            sps.gamma(a=1.1 + 1.3, scale=1),
+            "findiff",
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            id="marginal of bivariate gamma",
+        ),
         # Case 12: Univariate chi2
         pytest.param(
             chi2(df=3),
@@ -497,18 +507,18 @@ from spapprox.diff import PartialDerivative
 def test_basic(cgf_to_test, cgf, ts, dist, backend):
     # Test function evaluations
     assert isinstance(cgf_to_test, UnivariateCumulantGeneratingFunction)
+    if backend == "numdifftools":
+        dcgf = nd.Derivative(cgf, n=1)
+        d2cgf = nd.Derivative(cgf, n=2)
+        d3cgf = nd.Derivative(cgf, n=3)
+    elif backend == "findiff":
+        dcgf = PartialDerivative(cgf, 1)
+        d2cgf = PartialDerivative(cgf, 2)
+        d3cgf = PartialDerivative(cgf, 3)
+    else:
+        raise ValueError(f"Backend {backend} not supported in test")
     for t in ts:
         assert np.isclose(cgf(t), cgf_to_test.K(t), atol=1e-4)
-        if backend == "numdifftools":
-            dcgf = nd.Derivative(cgf, n=1)
-            d2cgf = nd.Derivative(cgf, n=2)
-            d3cgf = nd.Derivative(cgf, n=3)
-        elif backend == "findiff":
-            dcgf = PartialDerivative(cgf, 1)
-            d2cgf = PartialDerivative(cgf, 2)
-            d3cgf = PartialDerivative(cgf, 3)
-        else:
-            raise ValueError(f"Backend {backend} not supported in test")
         assert np.isclose(dcgf(t), cgf_to_test.dK(t))
         assert np.isclose(d2cgf(t), cgf_to_test.d2K(t), atol=1e-6)
         assert np.isclose(d3cgf(t), cgf_to_test.d3K(t), atol=5e-3)

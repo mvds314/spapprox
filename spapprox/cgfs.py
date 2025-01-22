@@ -111,6 +111,86 @@ def gamma(a=1, scale=1):
     )
 
 
+def bivariate_gamma(a, loc=0, scale=1):
+    r"""
+    Bivariate gamma distribution with shape parameter `a` and scale parameter `scale`.
+
+    There are many definitions of the multivariate gamma distribution [3].
+    A general requirement is that the (conditional) marginals are univariate gamma distributions.
+    Here, we use what is referred to as the Cheriyan and Ramabhadran's bivariate gamma distribution [3].
+    Saddlepoint approximations are discussed in [2].
+    The bivariate gamma distribution discussed in [1] differs and is known as the Jensen bivariate gamma distribution [3].
+
+    Specifically, let :math:`Y_0, Y_1` and :math:`Y_2` have a gamma distribution with shape parameters :math:`a_i`.
+    Then the random vector :math:`(X_1, X_2)` defined by :math:`X_1 = Y_0 + Y_1` and :math:`X_2 = Y_0 + Y_2`
+    has a bivariate gamma distribution with shape parameter :math:`a = (a_0, a_1, a_2)`.
+
+    It's density is given by:
+
+    .. math::
+        p_{X_1,X_2}(x_1,x_2) = \frac{\exp(-x_1-x_2)}{\Gamma(a_0)\Gamma(a_1)\Gamma(a_2)} \int_0^{\min(x_1,x_2)} y_0^{a_0-1} (x_1-y_0)^{a_1-1} (x_2-y_0)^{a_2-1} dy_0
+
+    Note that :math:`X_1` and :math:`X_2` are independent when :math:`a_0 = 0`.
+    More specifically, we have that :math:`\text{Cov}(X_1, X_2) = \text{Var}(Y_0) = a_0`.
+
+    Also, :math:`a_1` and :math:`a_2` further control the shape of the marginals.
+    More specifically, the marginal density of :math:`X_1` and :math:`X_2` are gamma distributions
+    with shape parameters :math:`a_0+a_1` and :math:`a_0+a_2`, respectively.
+
+    As we have :math:`\text{Var}(X_1)=a_0+a_1` and :math:`Var(X_2)=a_0+a_2`, it follows that the correlation
+    between :math:`X_1` and :math:`X_2` is given by:
+
+    .. math::
+        \rho = \frac{\text{Cov}(X_1, X_2)}{\sqrt{\text{Var}(X_1)\text{Var}(X_2)}} = \frac{a_0}{\sqrt{(a_0+a_1)(a_0+a_2)}}
+
+    Finally, the cumulant generating function is given by:
+
+    .. math::
+        K(t_1,t_2) =\log \text{E} \left[ \exp(t_1 X_1 + t_2 X_2) \right] \\
+        =\log\left[ \frac{1}{(1-t_1)^{a_1}(1-t_2)^{a_2}(1-t_1-t_2)^{a_0}}\right]
+        = -a_1 \log(1-t_1) - a_2 \log(1-t_2) - a_0 \log(1-t_1-t_2)
+
+
+    References
+    ----------
+    [1] Butler (2007) - Saddlepoint Approximations with Applications
+    [2] Huzurbazar (2012) - Saddlepoint Approximations with Applications
+    [3] Kotz, Balakrishnan, Johnson (2000) - Continuous Multivariate distributions. Volume 1
+    """
+    # Initialize a
+    a = np.asanyarray(a)
+    if a.shape != (3,):
+        raise ValueError("a must be a vector of length 3")
+    if a[0] < 0:
+        raise ValueError("a[0] must be non-negative")
+    if np.any(a[1:] <= 0):
+        raise ValueError("a[1] and a[2] must be positive")
+    # Initialize loc and scale
+    loc = np.asanyarray(loc)
+    scale = np.asanyarray(scale)
+    return MultivariateCumulantGeneratingFunction(
+        K=lambda t, a=a: np.dot(-a, np.log([1 - t.T[0] - t.T[1], 1 - t.T[0], 1 - t.T[1]])),
+        dK=lambda t, a=a: np.array([a[1] / (1 - t.T[0]), a[2] / (1 - t.T[1])])
+        + a[0] / (1 - t.T[0] - t.T[1]),
+        d2K=lambda t, a=a: np.diag([a[1] / (1 - t.T[0]) ** 2, a[2] / (1 - t.T[1]) ** 2])
+        + a[0] / (1 - t.T[0] - t.T[1]) ** 2,
+        d3K=np.vectorize(
+            lambda t, a=a: np.array(
+                [
+                    [[2 * a[1] / (1 - t[0]) ** 3, 0], [0, 0]],
+                    [[0, 0], [0, 2 * a[2] / (1 - t[1]) ** 3]],
+                ]
+            )
+            + 2 * a[0] / (1 - t[0] - t[1]) ** 3,
+            signature="(2)->(2,2,2)",
+        ),
+        dim=2,
+        domain=Domain(ge=np.full(2, loc) if loc.ndim == 0 else loc, dim=2),
+        loc=loc,
+        scale=scale,
+    )
+
+
 def chi2(df=1):
     return gamma(a=df / 2, scale=2)
 
@@ -185,7 +265,9 @@ def univariate_empirical(x):
 
 # TODO: add asymmetric generalized normal distribution
 
-# TODO: multivariate Gamma (See Butler 2007, page 77; Huzurbar 2012)
+# TODO: add Cheriyan and Ramabhadran's multivariate gamma distribution (Kotz 2000)
+
+# TODO: add Jensen's multivariate Gamma (See Butler 2007, page 77)
 
 # TODO: multinomial distribution (see Butler 2007, page 80)
 
