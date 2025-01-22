@@ -170,10 +170,15 @@ def bivariate_gamma(a, loc=0, scale=1):
     scale = np.asanyarray(scale)
     return MultivariateCumulantGeneratingFunction(
         K=lambda t, a=a: np.dot(-a, np.log([1 - t.T[0] - t.T[1], 1 - t.T[0], 1 - t.T[1]])),
-        dK=lambda t, a=a: np.array([a[1] / (1 - t.T[0]), a[2] / (1 - t.T[1])])
-        + a[0] / (1 - t.T[0] - t.T[1]),
-        d2K=lambda t, a=a: np.diag([a[1] / (1 - t.T[0]) ** 2, a[2] / (1 - t.T[1]) ** 2])
-        + a[0] / (1 - t.T[0] - t.T[1]) ** 2,
+        dK=lambda t, a=a: np.add(
+            np.array([a[1] / (1 - t.T[0]), a[2] / (1 - t.T[1])]),
+            a[0] / (1 - t.T[0] - t.T[1]),
+        ).T,
+        d2K=np.vectorize(
+            lambda t, a=a: np.diag([a[1] / (1 - t.T[0]) ** 2, a[2] / (1 - t.T[1]) ** 2])
+            + a[0] / (1 - t.T[0] - t.T[1]) ** 2,
+            signature="(2)->(2,2)",
+        ),
         d3K=np.vectorize(
             lambda t, a=a: np.array(
                 [
@@ -185,7 +190,7 @@ def bivariate_gamma(a, loc=0, scale=1):
             signature="(2)->(2,2,2)",
         ),
         dim=2,
-        domain=Domain(ge=np.full(2, loc) if loc.ndim == 0 else loc, dim=2),
+        domain=Domain(l=np.ones(2), dim=2),
         loc=loc,
         scale=scale,
     )

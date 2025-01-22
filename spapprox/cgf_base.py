@@ -1245,7 +1245,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     lambda x: np.add(x, other.d3K(np.sum(t, axis=-1))), 0, self.d3K(t)
                 ),
                 # Extract scaled derivatives and pass them if unscaled derivatives are already computed
-                # TODO: test if this is correct
                 dK0=(
                     self.dK0 + other.dK0
                     if self._dK0 is not None and other._dK0 is not None
@@ -1863,7 +1862,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 ),
                 signature=f"({dim})->({dim},{dim},{dim})",
             ),
-            # TODO: test derivatives at zero
             dK0=dK0,
             d2K0=d2K0,
             d3K0=d3K0,

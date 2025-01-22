@@ -115,11 +115,12 @@ def test_statistics(mcgf, mean, cov):
 
 
 @pytest.mark.parametrize(
-    "mcgf1,mcgf2,dim",
+    "mcgf1,mcgf2,ts,dim",
     [
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.zeros(2), scale=1) + np.array([1, 2]),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
             id="Add vector",
         ),
@@ -128,30 +129,35 @@ def test_statistics(mcgf, mean, cov):
                 norm() + 1, norm() + 2, dK0=[1, 2], d2K0=np.eye(2), d3K0=np.zeros((2, 2, 2))
             ),
             multivariate_norm(loc=np.zeros(2), scale=1) + np.array([1, 2]),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
             id="Add vector and test derivatives at zero logic",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.zeros(2), scale=1).add(np.array([1, 2])),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
             id="Add vector in a different way",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.array([1, 2]), scale=1),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
             id="Add and compare using loc",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.array([0, 1]), scale=1) + 1,
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
             id="Add a constant",
         ),
         pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1) + 1,
             multivariate_norm(loc=np.ones(2), scale=1),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
             id="Add scalar",
         ),
@@ -159,21 +165,51 @@ def test_statistics(mcgf, mean, cov):
             multivariate_norm(loc=np.ones(2), scale=1)
             + multivariate_norm(loc=np.zeros(2), scale=1),
             multivariate_norm(loc=np.ones(2), scale=np.sqrt(2)),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
             id="Add multivariate cumulant generating function",
         ),
         pytest.param(
             multivariate_norm(loc=np.ones(2), scale=1) + norm(loc=0, scale=1),
             multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]])),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
             id="Addition with covariance structure",
         ),
-        # TODO: add a test with nonzero higher order derivatives
+        pytest.param(
+            multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]]))
+            + multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]])),
+            np.sqrt(2)
+            * multivariate_norm(loc=np.sqrt(2) * np.ones(2), cov=np.array([[2, 1], [1, 2]])),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
+            2,
+            id="Another test with a covariance structure",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3))
+            + gamma(1.1),
+            bivariate_gamma([1.1, 1.2, 1.3]),
+            [[-1, -2], [0, 0], [0.9, 0], [0, 0.9]],
+            2,
+            id="Test with nonzero higher order derivatives through bivariate gamma",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                gamma(1.2),
+                gamma(1.3),
+                dK0=[gamma(1.2).dK0, gamma(1.3).dK0],
+                d2K0=np.diag([gamma(1.2).d2K0, gamma(1.3).d2K0]),
+                d3K0=np.array([[[gamma(1.2).d3K0, 0], [0, 0]], [[0, 0], [0, gamma(1.3).d3K0]]]),
+            ),
+            bivariate_gamma([0, 1.2, 1.3]),
+            [[-1, -2], [0, 0], [0.9, 0], [0, 0.9]],
+            2,
+            id="Test with nonzero higher order derivatives specified at 0 through bivariate gamma",
+        ),
     ],
 )
-def test_addition(mcgf1, mcgf2, dim):
+def test_addition(mcgf1, mcgf2, ts, dim):
     assert mcgf1.dim == mcgf2.dim == dim
-    ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
@@ -547,6 +583,8 @@ if __name__ == "__main__":
                 "--durations=10",
                 "--pdb",
                 "-s",
+                "-v",
                 # "-m 'not slow'",
+                # "-m tofix",
             ]
         )
