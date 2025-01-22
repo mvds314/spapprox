@@ -6,24 +6,18 @@ import pytest
 import scipy as sp
 import scipy.stats as sps
 from scipy.integrate import quad  # , dblquad
+from statsmodels.stats.moment_helpers import cov2corr
+
 from spapprox import (
     MultivariateCumulantGeneratingFunction,
     UnivariateCumulantGeneratingFunction,
+    bivariate_gamma,
     exponential,
+    gamma,
     multivariate_norm,
-    # Domain,
     norm,
 )
-
-# gamma,
-# chi2,
-# Laplace,
-# Poisson,
-# binomial,
-# univariate_sample_mean,
-# univariate_empirical,
 from spapprox.util import type_wrapper
-from statsmodels.stats.moment_helpers import cov2corr
 
 
 @pytest.mark.slow
