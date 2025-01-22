@@ -111,7 +111,7 @@ def gamma(a=1, scale=1):
     )
 
 
-def bivariate_gamma(a, loc=0, scale=1):
+def bivariate_gamma(a=None, loc=0, scale=1):
     r"""
     Bivariate gamma distribution with shape parameter `a` and scale parameter `scale`.
 
@@ -158,7 +158,10 @@ def bivariate_gamma(a, loc=0, scale=1):
     [3] Kotz, Balakrishnan, Johnson (2000) - Continuous Multivariate distributions. Volume 1
     """
     # Initialize a
-    a = np.asanyarray(a)
+    if a is None:
+        a = np.array([0, 1, 1])
+    else:
+        a = np.asanyarray(a)
     if a.shape != (3,):
         raise ValueError("a must be a vector of length 3")
     if a[0] < 0:

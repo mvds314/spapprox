@@ -1299,7 +1299,10 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     if self._d3K0 is not None and other._d3K0 is not None
                     else None
                 ),
-                domain=self.domain.intersect(other.domain),
+                dim=self.dim,
+                domain=self.domain.ldot(self.scale_mat)
+                .add(self.loc_vect)
+                .intersect(other.domain.ldot(other.scale_mat).add(self.loc_vect)),
                 numdiff_backend=self._numdiff_backend,
             )
         else:
@@ -1735,6 +1738,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     return fillna
                 else:
                     return np.full(np.asanyarray(y).shape, fillna)
+            elif t.ndim == 1:
+                cond = cond.squeeze()
+                if cond:
+                    return y.astype(np.float64)
+                else:
+                    return np.full(np.asanayarray(y).shape, fillna)
             else:
                 y = y.astype(np.float64)
                 y[~cond] = fillna
@@ -1777,6 +1786,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     return fillna
                 else:
                     return np.full(np.asanyarray(y).shape, fillna)
+            elif t.ndim == 1:
+                cond = cond.squeeze()
+                if cond:
+                    return y.astype(np.float64)
+                else:
+                    return np.full(np.asanayarray(y).shape, fillna)
             else:
                 y = y.astype(np.float64)
                 y[~cond] = fillna

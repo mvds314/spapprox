@@ -365,7 +365,7 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
 
 
 @pytest.mark.parametrize(
-    "mcgf1,mcgf2,dim",
+    "mcgf1,mcgf2,ts,dim",
     [
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
@@ -373,6 +373,7 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
                 multivariate_norm(loc=np.zeros(2), scale=2),
             ),
             multivariate_norm(loc=np.zeros(4), scale=np.array([1, 1, 2, 2])),
+            [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]],
             4,
             id="Stack mulvariate normals with difference scale",
         ),
@@ -387,6 +388,7 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
                     np.array([[2, 1], [1, 3]]), np.array([[2, 0.5], [0.5, 1]])
                 ),
             ),
+            [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]],
             4,
             id="Stack different multivariate normals",
         ),
@@ -400,15 +402,30 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
                 loc=[1, 2, 3, 4],
                 cov=sp.linalg.block_diag(np.array([[2, 1], [1, 3]]), np.array([[4, 0], [0, 1]])),
             ),
+            [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]],
             4,
             id="Stack different multivariate normals and univariates",
         ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma([1.1, 1.2, 1.3]),
+                norm(loc=3, scale=2),
+            ),
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                gamma(1.2), gamma(1.3), norm(loc=3, scale=2)
+            )
+            + MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.1)).ldot(
+                [[1], [1], [0]]
+            ),
+            [[0.1, 0.2, 0.3], [0, 0, 0], [0.1, 0, 0.2], [0, 0.1, 0]],
+            3,
+            id="Stack different gammas and univariates",
+        ),
     ],
 )
-def test_stack(mcgf1, mcgf2, dim):
+def test_stack(mcgf1, mcgf2, ts, dim):
     assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
     assert mcgf1.dim == mcgf2.dim == dim
-    ts = [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]]
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
@@ -593,7 +610,7 @@ if __name__ == "__main__":
                 # "test_dKinv",
                 # "--tb=auto",
                 "--durations=10",
-                "--pdb",
+                # "--pdb",
                 "-s",
                 "-v",
                 # "-m 'not slow'",
