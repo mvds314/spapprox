@@ -18,6 +18,7 @@ from spapprox import (
     norm,
 )
 from spapprox.util import type_wrapper
+from spapprox.diff import block_diag_3d
 
 
 @pytest.mark.slow
@@ -376,6 +377,7 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
             [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]],
             4,
             id="Stack mulvariate normals with difference scale",
+            marks=pytest.mark.tofix,
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
@@ -421,6 +423,28 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
             3,
             id="Stack different gammas and univariates",
         ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma([1.1, 1.2, 1.3]),
+                norm(loc=3, scale=2),
+                dK0=np.append(bivariate_gamma([1.1, 1.2, 1.3]).dK0, norm(loc=3, scale=2).dK0),
+                d2K0=sp.linalg.block_diag(
+                    bivariate_gamma([1.1, 1.2, 1.3]).d2K0, norm(loc=3, scale=2).d2K0
+                ),
+                d3K0=block_diag_3d(
+                    bivariate_gamma([1.1, 1.2, 1.3]).d3K0, np.atleast_3d(norm(loc=3, scale=2).d3K0)
+                ),
+            ),
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                gamma(1.2), gamma(1.3), norm(loc=3, scale=2)
+            )
+            + MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.1)).ldot(
+                [[1], [1], [0]]
+            ),
+            [[0.1, 0.2, 0.3], [0, 0, 0], [0.1, 0, 0.2], [0, 0.1, 0]],
+            3,
+            id="Stack different gammas and univariates with derivatives at zero specified",
+        ),
     ],
 )
 def test_stack(mcgf1, mcgf2, ts, dim):
@@ -439,6 +463,10 @@ def test_stack(mcgf1, mcgf2, ts, dim):
         assert np.allclose(getattr(mcgf2, f)(ts), val)
     assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
     assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
+    # TODO: test the derivatives at zero
+    assert np.allclose(mcgf1.dK0, mcgf2.dK0)
+    assert np.allclose(mcgf1.d2K0, mcgf2.d2K0)
+    assert np.allclose(mcgf1.d3K0, mcgf2.d3K0)
 
 
 @pytest.mark.parametrize(

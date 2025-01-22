@@ -1888,7 +1888,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         )
 
     @classmethod
-    def from_cgfs(cls, *cgfs, numdiff_backend=None):
+    def from_cgfs(cls, *cgfs, dK0=None, d2K0=None, d3K0=None, numdiff_backend=None):
         """
         Create a multivariate cgf from a list of univariate cgfs.
 
@@ -1954,15 +1954,21 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     raise ValueError("Invalid shape")
 
             # TODO: test derivatives at zero
-            if all(cgf._dK0 is not None for cgf in cgfs):
+            if dK0 is not None:
+                dK0 = np.asanyarray(dK0)
+            elif all(cgf._dK0 is not None for cgf in cgfs):
                 dK0 = np.concatenate([cgf.dK0 for cgf in cgfs], axis=-1)
             else:
                 dK0 = None
-            if all(cgf._d2K0 is not None for cgf in cgfs):
+            if d2K0 is not None:
+                d2K0 = np.asanyarray(d2K0)
+            elif all(cgf._d2K0 is not None for cgf in cgfs):
                 d2K0 = sp.linalg.block_diag(*[cgf.d2K0 for cgf in cgfs])
             else:
                 d2K0 = None
-            if all(cgf._d3K0 is not None for cgf in cgfs):
+            if d3K0 is not None:
+                d3K0 = np.asanyarray(d3K0)
+            elif all(cgf._d3K0 is not None for cgf in cgfs):
                 d3K0 = block_diag_3d(*[cgf.d3K0 for cgf in cgfs])
             else:
                 d3K0 = None
