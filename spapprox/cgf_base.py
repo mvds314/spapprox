@@ -1918,7 +1918,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     vals = [v.reshape(dims[i]) for i, v in enumerate(vals)]
                 return np.concatenate(vals, axis=-1)
 
-            # TODO: is this one correct?, where do we test it?
             @type_wrapper(xloc=0)
             def d2K(t):
                 if t.ndim == 1:
@@ -1928,11 +1927,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 else:
                     raise ValueError("Invalid shape")
 
-            # TODO: test this one!
             @type_wrapper(xloc=0)
             def d3K(t):
                 if t.ndim == 1:
-                    return block_diag_3d(*[cgf.d3K(ti(t, i)) for i, cgf in enumerate(cgfs)])
+                    return block_diag_3d(
+                        *[np.atleast_3d(cgf.d3K(ti(t, i))) for i, cgf in enumerate(cgfs)]
+                    )
                 elif t.ndim == 2:
                     return np.array([d3K(tt) for tt in t])
                 else:

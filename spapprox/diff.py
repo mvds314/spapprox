@@ -54,7 +54,8 @@ def block_diag_3d(*tensors):
     """
     Equivalent to scipy.linalg.block_diag, but for 3d tensors.
     """
-    assert all(tensor.ndim == 3 for tensor in tensors), "All tensors should be rank 3"
+    if not all(np.asanyarray(tensor).ndim == 3 for tensor in tensors):
+        raise ValueError("All tensors should be rank 3")
     # Determine the shape of the resulting tensor
     dim = sum(tensor.shape[0] for tensor in tensors)
     # Initialize the resulting tensor with zeros
