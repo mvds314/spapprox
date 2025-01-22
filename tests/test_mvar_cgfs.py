@@ -367,15 +367,16 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
 @pytest.mark.parametrize(
     "mcgf1,mcgf2,dim",
     [
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
                 multivariate_norm(loc=np.zeros(2), scale=1),
                 multivariate_norm(loc=np.zeros(2), scale=2),
             ),
             multivariate_norm(loc=np.zeros(4), scale=np.array([1, 1, 2, 2])),
             4,
+            id="Stack mulvariate normals with difference scale",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
                 multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]])),
                 multivariate_norm(loc=[3, 4], cov=np.array([[2, 0.5], [0.5, 1]])),
@@ -387,8 +388,9 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
                 ),
             ),
             4,
+            id="Stack different multivariate normals",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
                 multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]])),
                 norm(loc=3, scale=2),
@@ -399,6 +401,7 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
                 cov=sp.linalg.block_diag(np.array([[2, 1], [1, 3]]), np.array([[4, 0], [0, 1]])),
             ),
             4,
+            id="Stack different multivariate normals and univariates",
         ),
     ],
 )
