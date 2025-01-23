@@ -279,8 +279,9 @@ def test_addition(mcgf1, mcgf2, ts, dim):
             id="Multiply normal through scaling with vector",
         ),
         pytest.param(
-            MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3) * 2),
-            bivariate_gamma([0, 1.2, 1.3], scale=np.array([1, 2])),
+            MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3) * 2)
+            + MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.1)).ldot([[1], [2]]),
+            bivariate_gamma([1.1, 1.2, 1.3], scale=np.array([1, 2])),
             [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
             2,
             id="Multiply gamma through scaling with vector",
@@ -293,8 +294,9 @@ def test_addition(mcgf1, mcgf2, ts, dim):
             id="Multiply normal through scaling with diagonal matrix",
         ),
         pytest.param(
-            MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3) * 2),
-            bivariate_gamma([0, 1.2, 1.3], scale=np.diag([1, 2])),
+            MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3) * 2)
+            + MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.1)).ldot([[1], [2]]),
+            bivariate_gamma([1.1, 1.2, 1.3], scale=np.diag([1, 2])),
             [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
             2,
             id="Multiply gamma through scaling with diagonal matrix",
@@ -304,16 +306,37 @@ def test_addition(mcgf1, mcgf2, ts, dim):
             multivariate_norm(loc=np.array([0, 1]), scale=1) * 3,
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
-            id="Multiply by constant",
+            id="Multiply normal by constant",
+        ),
+        pytest.param(
+            (
+                MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3))
+                + gamma(1.1)
+            )
+            * 3,
+            bivariate_gamma([1.1, 1.2, 1.3], scale=3),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Multiply gamma by constant",
         ),
         pytest.param(
             multivariate_norm(loc=np.array([0, 3]), scale=3),
             multivariate_norm(loc=np.array([0, 1]), scale=1) / (1 / 3),
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
-            id="Divide by constant",
+            id="Divide normal by constant",
         ),
-        # TODO: add bivariate gamma
+        pytest.param(
+            (
+                MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3))
+                + gamma(1.1)
+            )
+            / (1 / 3),
+            bivariate_gamma([1.1, 1.2, 1.3], scale=3),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Divide gamma by constant",
+        ),
     ],
 )
 def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
