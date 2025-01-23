@@ -146,9 +146,9 @@ def bivariate_gamma(a=None, loc=0, scale=1):
     Finally, the cumulant generating function is given by:
 
     .. math::
-        K(t_1,t_2) =\log \text{E} \left[ \exp(t_1 X_1 + t_2 X_2) \right] \\
-        =\log\left[ \frac{1}{(1-t_1)^{a_1}(1-t_2)^{a_2}(1-t_1-t_2)^{a_0}}\right]
-        = -a_1 \log(1-t_1) - a_2 \log(1-t_2) - a_0 \log(1-t_1-t_2)
+        K(t_1,t_2) &=\log \text{E} \left[ \exp(t_1 X_1 + t_2 X_2) \right] \\
+        &=\log\left[ \frac{1}{(1-t_1)^{a_1}(1-t_2)^{a_2}(1-t_1-t_2)^{a_0}}\right]\\
+        &= -a_1 \log(1-t_1) - a_2 \log(1-t_2) - a_0 \log(1-t_1-t_2)
 
 
     References

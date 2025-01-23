@@ -107,7 +107,7 @@ def test_2d_from_uniform():
             [1, 2],
             np.arange(1, 5).reshape((2, 2)).dot(np.arange(1, 5).reshape((2, 2)).T),
         ),
-        # TODO: add bivariate gamma
+        (bivariate_gamma([1, 2, 3]), [1 + 2, 1 + 3], np.array([[1 + 2, 1], [1, 1 + 3]])),
     ],
 )
 def test_statistics(mcgf, mean, cov):
@@ -643,8 +643,7 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                # str(Path(__file__)) + "::test_dKinv",
-                # str(Path(__file__)) + "::test_stack",
+                # str(Path(__file__)) + "::test_statistics",
                 # "-k",
                 # "test_dKinv",
                 "--tb=no",
