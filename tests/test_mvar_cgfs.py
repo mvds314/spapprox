@@ -262,7 +262,6 @@ def test_addition(mcgf1, mcgf2, ts, dim):
             bivariate_gamma([1.1, 1.2, 1.3]) / np.array([1, 2]),
             [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
             2,
-            marks=pytest.mark.tofix,
             id="Divide gamma by vector",
         ),
         pytest.param(

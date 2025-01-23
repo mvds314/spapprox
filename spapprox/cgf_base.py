@@ -1071,7 +1071,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             if np.asanyarray(self.scale).ndim == 0:
                 self._d2K0_cache = self.scale**2 * CumulantGeneratingFunction.d2K0.fget(self)
             elif np.asanyarray(self.scale).ndim == 1:
-                self._d2K0_cache = self.scale**2 * CumulantGeneratingFunction.d2K0.fget(self)
+                self._d2K0_cache = CumulantGeneratingFunction.d2K0.fget(self)
+                self._d2K0_cache *= self.scale
+                self._d2K0_cache *= self.scale[:, np.newaxis]
             else:
                 self._d2K0_cache = np.dot(
                     np.dot(self.scale, CumulantGeneratingFunction.d2K0.fget(self)),
@@ -1088,7 +1090,10 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             if np.asanyarray(self.scale).ndim == 0:
                 self._d3K0_cache = self.scale**3 * CumulantGeneratingFunction.d3K0.fget(self)
             elif np.asanyarray(self.scale).ndim == 1:
-                self._d3K0_cache = self.scale**3 * CumulantGeneratingFunction.d3K0.fget(self)
+                self._d3K0_cache = CumulantGeneratingFunction.d3K0.fget(self)
+                self._d3K0_cache *= self.scale[:, np.newaxis, np.newaxis]
+                self._d3K0_cache *= self.scale[np.newaxis, :, np.newaxis]
+                self._d3K0_cache *= self.scale[np.newaxis, np.newaxis, :]
             else:
                 self._d3K0_cache = transform_rank3_tensor(
                     CumulantGeneratingFunction.d3K0.fget(self), self.scale_mat
