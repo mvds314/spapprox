@@ -444,6 +444,18 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
             3,
             id="Stack different gammas and univariates with derivatives at zero specified",
         ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma([1.1, 1.2, 1.3]),
+                dK0=bivariate_gamma([1.1, 1.2, 1.3]).dK0,
+                d2K0=bivariate_gamma([1.1, 1.2, 1.3]).d2K0,
+                d3K0=bivariate_gamma([1.1, 1.2, 1.3]).d3K0,
+            ),
+            bivariate_gamma([1.1, 1.2, 1.3]),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Stack different gammas and univariates with derivatives at zero specified",
+        ),
     ],
 )
 def test_stack(mcgf1, mcgf2, ts, dim):
@@ -462,7 +474,6 @@ def test_stack(mcgf1, mcgf2, ts, dim):
         assert np.allclose(getattr(mcgf2, f)(ts), val)
     assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
     assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
-    # TODO: test the derivatives at zero
     assert np.allclose(mcgf1.dK0, mcgf2.dK0)
     assert np.allclose(mcgf1.d2K0, mcgf2.d2K0)
     assert np.allclose(mcgf1.d3K0, mcgf2.d3K0)
@@ -633,6 +644,7 @@ if __name__ == "__main__":
             [
                 str(Path(__file__)),
                 # str(Path(__file__)) + "::test_dKinv",
+                # str(Path(__file__)) + "::test_stack",
                 # "-k",
                 # "test_dKinv",
                 "--tb=no",

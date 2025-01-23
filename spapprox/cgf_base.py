@@ -1901,7 +1901,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         the sum of the cumulant generating functions. This follows directly from
         the definition of the cumulant generating function.
         """
-        assert len(cgfs) > 1, "at least 2 cumulant generating functions should be supplied"
         assert all(isinstance(cgf, CumulantGeneratingFunction) for cgf in cgfs), (
             "All cgfs must be CumulantGeneratingFunction"
         )
