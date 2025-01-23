@@ -434,6 +434,9 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
     assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
     if not isinstance(mcgf1, UnivariateCumulantGeneratingFunction):
         assert np.allclose(mcgf2.cov, mcgf1.cov)
+    assert np.allclose(mcgf1.dK0, mcgf2.dK0)
+    assert np.allclose(mcgf1.d2K0, mcgf2.d2K0)
+    assert np.allclose(mcgf1.d3K0, mcgf2.d3K0)
 
 
 @pytest.mark.parametrize(
