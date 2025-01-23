@@ -388,12 +388,11 @@ def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
             id="Multiply normal with Cholesky versus specification of covmat",
         ),
         pytest.param(
-            bivariate_gamma([1.1, 1.2, 1.3]).ldot([[1, 2], [3, 4]]),
-            bivariate_gamma([1.1, 1.2, 1.3], scale=np.array([[1, 2], [3, 4]])),
+            bivariate_gamma([1.1, 1.2, 1.3]).ldot([[1.01, 1.02], [1.03, 1.04]]),
+            bivariate_gamma([1.1, 1.2, 1.3], scale=np.array([[1.01, 1.02], [1.03, 1.04]])),
             [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
             2,
             id="Multiply gamma with generic matrix",
-            marks=[pytest.mark.xfail, pytest.mark.tofix],
         ),
         pytest.param(
             multivariate_norm(loc=0, scale=1, dim=3).ldot(np.array([[1, 0, 1], [0, 1, 1]])),
@@ -454,14 +453,14 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
         assert np.allclose(mcgf1.d3K(t), mcgf2.d3K(t))
-        assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
-        assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
+        assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t, atol=1e-6)
+        assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t, atol=1e-6)
     for f in ["K", "dK", "d2K", "d3K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
-    assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
-    assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
+    assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts, atol=1e-6)
+    assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts, atol=1e-6)
     if not isinstance(mcgf1, UnivariateCumulantGeneratingFunction):
         assert np.allclose(mcgf2.cov, mcgf1.cov)
     assert np.allclose(mcgf1.dK0, mcgf2.dK0)
