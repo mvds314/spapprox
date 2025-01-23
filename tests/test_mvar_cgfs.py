@@ -377,7 +377,6 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
             [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]],
             4,
             id="Stack mulvariate normals with difference scale",
-            marks=pytest.mark.tofix,
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
@@ -636,7 +635,7 @@ if __name__ == "__main__":
                 # str(Path(__file__)) + "::test_dKinv",
                 # "-k",
                 # "test_dKinv",
-                # "--tb=auto",
+                "--tb=no",
                 "--durations=10",
                 # "--pdb",
                 "-s",

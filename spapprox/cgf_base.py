@@ -1070,6 +1070,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         if not hasattr(self, "_d2K0_cache"):
             if np.asanyarray(self.scale).ndim == 0:
                 self._d2K0_cache = self.scale**2 * CumulantGeneratingFunction.d2K0.fget(self)
+            elif np.asanyarray(self.scale).ndim == 1:
+                self._d2K0_cache = self.scale**2 * CumulantGeneratingFunction.d2K0.fget(self)
             else:
                 self._d2K0_cache = np.dot(
                     np.dot(self.scale, CumulantGeneratingFunction.d2K0.fget(self)),
@@ -1084,6 +1086,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         if not hasattr(self, "_d3K0_cache"):
             if np.asanyarray(self.scale).ndim == 0:
+                self._d3K0_cache = self.scale**3 * CumulantGeneratingFunction.d3K0.fget(self)
+            elif np.asanyarray(self.scale).ndim == 1:
                 self._d3K0_cache = self.scale**3 * CumulantGeneratingFunction.d3K0.fget(self)
             else:
                 self._d3K0_cache = transform_rank3_tensor(
