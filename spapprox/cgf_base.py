@@ -1057,7 +1057,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @property
     def dK0(self):
         if not hasattr(self, "_dK0_cache"):
-            if np.asanyarray(self.scale).ndim == 0:
+            if np.asanyarray(self.scale).ndim <= 1:
                 self._dK0_cache = self.scale * CumulantGeneratingFunction.dK0.fget(self) + self.loc
             else:
                 self._dK0_cache = (
