@@ -363,13 +363,14 @@ def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
     "mcgf1,mcgf2,ts,dim",
     [
         # Multiplication with identity
-        (
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(2 * np.eye(2)),
             multivariate_norm(loc=np.zeros(2), scale=2),
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Multiply normal with scaled identity",
         ),
-        (
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(
                 np.linalg.cholesky(cov2corr(np.array([[2, 1], [1, 3]]), return_std=False))
             )
@@ -378,30 +379,35 @@ def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
             multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]])),
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Multiply normal with covat",
         ),
-        (
+        pytest.param(
             multivariate_norm(loc=0, scale=1, dim=3).ldot(np.array([[1, 0, 1], [0, 1, 1]])),
             multivariate_norm(loc=0, scale=1, dim=2) + norm(),
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Project 3D normal on 2D norm",
         ),
-        (
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2)),
             norm(loc=0, scale=np.sqrt(2)),
             [-1, -2, 0, 2, 4],
             None,
+            id="Inner product 3D normal",
         ),
-        (
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.atleast_2d(np.ones(2)))[[0]],
             multivariate_norm(loc=0, scale=np.sqrt(2), dim=1),
             [[-1], [-2], [0], [2], [4]],
             None,
+            id="Project 3D normal on 1D",
         ),
-        (
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.atleast_2d(np.ones(2))),
             multivariate_norm(loc=0, scale=np.sqrt(2), dim=1),
             [[-1], [-2], [0], [2], [4]],
             None,
+            id="Project 3D normal on 1D",
         ),
         # TODO: add bivariate gamma
     ],
