@@ -10,15 +10,16 @@ import numpy as np
 import pytest
 import scipy.stats as sps
 from scipy.integrate import quad
+
 from spapprox import (
     Domain,
     MultivariateCumulantGeneratingFunction,
     UnivariateCumulantGeneratingFunction,
     binomial,
+    bivariate_gamma,
     chi2,
     exponential,
     gamma,
-    bivariate_gamma,
     laplace,
     multivariate_norm,
     norm,

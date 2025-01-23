@@ -1,26 +1,24 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
+import itertools
 from pathlib import Path
 
 import numpy as np
-import itertools
 import pytest
 import scipy.stats as sps
 from scipy.integrate import quad
+
 from spapprox import (
+    BivariateSaddlePointApprox,
+    MultivariateCumulantGeneratingFunction,
+    MultivariateSaddlePointApprox,
     # poisson,
     # binomial,
     UnivariateSaddlePointApprox,
-    MultivariateSaddlePointApprox,
-    MultivariateCumulantGeneratingFunction,
-    BivariateSaddlePointApprox,
     chi2,
     exponential,
     gamma,
     laplace,
-    norm,
     multivariate_norm,
+    norm,
 )
 
 
@@ -138,15 +136,15 @@ def test_expon_spa(cgf, dist, trange):
     t = np.linspace(*trange, 1000)[:-1]
     x = spa.cgf.dK(t)
     assert np.allclose(spa.pdf(t=t), dist.pdf(x), atol=5e-5), "This should approx be equal"
-    assert np.allclose(
-        spa.cdf(t=t, backend="LR"), dist.cdf(x), atol=5e-3
-    ), "This should approx be equal"
-    assert np.allclose(
-        spa.cdf(t=t, backend="BN"), dist.cdf(x), atol=5e-3
-    ), "This should approx be equal"
-    assert not np.allclose(
-        spa.cdf(t=t, backend="BN"), spa.cdf(t=t, backend="LR")
-    ), "the approximation should not be exactly equal"
+    assert np.allclose(spa.cdf(t=t, backend="LR"), dist.cdf(x), atol=5e-3), (
+        "This should approx be equal"
+    )
+    assert np.allclose(spa.cdf(t=t, backend="BN"), dist.cdf(x), atol=5e-3), (
+        "This should approx be equal"
+    )
+    assert not np.allclose(spa.cdf(t=t, backend="BN"), spa.cdf(t=t, backend="LR")), (
+        "the approximation should not be exactly equal"
+    )
     # Test investion saddle point
     spa.fit_saddle_point_eqn(num=10000)
     for t in [-2, -1, 1 / 6]:

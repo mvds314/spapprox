@@ -1,8 +1,8 @@
 import numpy as np
 
 from .cgf_base import (
-    UnivariateCumulantGeneratingFunction,
     MultivariateCumulantGeneratingFunction,
+    UnivariateCumulantGeneratingFunction,
 )
 from .domain import Domain
 from .util import type_wrapper
@@ -280,6 +280,8 @@ def univariate_empirical(x):
 # TODO: multinomial distribution (see Butler 2007, page 80)
 
 # TODO: add bivariate poisson distribution (see Butler 2007, page 81)
+
+# TODO: add multivariate exponential as special case of gamma
 
 # TODO: also see Butler 2007, page 90 for higher order expansions
 

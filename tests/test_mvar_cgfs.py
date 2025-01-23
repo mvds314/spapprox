@@ -17,8 +17,8 @@ from spapprox import (
     multivariate_norm,
     norm,
 )
-from spapprox.util import type_wrapper
 from spapprox.diff import block_diag_3d
+from spapprox.util import type_wrapper
 
 
 @pytest.mark.slow

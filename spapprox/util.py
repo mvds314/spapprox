@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
-
-import time
 import functools as ft
+import time
+from functools import reduce
+
 import numpy as np
 from statsmodels.tools.validation import PandasWrapper
-from functools import reduce
 
 
 class Timer:
@@ -20,7 +19,7 @@ class Timer:
         return self.t0
 
     def __exit__(self, ex_type, ex_value, ex_traceback):
-        print(f" finished in {time.time()-self.t0:.{self.decimals}f} seconds")
+        print(f" finished in {time.time() - self.t0:.{self.decimals}f} seconds")
         return False
 
 

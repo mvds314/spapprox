@@ -4,8 +4,9 @@ https://pypi.org/project/findiff/
 https://findiff.readthedocs.io/en/latest/
 """
 
-import numpy as np
 import itertools
+
+import numpy as np
 
 try:
     import findiff as fd

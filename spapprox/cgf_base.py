@@ -1956,7 +1956,6 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 else:
                     raise ValueError("Invalid shape")
 
-            # TODO: test derivatives at zero
             if dK0 is not None:
                 dK0 = np.asanyarray(dK0)
             elif all(cgf._dK0 is not None for cgf in cgfs):

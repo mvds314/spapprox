@@ -1,17 +1,14 @@
-# -*- coding: utf-8 -*-
-
 from .cgf_base import (  # noqa: F401
     MultivariateCumulantGeneratingFunction,
     UnivariateCumulantGeneratingFunction,
 )
 
-# noqa: F401
 from .cgfs import (  # noqa: F401
     binomial,
+    bivariate_gamma,
     chi2,
     exponential,
     gamma,
-    bivariate_gamma,
     laplace,
     multivariate_norm,
     norm,
@@ -21,9 +18,9 @@ from .cgfs import (  # noqa: F401
 )
 from .domain import Domain  # noqa: F401
 from .spa import (  # noqa: F401
+    BivariateSaddlePointApprox,
+    MultivariateSaddlePointApprox,
     UnivariateSaddlePointApprox,
     UnivariateSaddlePointApproxMean,
-    MultivariateSaddlePointApprox,
-    BivariateSaddlePointApprox,
 )
 from .util import Timer  # noqa: F401

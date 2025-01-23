@@ -7,9 +7,9 @@ import pytest
 from spapprox.diff import (
     Gradient,
     Hessian,
-    Tressian,
     PartialDerivative,
     TensorDerivative,
+    Tressian,
     _has_findiff,
 )
 
