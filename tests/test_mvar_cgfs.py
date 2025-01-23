@@ -362,13 +362,19 @@ def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
 @pytest.mark.parametrize(
     "mcgf1,mcgf2,ts,dim",
     [
-        # Multiplication with identity
         pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(2 * np.eye(2)),
             multivariate_norm(loc=np.zeros(2), scale=2),
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
             id="Multiply normal with scaled identity",
+        ),
+        pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3]).ldot(2 * np.eye(2)),
+            bivariate_gamma([1.1, 1.2, 1.3], scale=2),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Multiply gamma with scaled identity",
         ),
         pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(
@@ -379,7 +385,15 @@ def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
             multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]])),
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
-            id="Multiply normal with covat",
+            id="Multiply normal with Cholesky versus specification of covmat",
+        ),
+        pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3]).ldot([[1, 2], [3, 4]]),
+            bivariate_gamma([1.1, 1.2, 1.3], scale=np.array([[1, 2], [3, 4]])),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Multiply gamma with generic matrix",
+            marks=[pytest.mark.xfail, pytest.mark.tofix],
         ),
         pytest.param(
             multivariate_norm(loc=0, scale=1, dim=3).ldot(np.array([[1, 0, 1], [0, 1, 1]])),
@@ -397,11 +411,28 @@ def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
             id="Inner product 3D normal",
         ),
         pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3]).ldot(np.ones(2)),
+            2 * gamma(1.1) + gamma(1.2) + gamma(1.3),
+            [-0.1, -0.2, 0, 0.2, 0.4],
+            None,
+            id="Inner product 2D gamma",
+        ),
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.atleast_2d(np.ones(2)))[[0]],
             multivariate_norm(loc=0, scale=np.sqrt(2), dim=1),
             [[-1], [-2], [0], [2], [4]],
             None,
             id="Project 3D normal on 1D and select",
+        ),
+        pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3]).ldot(np.atleast_2d(np.ones(2))),
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                2 * gamma(1.1) + gamma(1.2) + gamma(1.3)
+            ),
+            [-0.1, -0.2, 0, 0.2, 0.4],
+            None,
+            id="Project 2D gamma on 1D",
+            marks=[pytest.mark.xfail, pytest.mark.tofix],
         ),
         pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.atleast_2d(np.ones(2))),
@@ -412,7 +443,6 @@ def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
             marks=[pytest.mark.xfail, pytest.mark.tofix],
         ),
         # TODO: fix failing tests
-        # TODO: add bivariate gamma
     ],
 )
 def test_ldot(mcgf1, mcgf2, ts, dim):
