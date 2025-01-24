@@ -98,9 +98,9 @@ class CumulantGeneratingFunction(ABC):
         self._dK_inv = dK_inv
         self._d2K = d2K
         self._d3K = d3K
-        self._dK0 = dK0
-        self._d2K0 = d2K0
-        self._d3K0 = d3K0
+        self._dK0_raw_cache = dK0
+        self._d2K0_raw_cache = d2K0
+        self._d3K0_raw_cache = d3K0
         if domain is None:
             domain = Domain()
         assert isinstance(domain, Domain)
@@ -155,31 +155,52 @@ class CumulantGeneratingFunction(ABC):
         return np.sqrt(self.variance)
 
     @property
-    def dK0(self):
+    @abstractmethod
+    def _dK0_raw(self):
         """
         Note this property stores the unscaled and untranslated derivative at zero.
         """
-        if self._dK0 is None:
-            self._dK0 = self.dK(0, loc=0, scale=1)
-        return self._dK0
+        return self._dK0_raw_cache
 
     @property
-    def d2K0(self):
+    @abstractmethod
+    def _d2K0_raw(self):
         """
         Note this property stores the unscaled and untranslated second order derivative at zero.
         """
-        if self._d2K0 is None:
-            self._d2K0 = self.d2K(0, loc=0, scale=1)
-        return self._d2K0
+        return self._d2K0_raw_cache
 
     @property
-    def d3K0(self):
+    @abstractmethod
+    def _d3K0_raw(self):
         """
         Note this property stores the unscaled and untranslated third order derivative at zero.
         """
-        if self._d3K0 is None:
-            self._d3K0 = self.d3K(0, loc=0, scale=1)
-        return self._d3K0
+        return self._d3K0_raw_cache
+
+    @property
+    @abstractmethod
+    def dK0(self):
+        """
+        Note this property stores the scaled and translated derivative at zero.
+        """
+        return self._dK0_cache
+
+    @property
+    @abstractmethod
+    def d2K0(self):
+        """
+        Note this property stores the scaled and translated second order derivative at zero.
+        """
+        return self._d2K0_cache
+
+    @property
+    @abstractmethod
+    def d3K0(self):
+        """
+        Note this property stores the scaled and translated third order derivative at zero.
+        """
+        return self._d3K0_cache
 
     @abstractmethod
     def add(self, other, inplace=False):
@@ -255,9 +276,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     References
     ----------
     [1] https://en.wikipedia.org/wiki/Cumulant#Cumulant_generating_function
-
     [2] http://www.scholarpedia.org/article/Cumulants
-
     [3] Bertsekas, Tsitsiklis (2000) - Introduction to probability
 
     Parameters
@@ -592,23 +611,47 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @property
     def dK0(self):
         if not hasattr(self, "_dK0_cache"):
-            # Note the fget gets the unscaled and untranslated value, as stored in _dK0
-            self._dK0_cache = self.scale * CumulantGeneratingFunction.dK0.fget(self) + self.loc
+            self._dK0_cache = self.scale * self._dK0_raw + self.loc
         return self._dK0_cache
 
     @property
     def d2K0(self):
         if not hasattr(self, "_d2K0_cache"):
-            # Note the fget gets the unscaled and untranslated value, as stored in _d2K0
-            self._d2K0_cache = self.scale**2 * CumulantGeneratingFunction.d2K0.fget(self)
+            self._d2K0_cache = self.scale**2 * self._d2K0_raw
         return self._d2K0_cache
 
     @property
     def d3K0(self):
         if not hasattr(self, "_d3K0_cache"):
-            # Note the fget gets the unscaled and untranslated value, as stored in _d3K0
-            self._d3K0_cache = self.scale**3 * CumulantGeneratingFunction.d3K0.fget(self)
+            self._d3K0_cache = self.scale**3 * self._d3K0_raw
         return self._d3K0_cache
+
+    @property
+    def _dK0_raw(self):
+        """
+        Note this property stores the unscaled and untranslated derivative at zero.
+        """
+        if self._dK0_raw_cache is None:
+            self._dK0_raw_cache = self._dK(0)
+        return self._dK0_raw_cache
+
+    @property
+    def _d2K0_raw(self):
+        """
+        Note this property stores the unscaled and untranslated second order derivative at zero.
+        """
+        if self._d2K0_raw_cache is None:
+            self._d2K0_raw_cache = self._d2K(0)
+        return self._d2K0_raw_cache
+
+    @property
+    def _d3K0_raw(self):
+        """
+        Note this property stores the unscaled and untranslated third order derivative at zero.
+        """
+        if self._d3K0_raw_cache is None:
+            self._d3K0_raw_cache = self._d3K(0)
+        return self._d3K0_raw_cache
 
     def add(self, other, inplace=False):
         """
@@ -645,10 +688,9 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     dK_inv=self._dK_inv,
                     d2K=self._d2K,
                     d3K=self._d3K,
-                    # Note these derivatives are already scaled and translated!
-                    dK0=self._dK0,
-                    d2K0=self._d2K0,
-                    d3K0=self._d3K0,
+                    dK0=self._dK0_raw_cache,
+                    d2K0=self._d2K0_raw_cache,
+                    d3K0=self._d3K0_raw_cache,
                     domain=self.domain,
                     numdiff_backend=self._numdiff_backend,
                 )
@@ -675,17 +717,20 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 # Extract scaled derivatives and pass them if unscaled derivatives are already computed
                 dK0=(
                     self.dK0 + other.dK0
-                    if self._dK0 is not None and other._dK0 is not None
+                    if (hasattr(self, "_dK0_cache") or self._dK0_raw_cache is not None)
+                    and (hasattr(other, "_dK0_cache") or other._dK0_raw_cache is not None)
                     else None
                 ),
                 d2K0=(
                     self.d2K0 + other.d2K0
-                    if self._d2K0 is not None and other._d2K0 is not None
+                    if (hasattr(self, "_d2K0_cache") or self._d2K0_raw_cache is not None)
+                    and (hasattr(other, "_d2K0_cache") or other._d2K0_raw_cache is not None)
                     else None
                 ),
                 d3K0=(
                     self.d3K0 + other.d3K0
-                    if self._d3K0 is not None and other._d3K0 is not None
+                    if (hasattr(self, "_d3K0_cache") or self._d3K0_raw_cache is not None)
+                    and (hasattr(other, "_d3K0_cache") or other._d3K0_raw_cache is not None)
                     else None
                 ),
                 # Other arguments
@@ -726,9 +771,9 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     dK_inv=self._dK_inv,
                     d2K=self._d2K,
                     d3K=self._d3K,
-                    dK0=self._dK0,
-                    d2K0=self._d2K0,
-                    d3K0=self._d3K0,
+                    dK0=self._dK0_raw_cache,
+                    d2K0=self._d2K0_raw_cache,
+                    d3K0=self._d3K0_raw_cache,
                     domain=self.domain,
                     numdiff_backend=self._numdiff_backend,
                 )
@@ -759,13 +804,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     References
     ----------
     [1] https://en.wikipedia.org/wiki/Cumulant#Cumulant_generating_function
-
     [2] Bertsekas, Tsitsiklis (2000) - Introduction to probability
-
     [3] McCullagh (1995) - Tensor methods in statistics
-
     [4] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
-
     [5] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
 
     Parameters
@@ -871,8 +912,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @CumulantGeneratingFunction.loc.setter
     def loc(self, loc):
         self._validate_loc(loc)
-        if hasattr(self, "_loc_vect_cache"):
-            delattr(self, "_loc_vect_cache")
+        for attr in [
+            "_loc_vect_cache",
+            "_dK0_cache",
+        ]:
+            if hasattr(self, attr):
+                delattr(self, attr)
         CumulantGeneratingFunction.loc.fset(self, np.asanyarray(loc))
 
     def _validate_loc(self, loc):
@@ -890,6 +935,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             "_scale_inv_cache",
             "_scale_mat_inv_cache",
             "_scale_is_invertible_cache",
+            "_dK0_cache",
+            "_d2K0_cache",
+            "_d3K0_cache",
         ]:
             if hasattr(self, attr):
                 delattr(self, attr)
@@ -1020,10 +1068,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         if scale is None:
             scale = self.scale
+            validate_dim = True
         else:
             scale = np.asanyarray(scale)
+            # Note manually specified scales do not necessarily have to map to the domain
+            validate_dim = False
         ts = scale * t if scale.ndim <= 1 else np.dot(t, scale)
-        if ts.shape[-1] != self.domain.dim:
+        if validate_dim and ts.shape[-1] != self.domain.dim:
             raise AssertionError("Dimensions do not match")
         return ts
 
@@ -1042,11 +1093,13 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         if inv_scale is None:
             inv_scale = self.scale_inv
+            validate_dim = True
         else:
             inv_scale = np.asanyarray(inv_scale)
             self._validate_scale_inv(inv_scale)
+            validate_dim = False
         t = ts * inv_scale if inv_scale.ndim <= 1 else np.dot(ts, inv_scale)
-        if t.shape[-1] != self.dim:
+        if validate_dim and t.shape[-1] != self.dim:
             raise AssertionError("Dimensions do not match")
         return t
 
@@ -1065,51 +1118,65 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @property
     def dK0(self):
         if not hasattr(self, "_dK0_cache"):
-            # Note the fget gets the unscaled and untranslated value, as stored in _dK0
             if np.asanyarray(self.scale).ndim <= 1:
-                self._dK0_cache = self.scale * CumulantGeneratingFunction.dK0.fget(self) + self.loc
+                self._dK0_cache = self.scale * self._dK0_raw + self.loc
             else:
-                self._dK0_cache = (
-                    self.scale.dot(CumulantGeneratingFunction.dK0.fget(self)) + self.loc
-                )
+                self._dK0_cache = self.scale.dot(self._dK0_raw) + self.loc
         return self._dK0_cache
 
     @property
     def d2K0(self):
         if not hasattr(self, "_d2K0_cache"):
-            # Note the fget gets the unscaled and untranslated value, as stored in _d2K0
             if np.asanyarray(self.scale).ndim == 0:
-                self._d2K0_cache = self.scale**2 * CumulantGeneratingFunction.d2K0.fget(self)
+                self._d2K0_cache = self.scale**2 * self._d2K0_raw
             elif np.asanyarray(self.scale).ndim == 1:
-                self._d2K0_cache = CumulantGeneratingFunction.d2K0.fget(self)
+                self._d2K0_cache = self._d2K0_raw
                 self._d2K0_cache *= self.scale
                 self._d2K0_cache *= self.scale[:, np.newaxis]
             else:
-                self._d2K0_cache = np.dot(
-                    np.dot(self.scale, CumulantGeneratingFunction.d2K0.fget(self)),
-                    self.scale.T,
-                )
+                self._d2K0_cache = np.dot(np.dot(self.scale, self._d2K0_raw), self.scale.T)
         return self._d2K0_cache
 
     @property
     def d3K0(self):
-        """
-        In the multivariate case, we merely implement the diagonal
-        """
         if not hasattr(self, "_d3K0_cache"):
-            # Note the fget gets the unscaled and untranslated value, as stored in _d3K0
             if np.asanyarray(self.scale).ndim == 0:
-                self._d3K0_cache = self.scale**3 * CumulantGeneratingFunction.d3K0.fget(self)
+                self._d3K0_cache = self.scale**3 * self._d3K0_raw
             elif np.asanyarray(self.scale).ndim == 1:
-                self._d3K0_cache = CumulantGeneratingFunction.d3K0.fget(self)
+                self._d3K0_cache = self._d3K0_raw
                 self._d3K0_cache *= self.scale[:, np.newaxis, np.newaxis]
                 self._d3K0_cache *= self.scale[np.newaxis, :, np.newaxis]
                 self._d3K0_cache *= self.scale[np.newaxis, np.newaxis, :]
             else:
-                self._d3K0_cache = transform_rank3_tensor(
-                    CumulantGeneratingFunction.d3K0.fget(self), self.scale_mat
-                )
+                self._d3K0_cache = transform_rank3_tensor(self._d3K0_raw, self.scale_mat)
         return self._d3K0_cache
+
+    @property
+    def _dK0_raw(self):
+        """
+        Note this property stores the unscaled and untranslated derivative at zero.
+        """
+        if self._dK0_raw_cache is None:
+            self._dK0_raw_cache = self._dK(np.zeros(self.domain.dim))
+        return self._dK0_raw_cache
+
+    @property
+    def _d2K0_raw(self):
+        """
+        Note this property stores the unscaled and untranslated second order derivative at zero.
+        """
+        if self._d2K0_raw_cache is None:
+            self._d2K0_raw_cache = self._d2K(np.zeros(self.domain.dim))
+        return self._d2K0_raw_cache
+
+    @property
+    def _d3K0_raw(self):
+        """
+        Note this property stores the unscaled and untranslated third order derivative at zero.
+        """
+        if self._d3K0_raw_cache is None:
+            self._d3K0_raw_cache = self._d3K(np.zeros(self.domain.dim))
+        return self._d3K0_raw_cache
 
     def __getitem__(self, item):
         """
@@ -1124,9 +1191,15 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK=lambda t, mcgf=mcgf: mcgf.dK(np.expand_dims(t, -1)).squeeze(),
                 d2K=lambda t, mcgf=mcgf: mcgf.d2K(np.expand_dims(t, -1)).squeeze(),
                 d3K=lambda t, mcgf=mcgf: mcgf.d3K(np.expand_dims(t, -1)).squeeze(),
-                dK0=mcgf.dK0.squeeze() if mcgf._dK0 is not None else None,
-                d2K0=mcgf.d2K0.squeeze() if mcgf._d2K0 is not None else None,
-                d3K0=mcgf.d3K0.squeeze() if mcgf._d3K0 is not None else None,
+                dK0=mcgf.dK0.squeeze()
+                if mcgf._dK0_raw_cache is not None or hasattr(mcgf, "_dK0_cache")
+                else None,
+                d2K0=mcgf.d2K0.squeeze()
+                if mcgf._d2K0_raw_cache is not None or hasattr(mcgf, "_d2K0_cache")
+                else None,
+                d3K0=mcgf.d3K0.squeeze()
+                if mcgf._d3K0_raw_cache is not None or hasattr(mcgf, "_d3K0_cache")
+                else None,
                 domain=mcgf.domain,
                 loc=0,
                 scale=1,
@@ -1175,17 +1248,17 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 # Note, store these derivatives if they are already computed
                 dK0=(
                     self.dK0[item]
-                    if self._dK0 is not None or hasattr(self, "_dK0_cache")
+                    if self._dK0_raw_cache is not None or hasattr(self, "_dK0_cache")
                     else None
                 ),
                 d2K0=(
                     self.d2K0[item]
-                    if self._d2K0 is not None or hasattr(self, "_d2K0_cache")
+                    if self._d2K0_raw_cache is not None or hasattr(self, "_d2K0_cache")
                     else None
                 ),
                 d3K0=(
                     self.d3K0[item]
-                    if self._d3K0 is not None or hasattr(self, "_d3K0_cache")
+                    if self._d3K0_raw_cache is not None or hasattr(self, "_d3K0_cache")
                     else None
                 ),
                 domain=self.domain.ldotinv(scale.T),
@@ -1219,9 +1292,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         References
         ----------
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
-
         [2] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
-
         [3] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
         """
         if isinstance(other, (int, float, np.ndarray, list)):
@@ -1231,9 +1302,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 if len(other) != self.dim:
                     raise AssertionError("Dimensions do not match")
             if inplace:
+                # Note required caches are reset in loc setter
                 self.loc = self.loc + other
-                if hasattr(self, "_dK0_cache"):
-                    delattr(self, "_dK0_cache")
                 return self
             else:
                 return MultivariateCumulantGeneratingFunction(
@@ -1244,9 +1314,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     dK_inv=self._dK_inv,
                     d2K=self._d2K,
                     d3K=self._d3K,
-                    dK0=self._dK0,
-                    d2K0=self._d2K0,
-                    d3K0=self._d3K0,
+                    dK0=self._dK0_raw_cache,
+                    d2K0=self._d2K0_raw_cache,
+                    d3K0=self._d3K0_raw_cache,
                     domain=self.domain,
                     numdiff_backend=self._numdiff_backend,
                 )
@@ -1267,17 +1337,20 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 # Extract scaled derivatives and pass them if unscaled derivatives are already computed
                 dK0=(
                     self.dK0 + other.dK0
-                    if self._dK0 is not None and other._dK0 is not None
+                    if (hasattr(self, "_dK0_cache") or self._dK0_raw_cache is not None)
+                    and (hasattr(other, "_dK0_cache") or other._dK0_raw_cache is not None)
                     else None
                 ),
                 d2K0=(
                     self.d2K0 + other.d2K0
-                    if self._d2K0 is not None and other._d2K0 is not None
+                    if (hasattr(self, "_d2K0_cache") or self._d2K0_raw_cache is not None)
+                    and (hasattr(other, "_d2K0_cache") or other._d2K0_raw_cache is not None)
                     else None
                 ),
                 d3K0=(
                     self.d3K0 + other.d3K0
-                    if self._d3K0 is not None and other._d3K0 is not None
+                    if (hasattr(self, "_d3K0_cache") or self._d3K0_raw_cache is not None)
+                    and (hasattr(other, "_d3K0_cache") or other._d3K0_raw_cache is not None)
                     else None
                 ),
                 domain=self.domain.intersect(other.domain.ldotinv(np.ones((1, self.dim)))),
@@ -1306,17 +1379,20 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 # Extract scaled derivatives and pass them if unscaled derivatives are already computed
                 dK0=(
                     self.dK0 + other.dK0
-                    if self._dK0 is not None and other._dK0 is not None
+                    if (hasattr(self, "_dK0_cache") or self._dK0_raw_cache is not None)
+                    and (hasattr(other, "_dK0_cache") or other._dK0_raw_cache is not None)
                     else None
                 ),
                 d2K0=(
                     self.d2K0 + other.d2K0
-                    if self._d2K0 is not None and other._d2K0 is not None
+                    if (hasattr(self, "_d2K0_cache") or self._d2K0_raw_cache is not None)
+                    and (hasattr(other, "_d2K0_cache") or other._d2K0_raw_cache is not None)
                     else None
                 ),
                 d3K0=(
                     self.d3K0 + other.d3K0
-                    if self._d3K0 is not None and other._d3K0 is not None
+                    if (hasattr(self, "_d3K0_cache") or self._d3K0_raw_cache is not None)
+                    and (hasattr(other, "_d3K0_cache") or other._d3K0_raw_cache is not None)
                     else None
                 ),
                 dim=self.dim,
@@ -1339,18 +1415,14 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         References
         ----------
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
-
         [2] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
-
         [3] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
         """
         if isinstance(other, (int, float)):
             if inplace:
+                # Note caches are reset in setters
                 self.loc = self.loc * other
                 self.scale = self.scale * other
-                for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
-                    if hasattr(self, att):
-                        delattr(self, att)
                 return self
             else:
                 return MultivariateCumulantGeneratingFunction(
@@ -1361,9 +1433,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     dK_inv=self._dK_inv,
                     d2K=self._d2K,
                     d3K=self._d3K,
-                    dK0=self._dK0,
-                    d2K0=self._d2K0,
-                    d3K0=self._d3K0,
+                    dK0=self._dK0_raw_cache,
+                    d2K0=self._d2K0_raw_cache,
+                    d3K0=self._d3K0_raw_cache,
                     domain=self.domain,
                     dim=self.dim,
                     numdiff_backend=self._numdiff_backend,
@@ -1374,11 +1446,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             assert len(other) == self.dim, "Vector rescaling should work on all variables"
             # This is simply a rescaling of all the components
             if inplace:
+                # Note caches are reset in setters
                 self.loc = self.loc * other
                 self.scale = (other * np.asanyarray(self.scale).T).T
-                for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
-                    if hasattr(self, att):
-                        delattr(self, att)
                 return self
             else:
                 return MultivariateCumulantGeneratingFunction(
@@ -1389,9 +1459,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     dK_inv=self._dK_inv,
                     d2K=self._d2K,
                     d3K=self._d3K,
-                    dK0=self._dK0,
-                    d2K0=self._d2K0,
-                    d3K0=None,
+                    dK0=self._dK0_raw_cache,
+                    d2K0=self._d2K0_raw_cache,
+                    d3K0=self._d3K0_raw_cache,
                     domain=self.domain,
                     dim=self.dim,
                     numdiff_backend=self._numdiff_backend,
@@ -1419,11 +1489,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         References
         ----------
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
-
         [2] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
-
         [3] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
-
         """
         if isinstance(A, np.ndarray) and A.ndim == 1:
             assert not inplace, "Inplace not possible when projecting to univariate case"
@@ -1432,14 +1499,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             return self.ldot(np.asanyarray(A), inplace=inplace)
         elif isinstance(A, np.ndarray) and A.ndim == 2 and A.shape[1] == self.dim:
             if inplace:
-                assert A.shape[0] == self.dim, (
-                    "inplace ldot only possible if dimension remains the same"
-                )
+                if A.shape[0] != self.dim:
+                    raise AssertionError(
+                        "inplace ldot only possible if dimension remains the same"
+                    )
                 self.loc = A.dot(self.loc_vect)
                 self.scale = A.dot(self.scale_mat)
-                for att in ["_dK0_cache", "_d2K0_cache", "_d3K0_cache"]:
-                    if hasattr(self, att):
-                        delattr(self, att)
                 return self
             else:
                 return MultivariateCumulantGeneratingFunction(
@@ -1451,9 +1516,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     dK_inv=self._dK_inv,
                     d2K=self._d2K,
                     d3K=self._d3K,
-                    dK0=self._dK0,
-                    d2K0=self._d2K0,
-                    d3K0=self._d3K0,
+                    dK0=self._dK0_raw_cache,
+                    d2K0=self._d2K0_raw_cache,
+                    d3K0=self._d3K0_raw_cache,
                     domain=self.domain,
                     numdiff_backend=self._numdiff_backend,
                 )
@@ -1853,20 +1918,20 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             dK0 = np.asanyarray(dK0)
             if dK0.shape != (dim,):
                 raise ValueError("Invalid shape for dK0")
-        elif all(cgf._dK0 is not None for cgf in cgfs):
+        elif all(cgf._dK0_raw_cache is not None or hasattr(cgf, "_dK0_cache") for cgf in cgfs):
             dK0 = np.array([cgf.dK0 for cgf in cgfs])
         if d2K0 is not None:
             d2K0 = np.asanyarray(d2K0)
             if d2K0.shape != (dim, dim):
                 raise ValueError("Invalid shape for d2K0")
-        elif all(cgf._d2K0 is not None for cgf in cgfs):
+        elif all(cgf._d2K0_raw_cache is not None or hasattr(cgf, "_d2K0_cache") for cgf in cgfs):
             # This einsum effectively puts the univariate derivatives on the diagonal
             d2K0 = np.einsum("i,ij->ij", np.array([cgf.d2K0 for cgf in cgfs]), np.eye(dim))
         if d3K0 is not None:
             d3K0 = np.asanyarray(d3K0)
             if d3K0.shape != (dim, dim, dim):
                 raise ValueError("Invalid shape for d3K0")
-        elif all(cgf._d3K0 is not None for cgf in cgfs):
+        elif all(cgf._d3K0_raw_cache is not None or hasattr(cgf, "_d3K0_cache") for cgf in cgfs):
             # This einsum effectively puts the univariate derivatives on the diagonal
             d3K0 = np.einsum(
                 "i,ijk->ijk",
@@ -1974,23 +2039,26 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
             if dK0 is not None:
                 dK0 = np.asanyarray(dK0)
-            elif all(cgf._dK0 is not None for cgf in cgfs):
+            elif all(cgf._dK0_raw_cache is not None or hasattr(cgf, "_dK0_cache") for cgf in cgfs):
                 dK0 = np.concatenate([cgf.dK0 for cgf in cgfs], axis=-1)
             else:
                 dK0 = None
             if d2K0 is not None:
                 d2K0 = np.asanyarray(d2K0)
-            elif all(cgf._d2K0 is not None for cgf in cgfs):
+            elif all(
+                cgf._d2K0_raw_cache is not None or hasattr(cgf, "_d2K0_cache") for cgf in cgfs
+            ):
                 d2K0 = sp.linalg.block_diag(*[cgf.d2K0 for cgf in cgfs])
             else:
                 d2K0 = None
             if d3K0 is not None:
                 d3K0 = np.asanyarray(d3K0)
-            elif all(cgf._d3K0 is not None for cgf in cgfs):
+            elif all(
+                cgf._d3K0_raw_cache is not None or hasattr(cgf, "_d3K0_cache") for cgf in cgfs
+            ):
                 d3K0 = block_diag_3d(*[cgf.d3K0 for cgf in cgfs])
             else:
                 d3K0 = None
-
             domain = Domain.from_domains(*[cgf.domain for cgf in cgfs])
             return cls(
                 K,
