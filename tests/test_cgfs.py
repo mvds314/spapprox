@@ -711,117 +711,128 @@ def test_return_type(cgf):
 @pytest.mark.parametrize(
     "cgf,ts",
     [
-        # Case 1: Univariate normal
-        (
+        pytest.param(
             norm(loc=0, scale=1),
             [0.2, 0.55],
+            id="Standard normal",
         ),
-        (
+        pytest.param(
             multivariate_norm(np.zeros(2), np.eye(2))[0],
             [0.2, 0.55],
+            id="Standard normal from multivariate",
         ),
-        # Case 2: Univariate normal with loc and scale
-        (
+        pytest.param(
             norm(loc=1, scale=0.5),
             [0.2, 0.55],
+            id="Transformed normal",
         ),
-        (
+        pytest.param(
             multivariate_norm(np.ones(2), np.eye(2))[0],
             [0.2, 0.55],
+            id="Transformed normal from multivariate",
         ),
-        # Case 3: Univariate manually specified
-        (
+        pytest.param(
             UnivariateCumulantGeneratingFunction(
                 K=lambda t, loc=0, scale=1: loc * t + scale**2 * t**2 / 2
             ),
             [0.2, 0.55],
+            id="Univariate manually specified",
         ),
-        # Case 4: Univariate exponential
-        (
+        pytest.param(
             exponential(scale=1),
             [0.2, 0.55, 0.95],
+            id="Univariate exponential",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(exponential(scale=1))[0],
             [0.2, 0.55, 0.95],
+            id="Univariate exponential from multivariate",
         ),
-        # Case 5: Univariate exponential with scale
-        (
+        pytest.param(
             exponential(scale=0.5),
             [0.2, 0.55, 0.95],
+            id="Scaled univariate exponential",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(exponential(scale=0.5))[0],
             [0.2, 0.55, 0.95],
+            id="Scaled univariate exponential from multivariate",
         ),
-        # Case 6: Univariate exponential manually specified
-        (
+        pytest.param(
             UnivariateCumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t))),
             [0.2, 0.55, 0.95],
+            id="Manually specified univariate exponential",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 UnivariateCumulantGeneratingFunction(K=lambda t: np.log(1 / (1 - t)))
             )[0],
             [0.2, 0.55, 0.95],
+            id="Manually specified univariate exponential from multivariate",
         ),
-        # Case 7: Univariate gamma
-        (
+        pytest.param(
             gamma(a=2, scale=0.5),
             [0.2, 0.55],
+            id="Scaled univariate gamma",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(gamma(a=2, scale=0.5))[0],
             [0.2, 0.55],
+            id="Scaled univariate gamma from multivariate",
         ),
-        # Case 8: Univariate chi2
-        (
+        pytest.param(
             chi2(df=3),
             [0.2, 0.25],
+            id="Univariate chi2",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(chi2(df=3))[0],
             [0.2, 0.25],
+            id="Univariate chi2 from multivariate",
         ),
-        # Case 9: Univariate laplace
-        (
+        pytest.param(
             laplace(loc=0, scale=1),
             [0.2, 0.55, -0.23],
+            id="Univariate Laplace",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(laplace(loc=0, scale=1))[0],
             [0.2, 0.55, -0.23],
+            id="Univariate Laplace from multivariate",
         ),
-        # Case 10: Univariate poisson
-        (
+        pytest.param(
             poisson(mu=2),
             [0.2, 0.55],
+            id="Univariate poisson",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(poisson(mu=2))[0],
             [0.2, 0.55],
+            id="Univariate poisson from multivariate",
         ),
-        # Case 11: Univariate binomial
-        (
+        pytest.param(
             binomial(n=10, p=0.5),
             [0.2, 0.55],
+            id="Univariate binomial",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(binomial(n=10, p=0.5))[0],
             [0.2, 0.55],
+            id="Univariate binomial from multivariate",
         ),
         # Case 12: Univariate beta
-        (
+        pytest.param(
             univariate_sample_mean(norm(2, 1), 25),
             [0.2, 0.55, -0.23],
+            id="Univariate sample mean",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 univariate_sample_mean(norm(2, 1), 25)
             )[0],
             [0.2, 0.55, -0.23],
+            id="Univariate sample mean from multivariate",
         ),
-        # TODO: add bivariate gamma
     ],
 )
 def test_dKinv(cgf, ts):
