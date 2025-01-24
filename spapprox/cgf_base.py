@@ -1741,7 +1741,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 kwargs["method"] = method
                 try:
                     res = spo.root(
-                        lambda t, x=x: self.dK(t, loc=loc, scale=scale) - x - loc,
+                        lambda t, x=x: self.dK(t, loc=loc, scale=scale) - x,
                         **kwargs,
                     )
                 except Exception:

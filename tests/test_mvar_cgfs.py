@@ -752,7 +752,6 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
             bivariate_gamma([1.1, 1.2, 1.3], loc=0.05, scale=0.95),
             [[-0.2, -0.1], [0, -0.5], [-0.2, 0], [0.1, 0], [0, 0]],
             id="Transformed bivariate gamma",
-            marks=[pytest.mark.xfail, pytest.mark.tofix],
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
@@ -809,7 +808,7 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                # str(Path(__file__)) + "::test_statistics",
+                # str(Path(__file__)) + "::test_dKinv",
                 # "-k",
                 # "test_dKinv",
                 "--tb=no",
