@@ -58,7 +58,7 @@ def test_2d_from_uniform():
     assert np.allclose(mcgf.K(ts), val)
     assert np.allclose(mcgf_from_univ.K(ts), val)
     assert np.allclose(mcgf_int.K(ts), val, atol=1e-3)
-    # Test the derivatives
+    # Test first order derivatives
     for t in ts:
         val = mcgf.dK(t)
         assert pd.api.types.is_array_like(val) and len(val.shape) == 1 and len(val) == 2
@@ -68,7 +68,7 @@ def test_2d_from_uniform():
     assert np.allclose(mcgf.dK(ts), val)
     assert np.allclose(mcgf_from_univ.dK(ts), val)
     assert np.allclose(mcgf_int.dK(ts), val, atol=1e-3)
-    # Test inverse of the derivatives
+    # Test inverse of first order derivative
     for t in ts:
         assert np.allclose(mcgf.dK_inv(mcgf.dK(t)), t)
         assert np.allclose(mcgf_from_univ.dK_inv(mcgf_from_univ.dK(t)), t)
@@ -87,7 +87,16 @@ def test_2d_from_uniform():
     assert np.allclose(mcgf.d2K(ts), val)
     assert np.allclose(mcgf_from_univ.d2K(ts), val)
     assert np.allclose(mcgf_int.d2K(ts), val, atol=1e-3)
-    # TODO: test third order derivatives
+    # Test the third order derivatives
+    for t in ts:
+        val = mcgf.d3K(t)
+        assert pd.api.types.is_array_like(val) and len(val.shape) == 3 and val.shape == (2, 2, 2)
+        assert np.allclose(val, mcgf_from_univ.d3K(t))
+        assert np.allclose(val, mcgf_int.d3K(t), atol=1e-3)
+    val = np.array([mcgf.d3K(t) for t in ts])
+    assert np.allclose(mcgf.d3K(ts), val)
+    assert np.allclose(mcgf_from_univ.d3K(ts), val)
+    assert np.allclose(mcgf_int.d3K(ts), val, atol=1e-3)
 
 
 @pytest.mark.parametrize(
