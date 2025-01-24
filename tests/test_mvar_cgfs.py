@@ -589,11 +589,11 @@ def test_stack(mcgf1, mcgf2, ts, dim):
             id="First element of 2D norm",
         ),
         pytest.param(
-            multivariate_norm(loc=[1, 2, 3, 4], scale=np.array([1, 1, 2, 2]))[-1],
-            norm(loc=4, scale=2),
-            [-2, -1, 0, 1, 2],
+            bivariate_gamma(a=[1.1, 1.2, 1.3], scale=2)[-1],
+            gamma(1.1, scale=2) + gamma(1.3, scale=2),
+            [-0.2, -0.1, 0, 0.1, 0.2],
             None,
-            id="Last element of 2D norm",
+            id="Last element of bivariate gamma",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
@@ -603,7 +603,17 @@ def test_stack(mcgf1, mcgf2, ts, dim):
             norm(loc=0, scale=1),
             [-2, -1, 0, 1, 2],
             None,
-            id="Slicing fo from cgfs",
+            id="Slicing normal from from cgfs",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma(a=[1.1, 1.2, 1.3], scale=2),
+                bivariate_gamma(a=[1.1, 1.2, 1.3], scale=2),
+            )[0],
+            gamma(1.1, scale=2) + gamma(1.2, scale=2),
+            [-0.2, -0.1, 0, 0.1, 0.2],
+            None,
+            id="Slicing gamma from from cgfs",
         ),
         pytest.param(
             multivariate_norm(loc=[1, 2, 3, 4], scale=np.array([1, 1, 2, 2]))[[1, 2]],
@@ -611,6 +621,32 @@ def test_stack(mcgf1, mcgf2, ts, dim):
             [[-2, -1], [0, 1], [2, 0]],
             2,
             id="Slice 4D normal",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma(a=[1.1, 1.2, 1.3], scale=2),
+                bivariate_gamma(a=[1.01, 1.02, 1.03], scale=2),
+            )[[1, 2]],
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                gamma(1.1, scale=2) + gamma(1.3, scale=2),
+                gamma(1.01, scale=2) + gamma(1.02, scale=2),
+            ),
+            [[-0.2, -0.1], [0, 0.1], [0.2, 0]],
+            None,
+            id="Slicing 2D gamma from from bivariate gammas",
+        ),
+        pytest.param(
+            (
+                MultivariateCumulantGeneratingFunction.from_cgfs(
+                    bivariate_gamma(a=[0, 1.2, 1.3], scale=2),
+                    bivariate_gamma(a=[0, 1.02, 1.03], scale=2),
+                )
+                + gamma(1.01) * 2
+            )[[1, 2]],
+            bivariate_gamma([1.01, 1.3, 1.02], scale=2),
+            [[-0.2, -0.1], [0, 0.1], [0.2, 0]],
+            None,
+            id="Slicing bivariate gamma from from bivariate gammas",
         ),
         pytest.param(
             multivariate_norm(loc=[1, 2, 3], scale=np.diag([1, 2, 3]))[[0, 2]],
@@ -629,7 +665,6 @@ def test_stack(mcgf1, mcgf2, ts, dim):
             2,
             id="Slicing of 3D normal",
         ),
-        # TODO: add bivariate gamma
     ],
 )
 def test_slicing(mcgf1, mcgf2, ts, dim):
