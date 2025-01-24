@@ -25,8 +25,12 @@ from spapprox import (
 @pytest.mark.parametrize(
     "cgf,dist,trange",
     [
-        (norm(loc=0.5, scale=3), sps.norm(loc=0.5, scale=3), [-10, 10]),
-        (norm(loc=0, scale=1), sps.norm(loc=0, scale=1), [-5, 5]),
+        pytest.param(
+            norm(loc=0, scale=1), sps.norm(loc=0, scale=1), [-5, 5], id="Standard normal"
+        ),
+        pytest.param(
+            norm(loc=0.5, scale=3), sps.norm(loc=0.5, scale=3), [-10, 10], id="Transformed normal"
+        ),
     ],
 )
 def test_norm_spa(cgf, dist, trange):
@@ -73,12 +77,14 @@ def test_norm_spa(cgf, dist, trange):
 @pytest.mark.parametrize(
     "cgf,trange",
     [
-        (norm(loc=0.5, scale=3), [-10, 10]),
-        (norm(loc=0, scale=1), [-5, 5]),
-        (exponential(scale=10), [-1e5, 1 / 10 * 0.99999999]),
-        (gamma(a=2, scale=3), [-1e3, 1 / 3 * 0.99999999]),
-        (chi2(df=3), [-1e4, 1 / 2 * 0.99999999]),
-        (laplace(loc=1, scale=3), [-1 / 3 * 0.99999999, 1 / 3 * 0.99999999]),
+        pytest.param(norm(loc=0, scale=1), [-5, 5], id="Standard normal"),
+        pytest.param(norm(loc=0.5, scale=3), [-10, 10], id="Transformed normal"),
+        pytest.param(exponential(scale=10), [-1e5, 1 / 10 * 0.99999999], id="Exponential"),
+        pytest.param(gamma(a=2, scale=3), [-1e3, 1 / 3 * 0.99999999], id="Gamma"),
+        pytest.param(chi2(df=3), [-1e4, 1 / 2 * 0.99999999], id="Chi2"),
+        pytest.param(
+            laplace(loc=1, scale=3), [-1 / 3 * 0.99999999, 1 / 3 * 0.99999999], id="Laplace"
+        ),
     ],
 )
 def test_normalization(cgf, trange):
@@ -109,11 +115,7 @@ def test_normalization(cgf, trange):
 @pytest.mark.parametrize(
     "cgf,dist,trange",
     [
-        (
-            exponential(scale=3),
-            sps.expon(scale=3),
-            [0, 1 / 3],
-        ),
+        pytest.param(exponential(scale=3), sps.expon(scale=3), [0, 1 / 3], id="Exponential"),
     ],
 )
 def test_expon_spa(cgf, dist, trange):
@@ -173,11 +175,12 @@ def test_expon_spa(cgf, dist, trange):
     "cgf, dist, ts, dim",
     [
         # Basic test with uncorrelated variables
-        (
+        pytest.param(
             multivariate_norm(loc=0.5, scale=3),
             sps.multivariate_normal(mean=[0.5, 0.5], cov=9),
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
             2,
+            id="Multivariate normal uncorrelated",
         ),
         # Test with correlated variables
         pytest.param(
@@ -185,6 +188,7 @@ def test_expon_spa(cgf, dist, trange):
             sps.multivariate_normal(mean=[0.5, 0.2], cov=[[3, 1], [1, 3]]),
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
             2,
+            id="Multivariate normal correlated",
             marks=pytest.mark.slow,
         ),
         # 3 dim test
@@ -193,6 +197,7 @@ def test_expon_spa(cgf, dist, trange):
             sps.multivariate_normal(mean=[0.5, 0.5, 0.5], cov=9),
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 3)),
             3,
+            id="Multivariate normal 3 dim",
             marks=pytest.mark.slow,
         ),
         # Other distribution
@@ -203,9 +208,11 @@ def test_expon_spa(cgf, dist, trange):
             sps.multivariate_normal(mean=[0.5, 0.5], cov=9),
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 2)),
             2,
+            id="Multivariate normal from univariate",
             marks=pytest.mark.slow,
         ),
         # TODO: test non-normal distribution?
+        # TODO: add multivariate gamma
         # TODO: also test the bivariate implementation explicitly
     ],
 )
@@ -246,6 +253,7 @@ def test_mvar_spa(cgf, dist, ts, dim):
             sps.multivariate_normal(mean=[0, 0], cov=1),
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 11), 2)),
             2,
+            id="Bivariate normal uncorrelated",
             marks=pytest.mark.xfail(reason="This test is not working yet, 3rd order is needed"),
         ),
         # TODO: add bivariate gamma
@@ -282,13 +290,14 @@ if __name__ == "__main__":
     if True:
         pytest.main(
             [
-                # str(Path(__file__)),
-                str(Path(__file__)) + "::test_bvar_spa",
+                str(Path(__file__)),
+                # str(Path(__file__)) + "::test_bvar_spa",
                 # "-k",
                 # "test_bvar_spa",
                 "--durations=10",
                 "--tb=auto",
-                "--pdb",
+                # "--pdb",
+                "-v",
                 "-s",
                 # "-m 'not slow'",
             ]
