@@ -743,7 +743,32 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
             [[-2, -1], [0, -5], [-2, 0]],
             id="Projection",
         ),
-        # TODO: test also with bivariate gamma
+        pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3]),
+            [[0.1, 0], [0, 0]],
+            id="Bivariate gamma",
+        ),
+        pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3], loc=0.05, scale=0.95),
+            [[-0.2, -0.1], [0, -0.5], [-0.2, 0], [0.1, 0], [0, 0]],
+            id="Transformed bivariate gamma",
+            marks=[pytest.mark.xfail, pytest.mark.tofix],
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma([1.1, 1.2, 1.3], loc=0.05, scale=0.95),
+                norm(loc=2),
+            ).ldot(
+                np.array(
+                    [
+                        [1, 2, 2],
+                        [2, 1, 3],
+                    ]
+                )
+            ),
+            [[-0.2, -0.1], [0, -0.5], [-0.2, 0]],
+            id="Projection with bivariate gamma and normal",
+        ),
     ],
 )
 def test_dKinv(mcgf, ts):
