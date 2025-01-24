@@ -691,45 +691,43 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
 @pytest.mark.parametrize(
     "mcgf,ts",
     [
-        # multivariate normal with inverse defined
-        (
+        pytest.param(
             multivariate_norm(dim=2),
             [[-2, -1], [0, 1], [2, 0]],
+            id="Standard multivariate normal",
         ),
-        (
+        pytest.param(
             multivariate_norm(dim=2, scale=[1, 2], loc=[1, 2]),
             [[-2, -1], [0, 1], [2, 0]],
+            id="Transformed multivariate normal",
         ),
-        # multivariate normal without inverse defined
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()),
             [[-2, -1], [0, 1], [2, 0]],
+            id="Standard multivariate normal without explicit inverse",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()).ldot(
                 np.array([[1, 2], [2, 1]])
             ),
             [[-2, -1], [0, 1], [2, 0]],
+            id="Scaled multivariate normal without explicit inverse",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 norm(loc=2, scale=3), norm(loc=1, scale=2)
             ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
             [[-2, -1, 0], [0, 1, 1], [2, 0, 0]],
+            id="3D degenerate normal",
         ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(
-                norm(loc=2, scale=3), norm(loc=1, scale=2)
-            ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
-            [[-2, -1, 0]],
-        ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 norm(loc=2, scale=3), exponential(loc=1, scale=2)
             ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
             [[-2, -1, 0]],
+            id="Degenerate normal and exponential",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 exponential(loc=5),
                 norm(loc=3),
@@ -743,6 +741,7 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
                 )
             ),
             [[-2, -1], [0, -5], [-2, 0]],
+            id="Projection",
         ),
         # TODO: test also with bivariate gamma
     ],
