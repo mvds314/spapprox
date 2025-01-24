@@ -1057,6 +1057,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @property
     def dK0(self):
         if not hasattr(self, "_dK0_cache"):
+            # Note the fget gets the unscaled and untranslated value, as stored in _dK0
             if np.asanyarray(self.scale).ndim <= 1:
                 self._dK0_cache = self.scale * CumulantGeneratingFunction.dK0.fget(self) + self.loc
             else:
@@ -1068,6 +1069,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @property
     def d2K0(self):
         if not hasattr(self, "_d2K0_cache"):
+            # Note the fget gets the unscaled and untranslated value, as stored in _d2K0
             if np.asanyarray(self.scale).ndim == 0:
                 self._d2K0_cache = self.scale**2 * CumulantGeneratingFunction.d2K0.fget(self)
             elif np.asanyarray(self.scale).ndim == 1:
@@ -1087,6 +1089,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         In the multivariate case, we merely implement the diagonal
         """
         if not hasattr(self, "_d3K0_cache"):
+            # Note the fget gets the unscaled and untranslated value, as stored in _d3K0
             if np.asanyarray(self.scale).ndim == 0:
                 self._d3K0_cache = self.scale**3 * CumulantGeneratingFunction.d3K0.fget(self)
             elif np.asanyarray(self.scale).ndim == 1:
