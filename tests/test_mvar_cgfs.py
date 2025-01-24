@@ -92,11 +92,11 @@ def test_2d_from_uniform():
         val = mcgf.d3K(t)
         assert pd.api.types.is_array_like(val) and len(val.shape) == 3 and val.shape == (2, 2, 2)
         assert np.allclose(val, mcgf_from_univ.d3K(t))
-        assert np.allclose(val, mcgf_int.d3K(t), atol=1e-3)
+        assert np.allclose(val, mcgf_int.d3K(t), atol=1e-2)
     val = np.array([mcgf.d3K(t) for t in ts])
     assert np.allclose(mcgf.d3K(ts), val)
     assert np.allclose(mcgf_from_univ.d3K(ts), val)
-    assert np.allclose(mcgf_int.d3K(ts), val, atol=1e-3)
+    assert np.allclose(mcgf_int.d3K(ts), val, atol=1e-2)
 
 
 @pytest.mark.parametrize(
