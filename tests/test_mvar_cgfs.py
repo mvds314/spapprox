@@ -400,7 +400,6 @@ def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
             id="Project 3D normal on 2D normal",
-            marks=[pytest.mark.xfail, pytest.mark.tofix],
         ),
         pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2)),
@@ -439,7 +438,6 @@ def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
             [[-1], [-2], [0], [2], [4]],
             None,
             id="Project 3D normal on 1D",
-            marks=[pytest.mark.xfail, pytest.mark.tofix],
         ),
         # TODO: fix failing tests
     ],

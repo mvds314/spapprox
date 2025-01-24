@@ -193,7 +193,7 @@ def bivariate_gamma(a=None, loc=0, scale=1):
         t = np.asanyarray(t)
         return (
             np.diag([a[1] / (1 - t.T[0]) ** 2, a[2] / (1 - t.T[1]) ** 2])
-            + a[0] / (1 - t.T[0] - t.T[1]) ** 2,
+            + a[0] / (1 - t.T[0] - t.T[1]) ** 2
         )
 
     def d3K(t, a=a):

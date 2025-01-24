@@ -1191,15 +1191,21 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 dK=lambda t, mcgf=mcgf: mcgf.dK(np.expand_dims(t, -1)).squeeze(),
                 d2K=lambda t, mcgf=mcgf: mcgf.d2K(np.expand_dims(t, -1)).squeeze(),
                 d3K=lambda t, mcgf=mcgf: mcgf.d3K(np.expand_dims(t, -1)).squeeze(),
-                dK0=mcgf.dK0.squeeze()
-                if mcgf._dK0_raw_cache is not None or hasattr(mcgf, "_dK0_cache")
-                else None,
-                d2K0=mcgf.d2K0.squeeze()
-                if mcgf._d2K0_raw_cache is not None or hasattr(mcgf, "_d2K0_cache")
-                else None,
-                d3K0=mcgf.d3K0.squeeze()
-                if mcgf._d3K0_raw_cache is not None or hasattr(mcgf, "_d3K0_cache")
-                else None,
+                dK0=(
+                    mcgf.dK0.squeeze()
+                    if mcgf._dK0_raw_cache is not None or hasattr(mcgf, "_dK0_cache")
+                    else None
+                ),
+                d2K0=(
+                    mcgf.d2K0.squeeze()
+                    if mcgf._d2K0_raw_cache is not None or hasattr(mcgf, "_d2K0_cache")
+                    else None
+                ),
+                d3K0=(
+                    mcgf.d3K0.squeeze()
+                    if mcgf._d3K0_raw_cache is not None or hasattr(mcgf, "_d3K0_cache")
+                    else None
+                ),
                 domain=mcgf.domain,
                 loc=0,
                 scale=1,
@@ -1982,9 +1988,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         the sum of the cumulant generating functions. This follows directly from
         the definition of the cumulant generating function.
         """
-        assert all(isinstance(cgf, CumulantGeneratingFunction) for cgf in cgfs), (
-            "All cgfs must be CumulantGeneratingFunction"
-        )
+        if not all(isinstance(cgf, CumulantGeneratingFunction) for cgf in cgfs):
+            raise AssertionError("All cgfs must be CumulantGeneratingFunction")
         if all(isinstance(cgf, UnivariateCumulantGeneratingFunction) for cgf in cgfs):
             return cls.from_univariate(*cgfs)
         else:
