@@ -876,11 +876,11 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         CumulantGeneratingFunction.loc.fset(self, np.asanyarray(loc))
 
     def _validate_loc(self, loc):
-        assert (
-            pd.api.types.is_number(loc)
-            or (isinstance(loc, np.ndarray) and loc.ndim == 0)
-            or (isinstance(loc, np.ndarray) and loc.ndim == 1 and len(loc) == self.dim)
-        ), "loc should be a scalar, vector of length {self.dim}"
+        valid = pd.api.types.is_number(loc)
+        valid |= isinstance(loc, np.ndarray) and loc.ndim == 0
+        valid |= isinstance(loc, np.ndarray) and loc.ndim == 1 and len(loc) == self.dim
+        if not valid:
+            raise AssertionError("loc should be a scalar, vector of length {self.dim}")
 
     @CumulantGeneratingFunction.scale.setter
     def scale(self, scale):
@@ -896,21 +896,23 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         CumulantGeneratingFunction.scale.fset(self, np.asanyarray(scale))
 
     def _validate_scale(self, scale):
-        assert (
-            pd.api.types.is_number(scale)
-            or (isinstance(scale, np.ndarray) and scale.ndim == 0)
-            or (
-                isinstance(scale, np.ndarray)
-                and scale.ndim == 1
-                and len(scale) == self.dim == self.domain.dim
+        valid = pd.api.types.is_number(scale)
+        valid |= isinstance(scale, np.ndarray) and scale.ndim == 0
+        valid |= (
+            isinstance(scale, np.ndarray)
+            and scale.ndim == 1
+            and len(scale) == self.dim == self.domain.dim
+        )
+        valid |= (
+            isinstance(scale, np.ndarray)
+            and scale.ndim == 2
+            and scale.shape[0] == self.dim
+            and scale.shape[1] == self.domain.dim
+        )
+        if not valid:
+            raise AssertionError(
+                f"scale should be a scalar, vector of length {self.dim}, or a matrix"
             )
-            or (
-                isinstance(scale, np.ndarray)
-                and scale.ndim == 2
-                and scale.shape[0] == self.dim
-                and scale.shape[1] == self.domain.dim
-            )
-        ), f"scale should be a scalar, vector of length {self.dim}, or a matrix"
 
     @property
     def scale_is_invertible(self):
