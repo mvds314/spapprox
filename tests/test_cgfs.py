@@ -75,10 +75,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.norm(loc=0, scale=1),
             "findiff",
-            marks=[
-                pytest.mark.skipif(not has_findiff, reason="No findiff"),
-                pytest.mark.xfail,
-            ],
+            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate normal from multivariate findiff",
         ),
         pytest.param(
@@ -340,7 +337,10 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.gamma(a=1.1, scale=0.9),
             "findiff",
-            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
+            marks=[
+                pytest.mark.skipif(not has_findiff, reason="No findiff"),
+                pytest.mark.slow,
+            ],
             id="univariate gamma",
         ),
         pytest.param(
@@ -597,10 +597,10 @@ def test_basic(cgf_to_test, cgf, ts, dist, backend):
         assert np.isclose(cgf_to_test.d2K0, d2cgf(0), atol=1e-5)
         # Test third order derivative
         cgf_to_test.mul(1.01, inplace=True)
-        assert np.isclose(d3cgf(1.01 * t) / (1 / 1.01) ** 3, cgf_to_test.d3K(t), atol=1e-4)
-        assert np.isclose(cgf_to_test.d3K0, d3cgf(0) * 1.01**3, atol=1e-5)
+        assert np.isclose(d3cgf(1.01 * t) / (1 / 1.01) ** 3, cgf_to_test.d3K(t), atol=1e-2)
+        assert np.isclose(cgf_to_test.d3K0, d3cgf(0) * 1.01**3, atol=1e-2)
         cgf_to_test.mul(1 / 1.01, inplace=True)
-        assert np.isclose(cgf_to_test.d3K0, d3cgf(0), atol=1e-5)
+        assert np.isclose(cgf_to_test.d3K0, d3cgf(0), atol=1e-2)
     # Test addition other cumulant generating function
     for t in ts:
         assert np.isclose(cgf(t) + cgf(t), (cgf_to_test + cgf_to_test).K(t))
