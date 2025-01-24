@@ -49,7 +49,6 @@ from spapprox.diff import PartialDerivative
             marks=[
                 pytest.mark.skipif(not has_numdifftools, reason="No numdifftools"),
                 pytest.mark.slow,
-                pytest.mark.xfail,
             ],
             id="univariate normal numdifftools",
         ),
@@ -67,7 +66,6 @@ from spapprox.diff import PartialDerivative
             marks=[
                 pytest.mark.skipif(not has_findiff, reason="No findiff"),
                 pytest.mark.slow,
-                pytest.mark.xfail,
             ],
             id="univariate normal findiff",
         ),
@@ -152,7 +150,6 @@ from spapprox.diff import PartialDerivative
             marks=[
                 pytest.mark.skipif(not has_findiff, reason="No findiff"),
                 pytest.mark.slow,
-                pytest.mark.xfail,
             ],
             id="univariate normal distribution scaled by a constant",
         ),
@@ -209,7 +206,6 @@ from spapprox.diff import PartialDerivative
             marks=[
                 pytest.mark.skipif(not has_findiff, reason="No findiff"),
                 pytest.mark.slow,
-                pytest.mark.xfail,
             ],
             id="univariate normal distribution with loc and scale",
         ),
