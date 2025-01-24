@@ -636,13 +636,15 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
         assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
         assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
-    # TODO: add d3K
-    for f in ["K", "dK", "d2K"]:
+    for f in ["K", "dK", "d2K", "d3K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
     assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
     assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
+    assert np.allclose(mcgf1.dK0, mcgf2.dK0)
+    assert np.allclose(mcgf1.d2K0, mcgf2.d2K0)
+    assert np.allclose(mcgf1.d3K0, mcgf2.d3K0)
 
 
 @pytest.mark.parametrize(
