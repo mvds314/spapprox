@@ -781,6 +781,18 @@ def test_return_type(cgf):
             id="Scaled univariate gamma from multivariate",
         ),
         pytest.param(
+            bivariate_gamma([0, 1.1, 1.2])[0],
+            [0.2, 0.55],
+            id="Scaled univariate gamma from bivariate gamma",
+            marks=pytest.mark.tofix,
+        ),
+        pytest.param(
+            bivariate_gamma([1.3, 1.1, 1.2], loc=0.05, scale=1.05)[0],
+            [0.2, 0.55],
+            id="Sliced bivariate gamma",
+            marks=pytest.mark.tofix,
+        ),
+        pytest.param(
             chi2(df=3),
             [0.2, 0.25],
             id="Univariate chi2",
@@ -820,7 +832,6 @@ def test_return_type(cgf):
             [0.2, 0.55],
             id="Univariate binomial from multivariate",
         ),
-        # Case 12: Univariate beta
         pytest.param(
             univariate_sample_mean(norm(2, 1), 25),
             [0.2, 0.55, -0.23],
@@ -843,7 +854,6 @@ def test_dKinv(cgf, ts):
     assert np.allclose(cgf.dK_inv(cgf.dK(ts)), [cgf.dK_inv(cgf.dK(t)) for t in ts])
 
 
-# TODO: handle todos in cgf base code
 # TODO: test multivariate cgfs
 # TODO: test everything, and continue with saddlepoint approx
 
@@ -853,7 +863,7 @@ if __name__ == "__main__":
         pytest.main(
             [
                 str(Path(__file__)),
-                # str(Path(__file__)) + "::test_basic",
+                # str(Path(__file__)) + "::test_dKinv",
                 # "-k",
                 # "test_basic",
                 "--durations=10",
