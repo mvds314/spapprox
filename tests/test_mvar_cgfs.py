@@ -581,19 +581,21 @@ def test_stack(mcgf1, mcgf2, ts, dim):
 @pytest.mark.parametrize(
     "mcgf1,mcgf2,ts,dim",
     [
-        (
+        pytest.param(
             multivariate_norm(loc=np.zeros(4), scale=np.array([1, 1, 2, 2]))[0],
             norm(loc=0, scale=1),
             [-2, -1, 0, 1, 2],
             None,
+            id="First element of 2D norm",
         ),
-        (
+        pytest.param(
             multivariate_norm(loc=[1, 2, 3, 4], scale=np.array([1, 1, 2, 2]))[-1],
             norm(loc=4, scale=2),
             [-2, -1, 0, 1, 2],
             None,
+            id="Last element of 2D norm",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
                 multivariate_norm(loc=np.zeros(2), scale=1),
                 multivariate_norm(loc=np.zeros(2), scale=2),
@@ -601,20 +603,23 @@ def test_stack(mcgf1, mcgf2, ts, dim):
             norm(loc=0, scale=1),
             [-2, -1, 0, 1, 2],
             None,
+            id="Slicing fo from cgfs",
         ),
-        (
+        pytest.param(
             multivariate_norm(loc=[1, 2, 3, 4], scale=np.array([1, 1, 2, 2]))[[1, 2]],
             multivariate_norm(loc=[2, 3], scale=np.array([1, 2])),
             [[-2, -1], [0, 1], [2, 0]],
             2,
+            id="Slice 4D normal",
         ),
-        (
+        pytest.param(
             multivariate_norm(loc=[1, 2, 3], scale=np.diag([1, 2, 3]))[[0, 2]],
             multivariate_norm(loc=[1, 3], scale=np.diag([1, 3])),
             [[-2, -1], [0, 1], [2, 0]],
             2,
+            id="Another slice of 4D normal",
         ),
-        (
+        pytest.param(
             multivariate_norm(
                 loc=[1, 2, 3],
                 cov=np.array([[1, 0.5, 0.1], [0.5, 2, 0.2], [0.1, 0.2, 3]]),
@@ -622,6 +627,7 @@ def test_stack(mcgf1, mcgf2, ts, dim):
             multivariate_norm(loc=[1, 3], cov=np.array([[1, 0.1], [0.1, 3]])),
             [[-2, -1], [0, 1], [2, 0]],
             2,
+            id="Slicing of 3D normal",
         ),
         # TODO: add bivariate gamma
     ],
