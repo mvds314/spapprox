@@ -13,8 +13,8 @@ def norm(loc=0, scale=1):
         K=lambda t: t**2 / 2,
         dK=lambda t: t,
         dK_inv=lambda x: x,
-        d2K=lambda t: np.ones(t.shape),
-        d3K=lambda t: np.zeros(t.shape),
+        d2K=lambda t: np.ones(np.asanyarray(t).shape),
+        d3K=lambda t: np.zeros(np.asanyarray(t).shape),
         loc=loc,
         scale=scale,
     )
@@ -77,7 +77,11 @@ def multivariate_norm(loc=0, scale=None, dim=None, cov=None):
         dim=dim,
         dK=lambda t: t,
         dK_inv=lambda x: x,
-        d2K=lambda t: (np.tile(np.eye(dim), (t.shape[0], 1, 1)) if t.ndim == 2 else np.eye(dim)),
+        d2K=lambda t: (
+            np.tile(np.eye(dim), (np.asanyarray(t).shape[0], 1, 1))
+            if np.asanyarray(t).ndim == 2
+            else np.eye(dim)
+        ),
         d3K=np.vectorize(
             lambda t, dim=dim: np.zeros((dim, dim, dim)), signature=f"({dim})->({dim},{dim},{dim})"
         ),
@@ -171,27 +175,44 @@ def bivariate_gamma(a=None, loc=0, scale=1):
     # Initialize loc and scale
     loc = np.asanyarray(loc)
     scale = np.asanyarray(scale)
-    return MultivariateCumulantGeneratingFunction(
-        K=lambda t, a=a: np.dot(-a, np.log([1 - t.T[0] - t.T[1], 1 - t.T[0], 1 - t.T[1]])),
-        dK=lambda t, a=a: np.add(
+
+    def K(t, a=a):
+        t = np.asanyarray(t)
+        return np.dot(-a, np.log([1 - t.T[0] - t.T[1], 1 - t.T[0], 1 - t.T[1]]))
+
+    def dK(t, a=a):
+        t = np.asanyarray(t)
+        return np.add(
             np.array([a[1] / (1 - t.T[0]), a[2] / (1 - t.T[1])]),
             a[0] / (1 - t.T[0] - t.T[1]),
-        ).T,
-        d2K=np.vectorize(
-            lambda t, a=a: np.diag([a[1] / (1 - t.T[0]) ** 2, a[2] / (1 - t.T[1]) ** 2])
+        ).T
+
+        return np.dot(-a, np.log([1 - t.T[0] - t.T[1], 1 - t.T[0], 1 - t.T[1]]))
+
+    def d2K(t, a=a):
+        t = np.asanyarray(t)
+        return (
+            np.diag([a[1] / (1 - t.T[0]) ** 2, a[2] / (1 - t.T[1]) ** 2])
             + a[0] / (1 - t.T[0] - t.T[1]) ** 2,
-            signature="(2)->(2,2)",
-        ),
-        d3K=np.vectorize(
-            lambda t, a=a: np.array(
+        )
+
+    def d3K(t, a=a):
+        t = np.asanyarray(t)
+        return (
+            np.array(
                 [
                     [[2 * a[1] / (1 - t[0]) ** 3, 0], [0, 0]],
                     [[0, 0], [0, 2 * a[2] / (1 - t[1]) ** 3]],
                 ]
             )
-            + 2 * a[0] / (1 - t[0] - t[1]) ** 3,
-            signature="(2)->(2,2,2)",
-        ),
+            + 2 * a[0] / (1 - t[0] - t[1]) ** 3
+        )
+
+    return MultivariateCumulantGeneratingFunction(
+        K=K,
+        dK=dK,
+        d2K=np.vectorize(d2K, signature="(2)->(2,2)"),
+        d3K=np.vectorize(d3K, signature="(2)->(2,2,2)"),
         dim=2,
         domain=Domain(l=np.ones(2), dim=2),
         loc=loc,
