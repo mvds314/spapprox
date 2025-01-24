@@ -942,21 +942,20 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         return self._scale_inv_cache
 
     def _validate_scale_inv(self, scale_inv):
-        if not (
-            pd.api.types.is_number(scale_inv)
-            or (isinstance(scale_inv, np.ndarray) and scale_inv.ndim == 0)
-            or (
-                isinstance(scale_inv, np.ndarray)
-                and scale_inv.ndim == 1
-                and len(scale_inv) == self.dim == self.domain.dim
-            )
-            or (
-                isinstance(scale_inv, np.ndarray)
-                and scale_inv.ndim == 2
-                and scale_inv.shape[1] == self.dim
-                and scale_inv.shape[0] == self.domain.dim
-            )
-        ):
+        valid = pd.api.types.is_number(scale_inv)
+        valid |= isinstance(scale_inv, np.ndarray) and scale_inv.ndim == 0
+        valid |= (
+            isinstance(scale_inv, np.ndarray)
+            and scale_inv.ndim == 1
+            and len(scale_inv) == self.dim == self.domain.dim
+        )
+        valid |= (
+            isinstance(scale_inv, np.ndarray)
+            and scale_inv.ndim == 2
+            and scale_inv.shape[1] == self.dim
+            and scale_inv.shape[0] == self.domain.dim
+        )
+        if not valid:
             raise AssertionError(
                 f"scale_inv should be a scalar, vector of length {self.dim}, or a matrix"
             )
