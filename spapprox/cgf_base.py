@@ -338,7 +338,8 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     def K(self, t, fillna=np.nan, loc=None, scale=None):
         loc = self.loc if loc is None else loc
         scale = self.scale if scale is None else scale
-        assert np.isscalar(loc) and np.isscalar(scale), "loc and scale should be scalars"
+        if not np.isscalar(loc) or not np.isscalar(scale):
+            raise ValueError("loc and scale should be scalars")
         st = scale * t
         cond = self.domain.is_in_domain(st)
         st = np.where(cond, st, 0)  # prevent outside domain evaluations
@@ -374,7 +375,8 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 raise ValueError("Invalid numdiff_backend")
         loc = self.loc if loc is None else loc
         scale = self.scale if scale is None else scale
-        assert np.isscalar(loc) and np.isscalar(scale), "loc and scale should be scalars"
+        if not np.isscalar(loc) or not np.isscalar(scale):
+            raise ValueError("loc and scale should be scalars")
         st = scale * t
         cond = self.domain.is_in_domain(st)
         st = np.where(cond, st, 0)  # prevent outside domain evaluations
@@ -554,7 +556,8 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     raise ImportError("Numdifftools is required if derivatives are not provided")
                 self._d2K = nd.Derivative(lambda tt: self.K(tt, loc=0, scale=1), n=2)
         scale = self.scale if scale is None else scale
-        assert np.isscalar(scale), "scale should be a scalar"
+        if not np.isscalar(scale):
+            raise ValueError("scale should be a scalar")
         st = scale * t
         cond = self.domain.is_in_domain(st)
         st = np.where(cond, st, 0)  # prevent outside domain evaluations
@@ -576,7 +579,8 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             else:
                 raise ValueError("Invalid numdiff_backend")
         scale = self.scale if scale is None else scale
-        assert np.isscalar(scale), "scale should be a scalar"
+        if not np.isscalar(scale):
+            raise ValueError("scale should be a scalar")
         st = scale * t
         cond = self.domain.is_in_domain(st)
         st = np.where(cond, st, 0)  # prevent outside domain evaluations
