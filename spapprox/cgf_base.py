@@ -1890,7 +1890,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @classmethod
     def from_univariate(cls, *cgfs, numdiff_backend=None, dK0=None, d2K0=None, d3K0=None):
-        """
+        r"""
         Create a multivariate cgf from a list of univariate cgfs.
 
         It follows directly from the definition of the cumulant generating function

@@ -17,7 +17,7 @@ else:
 
 
 def transform_rank3_tensor(T, *A):
-    """
+    r"""
     Transform a rank 3 tensor T with a transformation matrix A, along each axis.
 
     The transformation is given by:
