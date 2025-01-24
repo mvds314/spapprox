@@ -145,7 +145,7 @@ def test_expon_spa(cgf, dist, trange):
     assert not np.allclose(spa.cdf(t=t, backend="BN"), spa.cdf(t=t, backend="LR")), (
         "the approximation should not be exactly equal"
     )
-    # Test investion saddle point
+    # Test investigation saddle point
     spa.fit_saddle_point_eqn(num=10000)
     for t in [-2, -1, 1 / 6]:
         x = spa.cgf.dK(t)
@@ -248,6 +248,7 @@ def test_mvar_spa(cgf, dist, ts, dim):
             2,
             marks=pytest.mark.xfail(reason="This test is not working yet, 3rd order is needed"),
         ),
+        # TODO: add bivariate gamma
         # TODO: create more elaborate tests
         # TODO: test against book examples
     ],
@@ -268,7 +269,7 @@ def test_bvar_spa(cgf, dist, ts, dim):
     # TODO: continue here and handle singularities for bivariate case
 
 
-# TODO: contintue with the conditional Skovgaard approximation
+# TODO: continue with the conditional Skovgaard approximation
 
 # TODO: then continue with a bootstrapping application
 

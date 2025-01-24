@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import inspect
 import itertools
 from abc import ABC, abstractmethod
@@ -762,7 +761,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             
         We follow the approach as outlined in [4] Section 5.2.
         Note that, we simplified notation somewhat, and that there is typo in their
-        formula for :math:`\tilde n_0` (in their notation): :math:`w_0` is not definiened
+        formula for :math:`\tilde n_0` (in their notation): :math:`w_0` is not defined
         and should probably read :math:`\tilde w_0`.
             
         Parameters
@@ -805,8 +804,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             # TODO: handle singularities
             # TODO: replace by limiting value
             assert not np.isclose(t, 0).any(), "handle this special case"
-            # TODO: implement third derivative stuff in nominator -> for this implement derivatives in cgf
-            # How are we going to incoporate this?
+            # TODO: implement third derivative stuff in nominator
             n = sps.norm.pdf(w) / 6 * (1 / self.cgf.d2K(s0)[..., 0, 0])
         # Put everything together
         if _has_fastnorm:

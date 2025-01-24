@@ -854,10 +854,6 @@ def test_dKinv(cgf, ts):
     assert np.allclose(cgf.dK_inv(cgf.dK(ts)), [cgf.dK_inv(cgf.dK(t)) for t in ts])
 
 
-# TODO: test multivariate cgfs
-# TODO: test everything, and continue with saddlepoint approx
-
-
 if __name__ == "__main__":
     if True:
         pytest.main(
