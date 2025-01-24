@@ -232,9 +232,9 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
                 a=a,
                 b=b,
             )[0]
-            assert not np.isnan(val) and np.isfinite(
-                val
-            ), "Failed to compute pdf normalization, value is equals NaN or Infinite"
+            assert not np.isnan(val) and np.isfinite(val), (
+                "Failed to compute pdf normalization, value is equals NaN or Infinite"
+            )
             self._pdf_normalization_cache = val
         return self._pdf_normalization_cache
 
@@ -603,9 +603,9 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
                 * np.linalg.det(self.cgf.d2K(args[: self.dim], fillna=0)),
                 tranges,
             )[0]
-            assert not np.isnan(val) and np.isfinite(
-                val
-            ), "Failed to compute pdf normalization, value is equals NaN or Infinite"
+            assert not np.isnan(val) and np.isfinite(val), (
+                "Failed to compute pdf normalization, value is equals NaN or Infinite"
+            )
             self._pdf_normalization_cache = val
         return self._pdf_normalization_cache
 
@@ -838,6 +838,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 # TODO: implement Dirichlet bootstrap
 # TODO: implement multivariate saddle point approximations
 # TODO: implement other bootstraps
-# TODO: jacknife stuff
+# TODO: jackknife stuff
 # TODO: conditional distributions
 # TODO: approximation for discrete distributions
