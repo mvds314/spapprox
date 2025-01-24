@@ -102,21 +102,30 @@ def test_2d_from_uniform():
 @pytest.mark.parametrize(
     "mcgf,mean,cov",
     [
-        # Standard multivariate normal
-        (multivariate_norm(), 0, np.eye(2)),
-        # Multivariate normal with covmat specification
-        (
+        pytest.param(
+            multivariate_norm(),
+            0,
+            np.eye(2),
+            id="Standard multivariate normal",
+        ),
+        pytest.param(
             multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 2]])),
             [1, 2],
             np.array([[2, 1], [1, 2]]),
+            id="Multivariate normal with covmat specification",
         ),
-        # Multivariate normal with scale specification
-        (
+        pytest.param(
             multivariate_norm(loc=[1, 2], scale=np.arange(1, 5).reshape((2, 2))),
             [1, 2],
             np.arange(1, 5).reshape((2, 2)).dot(np.arange(1, 5).reshape((2, 2)).T),
+            id="Multivariate normal with scale specification",
         ),
-        (bivariate_gamma([1, 2, 3]), [1 + 2, 1 + 3], np.array([[1 + 2, 1], [1, 1 + 3]])),
+        pytest.param(
+            bivariate_gamma([1, 2, 3]),
+            [1 + 2, 1 + 3],
+            np.array([[1 + 2, 1], [1, 1 + 3]]),
+            id="Bivariate gamma",
+        ),
     ],
 )
 def test_statistics(mcgf, mean, cov):
