@@ -759,7 +759,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         .. math::
            \nabla K(\mathbf{t}) = \mathbf{x},
 
-        And, :math:`\mathbf{\tilde t_0}=[0,\tilde t]` is found by solving a second saddlepoint equation:
+        And, :math:`\mathbf{\tilde t_0}=[0,\tilde t]` is found by solving a second saddlepoint
+        equation:
 
         .. math::
             \partial_{t} K(\mathbf{\tilde t_0}) = y.
@@ -768,6 +769,14 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         Note that, we simplified notation somewhat, and that there is typo in their
         formula for :math:`\tilde n_0` (in their notation): :math:`w_0` is not defined
         and should probably read :math:`\tilde w_0`.
+        
+        There are several cases that lead to singularities.
+        First, following [4], if :math:`t=0` and :math:`s\neq0`, then :math:`\tilde n` should be replaced 
+        by its limiting value
+        
+        .. math::
+            \tilde n = \frac{\phi(\tilde x)}{6}\frac{K_{ttt}(\mathbf{s_0})}{K_{tt}(\mathbf{s_0})^{3/2}}.
+            
             
         Parameters
         ----------
@@ -779,6 +788,10 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         fillna : float, optional
             The value to replace NaNs with.
         """
+        if np.isclose(t, 0).any():
+            import pdb
+
+            pdb.set_trace()
         # Initialize
         # Note, slicing a component of a cgf sets the other variables to zero
         tt = self.cgf[1].dK_inv(x.T[1], **solver_kwargs)
@@ -788,29 +801,37 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         s0 = t.copy()
         s0[..., 1] = 0
         # Calculate components
+        tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
+        tw = np.sign(t.T[1]) * np.sqrt(
+            2 * (self.cgf.K(s0) - self.cgf.K(t) + (t0 * x).sum(axis=-1).squeeze())
+        )
+        w = np.sign(t.T[0]) * np.sqrt(
+            2 * (((t - tt0) * x).sum(axis=-1).squeeze() + self.cgf.K(tt0) - self.cgf.K(t))
+        )
+        b = (tw - tx) / w
+        ty = (w - b * tx) / np.sqrt(1 + np.square(b))
+        tx = np.vstack((tx, ty)).T.squeeze()
+        rho = -b / np.sqrt(1 + np.square(b))
+        d2Kt11 = self.cgf.d2K(t)[..., 1, 1]
+        u = t.T[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt11)
+        tu = t.T[1] * np.sqrt(d2Kt11)
         if not np.isclose(t, 0).any():
-            tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
-            tw = np.sign(t.T[1]) * np.sqrt(
-                2 * (self.cgf.K(s0) - self.cgf.K(t) + (t0 * x).sum(axis=-1).squeeze())
-            )
-            w = np.sign(t.T[0]) * np.sqrt(
-                2 * (((t - tt0) * x).sum(axis=-1).squeeze() + self.cgf.K(tt0) - self.cgf.K(t))
-            )
-            b = (tw - tx) / w
-            ty = (w - b * tx) / np.sqrt(1 + np.square(b))
-            tx = np.vstack((tx, ty)).T.squeeze()
-            rho = -b / np.sqrt(1 + np.square(b))
-            d2Kt11 = self.cgf.d2K(t)[..., 1, 1]
-            u = t.T[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt11)
-            tu = t.T[1] * np.sqrt(d2Kt11)
+            # TODO: sort out what happens in the limiting case, how does this lead to problems in the expressions?
             n = sps.norm.pdf(w) * (1 / w - 1 / u)
-            tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
+        elif np.isclose(t, 0).all():
+            raise NotImplementedError("Handle this special case")
+        elif np.isclose(t[1], 0):
+            raise NotImplementedError(
+                "Handle this special case, by reversing the order of variables"
+            )
         else:
-            # TODO: handle singularities
-            # TODO: replace by limiting value
+            # TODO: I don't understand this singularity, for t is zero the above is valid, but this becomes inf
+            d3Kt111 = self.cgf.d3K(s0)[..., 1, 1, 1]
+            n = sps.norm.pdf(w) / 6 * (d2Kt11 / d3Kt111)
+            assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
+        tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
+        if not np.isclose(tt, 0).any():
             assert not np.isclose(t, 0).any(), "handle this special case"
-            # TODO: implement third derivative stuff in nominator
-            n = sps.norm.pdf(w) / 6 * (1 / self.cgf.d2K(s0)[..., 0, 0])
         # Put everything together
         if _has_fastnorm:
             if np.ndim(rho) == 0:

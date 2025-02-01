@@ -254,7 +254,7 @@ def test_mvar_spa(cgf, dist, ts, dim):
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 11), 2)),
             2,
             id="Bivariate normal uncorrelated",
-            marks=pytest.mark.xfail(reason="This test is not working yet, 3rd order is needed"),
+            # marks=pytest.mark.xfail(reason="This test is not working yet, 3rd order is needed"),
         ),
         # TODO: add bivariate gamma
         # TODO: create more elaborate tests
@@ -290,13 +290,13 @@ if __name__ == "__main__":
     if True:
         pytest.main(
             [
-                str(Path(__file__)),
-                # str(Path(__file__)) + "::test_bvar_spa",
+                # str(Path(__file__)),
+                str(Path(__file__)) + "::test_bvar_spa",
                 # "-k",
                 # "test_bvar_spa",
                 "--durations=10",
                 "--tb=auto",
-                # "--pdb",
+                "--pdb",
                 "-v",
                 "-s",
                 # "-m 'not slow'",
