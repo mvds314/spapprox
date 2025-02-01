@@ -820,14 +820,14 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
             pdb.set_trace()
         # Initialize
-        # Note, slicing a component of a cgf sets the other variables to zero
-        tt = self.cgf[1].dK_inv(x.T[1], **solver_kwargs)
-        tt0 = np.vstack((np.zeros(np.shape(tt)), tt)).T.squeeze()
         t0 = t.copy()
         t0[..., 0] = 0
         s0 = t.copy()
         s0[..., 1] = 0
         if not np.isclose(t[0], 0):
+            # Note, slicing a component of a cgf sets the other variables to zero
+            tt = self.cgf[1].dK_inv(x.T[1], **solver_kwargs)
+            tt0 = np.vstack((np.zeros(np.shape(tt)), tt)).T.squeeze()
             # Calculate components
             tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
             tw = np.sign(t.T[1]) * np.sqrt(
@@ -855,9 +855,12 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                 tn = sps.norm.pdf(w) / 6 * (d3K111s0 / d2K11s0 ** (3 / 2))
                 assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
         else:
+            # TODO: test this special case
             assert np.isclose(t[0], 0), "This should be the second special case with t[0] = 0"
+            # Note, slicing a component of a cgf sets the other variables to zero
             ts = self.cgf[0].dK_inv(x.T[0], **solver_kwargs)
             ts0 = np.vstack((ts, np.zeros(np.shape(ts)))).T.squeeze()
+            # Calculate components
             ty = np.sign(ts) * np.sqrt(2 * ((ts0 * x).sum(axis=-1).squeeze() - self.cgf.K(ts0)))
             tw = np.sign(t.T[0]) * np.sqrt(
                 2 * (self.cgf.K(t0) - self.cgf.K(t) + (s0 * x).sum(axis=-1).squeeze())
