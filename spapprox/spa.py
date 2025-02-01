@@ -815,22 +815,25 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         d2Kt11 = self.cgf.d2K(t)[..., 1, 1]
         u = t.T[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt11)
         tu = t.T[1] * np.sqrt(d2Kt11)
+        n = sps.norm.pdf(w) * (1 / w - 1 / u)
         if not np.isclose(t, 0).any():
-            # TODO: sort out what happens in the limiting case, how does this lead to problems in the expressions?
-            n = sps.norm.pdf(w) * (1 / w - 1 / u)
+            tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
         elif np.isclose(t, 0).all():
             raise NotImplementedError("Handle this special case")
         elif np.isclose(t[1], 0):
+            # TODO: write down the exact formulas first
             raise NotImplementedError(
                 "Handle this special case, by reversing the order of variables"
             )
         else:
-            # TODO: I don't understand this singularity, for t is zero the above is valid, but this becomes inf
-            d3Kt111 = self.cgf.d3K(s0)[..., 1, 1, 1]
-            n = sps.norm.pdf(w) / 6 * (d2Kt11 / d3Kt111)
+            if not np.isclose(tu, 0) and not np.isclose(tw, 0):
+                raise AssertionError("Invalid singular case")
+            d3K111s0 = self.cgf.d3K(s0)[..., 1, 1, 1]
+            d2K11s0 = self.cgf.d2K(s0)[..., 1, 1]
+            tn = sps.norm.pdf(w) / 6 * (d3K111s0 / d2K11s0 ** (3 / 2))
             assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
-        tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
         if not np.isclose(tt, 0).any():
+            # TODO: why is this a special case?
             assert not np.isclose(t, 0).any(), "handle this special case"
         # Put everything together
         if _has_fastnorm:
@@ -840,7 +843,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                 retval = np.array(
                     [fastnorm.bivar_norm_cdf(_tx, _rho) for _tx, _rho in zip(tx, rho)]
                 )
-
         else:
             if np.ndim(rho) == 0:
                 retval = sps.multivariate_normal([0, 0], np.array([[1, rho], [rho, 1]])).cdf(tx)
