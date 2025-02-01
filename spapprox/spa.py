@@ -788,13 +788,13 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                                                          - K(\mathbf{\tilde s_0}))},\\
             \tilde w = \text{sign}(s) \sqrt{2\left(K(\mathbf{t_0}) - K(\mathbf{t}) + 
                                                      \mathbf{s_0}\cdot\mathbf{x}\right)},\\
-            w = \text{sign}(s) \sqrt{2}
+            w = \text{sign}(t) \sqrt{2}
                        \sqrt{\mathbf{t}\cdot\mathbf{x} 
                         - \mathbf{\tilde s_0}\cdot\mathbf{x}
                         + K(\mathbf{\tilde s_0}) - K(\mathbf{t})},\\
             \tilde x = \frac{w - b \tilde y}{\sqrt{1+b^2}},\\
-            u = t \sqrt{\frac{\text{det} K''(\mathbf{t})}{K''_{tt}(\mathbf{t})}},\\
-            \tilde u = s \sqrt{K''_{tt}(\mathbf{t})},
+            u = t \sqrt{\frac{\text{det} K''(\mathbf{t})}{K''_{ss}(\mathbf{t})}},\\
+            \tilde u = s \sqrt{K''_{ss}(\mathbf{t})},
 
         And, where :math:`b`, :math:`\rho`, :math:`n`, and :math:`\tilde n` are as above
         Additionally, we introduce :math:`\mathbf{\tilde s_0}=[\tilde s,0]` as the solution of the alternative
@@ -829,7 +829,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         s0[..., 1] = 0
         if not np.isclose(t[0], 0):
             # Calculate components
-            if not np.isclose(t, 0).any() or :
             tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
             tw = np.sign(t.T[1]) * np.sqrt(
                 2 * (self.cgf.K(s0) - self.cgf.K(t) + (t0 * x).sum(axis=-1).squeeze())
@@ -848,7 +847,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             if not np.isclose(t, 0).any():
                 tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
             else:
-                assert np.isclose(t[1], 0), ""
+                assert np.isclose(t[1], 0), "This should be the first special case with t[1] = 0"
                 if not np.isclose(tu, 0) and not np.isclose(tw, 0):
                     raise AssertionError("Invalid singular case")
                 d3K111s0 = self.cgf.d3K(s0)[..., 1, 1, 1]
@@ -856,10 +855,33 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                 tn = sps.norm.pdf(w) / 6 * (d3K111s0 / d2K11s0 ** (3 / 2))
                 assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
         else:
-            assert np.isclose(t[0], 0), ""
-            raise NotImplementedError(
-                "Handle this special case, by reversing the order of variables"
+            assert np.isclose(t[0], 0), "This should be the second special case with t[0] = 0"
+            ts = self.cgf[0].dK_inv(x.T[0], **solver_kwargs)
+            ts0 = np.vstack((ts, np.zeros(np.shape(ts)))).T.squeeze()
+            ty = np.sign(ts) * np.sqrt(2 * ((ts0 * x).sum(axis=-1).squeeze() - self.cgf.K(ts0)))
+            tw = np.sign(t.T[0]) * np.sqrt(
+                2 * (self.cgf.K(t0) - self.cgf.K(t) + (s0 * x).sum(axis=-1).squeeze())
             )
+            w = np.sign(t.T[1]) * np.sqrt(
+                2 * (((t - ts0) * x).sum(axis=-1).squeeze() + self.cgf.K(ts0) - self.cgf.K(t))
+            )
+            b = (tw - ty) / w
+            tx = (w - b * ty) / np.sqrt(1 + np.square(b))
+            tx = np.vstack((tx, ty)).T.squeeze()
+            rho = -b / np.sqrt(1 + np.square(b))
+            d2Kt00 = self.cgf.d2K(t)[..., 0, 0]
+            u = t.T[1] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt00)
+            tu = t.T[0] * np.sqrt(d2Kt00)
+            n = sps.norm.pdf(w) * (1 / w - 1 / u)
+            if not np.isclose(t, 0).any():
+                tn = sps.norm.pdf(tx.T[1]) * (1 / tw - 1 / tu)
+            else:
+                if not np.isclose(tu, 0) and not np.isclose(tw, 0):
+                    raise AssertionError("Invalid singular case")
+                d3K000t0 = self.cgf.d3K(t0)[..., 0, 0, 0]
+                d2K00t0 = self.cgf.d2K(t0)[..., 0, 0]
+                tn = sps.norm.pdf(w) / 6 * (d3K000t0 / d2K00t0 ** (3 / 2))
+                assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
         if not np.isclose(tt, 0).any():
             # TODO: why is this a special case?
             assert not np.isclose(t, 0).any(), "handle this special case"
