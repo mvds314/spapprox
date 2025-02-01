@@ -777,6 +777,31 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         .. math::
             \tilde n = \frac{\phi(\tilde x)}{6}\frac{K_{ttt}(\mathbf{s_0})}{K_{tt}(\mathbf{s_0})^{3/2}}.
             
+        Second, following [4], if :math:`s=0` and :math:`t\neq0`, then we can reverse the role of :math:`X`
+        and :math:`Y`, to reduce it to the first case. Basically, in the notation above, we swap the roles of
+        :math:`s` and :math:`t`, :math:`\tilde s` and :math:`\tilde t`, :math:`x` and :math:`y`,
+        :math:`\tilde x` and :math:`\tilde y`, and :math:`\mathbf{s_0}` and :math:`\mathbf{t_0}`.
+        This leads to
+
+        .. math::
+            \tilde y = \text{sign}(\tilde s) \sqrt{2(\mathbf{\tilde s_0}\cdot \mathbf{x}
+                                                         - K(\mathbf{\tilde s_0}))},\\
+            \tilde w = \text{sign}(s) \sqrt{2\left(K(\mathbf{t_0}) - K(\mathbf{t}) + 
+                                                     \mathbf{s_0}\cdot\mathbf{x}\right)},\\
+            w = \text{sign}(s) \sqrt{2}
+                       \sqrt{\mathbf{t}\cdot\mathbf{x} 
+                        - \mathbf{\tilde s_0}\cdot\mathbf{x}
+                        + K(\mathbf{\tilde s_0}) - K(\mathbf{t})},\\
+            \tilde x = \frac{w - b \tilde y}{\sqrt{1+b^2}},\\
+            u = t \sqrt{\frac{\text{det} K''(\mathbf{t})}{K''_{tt}(\mathbf{t})}},\\
+            \tilde u = s \sqrt{K''_{tt}(\mathbf{t})},
+
+        And, where :math:`b`, :math:`\rho`, :math:`n`, and :math:`\tilde n` are as above
+        Additionally, we introduce :math:`\mathbf{\tilde s_0}=[\tilde s,0]` as the solution of the alternative
+        second saddepoint equation:
+
+        .. math::
+            \partial_{s} K(\mathbf{\tilde s_0}) = x.
             
         Parameters
         ----------
@@ -788,6 +813,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         fillna : float, optional
             The value to replace NaNs with.
         """
+        if np.isclose(t, 0).all():
+            raise NotImplementedError("Handle this special case")
         if np.isclose(t, 0).any():
             import pdb
 
@@ -800,38 +827,39 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         t0[..., 0] = 0
         s0 = t.copy()
         s0[..., 1] = 0
-        # Calculate components
-        tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
-        tw = np.sign(t.T[1]) * np.sqrt(
-            2 * (self.cgf.K(s0) - self.cgf.K(t) + (t0 * x).sum(axis=-1).squeeze())
-        )
-        w = np.sign(t.T[0]) * np.sqrt(
-            2 * (((t - tt0) * x).sum(axis=-1).squeeze() + self.cgf.K(tt0) - self.cgf.K(t))
-        )
-        b = (tw - tx) / w
-        ty = (w - b * tx) / np.sqrt(1 + np.square(b))
-        tx = np.vstack((tx, ty)).T.squeeze()
-        rho = -b / np.sqrt(1 + np.square(b))
-        d2Kt11 = self.cgf.d2K(t)[..., 1, 1]
-        u = t.T[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt11)
-        tu = t.T[1] * np.sqrt(d2Kt11)
-        n = sps.norm.pdf(w) * (1 / w - 1 / u)
-        if not np.isclose(t, 0).any():
-            tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
-        elif np.isclose(t, 0).all():
-            raise NotImplementedError("Handle this special case")
-        elif np.isclose(t[1], 0):
-            # TODO: write down the exact formulas first
+        if not np.isclose(t[0], 0):
+            # Calculate components
+            if not np.isclose(t, 0).any() or :
+            tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
+            tw = np.sign(t.T[1]) * np.sqrt(
+                2 * (self.cgf.K(s0) - self.cgf.K(t) + (t0 * x).sum(axis=-1).squeeze())
+            )
+            w = np.sign(t.T[0]) * np.sqrt(
+                2 * (((t - tt0) * x).sum(axis=-1).squeeze() + self.cgf.K(tt0) - self.cgf.K(t))
+            )
+            b = (tw - tx) / w
+            ty = (w - b * tx) / np.sqrt(1 + np.square(b))
+            tx = np.vstack((tx, ty)).T.squeeze()
+            rho = -b / np.sqrt(1 + np.square(b))
+            d2Kt11 = self.cgf.d2K(t)[..., 1, 1]
+            u = t.T[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt11)
+            tu = t.T[1] * np.sqrt(d2Kt11)
+            n = sps.norm.pdf(w) * (1 / w - 1 / u)
+            if not np.isclose(t, 0).any():
+                tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
+            else:
+                assert np.isclose(t[1], 0), ""
+                if not np.isclose(tu, 0) and not np.isclose(tw, 0):
+                    raise AssertionError("Invalid singular case")
+                d3K111s0 = self.cgf.d3K(s0)[..., 1, 1, 1]
+                d2K11s0 = self.cgf.d2K(s0)[..., 1, 1]
+                tn = sps.norm.pdf(w) / 6 * (d3K111s0 / d2K11s0 ** (3 / 2))
+                assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
+        else:
+            assert np.isclose(t[0], 0), ""
             raise NotImplementedError(
                 "Handle this special case, by reversing the order of variables"
             )
-        else:
-            if not np.isclose(tu, 0) and not np.isclose(tw, 0):
-                raise AssertionError("Invalid singular case")
-            d3K111s0 = self.cgf.d3K(s0)[..., 1, 1, 1]
-            d2K11s0 = self.cgf.d2K(s0)[..., 1, 1]
-            tn = sps.norm.pdf(w) / 6 * (d3K111s0 / d2K11s0 ** (3 / 2))
-            assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
         if not np.isclose(tt, 0).any():
             # TODO: why is this a special case?
             assert not np.isclose(t, 0).any(), "handle this special case"
