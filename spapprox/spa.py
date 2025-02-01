@@ -232,7 +232,6 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
                 b=b,
             )[0]
             assert not np.isnan(val) and np.isfinite(val), (
-                "Failed to compute pdf normalization, value is equals NaN or Infinite"
             )
             self._pdf_normalization_cache = val
         return self._pdf_normalization_cache
@@ -814,11 +813,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             The value to replace NaNs with.
         """
         if np.isclose(t, 0).all():
-            raise NotImplementedError("Handle this special case")
-        if np.isclose(t, 0).any():
-            import pdb
-
-            pdb.set_trace()
+            raise NotImplementedError(
+                "Double singular case where both u and tu are singular not implemented"
+            )
         # Initialize
         t0 = t.copy()
         t0[..., 0] = 0
@@ -847,6 +844,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             if not np.isclose(t, 0).any():
                 tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
             else:
+                # TODO: test this special case
                 assert np.isclose(t[1], 0), "This should be the first special case with t[1] = 0"
                 if not np.isclose(tu, 0) and not np.isclose(tw, 0):
                     raise AssertionError("Invalid singular case")
@@ -856,6 +854,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                 assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
         else:
             # TODO: test this special case
+            import pdb
+
+            pdb.set_trace()
             assert np.isclose(t[0], 0), "This should be the second special case with t[0] = 0"
             # Note, slicing a component of a cgf sets the other variables to zero
             ts = self.cgf[0].dK_inv(x.T[0], **solver_kwargs)
