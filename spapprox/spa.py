@@ -231,8 +231,7 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
                 a=a,
                 b=b,
             )[0]
-            assert not np.isnan(val) and np.isfinite(val), (
-            )
+            assert not np.isnan(val) and np.isfinite(val), ()
             self._pdf_normalization_cache = val
         return self._pdf_normalization_cache
 
@@ -813,9 +812,12 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             The value to replace NaNs with.
         """
         if np.isclose(t, 0).all():
-            raise NotImplementedError(
-                "Double singular case where both u and tu are singular not implemented"
-            )
+            if t.ndim == 1 and len(t) == 2:
+                return np.nan
+            elif t.ndim > 1 and t.shape[-1] == 2:
+                return np.full(t.shape[:-1], np.nan)
+            else:
+                raise ValueError("2 dimension vector expected in bivariate case")
         # Initialize
         t0 = t.copy()
         t0[..., 0] = 0
