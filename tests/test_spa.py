@@ -251,7 +251,7 @@ def test_mvar_spa(cgf, dist, ts, dim):
         pytest.param(
             multivariate_norm(loc=0, scale=1),
             sps.multivariate_normal(mean=[0, 0], cov=1),
-            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 11), 2)),
+            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 12), 2)),
             2,
             id="Bivariate normal uncorrelated",
             # marks=pytest.mark.xfail(reason="This test is not working yet, 3rd order is needed"),

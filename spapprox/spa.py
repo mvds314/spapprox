@@ -811,13 +811,14 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         fillna : float, optional
             The value to replace NaNs with.
         """
+        # Handle vectorized evaluation
+        if t.ndim > 1:
+            return np.asanyarray([self._spapprox_cdf(xx, tt) for xx, tt in zip(x, t)])
+        if t.ndim != 1 or x.ndim != 1 or len(t) != 2 or len(x) != 2:
+            raise ValueError("2 dimension vector expected in bivariate case")
+        # Handle double singularity
         if np.isclose(t, 0).all():
-            if t.ndim == 1 and len(t) == 2:
-                return np.nan
-            elif t.ndim > 1 and t.shape[-1] == 2:
-                return np.full(t.shape[:-1], np.nan)
-            else:
-                raise ValueError("2 dimension vector expected in bivariate case")
+            return np.nan
         # Initialize
         t0 = t.copy()
         t0[..., 0] = 0
