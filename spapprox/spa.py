@@ -722,7 +722,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         .. math::
             F(\mathbf{x}) \approx \Phi_2(\mathbf{\tilde x}, \rho)
             + \Phi(\tilde w) n + \Phi(w) \tilde n + n \tilde n,
-        
+
         where vectors are denoted in bold and have components as follows:
 
         .. math::
@@ -732,16 +732,16 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             \mathbf{\tilde t_0} = \left[0,\tilde t\right],\\
             \mathbf{s_0} = \left[s,0\right],\\
             \mathbf{t_0} = \left[0,t\right].
-            
+
         And where,
-            
+
         .. math::
             \tilde x = \text{sign}(\tilde t) \sqrt{2(\mathbf{\tilde t_0}\cdot \mathbf{x}
                                                          - K(\mathbf{\tilde t_0}))},\\
-            \tilde w = \text{sign}(t) \sqrt{2\left(K(\mathbf{s_0}) - K(\mathbf{t}) + 
+            \tilde w = \text{sign}(t) \sqrt{2\left(K(\mathbf{s_0}) - K(\mathbf{t}) +
                                                      \mathbf{t_0}\cdot\mathbf{x}\right)},\\
             w = \text{sign}(s) \sqrt{2}
-                       \sqrt{\mathbf{t}\cdot\mathbf{x} 
+                       \sqrt{\mathbf{t}\cdot\mathbf{x}
                         - \mathbf{\tilde t_0}\cdot\mathbf{x}
                         + K(\mathbf{\tilde t_0}) - K(\mathbf{t})},\\
             b = \frac{\tilde w - \tilde x}{w},\\
@@ -762,19 +762,19 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
         .. math::
             \partial_{t} K(\mathbf{\tilde t_0}) = y.
-            
+
         We follow the approach as outlined in [4] Section 5.2.
         Note that, we simplified notation somewhat, and that there is typo in their
         formula for :math:`\tilde n_0` (in their notation): :math:`w_0` is not defined
         and should probably read :math:`\tilde w_0`.
-        
+
         There are several cases that lead to singularities.
-        First, following [4], if :math:`t=0` and :math:`s\neq0`, then :math:`\tilde n` should be replaced 
+        First, following [4], if :math:`t=0` and :math:`s\neq0`, then :math:`\tilde n` should be replaced
         by its limiting value
-        
+
         .. math::
             \tilde n = \frac{\phi(\tilde x)}{6}\frac{K_{ttt}(\mathbf{s_0})}{K_{tt}(\mathbf{s_0})^{3/2}}.
-            
+
         Second, following [4], if :math:`s=0` and :math:`t\neq0`, then we can reverse the role of :math:`X`
         and :math:`Y`, to reduce it to the first case. Basically, in the notation above, we swap the roles of
         :math:`s` and :math:`t`, :math:`\tilde s` and :math:`\tilde t`, :math:`x` and :math:`y`,
@@ -784,10 +784,10 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         .. math::
             \tilde y = \text{sign}(\tilde s) \sqrt{2(\mathbf{\tilde s_0}\cdot \mathbf{x}
                                                          - K(\mathbf{\tilde s_0}))},\\
-            \tilde w = \text{sign}(s) \sqrt{2\left(K(\mathbf{t_0}) - K(\mathbf{t}) + 
+            \tilde w = \text{sign}(s) \sqrt{2\left(K(\mathbf{t_0}) - K(\mathbf{t}) +
                                                      \mathbf{s_0}\cdot\mathbf{x}\right)},\\
             w = \text{sign}(t) \sqrt{2}
-                       \sqrt{\mathbf{t}\cdot\mathbf{x} 
+                       \sqrt{\mathbf{t}\cdot\mathbf{x}
                         - \mathbf{\tilde s_0}\cdot\mathbf{x}
                         + K(\mathbf{\tilde s_0}) - K(\mathbf{t})},\\
             \tilde x = \frac{w - b \tilde y}{\sqrt{1+b^2}},\\
@@ -800,7 +800,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
         .. math::
             \partial_{s} K(\mathbf{\tilde s_0}) = x.
-            
+
         Parameters
         ----------
         x : array_like, optional (either x or t must be provided)
