@@ -712,6 +712,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
+    # TODO: continue here with special cases
     def _spapprox_cdf(self, x, t, fillna=np.nan, **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function in
@@ -847,6 +848,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             if not np.isclose(t, 0).any():
                 tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
             else:
+                import ipdab
+
+                ipdab.set_trace()
                 # TODO: test this special case
                 assert np.isclose(t[1], 0), "This should be the first special case with t[1] = 0"
                 if not np.isclose(tu, 0) and not np.isclose(tw, 0):
@@ -857,9 +861,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                 assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
         else:
             # TODO: test this special case
-            import pdb
+            import ipdab
 
-            pdb.set_trace()
+            ipdab.set_trace()
             assert np.isclose(t[0], 0), "This should be the second special case with t[0] = 0"
             # Note, slicing a component of a cgf sets the other variables to zero
             ts = self.cgf[0].dK_inv(x.T[0], **solver_kwargs)
