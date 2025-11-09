@@ -1,5 +1,39 @@
+[project]
+name = "spapprox"
+description = "Saddle point approximation"
+version = "25.11.1"
+authors = [{ name = "Martin van der Schans" }]
+readme = "README.md"
+keywords = ["statistics"]
+requires-python = ">=3.9"
+dependencies = ["numpy", "scipy", "pandas", "statsmodels"]
+license = { text = "BSD-3-Clause" }
+
+[project.optional-dependencies]
+findiff = ["findiff"]      # Fast implementation of finite difference schemes
+numdiff = ["numdifftools"] # Alternative to findiff, seems slower
+fastnorm = ["fastnorm"]
+
+
+[project.urls]
+repository = "https://github.com/mvds314/spapprox"
+
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
 [tool.ruff]
 line-length = 99
+
+[tool.ruff.lint]
+select = ["E", "F", "W"] # Pycodestyle, pyflakes, bugbear, and isort
+ignore = [
+  # Ignore common conflicts with Black
+  "E203",
+  "E501",
+  "E731", # Ignore lamda expression warning
+  "E402", # Ignore module level import not at top of file
+]
 
 [tool.pytest.ini_options]
 markers = [
