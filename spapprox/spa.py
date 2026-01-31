@@ -915,6 +915,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         return super()._dK_inv(x, **solver_kwargs)
 
 
+# TODO: add the conditional distribution
+
 # TODO: implement Dirichlet bootstrap
 # TODO: implement multivariate saddle point approximations
 # TODO: implement other bootstraps
