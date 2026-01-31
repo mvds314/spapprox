@@ -254,8 +254,29 @@ def test_mvar_spa(cgf, dist, ts, dim):
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 13), 2)),
             2,
             id="Bivariate normal uncorrelated",
+        ),
+        pytest.param(
+            multivariate_norm(loc=0, scale=np.sqrt(2)),
+            sps.multivariate_normal(mean=[0, 0], cov=2),
+            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 13), 2)),
+            2,
+            id="Bivariate normal uncorrelated, scaled, using scale",
+        ),
+        pytest.param(
+            multivariate_norm(loc=0, cov=[[2, 0], [0, 2]]),
+            sps.multivariate_normal(mean=[0, 0], cov=2),
+            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 13), 2)),
+            2,
+            id="Bivariate normal uncorrelated, scaled using cov",
+        ),
+        # TODO: continue with this test -> triggers some special cases in the code
+        pytest.param(
+            multivariate_norm(loc=0, cov=[[2, 1], [1, 2]]),
+            sps.multivariate_normal(mean=[0, 0], cov=[[2, 1], [1, 2]]),
+            list(itertools.combinations_with_replacement(np.linspace(-10, 10, 13), 2)),
+            2,
+            id="Bivariate normal correlated",
             marks=pytest.mark.tofix,
-            # marks=pytest.mark.xfail(reason="This test is not working yet, 3rd order is needed"),
         ),
         # TODO: add bivariate gamma
         # TODO: create more elaborate tests
