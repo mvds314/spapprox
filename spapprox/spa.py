@@ -819,6 +819,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             raise ValueError("2 dimension vector expected in bivariate case")
         # Handle double singularity
         if np.isclose(t, 0).all():
+            # TODO: handle this case, returning nan is not a good way to deal with it
             return np.nan
         # Initialize
         t0 = t.copy()
@@ -828,6 +829,10 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         if not np.isclose(t[0], 0):
             # Note, slicing a component of a cgf sets the other variables to zero
             tt = self.cgf[1].dK_inv(x.T[1], **solver_kwargs)
+            if not np.isclose(tt, 0).any():
+                # TODO: what to do with this?, this used to be a general check?
+                # TODO: why is this a special case?
+                assert not np.isclose(t, 0).any(), "handle this special case"
             tt0 = np.vstack((np.zeros(np.shape(tt)), tt)).T.squeeze()
             # Calculate components
             tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
@@ -848,10 +853,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             if not np.isclose(t, 0).any():
                 tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
             else:
-                import ipdab
-
-                ipdab.set_trace()
-                # TODO: test this special case
+                # TODO: test this special case -> make sure it gets covered using pdb
                 assert np.isclose(t[1], 0), "This should be the first special case with t[1] = 0"
                 if not np.isclose(tu, 0) and not np.isclose(tw, 0):
                     raise AssertionError("Invalid singular case")
@@ -860,10 +862,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                 tn = sps.norm.pdf(w) / 6 * (d3K111s0 / d2K11s0 ** (3 / 2))
                 assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
         else:
-            # TODO: test this special case
-            import ipdab
-
-            ipdab.set_trace()
+            # TODO: test this special case -> make sure it gets covered using pdb
             assert np.isclose(t[0], 0), "This should be the second special case with t[0] = 0"
             # Note, slicing a component of a cgf sets the other variables to zero
             ts = self.cgf[0].dK_inv(x.T[0], **solver_kwargs)
@@ -893,9 +892,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                 d2K00t0 = self.cgf.d2K(t0)[..., 0, 0]
                 tn = sps.norm.pdf(w) / 6 * (d3K000t0 / d2K00t0 ** (3 / 2))
                 assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
-        if not np.isclose(tt, 0).any():
-            # TODO: why is this a special case?
-            assert not np.isclose(t, 0).any(), "handle this special case"
         # Put everything together
         if _has_fastnorm:
             if np.ndim(rho) == 0:
