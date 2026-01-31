@@ -277,9 +277,8 @@ def test_mvar_spa(cgf, dist, ts, dim):
             id="Bivariate normal correlated",
             marks=pytest.mark.tofix,
         ),
-        # TODO: add bivariate gamma
-        # TODO: create more elaborate tests
-        # TODO: test against book examples
+        # TODO: maybe add more tests later
+        # TODO: maybe look for book examples
     ],
 )
 def test_bvar_spa(cgf, dist, ts, dim):
@@ -295,7 +294,6 @@ def test_bvar_spa(cgf, dist, ts, dim):
         x = spa.cgf.dK(t)
         assert np.allclose(spa.cdf(t=t), dist.cdf(x), atol=1e-6)
     assert np.allclose(spa.cdf(t=ts), dist.cdf(spa.cgf.dK(ts)), atol=1e-6)
-    # TODO: continue here and add a few more tests
 
 
 # TODO: continue with the conditional Skovgaard approximation
