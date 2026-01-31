@@ -706,11 +706,13 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             x = self.cgf.dK(t)
         elif t is None:
             t = self._dK_inv(x, **solver_kwargs)
-        if np.allclose(t, 0, atol=1.0 - 8):
-            # This is a singular case, handle by continuity
-            return np.mean(self.cdf(t=[1e-7 * np.ones(2), -1e-7 * np.ones(2)]))
         wrapper = PandasWrapper(x)
         x, t = np.asanyarray(x), np.asanyarray(t)
+        if np.allclose(t, 0, atol=1.0 - 8):
+            # This is a singular case with a singularity removable by taking the limit, i.e., using continuity
+            return np.mean(
+                self.cdf(t=[[1e-7], [-1e-7]] * np.ones((2, 2)), fillna=fillna, **solver_kwargs)
+            )
         y = self._spapprox_cdf(x, t)
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
@@ -820,10 +822,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             return np.asanyarray([self._spapprox_cdf(xx, tt) for xx, tt in zip(x, t)])
         if t.ndim != 1 or x.ndim != 1 or len(t) != 2 or len(x) != 2:
             raise ValueError("2 dimension vector expected in bivariate case")
-        # Handle double singularity
+        # Handle double singularity by continuity
         if np.isclose(t, 0).all():
-            # TODO: handle this case, returning nan is not a good way to deal with it
-            return np.nan
+            return np.mean(self.cdf(t=t, fillna=fillna, **solver_kwargs))
         # Initialize
         t0 = t.copy()
         t0[..., 0] = 0
@@ -856,7 +857,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             if not np.isclose(t, 0).any():
                 tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
             else:
-                # TODO: test this special case -> make sure it gets covered using pdb
                 assert np.isclose(t[1], 0), "This should be the first special case with t[1] = 0"
                 if not np.isclose(tu, 0) and not np.isclose(tw, 0):
                     raise AssertionError("Invalid singular case")
@@ -865,7 +865,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                 tn = sps.norm.pdf(w) / 6 * (d3K111s0 / d2K11s0 ** (3 / 2))
                 assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
         else:
-            # TODO: test this special case -> make sure it gets covered using pdb
             assert np.isclose(t[0], 0), "This should be the second special case with t[0] = 0"
             # Note, slicing a component of a cgf sets the other variables to zero
             ts = self.cgf[0].dK_inv(x.T[0], **solver_kwargs)
