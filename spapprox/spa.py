@@ -706,6 +706,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             x = self.cgf.dK(t)
         elif t is None:
             t = self._dK_inv(x, **solver_kwargs)
+        if np.allclose(t, 0, atol=1.0 - 8):
+            # This is a singular case, handle by continuity
+            return np.mean(self.cdf(t=[1e-7 * np.ones(2), -1e-7 * np.ones(2)]))
         wrapper = PandasWrapper(x)
         x, t = np.asanyarray(x), np.asanyarray(t)
         y = self._spapprox_cdf(x, t)
