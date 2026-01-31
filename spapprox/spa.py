@@ -866,6 +866,11 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             assert np.isclose(t[0], 0), "This should be the second special case with t[0] = 0"
             # Note, slicing a component of a cgf sets the other variables to zero
             ts = self.cgf[0].dK_inv(x.T[0], **solver_kwargs)
+            if not np.isclose(ts, 0).any():
+                # TODO: same as above
+                # TODO: what to do with this?, this used to be a general check?
+                # TODO: why is this a special case?
+                assert not np.isclose(t, 0).any(), "handle this special case"
             ts0 = np.vstack((ts, np.zeros(np.shape(ts)))).T.squeeze()
             # Calculate components
             ty = np.sign(ts) * np.sqrt(2 * ((ts0 * x).sum(axis=-1).squeeze() - self.cgf.K(ts0)))
