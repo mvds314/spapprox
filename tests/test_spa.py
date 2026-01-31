@@ -269,7 +269,6 @@ def test_mvar_spa(cgf, dist, ts, dim):
             2,
             id="Bivariate normal uncorrelated, scaled using cov",
         ),
-        # TODO: continue with this test -> triggers some special cases in the code
         pytest.param(
             multivariate_norm(loc=0, cov=[[2, 1], [1, 2]]),
             sps.multivariate_normal(mean=[0, 0], cov=[[2, 1], [1, 2]]),

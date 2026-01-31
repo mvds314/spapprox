@@ -717,7 +717,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
-    # TODO: continue here with special cases
     def _spapprox_cdf(self, x, t, fillna=np.nan, **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function in
@@ -833,10 +832,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         if not np.isclose(t[0], 0):
             # Note, slicing a component of a cgf sets the other variables to zero
             tt = self.cgf[1].dK_inv(x.T[1], **solver_kwargs)
-            if not np.isclose(tt, 0).any():
-                # TODO: what to do with this?, this used to be a general check?
-                # TODO: why is this a special case?
-                assert not np.isclose(t, 0).any(), "handle this special case"
             tt0 = np.vstack((np.zeros(np.shape(tt)), tt)).T.squeeze()
             # Calculate components
             tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
@@ -868,11 +863,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             assert np.isclose(t[0], 0), "This should be the second special case with t[0] = 0"
             # Note, slicing a component of a cgf sets the other variables to zero
             ts = self.cgf[0].dK_inv(x.T[0], **solver_kwargs)
-            if not np.isclose(ts, 0).any():
-                # TODO: same as above
-                # TODO: what to do with this?, this used to be a general check?
-                # TODO: why is this a special case?
-                assert not np.isclose(t, 0).any(), "handle this special case"
             ts0 = np.vstack((ts, np.zeros(np.shape(ts)))).T.squeeze()
             # Calculate components
             ty = np.sign(ts) * np.sqrt(2 * ((ts0 * x).sum(axis=-1).squeeze() - self.cgf.K(ts0)))
