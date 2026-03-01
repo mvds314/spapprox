@@ -296,7 +296,7 @@ def test_bvar_spa(cgf, dist, ts, dim):
     assert np.allclose(spa.cdf(t=ts), dist.cdf(spa.cgf.dK(ts)), atol=1e-6)
 
 
-# TODO: continue with the conditional Skovgaard approximation
+# TODO: continue here with the conditional Skovgaard approximation
 
 # TODO: then continue with a bootstrapping application
 

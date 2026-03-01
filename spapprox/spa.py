@@ -596,8 +596,10 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         if not hasattr(self, "_pdf_normalization_cache") or self._pdf_normalization_cache is None:
             tranges = self.infer_t_ranges()
             val = nquad(
-                lambda *args: self.pdf(t=args[: self.dim], normalize_pdf=False, fillna=0)
-                * np.linalg.det(self.cgf.d2K(args[: self.dim], fillna=0)),
+                lambda *args: (
+                    self.pdf(t=args[: self.dim], normalize_pdf=False, fillna=0)
+                    * np.linalg.det(self.cgf.d2K(args[: self.dim], fillna=0))
+                ),
                 tranges,
             )[0]
             assert not np.isnan(val) and np.isfinite(val), (
