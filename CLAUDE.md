@@ -1,36 +1,47 @@
-# spapprox — Agent Instructions
+# spapprox -- Agent Instructions
 
-Saddle point approximation library: given a random variable's (or vector's) cumulant
-generating function (CGF), approximate its pdf/cdf via the saddle point method
-(Butler, 2007, "Saddlepoint Approximations with Applications").
+Saddle point approximation library: given a random variable's (or vector's)
+cumulant generating function (CGF), approximate its pdf/cdf via the saddle point
+method (Butler, 2007, "Saddlepoint Approximations with Applications").
 
-## Setup / build
+## Architecture
 
-No `setup.py`/build step beyond editable install (flit backend):
+**For anything beyond the commands below -- how the modules fit together, the
+CGF/approximation APIs, conventions, and known gotchas -- use the `spapprox`
+skill in `.claude/skills/spapprox/`.** It is the maintained map of this codebase
+and it goes far deeper than this file. Read `SKILL.md` first; it points to
+reference files for the CGF classes, the approximation classes, and the
+differentiation/domain internals.
+
+Short version: `util / diff / domain -> cgf_base -> cgfs -> spa`. Build a CGF
+(`cgfs.py` factories), do algebra on it (`+` sums independent variables), hand it
+to an approximation class (`spa.py`).
+
+## Setup
+
+Editable install (flit backend, no setup.py):
 
 ```bash
-pip install -e .
+pip install -e .                                # minimal
+pip install -e ".[findiff,numdiff,fastnorm]"    # with all optional extras
 ```
 
-Install optional extras to exercise all functionality/tests:
+Optional dependencies, all probed with `try/import` at module load:
+
+| Package | Flag | Defined in | Purpose |
+|---|---|---|---|
+| `findiff>=0.11` | `_has_findiff` | `diff.py` | fast finite differences (uses the `Diff` API; `FinDiff` is deprecated) |
+| `numdifftools` | `has_numdifftools` | `cgf_base.py` | default numerical differentiation backend |
+| `fastnorm` | `_has_fastnorm` | `spa.py` | faster bivariate normal cdf |
+
+CI (`.github/workflows/python-app.yml`, Python 3.11) installs **only**
+`numdifftools`, so any code path reachable by default must work without the
+other two.
+
+## Test and lint
 
 ```bash
-pip install -e ".[findiff,numdiff,fastnorm]"
-```
-
-- `findiff` (>=0.11, uses the `Diff` API — `FinDiff` is deprecated) — fast numerical
-  differentiation backend.
-- `numdifftools` — alternative numerical differentiation backend (slower).
-- `fastnorm` — faster bivariate normal cdf evaluation.
-
-All three are optional at runtime: modules probe for them with `try/import` and expose
-`_has_findiff`, `has_numdifftools`, `_has_fastnorm` booleans used to skip tests/branches
-when a dependency is missing.
-
-## Test / lint commands
-
-```bash
-pytest                                   # full suite
+pytest                                   # full suite (~11 min)
 pytest tests/test_diff.py                # single file
 pytest tests/test_diff.py::test_name     # single test
 pytest -k "some_pattern"                 # by name pattern
@@ -39,65 +50,26 @@ pytest -m "not tofix"                    # skip known-broken/WIP tests
 ruff check .                             # lint (line-length 99, see pyproject.toml)
 ```
 
-Custom pytest markers (registered in `pyproject.toml`): `slow` and `tofix` (tests
-documenting not-yet-fixed behavior). Many tests are parametrized with
-`pytest.mark.skipif(not has_findiff, ...)` / `not has_numdifftools` since numerical
-differentiation backends are optional dependencies — follow this pattern for any new
-test that depends on findiff/numdifftools/fastnorm.
+Markers `slow` and `tofix` are registered in `pyproject.toml`; `tofix` documents
+known-failing behavior rather than serving as a to-do note. Tests that need an
+optional backend gate on it, e.g.
+`pytest.mark.skipif(not has_findiff, reason="No findiff")`, often combined with
+`pytest.mark.slow` inside `pytest.param(..., marks=[...])`. Follow that pattern.
 
-CI (`.github/workflows/python-app.yml`) runs on Python 3.11 and only installs
-`numdifftools` before `pytest` — keep default (non-optional) code paths runnable
-without findiff/fastnorm installed.
+Numerical tests compare against `scipy.stats` references with tolerances. If a
+change shifts results, establish whether it is an accuracy regression or a
+genuinely better approximation before touching a tolerance.
 
-## Architecture
+## Conventions worth knowing up front
 
-- `cgf_base.py` — core abstractions: `CumulantGeneratingFunction` (ABC) with
-  `UnivariateCumulantGeneratingFunction` and `MultivariateCumulantGeneratingFunction`
-  subclasses. A CGF wraps `K(t)` plus optional analytic `dK`/`d2K`/`d3K` callables; when
-  not supplied, derivatives are computed numerically (backend selected via
-  `numdiff_backend="numdifftools"|"findiff"` in the constructor) and cached as
-  `dK0`/`d2K0`/`d3K0` (derivatives at `t=0`, i.e. moments/cumulants).
-  CGFs support `loc`/`scale` (affine transforms of the underlying standardized
-  variable) and `__add__` (summing independent random variables sums their CGFs).
-- `diff.py` — thin wrapper around `findiff` providing `PartialDerivative`,
-  `Gradient`, `Hessian`, `Tressian` (3rd-order tensor) used by
-  `MultivariateCumulantGeneratingFunction` for numerical differentiation, plus tensor
-  helpers (`transform_rank3_tensor`, `block_diag_3d`) for transforming derivative
-  tensors under linear maps (needed because `loc`/`scale` transforms change the domain
-  the derivatives are taken over).
-- `cgfs.py` — concrete CGF constructors (`norm`, `exponential`, `gamma`, `poisson`,
-  `binomial`, `chi2`, `laplace`, `multivariate_norm`, `bivariate_gamma`,
-  `univariate_empirical`, `univariate_sample_mean`, ...). New distributions are added
-  here as factory functions returning a `UnivariateCumulantGeneratingFunction` or
-  `MultivariateCumulantGeneratingFunction`.
-- `domain.py` — `Domain` describes the support of a CGF/distribution via scalar bound
-  constraints (`l`, `le`, `g`, `ge`, requiring `g > ge > le > l`) and/or linear
-  inequalities (`Ax <= a`, `Bx < b`). Used to restrict where the saddle point equation
-  is solved.
-- `spa.py` — the approximation layer: `SaddlePointApprox` (ABC) with
-  `UnivariateSaddlePointApprox`, `UnivariateSaddlePointApproxMean`,
-  `BivariateSaddlePointApprox`, `MultivariateSaddlePointApprox`. Given a `cgf`, solves
-  the saddle point equation (`scipy.optimize`) for `t` given `x` (or vice versa) and
-  evaluates the pdf/cdf approximation.
-- `util.py` — `type_wrapper` decorator: converts pandas input to numpy for computation
-  and wraps the result back to the caller's original input type (Series/array/scalar)
-  via `statsmodels`' `PandasWrapper`. Used throughout `cgf_base.py`/`cgfs.py` on methods
-  that take array-like `t`/`x` arguments. `Timer` is a small `with`-block stopwatch used
-  for ad hoc profiling in examples.
+- Derivatives are named `dK`, `d2K`, `d3K`; their values at `t=0` (the cumulants)
+  are `dK0`, `d2K0`, `d3K0`. Keep this naming.
+- A CGF's `K`/`dK`/`d2K`/`d3K` always describe the **standardized** variable;
+  `loc`/`scale` are applied by the base class. Never bake them into a
+  distribution factory's derivatives -- they would be applied twice.
+- `examples/` is untested, needs `matplotlib` (not a declared dependency), and
+  is partly stale (some scripts still use the deprecated `FinDiff` API). Do not
+  treat it as a behavioral reference.
 
-Data flow: a `cgfs.py` factory builds a CGF → optionally combined via `+`/`loc`/`scale`
-→ passed into a `spa.py` approximation class → `.pdf()`/`.cdf()` solve the saddle point
-equation using `dK`/`d2K` (analytic or numerically differentiated via `diff.py`) →
-results are wrapped back to the input container type by `util.type_wrapper`.
-
-## Conventions
-
-- Derivatives/moments follow the naming `dK`, `d2K`, `d3K` (1st/2nd/3rd derivative of
-  the CGF) and `dK0`/`d2K0`/`d3K0` for their values at `t=0`; keep this naming for any
-  new derivative-related code.
-- Analytic derivatives (`dK`, `d2K`, `d3K`) are always expressed for the *standardized*
-  (unscaled, untranslated) variable; `loc`/`scale` are applied afterward by the base
-  class — don't bake `loc`/`scale` into a distribution factory's `dK`/`d2K`/`d3K`.
-- `examples/` contains standalone demo/scratch scripts (including `example_findiff*.py`
-  which still use the deprecated `FinDiff` API) — not part of the test suite; don't rely
-  on them for behavior verification.
+Note: `.github/copilot-instructions.md` is a hard link to this file, so GitHub
+Copilot CLI and Claude Code read the same content. Edit this file, not the link.
