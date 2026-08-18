@@ -2,6 +2,9 @@
 TODO.txt
 untitled*.py
 
+# Hard link mirror of CLAUDE.md for Copilot, not tracked as a separate file
+.github/copilot-instructions.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
