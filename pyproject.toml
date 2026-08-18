@@ -10,7 +10,7 @@ dependencies = ["numpy", "scipy", "pandas", "statsmodels"]
 license = { text = "BSD-3-Clause" }
 
 [project.optional-dependencies]
-findiff = ["findiff"]      # Fast implementation of finite difference schemes
+findiff = ["findiff>=0.11"] # Fast implementation of finite difference schemes, Diff API requires >=0.11
 numdiff = ["numdifftools"] # Alternative to findiff, seems slower
 fastnorm = ["fastnorm"]
 

@@ -390,16 +390,17 @@ class PartialDerivative:
             if self.dim == 0:
                 if not np.isscalar(self.orders):
                     raise RuntimeError("Scalar valued input should have scalar valued orders")
-                self._findiff_cache = fd.FinDiff(0, self._h_vect, self.orders, acc=self.acc)
+                self._findiff_cache = fd.Diff(0, self._h_vect, acc=self.acc) ** self.orders
             else:
-                self._findiff_cache = fd.FinDiff(
-                    *[
-                        (i, self._h_vect[i], order)
-                        for i, order in enumerate(self.orders)
-                        if order > 0
-                    ],
-                    acc=self.acc,
-                )
+                terms = [
+                    fd.Diff(i, self._h_vect[i], acc=self.acc) ** order
+                    for i, order in enumerate(self.orders)
+                    if order > 0
+                ]
+                op = terms[0]
+                for term in terms[1:]:
+                    op = op * term
+                self._findiff_cache = op
         return self._findiff_cache
 
 
