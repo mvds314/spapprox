@@ -5,6 +5,12 @@ untitled*.py
 # Hard link mirror of CLAUDE.md for Copilot, not tracked as a separate file
 .github/copilot-instructions.md
 
+# Skills are excluded by default (e.g. local links to skills from other repos).
+# Explicitly un-ignore any skill that should actually be tracked in this repo.
+.claude/skills/*
+!.claude/skills/README.md
+!.claude/skills/spapprox/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
