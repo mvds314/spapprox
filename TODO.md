@@ -7,7 +7,7 @@ Findings from two repo-wide reviews. Every item was reproduced empirically
 - **Review 2** at `6b4b894` (library code identical to `b0cd9e4`): re-confirmed
   all of 1-18, resolved 17 and 18, and added items 19-56.
 
-Nothing has been fixed yet. The fast suite (`pytest -m "not slow"`, 186 tests)
+Items marked `[x]` below are fixed. The fast suite (`pytest -m "not slow"`, 186 tests)
 passes, so none of these are caught by existing tests.
 
 ## Status legend
@@ -48,7 +48,7 @@ Wrong numbers, hangs, or hard crashes on normal use.
   ```
 - **Fix:** build a new array (`out = raw * factor`) instead of in-place `*=`.
 
-### [ ] 3. `Domain.from_domains` crashes
+### [x] 3. `Domain.from_domains` crashes
 
 - **Where:** `spapprox/domain.py:568`, `583`
 - **What:** `i, j = 0` -- unpacking an `int`.
@@ -98,7 +98,7 @@ Wrong numbers, hangs, or hard crashes on normal use.
 - **Fix:** derive `x_range` from the cache in the other branch too, and honour
   the `t_range` argument. See also item 40.
 
-### [ ] 8. `atol=1.0 - 8` typo
+### [x] 8. `atol=1.0 - 8` typo
 
 - **Where:** `spapprox/spa.py:713` (`BivariateSaddlePointApprox.cdf`; recursion
   at `827`)
@@ -109,7 +109,7 @@ Wrong numbers, hangs, or hard crashes on normal use.
   -> `RecursionError`.
 - **Fix:** `atol=1e-8` (and see item 23 for the tolerance itself).
 
-### [ ] 9. `np.asanayarray` typo (5 sites)
+### [x] 9. `np.asanayarray` typo (5 sites)
 
 - **Where:** `spapprox/cgf_base.py:518`, `1723`, `1837`, `1885`;
   `spapprox/spa.py:396`

@@ -9,6 +9,7 @@ from scipy.integrate import quad  # , dblquad
 from statsmodels.stats.moment_helpers import cov2corr
 
 from spapprox import (
+    Domain,
     MultivariateCumulantGeneratingFunction,
     UnivariateCumulantGeneratingFunction,
     bivariate_gamma,
@@ -819,6 +820,40 @@ def test_from_univariate():
             assert np.allclose(mcgf.K(t), cgf1.K(t[0]) + cgf2.K(t[1]))
         else:
             assert not mcgf.domain.is_in_domain(t)
+
+
+def _mvar_neglog_cgf(dim):
+    def d3K(t):
+        out = np.zeros((dim,) * 3)
+        out[np.diag_indices(dim, ndim=3)] = 2 / (1 - t) ** 3
+        return out
+
+    return MultivariateCumulantGeneratingFunction(
+        K=lambda t: -np.sum(np.log(1 - t), axis=-1),
+        dK=lambda t: 1 / (1 - t),
+        d2K=lambda t: (
+            np.apply_along_axis(np.diag, -1, 1 / (1 - t) ** 2)
+            if np.ndim(t) > 1
+            else np.diag(1 / (1 - t) ** 2)
+        ),
+        d3K=d3K,
+        dim=dim,
+        domain=Domain(dim=dim, l=1),
+    )
+
+
+def test_dKinv_with_t0():
+    mcgf = _mvar_neglog_cgf(2)
+    assert np.allclose(mcgf.dK_inv(np.array([2.0, 4.0]), t0=np.zeros(2)), [0.5, 0.75])
+
+
+def test_d2K_d3K_single_t_out_of_domain():
+    mcgf = _mvar_neglog_cgf(1)
+    t = np.array([2.0])
+    d2K = mcgf.d2K(t)
+    assert np.shape(d2K) == (1, 1) and np.all(np.isnan(d2K))
+    d3K = mcgf.d3K(t)
+    assert np.shape(d3K) == (1, 1, 1) and np.all(np.isnan(d3K))
 
 
 if __name__ == "__main__":

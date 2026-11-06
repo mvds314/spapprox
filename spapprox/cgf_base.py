@@ -515,7 +515,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     raise Exception("Failed to solve the saddle point equation.")
                 y = np.asanyarray(res.root)
             else:
-                kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
+                kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanyarray(t0)
                 kwargs.setdefault("jac", lambda t: np.diag(self.d2K(t, loc=0, scale=1)))
                 if "method" in kwargs:
                     methods = [kwargs["method"]]
@@ -1720,7 +1720,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 if not np.allclose(scale.dot(scale_inv.dot(x - loc)), x):
                     return np.full(self.dim, fillna)
             # Proceed with finding a solution numerically
-            kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanayarray(t0)
+            kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanyarray(t0)
             kwargs.setdefault("jac", lambda tt: self.d2K(tt, loc=loc, scale=scale))
             if "method" in kwargs:
                 methods = [kwargs["method"]]
@@ -1834,7 +1834,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 if cond:
                     return y.astype(np.float64)
                 else:
-                    return np.full(np.asanayarray(y).shape, fillna)
+                    return np.full(np.asanyarray(y).shape, fillna)
             else:
                 y = y.astype(np.float64)
                 y[~cond] = fillna
@@ -1882,7 +1882,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 if cond:
                     return y.astype(np.float64)
                 else:
-                    return np.full(np.asanayarray(y).shape, fillna)
+                    return np.full(np.asanyarray(y).shape, fillna)
             else:
                 y = y.astype(np.float64)
                 y[~cond] = fillna

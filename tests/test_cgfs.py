@@ -854,6 +854,15 @@ def test_dKinv(cgf, ts):
     assert np.allclose(cgf.dK_inv(cgf.dK(ts)), [cgf.dK_inv(cgf.dK(t)) for t in ts])
 
 
+def test_dKinv_with_t0():
+    cgf = UnivariateCumulantGeneratingFunction(
+        K=lambda t: t**2 / 2,
+        dK=lambda t: t,
+        d2K=lambda t: np.ones(np.asanyarray(t).shape),
+    )
+    assert np.allclose(cgf.dK_inv(np.array([0.5, -0.3]), t0=np.zeros(2)), [0.5, -0.3])
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(

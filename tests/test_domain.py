@@ -239,6 +239,18 @@ def test_from_domains():
             assert x not in dom
 
 
+@pytest.mark.parametrize("kind", ["A", "B"])
+def test_from_domains_linear_constraints(kind):
+    lin = {kind: [[1, 1]], kind.lower(): [1]}
+    dom = Domain.from_domains(Domain(dim=2, **lin), Domain(dim=1, l=1))
+    assert dom.dim == 3
+    assert np.allclose(getattr(dom, kind), [[1, 1, 0]])
+    assert np.allclose(getattr(dom, kind.lower()), [1])
+    assert [0.2, 0.2, 0] in dom
+    assert [0.6, 0.6, 0] not in dom
+    assert [0.2, 0.2, 2] not in dom
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(

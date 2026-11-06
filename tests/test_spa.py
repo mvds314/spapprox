@@ -298,6 +298,17 @@ def test_bvar_spa(cgf, dist, ts, dim):
 
 # TODO: continue here with the conditional Skovgaard approximation
 
+def test_ppf_with_t0():
+    spa = UnivariateSaddlePointApprox(norm())
+    q = np.array([0.2, 0.7])
+    assert np.allclose(spa.ppf(q, t0=np.zeros(2)), sps.norm.ppf(q), atol=1e-4)
+
+
+def test_bvar_cdf_near_zero():
+    spa = BivariateSaddlePointApprox(multivariate_norm(dim=2))
+    assert np.isclose(spa.cdf(t=np.array([1e-9, 1e-9])), 0.25)
+
+
 # TODO: then continue with a bootstrapping application
 
 # TODO: then go to other applications, esaddle?, the empirical saddlepoint approximation

@@ -565,7 +565,7 @@ class Domain:
             if any(d.A is not None for d in domains):
                 A = np.zeros((sum(d.A.shape[0] if d.A is not None else 0 for d in domains), dim))
                 a = np.zeros(A.shape[0])
-                i, j = 0
+                i, j = 0, 0
                 for d in domains:
                     if d.A is not None:
                         A[i : i + d.A.shape[0], j : j + d.dim] = d.A
@@ -580,7 +580,7 @@ class Domain:
             if any(d.B is not None for d in domains):
                 B = np.zeros((sum(d.B.shape[0] if d.B is not None else 0 for d in domains), dim))
                 b = np.zeros(B.shape[0])
-                i, j = 0
+                i, j = 0, 0
                 for d in domains:
                     if d.B is not None:
                         B[i : i + d.B.shape[0], j : j + d.dim] = d.B

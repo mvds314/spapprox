@@ -393,7 +393,7 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
                     raise Exception("Failed to solve the saddle point equation.")
                 t = np.asanyarray(res.root)
             else:
-                kwargs["x0"] = np.zeros(q.shape) if t0 is None else np.asanayarray(t0)
+                kwargs["x0"] = np.zeros(q.shape) if t0 is None else np.asanyarray(t0)
                 if "method" in kwargs:
                     methods = [kwargs["method"]]
                 else:
@@ -710,7 +710,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             t = self._dK_inv(x, **solver_kwargs)
         wrapper = PandasWrapper(x)
         x, t = np.asanyarray(x), np.asanyarray(t)
-        if np.allclose(t, 0, atol=1.0 - 8):
+        if np.allclose(t, 0, atol=1e-8):
             # This is a singular case with a singularity removable by taking the limit, i.e., using continuity
             return np.mean(
                 self.cdf(t=[[1e-7], [-1e-7]] * np.ones((2, 2)), fillna=fillna, **solver_kwargs)
