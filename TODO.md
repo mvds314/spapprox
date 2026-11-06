@@ -226,7 +226,7 @@ Wrong numbers, hangs, or hard crashes on normal use.
 - **Fix:** cap iterations; treat `nan`, cdf < 0 or cdf > 1 as end of range;
   raise if no range is found.
 
-### [ ] 25. CI install step cannot work
+### [x] 25. CI install step cannot work
 
 - **Where:** `.github/workflows/python-app.yml:30`
 - **What:** runs `python setup.py install`, but there is no `setup.py` (flit

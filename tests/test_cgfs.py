@@ -635,24 +635,25 @@ def test_domain():
     assert not np.isnan(cgf.d2K(1.5))
     assert np.isnan(cgf.d3K(0.5))
     assert not np.isnan(cgf.d3K(1.5))
-    # Test by indexing MultivariateCumulantGeneratingFunction
-    mvcgf = MultivariateCumulantGeneratingFunction(
-        K=np.vectorize(lambda t: np.sum(t**4), signature="(2)->()"),
-        domain=Domain(ge=[1, 0], l=[2, 2], dim=2),
-        dim=2,
-        numdiff_backend="findiff",
-    )
-    cgf = mvcgf[0]
-    assert np.allclose(cgf.K(1), cgf.K([1, 1]))
-    assert np.allclose(cgf.K(1), mvcgf.K([1, 0]))
-    assert np.isnan(cgf.K(0.5))
-    assert not np.isnan(cgf.K(1.5))
-    assert np.isnan(cgf.dK(0.5))
-    assert not np.isnan(cgf.dK(1.5))
-    assert np.isnan(cgf.d2K(0.5))
-    assert not np.isnan(cgf.d2K(1.5))
-    assert np.isnan(cgf.d3K(0.5))
-    assert not np.isnan(cgf.d3K(1.5))
+    if has_findiff:
+        # Test by indexing MultivariateCumulantGeneratingFunction
+        mvcgf = MultivariateCumulantGeneratingFunction(
+            K=np.vectorize(lambda t: np.sum(t**4), signature="(2)->()"),
+            domain=Domain(ge=[1, 0], l=[2, 2], dim=2),
+            dim=2,
+            numdiff_backend="findiff",
+        )
+        cgf = mvcgf[0]
+        assert np.allclose(cgf.K(1), cgf.K([1, 1]))
+        assert np.allclose(cgf.K(1), mvcgf.K([1, 0]))
+        assert np.isnan(cgf.K(0.5))
+        assert not np.isnan(cgf.K(1.5))
+        assert np.isnan(cgf.dK(0.5))
+        assert not np.isnan(cgf.dK(1.5))
+        assert np.isnan(cgf.d2K(0.5))
+        assert not np.isnan(cgf.d2K(1.5))
+        assert np.isnan(cgf.d3K(0.5))
+        assert not np.isnan(cgf.d3K(1.5))
     # Test by indexing MultivariateCumulantGeneratingFunction
     mvcgf = MultivariateCumulantGeneratingFunction(
         K=np.vectorize(lambda t: np.sum(t**4), signature="(2)->()"),

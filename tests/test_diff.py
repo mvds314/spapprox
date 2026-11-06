@@ -550,6 +550,7 @@ def test_higher_order_partial_derivatives(f, df, orders, dim, h, points, error):
             PartialDerivative(f, *orders, dim=dim, h=h)(points)
 
 
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
 @pytest.mark.parametrize(
     "f, df, dim, order, h, points, error",
     [
@@ -607,7 +608,9 @@ def test_higher_order_partial_derivatives(f, df, orders, dim, h, points, error):
         ),
         pytest.param(
             lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
-            Hessian(lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1), 2),
+            lambda p: Hessian(
+                lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1), 2
+            )(p),
             2,
             2,
             None,
@@ -654,7 +657,9 @@ def test_higher_order_partial_derivatives(f, df, orders, dim, h, points, error):
         ),
         pytest.param(
             lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
-            Tressian(lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1), 2),
+            lambda p: Tressian(
+                lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1), 2
+            )(p),
             2,
             3,
             None,

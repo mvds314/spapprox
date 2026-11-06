@@ -34,18 +34,24 @@ Optional dependencies, all probed with `try/import` at module load:
 | `numdifftools` | `has_numdifftools` | `cgf_base.py` | default numerical differentiation backend |
 | `fastnorm` | `_has_fastnorm` | `spa.py` | faster bivariate normal cdf |
 
-CI (`.github/workflows/python-app.yml`, Python 3.11) installs **only**
-`numdifftools`, so any code path reachable by default must work without the
-other two.
+CI (`.github/workflows/python-app.yml`, Python 3.11; runs the full suite on
+pushes to `main`/`dev` and PRs to `main`) installs **only** `numdifftools`
+(`pip install -e ".[numdiff]"`), so any code path reachable by default must work
+without the other two. This includes test collection: never construct findiff
+objects (`Gradient`, `Hessian`, `PartialDerivative`, ...) at module level, e.g.
+inside `pytest.param(...)`; wrap them in a lambda so they are built at call time.
 
 ## Test and lint
 
+**Default to `pytest -m "not slow"` when running tests.** The full suite takes too
+long for routine iteration; run it only when explicitly asked (CI runs it anyway).
+
 ```bash
-pytest                                   # full suite (~11 min)
+pytest -m "not slow"                     # default: skip slow tests
+pytest                                   # full suite (~11 min), only when asked
 pytest tests/test_diff.py                # single file
 pytest tests/test_diff.py::test_name     # single test
 pytest -k "some_pattern"                 # by name pattern
-pytest -m "not slow"                     # skip slow tests
 pytest -m "not tofix"                    # skip known-broken/WIP tests
 ruff check .                             # lint (line-length 99, see pyproject.toml)
 ```
