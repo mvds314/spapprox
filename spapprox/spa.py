@@ -915,13 +915,3 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
     def _dK_inv(self, x, **solver_kwargs):
         # TODO: implement multivariate interpolation with radial basis functions or something like that
         return super()._dK_inv(x, **solver_kwargs)
-
-
-# TODO: add the conditional distribution
-
-# TODO: implement Dirichlet bootstrap
-# TODO: implement multivariate saddle point approximations
-# TODO: implement other bootstraps
-# TODO: jackknife stuff
-# TODO: conditional distributions
-# TODO: approximation for discrete distributions

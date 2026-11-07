@@ -107,7 +107,7 @@ def gamma(a=1, scale=1):
     return UnivariateCumulantGeneratingFunction(
         K=lambda t, a=a: -a * np.log(1 - t),
         dK=lambda t, a=a: a / (1 - t),
-        dK_inv=lambda x, a=a: (1 - a / x),
+        dK_inv=lambda x, a=a: 1 - a / x,
         d2K=lambda t, a=a: a / (1 - t) ** 2,
         d3K=lambda t, a=a: 2 * a / (1 - t) ** 3,
         domain=Domain(l=1),
@@ -288,29 +288,6 @@ def univariate_empirical(x):
     return UnivariateCumulantGeneratingFunction(K, dK=dK)
 
 
-# TODO: add asymmetric laplace?
-
-# TODO: add generalized normal distribution
-
-# TODO: add asymmetric generalized normal distribution
-
-# TODO: add Cheriyan and Ramabhadran's multivariate gamma distribution (Kotz 2000)
-
-# TODO: add Jensen's multivariate Gamma (See Butler 2007, page 77)
-
-# TODO: multinomial distribution (see Butler 2007, page 80)
-
-# TODO: add bivariate poisson distribution (see Butler 2007, page 81)
-
-# TODO: add multivariate exponential as special case of gamma
-
-# TODO: also see Butler 2007, page 90 for higher order expansions
-
-# TODO: add multinomial bootstrap of the mean
-
-# TODO: see the exercise in Butler for negative binomial distribution, and multivariate logistic distribution
-
-
 def poisson(mu=1):
     return UnivariateCumulantGeneratingFunction(
         K=lambda t, mu=mu: mu * (np.exp(t) - 1),
@@ -328,9 +305,11 @@ def binomial(n=1, p=0.5):
         dK=lambda t, n=n, p=p: n * p / ((1 - p) * np.exp(-t) + p),
         dK_inv=lambda x, n=n, p=p: -np.log((n * p / x - p) / (1 - p)),
         d2K=lambda t, n=n, p=p: n * p * (1 - p) * np.exp(-t) / ((1 - p) * np.exp(-t) + p) ** 2,
-        d3K=lambda t, n=n, p=p: n
-        * p
-        * (1 - p)
-        * ((1 - p) * np.exp(-2 * t) - np.exp(-t) * p)
-        / ((1 - p) * np.exp(-t) + p) ** 3,
+        d3K=lambda t, n=n, p=p: (
+            n
+            * p
+            * (1 - p)
+            * ((1 - p) * np.exp(-2 * t) - np.exp(-t) * p)
+            / ((1 - p) * np.exp(-t) + p) ** 3
+        ),
     )
