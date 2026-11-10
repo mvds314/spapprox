@@ -1,7 +1,19 @@
+# Priorities
+
+- Go through bug backlog
+- Maybe review implementation with this in mind: Alhejaili, AlGhamedi (2025) - A review of saddlepoint approximation
+- Finish bivariate approximation:
+  - basically this case: test_bvar_cdf_near_zero
+  - are there more edge cases?
+- Conditional approximation (Skovgard approximation)
+- Multivariate approximation
+
+- Work on bootstrap distributions (see Booth and Butler)
+
 # Bug backlog
 
 Findings from two repo-wide reviews. Every item was reproduced empirically
-(unless marked *suspected*):
+(unless marked _suspected_):
 
 - **Review 1** at `b0cd9e4` (branch `dev`): items 1-18.
 - **Review 2** at `6b4b894` (library code identical to `b0cd9e4`): re-confirmed
@@ -35,6 +47,8 @@ Wrong numbers, hangs, or hard crashes on normal use.
   `test_poisson_negative_t` (no optional backend needed), plus `t = -0.4` added to
   the poisson cases of `test_basic` and `test_dKinv` in `tests/test_cgfs.py`.
 
+Manual note: confirmed, see Butler 2007, page 9, example 1.1.6
+
 ### [ ] 2. `d2K0` / `d3K0` mutate the raw cache in place
 
 - **Where:** `spapprox/cgf_base.py:1133-1135`, `1146-1149`
@@ -50,6 +64,8 @@ Wrong numbers, hangs, or hard crashes on normal use.
   # also: c.cov; c2 = c.mul(1.0); c2.cov -> diag [1, 16], and c.cov now [1, 16]
   ```
 - **Fix:** build a new array (`out = raw * factor`) instead of in-place `*=`.
+
+Manual note: I don't believe you, just checked it, but I don't find the result you claim
 
 ### [x] 3. `Domain.from_domains` crashes
 
@@ -74,6 +90,8 @@ Wrong numbers, hangs, or hard crashes on normal use.
   [0., 0.] in d.ldotinv(np.eye(2))  # True (wrong -- domain inverted)
   ```
 - **Fix:** negate to match the `g` branch.
+
+Manual note: indeed, this seems to need a fix
 
 ### [ ] 6. `dK_inv` can loop forever
 
@@ -522,7 +540,7 @@ Contract violations and silently wrong results in narrower situations.
 - **What:** normalized `norm` pdf has relative error +1e-4.
 - **Fix:** tighter tolerance or integrate over the full domain.
 
-### [ ] 54. *Suspected:* `K` returning shape `(1,)` breaks multivariate `loc`
+### [ ] 54. _Suspected:_ `K` returning shape `(1,)` breaks multivariate `loc`
 
 - **Where:** `spapprox/cgf_base.py:1554`
 - **Repro:** `M(K=lambda t: np.atleast_1d(np.sum(t**2) / 2), dim=2, loc=[1, 2]).K([1, 1])`
@@ -557,7 +575,7 @@ Contract violations and silently wrong results in narrower situations.
 
 ## Needs a literature check (unresolved)
 
-### [ ] 56. *Suspected:* bivariate cdf converges too slowly under dependence
+### [ ] 56. _Suspected:_ bivariate cdf converges too slowly under dependence
 
 - **Where:** `spapprox/spa.py:836-912`
 - **What:** even with items 17 and 18 fixed, the error for dependent pairs only
@@ -565,10 +583,10 @@ Contract violations and silently wrong results in narrower situations.
   second-order method should give `1/n` (as the independent case does).
 - **Evidence (max abs error):**
 
-  | Case | k=1 | k=4 | k=16 | k=64 |
-  |---|---|---|---|---|
-  | `(Z1, Z1+Z2)`, exact by quadrature | 0.043 | 0.042 | 0.029 | 0.0175 |
-  | `bivariate_gamma([2, 1, 3]) * k` vs 4M-draw Monte Carlo | 0.023 | 0.016 | 0.0095 | -- |
+  | Case                                                    | k=1   | k=4   | k=16   | k=64   |
+  | ------------------------------------------------------- | ----- | ----- | ------ | ------ |
+  | `(Z1, Z1+Z2)`, exact by quadrature                      | 0.043 | 0.042 | 0.029  | 0.0175 |
+  | `bivariate_gamma([2, 1, 3]) * k` vs 4M-draw Monte Carlo | 0.023 | 0.016 | 0.0095 | --     |
 
 - **Next step:** all 16 Phi/phi argument pairings were tried without success;
   likely culprits are `u_tilde`, `b` or `rho`. Re-derive against Wang (1990) /
@@ -582,7 +600,7 @@ Contract violations and silently wrong results in narrower situations.
 - Full suite takes ~11 min; iterate with targeted `pytest tests/test_X.py`.
 - Numerical tests compare against `scipy.stats` with tolerances. If a fix shifts
   results, establish whether it is a regression or a genuinely better
-  approximation *before* touching any tolerance.
+  approximation _before_ touching any tolerance.
 - Check for `tofix`-marked tests that may already document some of these
   behaviours -- those markers should be removed as the corresponding items land.
 - Several items share a root cause; fix them together:
@@ -592,3 +610,48 @@ Contract violations and silently wrong results in narrower situations.
   0.647); already a known TODO in the code, not listed as a bug.
 - Suggested first batch (unambiguous one-liners, high impact): items 9, 3, 8, 6,
   7, 19, 1, 17, 18. Then the hangs (24) and the near-zero cdf guard (23).
+
+# Plans
+
+The plan is to work on applications, and add more functionality based on what can be found in the literature.
+
+All the funtionality in this package should make the results achieved in most papers trivial.
+
+## Additional distributions
+
+These would go into cgfs.py
+
+- add asymmetric laplace?
+- add generalized normal distribution
+- add asymmetric generalized normal distribution
+- add Cheriyan and Ramabhadran's multivariate gamma distribution (Kotz 2000)
+- add Jensen's multivariate Gamma (See Butler 2007, page 77)
+- multinomial distribution (see Butler 2007, page 80)
+- add bivariate poisson distribution (see Butler 2007, page 81)
+- add multivariate exponential as special case of gamma
+- also see Butler 2007, page 90 for higher order expansions
+- add multinomial bootstrap of the mean
+- see the exercise in Butler for negative binomial distribution, and multivariate logistic distribution
+- Saddlepoint approximation of de EDF (Kuonen 2001, chapter 5)
+
+## Applications
+
+First application would be bootstrapping, and the various froms it can take.
+
+Additional approximations would go into spa.py
+Or into a separate model, e.g., bootstrap.py
+
+- add the conditional distribution
+- implement Dirichlet bootstrap
+- implement multivariate saddle point approximations
+- implement other bootstraps
+- jackknife stuff
+- conditional distributions
+- approximation for discrete distributions
+- bootstrap for estimating equations (Kuonen, 1998, particularly bootstrap for robust estimators)
+- quadratic forms (Kuonen 2001)
+- mixture models
+
+## Literature to review
+
+- Find complete version of Alya Omar's master thesis (2015)
