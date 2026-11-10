@@ -424,7 +424,7 @@ from spapprox.diff import PartialDerivative
                 ),
                 signature="()->()",
             ),
-            [0.2, 0.55],
+            [0.2, 0.55, -0.4],
             sps.poisson(mu=2),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
@@ -437,7 +437,7 @@ from spapprox.diff import PartialDerivative
             lambda t, pmf=sps.poisson(mu=2).pmf: np.log(
                 np.sum([np.exp(t * x) * pmf(x) for x in np.arange(100)], axis=0)
             ),
-            [0.2, 0.55],
+            [0.2, 0.55, -0.4],
             sps.poisson(mu=2),
             "findiff",
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
@@ -815,12 +815,12 @@ def test_return_type(cgf):
         ),
         pytest.param(
             poisson(mu=2),
-            [0.2, 0.55],
+            [0.2, 0.55, -0.4],
             id="Univariate poisson",
         ),
         pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(poisson(mu=2))[0],
-            [0.2, 0.55],
+            [0.2, 0.55, -0.4],
             id="Univariate poisson from multivariate",
         ),
         pytest.param(
@@ -853,6 +853,17 @@ def test_dKinv(cgf, ts):
     assert np.allclose(cgf.dK_inv(cgf.dK(ts[:1])), ts[:1])
     assert np.allclose(cgf.dK_inv(cgf.dK(ts)), ts)
     assert np.allclose(cgf.dK_inv(cgf.dK(ts)), [cgf.dK_inv(cgf.dK(t)) for t in ts])
+
+
+def test_poisson_negative_t():
+    mu = 1.5
+    cgf = poisson(mu=mu)
+    ts = np.array([-3.0, -1.0, -0.2])
+    assert np.allclose(cgf.K(ts), mu * (np.exp(ts) - 1))
+    assert np.allclose(cgf.dK(ts), mu * np.exp(ts))
+    assert np.allclose(cgf.d2K(ts), mu * np.exp(ts))
+    assert np.allclose(cgf.d3K(ts), mu * np.exp(ts))
+    assert np.isclose(cgf.K(-1.0), mu * (np.exp(-1.0) - 1))
 
 
 def test_dKinv_with_t0():

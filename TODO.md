@@ -21,7 +21,7 @@ passes, so none of these are caught by existing tests.
 
 Wrong numbers, hangs, or hard crashes on normal use.
 
-### [ ] 1. `poisson()` declares a wrong domain
+### [x] 1. `poisson()` declares a wrong domain
 
 - **Where:** `spapprox/cgfs.py:321`
 - **What:** declares `Domain(ge=0)`, but `K(t) = mu * (exp(t) - 1)` is finite on
@@ -31,6 +31,9 @@ Wrong numbers, hangs, or hard crashes on normal use.
   feeds the infinite loop in item 24.
 - **Fix:** drop the domain restriction (full real line).
 - **Why it hid:** existing tests only probe `t > 0`.
+- **Resolved:** domain restriction removed. Regression tests:
+  `test_poisson_negative_t` (no optional backend needed), plus `t = -0.4` added to
+  the poisson cases of `test_basic` and `test_dKinv` in `tests/test_cgfs.py`.
 
 ### [ ] 2. `d2K0` / `d3K0` mutate the raw cache in place
 

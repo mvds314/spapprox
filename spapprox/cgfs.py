@@ -295,7 +295,6 @@ def poisson(mu=1):
         dK_inv=lambda x, mu=mu: np.log(x / mu),
         d2K=lambda t, mu=mu: mu * np.exp(t),
         d3K=lambda t, mu=mu: mu * np.exp(t),
-        domain=Domain(ge=0),
     )
 
 
