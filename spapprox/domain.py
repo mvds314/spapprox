@@ -395,7 +395,7 @@ class Domain:
                     A = np.vstack((A, -np.eye(self.dim)))
                     a = np.append(
                         a,
-                        np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge,
+                        np.full(self.dim, -self.ge) if np.isscalar(self.ge) else -self.ge,
                     )
                 sel = ~np.isnan(a)
                 A = A[sel]

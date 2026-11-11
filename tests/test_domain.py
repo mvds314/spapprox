@@ -225,6 +225,20 @@ def test_trans_domain_nD():
     assert [2, 2] in dom
 
 
+@pytest.mark.parametrize("ge", [1.0, -1.0, np.array([1.0, -2.0])])
+def test_ldotinv_ge_bound(ge):
+    dom = Domain(dim=2, ge=ge)
+    lower = np.broadcast_to(ge, (2,))
+    inv = dom.ldotinv(np.eye(2))
+    assert list(lower) in inv
+    assert list(lower + 0.5) in inv
+    assert list(lower - [0.5, 0]) not in inv
+    assert list(lower - [0, 0.5]) not in inv
+    inv = dom.ldotinv(2 * np.eye(2))
+    assert list(lower / 2) in inv
+    assert list(lower / 2 - [0.25, 0]) not in inv
+
+
 def test_from_domains():
     # Initialize
     dom1 = Domain(l=3, g=-1, le=2, dim=3)

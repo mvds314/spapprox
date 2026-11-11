@@ -866,6 +866,35 @@ def test_poisson_negative_t():
     assert np.isclose(cgf.K(-1.0), mu * (np.exp(-1.0) - 1))
 
 
+@pytest.mark.parametrize(
+    "factory",
+    [
+        pytest.param(lambda scale: multivariate_norm(scale=scale), id="multivariate norm"),
+        pytest.param(
+            lambda scale: bivariate_gamma(a=[1.3, 1.1, 1.2], scale=scale), id="bivariate gamma"
+        ),
+    ],
+)
+def test_vector_scale_does_not_mutate_raw_cumulants(factory):
+    scale = np.array([1.0, 2.0])
+    unscaled = factory(1)
+    d2K0 = unscaled.d2K0 * np.outer(scale, scale)
+    d3K0 = unscaled.d3K0 * np.einsum("i,j,k->ijk", scale, scale, scale)
+    cgf = factory(scale)
+    for _ in range(3):
+        assert np.allclose(cgf.d2K0, d2K0)
+        assert np.allclose(cgf.d3K0, d3K0)
+        assert np.allclose(cgf.cov, d2K0)
+        cgf.scale = scale.copy()
+    assert np.allclose(cgf._d2K0_raw, unscaled.d2K0)
+    assert np.allclose(cgf._d3K0_raw, unscaled.d3K0)
+    derived = cgf.mul(1.0)
+    assert np.allclose(derived.d2K0, d2K0)
+    assert np.allclose(derived.d3K0, d3K0)
+    assert np.allclose(cgf.d2K0, d2K0)
+    assert np.allclose(cgf.d3K0, d3K0)
+
+
 def test_dKinv_with_t0():
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**2 / 2,

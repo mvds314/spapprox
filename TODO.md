@@ -49,7 +49,7 @@ Wrong numbers, hangs, or hard crashes on normal use.
 
 Manual note: confirmed, see Butler 2007, page 9, example 1.1.6
 
-### [ ] 2. `d2K0` / `d3K0` mutate the raw cache in place
+### [x] 2. `d2K0` / `d3K0` mutate the raw cache in place
 
 - **Where:** `spapprox/cgf_base.py:1133-1135`, `1146-1149`
 - **What:** uses `*=` on the same object held by `_d2K0_raw_cache`, so the
@@ -64,6 +64,9 @@ Manual note: confirmed, see Butler 2007, page 9, example 1.1.6
   # also: c.cov; c2 = c.mul(1.0); c2.cov -> diag [1, 16], and c.cov now [1, 16]
   ```
 - **Fix:** build a new array (`out = raw * factor`) instead of in-place `*=`.
+- **Resolved:** 1-D scale branches now build new arrays (`np.outer` / `einsum`).
+  Regression test: `test_vector_scale_does_not_mutate_raw_cumulants` in
+  `tests/test_cgfs.py` (repeated scale assignment, raw caches, `mul` propagation).
 
 Manual note: I don't believe you, just checked it, but I don't find the result you claim
 
@@ -78,7 +81,7 @@ Manual note: I don't believe you, just checked it, but I don't find the result y
 - **Blast radius:** reaches `from_univariate`, `from_cgfs`, `stack` for any
   domain carrying linear constraints.
 
-### [ ] 4. `Domain.ldotinv` sign error on `ge` bounds
+### [x] 4. `Domain.ldotinv` sign error on `ge` bounds
 
 - **Where:** `spapprox/domain.py:394-399` (wrong sign at `398`)
 - **What:** appends `+ge` where `x >= ge` requires `-x <= -ge`. The strict `g`
@@ -90,6 +93,9 @@ Manual note: I don't believe you, just checked it, but I don't find the result y
   [0., 0.] in d.ldotinv(np.eye(2))  # True (wrong -- domain inverted)
   ```
 - **Fix:** negate to match the `g` branch.
+- **Resolved:** `ge` is now negated. Regression test: `test_ldotinv_ge_bound` in
+  `tests/test_domain.py` (positive, negative and per-component `ge`; identity and
+  scaled transforms).
 
 Manual note: indeed, this seems to need a fix
 
