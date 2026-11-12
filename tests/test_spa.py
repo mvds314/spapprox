@@ -351,6 +351,19 @@ def test_bvar_cdf_independent_reduces_to_product():
         assert np.isclose(cdf, sps.gamma(3).cdf(x[0]) * sps.gamma(5).cdf(x[1]), atol=1e-3)
 
 
+def test_bvar_cdf_independent_one_saddlepoint_component_zero():
+    # Singular cases where one saddlepoint component is zero should also factorize
+    g1, g2 = gamma(a=3), gamma(a=5)
+    spa = BivariateSaddlePointApprox(MultivariateCumulantGeneratingFunction.from_univariate(g1, g2))
+    u1, u2 = UnivariateSaddlePointApprox(g1), UnivariateSaddlePointApprox(g2)
+    for t in [[0.5, 0], [-0.8, 0], [0, 0.4], [0, -1.0]]:
+        t = np.array(t, dtype=float)
+        x = spa.cgf.dK(t)
+        cdf = spa.cdf(t=t)
+        assert np.isclose(cdf, u1.cdf(t=t[0]) * u2.cdf(t=t[1]), atol=1e-6)
+        assert np.isclose(cdf, sps.gamma(3).cdf(x[0]) * sps.gamma(5).cdf(x[1]), atol=1e-3)
+
+
 # TODO: then continue with a bootstrapping application
 
 # TODO: then go to other applications, esaddle?, the empirical saddlepoint approximation

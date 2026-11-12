@@ -203,13 +203,18 @@ Manual note: indeed, this seems to need a fix
   `test_bvar_cdf_independent_reduces_to_product` in `tests/test_spa.py`. The
   case where one component is zero still needs item 18.
 
-### [ ] 18. `sps.norm.pdf(w)` vs documented `phi(x_tilde)` -- RESOLVED: code is wrong
+### [x] 18. `sps.norm.pdf(w)` vs documented `phi(x_tilde)` -- RESOLVED: code is wrong
 
 - **Where:** `spapprox/spa.py:862`, `892`
 - **What:** matters when one saddlepoint component is 0. Same gamma pair at
   `t=(0.5, 0)` and `(0, 0.4)`: with only item 17 fixed, errors are **-0.034**
   and **-0.038**; with both fixed, -8e-5 and -5e-5.
 - **Fix:** `sps.norm.pdf(tx.T[0])` at `862`, `sps.norm.pdf(tx.T[1])` at `892`.
+- **Resolved:** the singular-case `n_tilde` now uses `phi(x_tilde)` (now at
+  lines `868` and `898`). At `t=(0.5,0)`, `(-0.8,0)`, `(0,0.4)` and `(0,-1)`, the
+  max deviation from the exact gamma product dropped from 0.038 to 7.6e-5.
+  Regression test: `test_bvar_cdf_independent_one_saddlepoint_component_zero`
+  in `tests/test_spa.py`.
 
 ### [ ] 19. Cumulants at zero crash on CGFs without analytic derivatives
 

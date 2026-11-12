@@ -865,7 +865,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                     raise AssertionError("Invalid singular case")
                 d3K111s0 = self.cgf.d3K(s0)[..., 1, 1, 1]
                 d2K11s0 = self.cgf.d2K(s0)[..., 1, 1]
-                tn = sps.norm.pdf(w) / 6 * (d3K111s0 / d2K11s0 ** (3 / 2))
+                tn = sps.norm.pdf(tx.T[0]) / 6 * (d3K111s0 / d2K11s0 ** (3 / 2))
                 assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
         else:
             assert np.isclose(t[0], 0), "This should be the second special case with t[0] = 0"
@@ -895,7 +895,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                     raise AssertionError("Invalid singular case")
                 d3K000t0 = self.cgf.d3K(t0)[..., 0, 0, 0]
                 d2K00t0 = self.cgf.d2K(t0)[..., 0, 0]
-                tn = sps.norm.pdf(w) / 6 * (d3K000t0 / d2K00t0 ** (3 / 2))
+                tn = sps.norm.pdf(tx.T[1]) / 6 * (d3K000t0 / d2K00t0 ** (3 / 2))
                 assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
         # Put everything together
         if _has_fastnorm:
