@@ -239,6 +239,35 @@ def test_ldotinv_ge_bound(ge):
     assert list(lower / 2 - [0.25, 0]) not in inv
 
 
+@pytest.mark.parametrize(
+    "d1,d2,inside,outside",
+    [
+        pytest.param(Domain(l=1), Domain(l=2), [0.5], [1.5], id="l"),
+        pytest.param(Domain(le=1), Domain(le=2), [1.0], [1.5], id="le"),
+        pytest.param(Domain(g=-2), Domain(g=-1), [-0.5], [-1.5], id="g"),
+        pytest.param(Domain(ge=-2), Domain(ge=-1), [-1.0], [-1.5], id="ge"),
+        pytest.param(Domain(l=2), Domain(g=-1), [0.0], [-1.5, 2.5], id="l and g"),
+        pytest.param(
+            Domain(dim=2, l=1), Domain(dim=2, l=[2, 0.5]), [[0.9, 0.4]], [[1.5, 0], [0, 0.7]],
+            id="2D",
+        ),
+        pytest.param(
+            Domain(dim=2, l=[np.nan, 1]),
+            Domain(dim=2, l=[1, np.nan]),
+            [[0.5, 0.5]],
+            [[1.5, 0], [0, 1.5]],
+            id="2D nan bounds",
+        ),
+    ],
+)
+def test_intersect(d1, d2, inside, outside):
+    for dom in [d1.intersect(d2), d2.intersect(d1)]:
+        for t in inside:
+            assert t in dom
+        for t in outside:
+            assert t not in dom
+
+
 def test_from_domains():
     # Initialize
     dom1 = Domain(l=3, g=-1, le=2, dim=3)

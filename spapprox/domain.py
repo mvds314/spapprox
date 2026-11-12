@@ -435,6 +435,17 @@ class Domain:
             dim=other.shape[1],
         )
 
+    def _intersect_bounds(self, x, y, combine):
+        if x is None:
+            return y
+        if y is None:
+            return x
+        if self.dim == 1:
+            return float(combine(np.squeeze(x), np.squeeze(y)))
+        if pd.api.types.is_number(x) and pd.api.types.is_number(y):
+            return float(combine(x, y))
+        return combine(x * np.ones(self.dim), y * np.ones(self.dim))
+
     def intersect(self, other):
         """
         Intersect with another domain, i.e., the result should be in both.
@@ -444,60 +455,11 @@ class Domain:
         )
         if self.dim != other.dim:
             raise AssertionError("Dimensions should match")
-        if self.l is not None and other.l is not None:
-            if self.dim == 1 or (
-                pd.api.types.is_number(self.l) and pd.api.types.is_number(other.l)
-            ):
-                l = max(self.l, other.l)  # noqa: E741
-            else:
-                l = np.max(  # noqa: E741
-                    [self.l * np.ones(self.dim), other.l * np.ones(self.dim)], axis=0
-                )  # noqa: E741
-        elif self.l is not None:
-            l = self.l  # noqa: E741
-        elif other.l is not None:
-            l = other.l  # noqa: E741
-        else:
-            l = None  # noqa: E741
-        if self.g is not None and other.g is not None:
-            if self.dim == 1 or (
-                pd.api.types.is_number(self.g) and pd.api.types.is_number(other.g)
-            ):
-                g = min(self.g, other.g)
-            else:
-                g = np.min([self.g * np.ones(self.dim), other.g * np.ones(self.dim)], axis=0)
-        elif self.g is not None:
-            g = self.g
-        elif other.g is not None:
-            g = other.g
-        else:
-            g = None
-        if self.le is not None and other.le is not None:
-            if self.dim == 1 or (
-                pd.api.types.is_number(self.le) and pd.api.types.is_number(other.le)
-            ):
-                le = max(self.le, other.le)
-            else:
-                le = np.max([self.le * np.ones(self.dim), other.le * np.ones(self.dim)], axis=0)
-        elif self.le is not None:
-            le = self.le
-        elif other.le is not None:
-            le = other.le
-        else:
-            le = None
-        if self.ge is not None and other.ge is not None:
-            if self.dim == 1 or (
-                pd.api.types.is_number(self.ge) and pd.api.types.is_number(other.ge)
-            ):
-                ge = min(self.ge, other.ge)
-            else:
-                ge = np.min([self.ge * np.ones(self.dim), other.ge * np.ones(self.dim)], axis=0)
-        elif self.ge is not None:
-            ge = self.ge
-        elif other.ge is not None:
-            ge = other.ge
-        else:
-            ge = None
+        # l and le are upper bounds, g and ge lower bounds; NaN entries mean "no bound"
+        l = self._intersect_bounds(self.l, other.l, np.fmin)  # noqa: E741
+        g = self._intersect_bounds(self.g, other.g, np.fmax)
+        le = self._intersect_bounds(self.le, other.le, np.fmin)
+        ge = self._intersect_bounds(self.ge, other.ge, np.fmax)
         if self.A is not None and other.A is not None:
             A = np.vstack((self.A, other.A))
             a = np.append(self.a, other.a)

@@ -343,7 +343,7 @@ Contract violations and silently wrong results in narrower situations.
   `from_cgfs(a, b)` -> `ValueError: zero-dimensional arrays cannot be concatenated`.
 - **Fix:** `np.atleast_1d(cgf.dK0)` and `np.reshape(cgf.d3K0, (d, d, d))`.
 
-### [ ] 26. `Domain.intersect` returns a union for like-kind bounds
+### [x] 26. `Domain.intersect` returns a union for like-kind bounds
 
 - **Where:** `spapprox/domain.py:446-495`
 - **What:** takes the max of upper bounds and min of lower bounds (reversed).
@@ -355,6 +355,8 @@ Contract violations and silently wrong results in narrower situations.
 - **Note:** used by univariate `cgf + cgf` (`cgf_base.py:737`); actual impact
   there may be dampened because each component masks its own domain.
 - **Fix:** `min`/`np.fmin` for `l`/`le`, `max`/`np.fmax` for `g`/`ge`.
+- **Resolved:** applied as proposed via a NaN-aware helper. Regression test:
+  `test_intersect` in `tests/test_domain.py`.
 
 ### [ ] 27. Bound-ordering validation is wrong and inconsistent
 
