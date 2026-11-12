@@ -915,7 +915,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                         for _tx, _rho in zip(tx, rho)
                     ]
                 )
-        retval += sps.norm.cdf(tw) * tn + sps.norm.cdf(w) * n + n * tn
+        retval += sps.norm.cdf(tw) * n + sps.norm.cdf(w) * tn + n * tn
         return retval
 
     def _dK_inv(self, x, **solver_kwargs):

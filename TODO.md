@@ -184,7 +184,7 @@ Manual note: indeed, this seems to need a fix
   effective. Regression tests: `test_derived_domain_matches_K` and
   `test_derived_domain_scale_values` in `tests/test_cgfs.py`.
 
-### [ ] 17. Swapped pairing in the bivariate Lugannani-Rice-style cdf -- RESOLVED: code is wrong
+### [x] 17. Swapped pairing in the bivariate Lugannani-Rice-style cdf -- RESOLVED: code is wrong
 
 - **Where:** `spapprox/spa.py:912`
 - **What:** pairs `Phi(w_tilde) * n` with `Phi(w) * n_tilde`. The docstring's
@@ -196,6 +196,12 @@ Manual note: indeed, this seems to need a fix
   LR cdfs to <= 1e-4. A correlated bivariate normal cannot discriminate (all
   variants are exact there).
 - **Fix:** `Phi(w_tilde) * n + Phi(w) * n_tilde + n * n_tilde` (per docstring).
+- **Resolved:** pairing swapped to match the docstring. At 16 points with both
+  saddlepoint components nonzero, the max deviation from the product of the
+  univariate LR cdfs dropped from 0.041 to 1e-7, and from the exact gamma
+  product from 0.040 to 1.5e-4. Regression test:
+  `test_bvar_cdf_independent_reduces_to_product` in `tests/test_spa.py`. The
+  case where one component is zero still needs item 18.
 
 ### [ ] 18. `sps.norm.pdf(w)` vs documented `phi(x_tilde)` -- RESOLVED: code is wrong
 
