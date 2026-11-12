@@ -99,7 +99,7 @@ Manual note: I don't believe you, just checked it, but I don't find the result y
 
 Manual note: indeed, this seems to need a fix
 
-### [ ] 6. `dK_inv` can loop forever
+### [x] 6. `dK_inv` can loop forever
 
 - **Where:** `spapprox/cgf_base.py:484`
 - **What:** the bracket-expansion call omits `loc=0, scale=1`, which every
@@ -107,9 +107,15 @@ Manual note: indeed, this seems to need a fix
   condition.
 - **Repro (hangs):**
   `UnivariateCumulantGeneratingFunction(K=lambda t: -np.log(1 - t), domain=Domain(l=1), loc=5.).dK_inv(5.01, method="brentq")`
-  (expected about `-49`).
+  (expected about `-49`; correction: the exact value is `-99`, since
+  `dK(t) = 1/(1-t) = 0.01`).
 - **Fix:** add `loc=0, scale=1` to match siblings, and cap the iterations.
 - **Note:** guard the regression test with a timeout or bounded iteration count.
+- **Resolved:** `loc=0, scale=1` added; both bracket-expansion loops are capped at
+  1000 steps and raise if no bracket is found (previously an unreachable `x`, e.g.
+  below the infimum of `dK`, also looped forever). Regression test:
+  `test_dKinv_bracket_search_with_loc` in `tests/test_cgfs.py`, run in a
+  subprocess with a timeout.
 
 ### [ ] 7. `fit_ppf` raises `UnboundLocalError`
 

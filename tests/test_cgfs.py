@@ -904,6 +904,44 @@ def test_dKinv_with_t0():
     assert np.allclose(cgf.dK_inv(np.array([0.5, -0.3]), t0=np.zeros(2)), [0.5, -0.3])
 
 
+_DKINV_BRACKET_SCRIPT = """
+import numpy as np
+from spapprox import Domain, UnivariateCumulantGeneratingFunction
+
+cgf = UnivariateCumulantGeneratingFunction(
+    K=lambda t: -np.log(1 - t), domain=Domain(l=1), loc=5.0
+)
+t = cgf.dK_inv(5.01, method="brentq")
+assert np.isclose(t, -99.0), t
+assert np.isclose(cgf.dK(t), 5.01)
+t = cgf.dK_inv(25.0, method="brentq")
+assert np.isclose(t, 0.95), t
+try:
+    cgf.dK_inv(4.0, method="brentq")
+except Exception as e:
+    assert "Could not find valid lb" in str(e), e
+else:
+    raise AssertionError("expected failure for x below the infimum of dK")
+"""
+
+
+def test_dKinv_bracket_search_with_loc():
+    # Run in a subprocess so a regression to an infinite loop fails instead of hanging
+    import subprocess
+    import sys
+
+    try:
+        res = subprocess.run(
+            [sys.executable, "-c", _DKINV_BRACKET_SCRIPT],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail("dK_inv bracket search did not terminate")
+    assert res.returncode == 0, res.stderr
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(

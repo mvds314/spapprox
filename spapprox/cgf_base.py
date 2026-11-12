@@ -479,9 +479,12 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
                         lb_scaling = next(lb_scalings)
                         ub_scaling = next(ub_scalings)
-                        while x < dKlb:
+                        max_expansions = 1000
+                        for _ in range(max_expansions):
+                            if not x < dKlb:
+                                break
                             lb_new = lb / lb_scaling
-                            dKlb_new = self.dK(lb_new)
+                            dKlb_new = self.dK(lb_new, loc=0, scale=1)
                             if ~np.isnan(dKlb_new):
                                 lb = lb_new
                                 dKlb = dKlb_new
@@ -490,7 +493,11 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                                 lb_scaling = next(lb_scalings)
                             except StopIteration:
                                 raise Exception("Could not find valid lb")
-                        while x > dKub:
+                        else:
+                            raise Exception("Could not find valid lb")
+                        for _ in range(max_expansions):
+                            if not x > dKub:
+                                break
                             ub_new = ub / ub_scaling
                             dKub_new = self.dK(ub_new, loc=0, scale=1)
                             if ~np.isnan(dKub_new):
@@ -500,7 +507,9 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                             try:
                                 ub_scaling = next(ub_scalings)
                             except StopIteration:
-                                raise Exception("Coucld not find valid ub")
+                                raise Exception("Could not find valid ub")
+                        else:
+                            raise Exception("Could not find valid ub")
                         assert self.dK(lb, loc=0, scale=1) < x < self.dK(ub, loc=0, scale=1)
                         kwargs["bracket"] = [lb, ub]
                     try:
