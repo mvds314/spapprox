@@ -18,6 +18,7 @@ from spapprox import (
     multivariate_norm,
     norm,
 )
+from spapprox.diff import _has_findiff as has_findiff
 from spapprox.diff import block_diag_3d
 from spapprox.util import type_wrapper
 
@@ -876,6 +877,20 @@ def test_add_domain_matches_K(mcgf):
     with np.errstate(all="ignore"):
         finite = np.isfinite([mcgf.K(t) for t in ts])
     assert np.array_equal([t in mcgf.domain for t in ts], finite)
+
+
+def test_cumulants_at_zero_without_analytic_derivatives():
+    def K(t):
+        return 0.5 * np.sum(np.atleast_2d(t) ** 2, axis=-1).squeeze()
+
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=K, dim=2, loc=np.array([1.0, 2.0]), scale=np.array([2.0, 3.0])
+    )
+    assert np.allclose(cgf.dK0, [1, 2])
+    assert np.allclose(cgf.d2K0, np.diag([4, 9]))
+    if has_findiff:
+        cgf = MultivariateCumulantGeneratingFunction(K=K, dim=2, numdiff_backend="findiff")
+        assert np.allclose(cgf.d3K0, 0, atol=1e-6)
 
 
 if __name__ == "__main__":

@@ -903,9 +903,7 @@ def test_vector_scale_does_not_mutate_raw_cumulants(factory):
         pytest.param(-1 * exponential(scale=2) + norm(), id="-exp(2) + norm"),
         pytest.param(exponential(scale=0.5) + gamma(a=3, scale=2), id="exp(0.5) + gamma"),
         pytest.param(univariate_sample_mean(exponential(scale=2), 5), id="mean exp(2)"),
-        pytest.param(
-            univariate_sample_mean(-1 * exponential(scale=0.5), 3), id="mean -exp(0.5)"
-        ),
+        pytest.param(univariate_sample_mean(-1 * exponential(scale=0.5), 3), id="mean -exp(0.5)"),
         pytest.param(
             univariate_sample_mean(exponential(scale=2) + norm(), 4), id="mean exp(2) + norm"
         ),
@@ -971,6 +969,30 @@ def test_dKinv_bracket_search_with_loc():
     except subprocess.TimeoutExpired:
         pytest.fail("dK_inv bracket search did not terminate")
     assert res.returncode == 0, res.stderr
+
+
+@pytest.mark.parametrize(
+    "backend",
+    [
+        pytest.param(
+            "numdifftools",
+            marks=pytest.mark.skipif(not has_numdifftools, reason="No numdifftools"),
+        ),
+        pytest.param("findiff", marks=pytest.mark.skipif(not has_findiff, reason="No findiff")),
+    ],
+)
+def test_cumulants_at_zero_without_analytic_derivatives(backend):
+    # Gamma(3) cumulants: 3, 3, 6; X = 2 Z + 1 gives 7, 12, 48
+    cgf = UnivariateCumulantGeneratingFunction(
+        K=lambda t: -3 * np.log(1 - t), domain=Domain(l=1), numdiff_backend=backend
+    )
+    assert np.allclose([cgf.dK0, cgf.d2K0, cgf.d3K0], [3, 3, 6], rtol=1e-4)
+    cgf = UnivariateCumulantGeneratingFunction(
+        K=lambda t: -3 * np.log(1 - t), domain=Domain(l=1), loc=1, scale=2, numdiff_backend=backend
+    )
+    assert np.allclose([cgf.dK0, cgf.d2K0, cgf.d3K0], [7, 12, 48], rtol=1e-4)
+    sample = np.array([1.0, 2.0, 4.0])
+    assert np.isclose(univariate_empirical(sample).d2K0, np.var(sample), rtol=1e-6)
 
 
 if __name__ == "__main__":

@@ -216,7 +216,7 @@ Manual note: indeed, this seems to need a fix
   Regression test: `test_bvar_cdf_independent_one_saddlepoint_component_zero`
   in `tests/test_spa.py`.
 
-### [ ] 19. Cumulants at zero crash on CGFs without analytic derivatives
+### [x] 19. Cumulants at zero crash on CGFs without analytic derivatives
 
 - **Where:** `spapprox/cgf_base.py:635`, `644`, `653` (univariate), `1160`,
   `1169`, `1178` (multivariate)
@@ -227,6 +227,10 @@ Manual note: indeed, this seems to need a fix
   `UnivariateSaddlePointApprox(...).cdf(t=0.)`, for `univariate_empirical(...).d2K0`
   read before any `d2K(t)` call, and for the multivariate analogues.
 - **Fix:** call `self.dK(0, loc=0, scale=1)` etc., which initialises the backend.
+- **Resolved:** the six `_d*K0_raw` properties now call the public `dK`/`d2K`/`d3K`
+  with `loc=0, scale=1`. Regression tests: `test_cumulants_at_zero_without_analytic_derivatives`
+  in `tests/test_cgfs.py` and `tests/test_mvar_cgfs.py`, and
+  `test_cdf_at_zero_without_analytic_derivatives` in `tests/test_spa.py`.
 
 ### [ ] 20. Multivariate findiff gradient applies `loc`/`scale` twice
 

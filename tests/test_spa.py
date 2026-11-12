@@ -12,6 +12,7 @@ from spapprox import (
     MultivariateSaddlePointApprox,
     # poisson,
     # binomial,
+    UnivariateCumulantGeneratingFunction,
     UnivariateSaddlePointApprox,
     chi2,
     exponential,
@@ -333,6 +334,12 @@ def test_fit_ppf_honours_t_range():
     assert np.isclose(spa.ppf(0.5), sps.gamma(a=3).ppf(0.5), atol=1e-2)
 
 
+@pytest.mark.parametrize("backend", ["LR", "BN"])
+def test_cdf_at_zero_without_analytic_derivatives(backend):
+    spa = UnivariateSaddlePointApprox(UnivariateCumulantGeneratingFunction(K=lambda t: t**2 / 2))
+    assert np.isclose(spa.cdf(t=0.0, backend=backend), 0.5)
+
+
 def test_bvar_cdf_near_zero():
     spa = BivariateSaddlePointApprox(multivariate_norm(dim=2))
     assert np.isclose(spa.cdf(t=np.array([1e-9, 1e-9])), 0.25)
@@ -341,7 +348,9 @@ def test_bvar_cdf_near_zero():
 def test_bvar_cdf_independent_reduces_to_product():
     # For independent components the bivariate approximation should factorize
     g1, g2 = gamma(a=3), gamma(a=5)
-    spa = BivariateSaddlePointApprox(MultivariateCumulantGeneratingFunction.from_univariate(g1, g2))
+    spa = BivariateSaddlePointApprox(
+        MultivariateCumulantGeneratingFunction.from_univariate(g1, g2)
+    )
     u1, u2 = UnivariateSaddlePointApprox(g1), UnivariateSaddlePointApprox(g2)
     for t in [[-1.5, -1.2], [-0.5, 0.5], [0.3, -0.4], [0.6, 0.2]]:
         t = np.array(t)
@@ -354,7 +363,9 @@ def test_bvar_cdf_independent_reduces_to_product():
 def test_bvar_cdf_independent_one_saddlepoint_component_zero():
     # Singular cases where one saddlepoint component is zero should also factorize
     g1, g2 = gamma(a=3), gamma(a=5)
-    spa = BivariateSaddlePointApprox(MultivariateCumulantGeneratingFunction.from_univariate(g1, g2))
+    spa = BivariateSaddlePointApprox(
+        MultivariateCumulantGeneratingFunction.from_univariate(g1, g2)
+    )
     u1, u2 = UnivariateSaddlePointApprox(g1), UnivariateSaddlePointApprox(g2)
     for t in [[0.5, 0], [-0.8, 0], [0, 0.4], [0, -1.0]]:
         t = np.array(t, dtype=float)

@@ -641,7 +641,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Note this property stores the unscaled and untranslated derivative at zero.
         """
         if self._dK0_raw_cache is None:
-            self._dK0_raw_cache = self._dK(0)
+            self._dK0_raw_cache = self.dK(0, loc=0, scale=1)
         return self._dK0_raw_cache
 
     @property
@@ -650,7 +650,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Note this property stores the unscaled and untranslated second order derivative at zero.
         """
         if self._d2K0_raw_cache is None:
-            self._d2K0_raw_cache = self._d2K(0)
+            self._d2K0_raw_cache = self.d2K(0, loc=0, scale=1)
         return self._d2K0_raw_cache
 
     @property
@@ -659,7 +659,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Note this property stores the unscaled and untranslated third order derivative at zero.
         """
         if self._d3K0_raw_cache is None:
-            self._d3K0_raw_cache = self._d3K(0)
+            self._d3K0_raw_cache = self.d3K(0, loc=0, scale=1)
         return self._d3K0_raw_cache
 
     def add(self, other, inplace=False):
@@ -1165,7 +1165,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Note this property stores the unscaled and untranslated derivative at zero.
         """
         if self._dK0_raw_cache is None:
-            self._dK0_raw_cache = self._dK(np.zeros(self.domain.dim))
+            self._dK0_raw_cache = self.dK(np.zeros(self.domain.dim), loc=0, scale=1)
         return self._dK0_raw_cache
 
     @property
@@ -1174,7 +1174,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Note this property stores the unscaled and untranslated second order derivative at zero.
         """
         if self._d2K0_raw_cache is None:
-            self._d2K0_raw_cache = self._d2K(np.zeros(self.domain.dim))
+            self._d2K0_raw_cache = self.d2K(np.zeros(self.domain.dim), loc=0, scale=1)
         return self._d2K0_raw_cache
 
     @property
@@ -1183,7 +1183,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Note this property stores the unscaled and untranslated third order derivative at zero.
         """
         if self._d3K0_raw_cache is None:
-            self._d3K0_raw_cache = self._d3K(np.zeros(self.domain.dim))
+            self._d3K0_raw_cache = self.d3K(np.zeros(self.domain.dim), loc=0, scale=1)
         return self._d3K0_raw_cache
 
     def __getitem__(self, item):
