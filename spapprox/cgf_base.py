@@ -743,7 +743,9 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     else None
                 ),
                 # Other arguments
-                domain=self.domain.intersect(other.domain),
+                domain=self.domain.mul(1 / self.scale).intersect(
+                    other.domain.mul(1 / other.scale)
+                ),
                 numdiff_backend=self._numdiff_backend,
             )
         else:

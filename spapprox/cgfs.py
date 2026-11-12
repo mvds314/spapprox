@@ -257,7 +257,7 @@ def univariate_sample_mean(cgf, sample_size):
         dK_inv=lambda x, n=sample_size, cgf=cgf: n * cgf.dK_inv(x),
         d2K=lambda t, n=sample_size, cgf=cgf: cgf.d2K(t / n) / n,
         d3K=lambda t, n=sample_size, cgf=cgf: cgf.d3K(t / n) / n**2,
-        domain=sample_size * cgf.domain,
+        domain=cgf.domain.mul(sample_size / cgf.scale),
     )
 
 

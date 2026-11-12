@@ -157,7 +157,7 @@ Manual note: indeed, this seems to need a fix
 - **Fix:** mechanical rename; confirm no other spellings via
   `grep -rn "asanayarray" --include=*.py .`
 
-### [ ] 10. Derived-CGF domains are in the wrong `t` units when `scale != 1`
+### [x] 10. Derived-CGF domains are in the wrong `t` units when `scale != 1`
 
 - **Where:** `spapprox/cgfs.py:260` (`univariate_sample_mean`);
   `spapprox/cgf_base.py:737` (univariate `add`)
@@ -179,6 +179,10 @@ Manual note: indeed, this seems to need a fix
 - **Fix:** intersect `self.domain.mul(1/self.scale)` with
   `other.domain.mul(1/other.scale)`; same idea for the sample mean.
 - **Same family:** items 14, 21, 22.
+- **Resolved:** univariate `add` and `univariate_sample_mean` now transform the
+  operand domains by `1/scale` (and `n/scale`). Needed item 26 to be fully
+  effective. Regression tests: `test_derived_domain_matches_K` and
+  `test_derived_domain_scale_values` in `tests/test_cgfs.py`.
 
 ### [ ] 17. Swapped pairing in the bivariate Lugannani-Rice-style cdf -- RESOLVED: code is wrong
 

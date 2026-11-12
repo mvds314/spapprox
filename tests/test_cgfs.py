@@ -895,6 +895,37 @@ def test_vector_scale_does_not_mutate_raw_cumulants(factory):
     assert np.allclose(cgf.d3K0, d3K0)
 
 
+@pytest.mark.parametrize(
+    "cgf",
+    [
+        pytest.param(exponential(scale=2) + norm(), id="exp(2) + norm"),
+        pytest.param(exponential(scale=0.5) + norm(), id="exp(0.5) + norm"),
+        pytest.param(-1 * exponential(scale=2) + norm(), id="-exp(2) + norm"),
+        pytest.param(exponential(scale=0.5) + gamma(a=3, scale=2), id="exp(0.5) + gamma"),
+        pytest.param(univariate_sample_mean(exponential(scale=2), 5), id="mean exp(2)"),
+        pytest.param(
+            univariate_sample_mean(-1 * exponential(scale=0.5), 3), id="mean -exp(0.5)"
+        ),
+        pytest.param(
+            univariate_sample_mean(exponential(scale=2) + norm(), 4), id="mean exp(2) + norm"
+        ),
+    ],
+)
+def test_derived_domain_matches_K(cgf):
+    ts = np.linspace(-6, 6, 241)
+    with np.errstate(all="ignore"):
+        finite = np.isfinite([cgf.K(t) for t in ts])
+    assert np.array_equal([t in cgf.domain for t in ts], finite)
+
+
+def test_derived_domain_scale_values():
+    sm = univariate_sample_mean(exponential(scale=2), 5)
+    assert 2.4 in sm.domain and 4.0 not in sm.domain
+    s = exponential(scale=2) + norm()
+    assert 0.4 in s.domain and 0.8 not in s.domain
+    assert np.isclose((exponential(scale=0.5) + norm()).K(1.5), 1.5**2 / 2 - np.log(1 - 0.75))
+
+
 def test_dKinv_with_t0():
     cgf = UnivariateCumulantGeneratingFunction(
         K=lambda t: t**2 / 2,
