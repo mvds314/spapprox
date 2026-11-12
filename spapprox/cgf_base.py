@@ -1408,9 +1408,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     else None
                 ),
                 dim=self.dim,
-                domain=self.domain.ldot(self.scale_mat)
-                .add(self.loc_vect)
-                .intersect(other.domain.ldot(other.scale_mat).add(self.loc_vect)),
+                domain=self.domain.ldotinv(self.scale_mat.T).intersect(
+                    other.domain.ldotinv(other.scale_mat.T)
+                ),
                 numdiff_backend=self._numdiff_backend,
             )
         else:

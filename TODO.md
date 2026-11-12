@@ -240,6 +240,10 @@ Manual note: indeed, this seems to need a fix
   -> `nan` (true 1.386). With `scale=2`, `[0.8, 0]` is reported in-domain but
   `K` is `nan`.
 - **Fix:** transform each domain by its operand's scale before `from_domains`.
+- **Note:** confirmed again while fixing items 14/26: the sum of
+  `from_univariate(exponential(scale=2), norm(loc=3))` and
+  `from_univariate(norm(loc=-1), gamma(a=2, scale=0.5))` reports `[0.6, 0]` in
+  domain while `K` is `nan`.
 
 ### [ ] 23. LR/BN `t=0` guard is far too tight -> catastrophic cancellation near the mean
 
@@ -316,7 +320,7 @@ Contract violations and silently wrong results in narrower situations.
 - **Repro:** `t = [0.9, 0.9]` reports `in domain` -> `True` while `K(t)` -> `nan`.
 - **Fix:** add `B=[[1, 1]], b=[1]`.
 
-### [ ] 14. Multivariate `add` builds the wrong domain
+### [x] 14. Multivariate `add` builds the wrong domain
 
 - **Where:** `spapprox/cgf_base.py:1405-1407`
 - **What:** uses `domain.ldot(S).add(loc)`. For `Y = loc + S X` the t-domain is
@@ -326,6 +330,9 @@ Contract violations and silently wrong results in narrower situations.
   `[2, 2]` is reported in-domain but `K` is `nan`. Also wrong with `scale=2` on
   the other operand.
 - **Fix:** `self.domain.ldotinv(self.scale_mat.T).intersect(other.domain.ldotinv(other.scale_mat.T))`.
+- **Resolved:** applied as proposed. Surfaced by the item 26 fix (the union-style
+  intersect had hidden it; `test_stack` started failing). Regression test:
+  `test_add_domain_matches_K` in `tests/test_mvar_cgfs.py`.
 
 ### [ ] 15. `from_cgfs` crashes on mixed univariate/multivariate input
 

@@ -856,6 +856,28 @@ def test_d2K_d3K_single_t_out_of_domain():
     assert np.shape(d3K) == (1, 1, 1) and np.all(np.isnan(d3K))
 
 
+@pytest.mark.parametrize(
+    "mcgf",
+    [
+        pytest.param(
+            lambda: multivariate_norm(loc=[3, 3]) + _mvar_neglog_cgf(2), id="loc on self"
+        ),
+        pytest.param(
+            lambda: _mvar_neglog_cgf(2) + multivariate_norm(loc=[3, 3]), id="loc on other"
+        ),
+        pytest.param(
+            lambda: multivariate_norm(loc=[3, 3]) + 2 * _mvar_neglog_cgf(2), id="scaled other"
+        ),
+    ],
+)
+def test_add_domain_matches_K(mcgf):
+    mcgf = mcgf()
+    ts = [[a, b] for a in np.linspace(-3, 3, 25) for b in np.linspace(-3, 3, 25)]
+    with np.errstate(all="ignore"):
+        finite = np.isfinite([mcgf.K(t) for t in ts])
+    assert np.array_equal([t in mcgf.domain for t in ts], finite)
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(
