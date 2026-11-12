@@ -313,8 +313,8 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             The value to replace NaNs with.
         """
         assert np.all((0 <= np.asanyarray(q)) & (np.asanyarray(q) <= 1))
-        if hasattr(self, "_cdf_cache") and hasattr(self, "_t_cache"):
-            t = np.interp(q, self._cdf_cache, self._t_cache)
+        if hasattr(self, "_cdf_cache") and hasattr(self, "_ppf_t_cache"):
+            t = np.interp(q, self._cdf_cache, self._ppf_t_cache)
         else:
             if q.ndim == 0:  # Then it is a scalar "array"
                 q = q.tolist()
@@ -488,15 +488,21 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
     def fit_ppf(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000):
         """
         Fit the inverse of the cumulative distribution function using linear interpolation.
+
+        If t_range is not provided, it is taken from a previous fit (of the ppf or the
+        saddle point equation), or inferred otherwise.
         """
-        if not hasattr(self, "_x_cache"):
-            if hasattr(self, "_t_cache"):
+        if t_range is None:
+            if hasattr(self, "_ppf_t_cache"):
+                t_range = [self._ppf_t_cache[0], self._ppf_t_cache[-1]]
+            elif hasattr(self, "_t_cache"):
                 t_range = [self._t_cache[0], self._t_cache[-1]]
             else:
                 t_range = self.infer_t_range(atol=atol, rtol=rtol)
-            x_range = np.linspace(*self.cgf.dK(t_range), num=num)
-        self._cdf_cache = self.cdf(x=x_range)
-        self._t_cache = self.cgf.dK_inv(x_range)
+        x_range = np.linspace(*self.cgf.dK(t_range), num=num)
+        t = self.cgf.dK_inv(x_range)
+        self._cdf_cache = self.cdf(x=x_range, t=t)
+        self._ppf_t_cache = t
 
     @type_wrapper(xloc=1)
     def _dK_inv(self, x, **solver_kwargs):

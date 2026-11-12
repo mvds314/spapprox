@@ -117,7 +117,7 @@ Manual note: indeed, this seems to need a fix
   `test_dKinv_bracket_search_with_loc` in `tests/test_cgfs.py`, run in a
   subprocess with a timeout.
 
-### [ ] 7. `fit_ppf` raises `UnboundLocalError`
+### [x] 7. `fit_ppf` raises `UnboundLocalError`
 
 - **Where:** `spapprox/spa.py:492-499` (read at `497`)
 - **What:** `x_range` is only bound in the branch where `_x_cache` is absent,
@@ -130,6 +130,10 @@ Manual note: indeed, this seems to need a fix
   ```
 - **Fix:** derive `x_range` from the cache in the other branch too, and honour
   the `t_range` argument. See also item 40.
+- **Resolved (together with item 40):** `fit_ppf` always builds its grid, honours
+  `t_range`/`num`, and stores it in its own `_ppf_t_cache`. Regression tests:
+  `test_fit_ppf_after_fit_saddle_point_eqn` and `test_fit_ppf_honours_t_range` in
+  `tests/test_spa.py`.
 
 ### [x] 8. `atol=1.0 - 8` typo
 
@@ -456,12 +460,14 @@ Contract violations and silently wrong results in narrower situations.
   `pdf_normalization`.
 - **Fix:** iterate over `vars(self)`.
 
-### [ ] 40. `fit_ppf` and `fit_saddle_point_eqn` share `_t_cache`
+### [x] 40. `fit_ppf` and `fit_saddle_point_eqn` share `_t_cache`
 
 - **Where:** `spapprox/spa.py:486`, `499`, `317`
 - **Repro:** `fit_ppf()` then `fit_saddle_point_eqn(num=200)`; `ppf(0.5)` ->
   `ValueError: fp and xp are not of the same length`.
 - **Fix:** give the ppf grid its own cache names.
+- **Resolved (together with item 7):** ppf grid now lives in `_ppf_t_cache`.
+  Regression test: `test_fit_ppf_and_saddle_point_eqn_caches_are_independent`.
 
 ### [ ] 41. Interpolated `dK_inv` silently clamps outside the fitted grid
 

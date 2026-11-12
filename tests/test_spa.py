@@ -305,6 +305,34 @@ def test_ppf_with_t0():
     assert np.allclose(spa.ppf(q, t0=np.zeros(2)), sps.norm.ppf(q), atol=1e-4)
 
 
+def test_fit_ppf_after_fit_saddle_point_eqn():
+    qs = np.array([0.025, 0.3, 0.5, 0.975])
+    spa = UnivariateSaddlePointApprox(norm())
+    spa.fit_saddle_point_eqn()
+    spa.fit_ppf()
+    assert np.allclose(spa.ppf(qs), sps.norm.ppf(qs), atol=1e-3)
+
+
+def test_fit_ppf_and_saddle_point_eqn_caches_are_independent():
+    qs = np.array([0.025, 0.3, 0.5, 0.975])
+    spa = UnivariateSaddlePointApprox(norm())
+    spa.fit_ppf()
+    spa.fit_saddle_point_eqn(num=200)
+    assert np.allclose(spa.ppf(qs), sps.norm.ppf(qs), atol=1e-3)
+    assert np.allclose(spa.pdf(x=[-1.0, 0.5]), sps.norm.pdf([-1.0, 0.5]), atol=1e-3)
+    spa.fit_ppf(num=50)
+    assert len(spa._x_cache) == len(spa._t_cache) == 200
+    assert np.allclose(spa.pdf(x=[-1.0, 0.5]), sps.norm.pdf([-1.0, 0.5]), atol=1e-3)
+
+
+def test_fit_ppf_honours_t_range():
+    spa = UnivariateSaddlePointApprox(gamma(a=3))
+    spa.fit_ppf(t_range=[-2, 0.8], num=50)
+    assert len(spa._ppf_t_cache) == 50
+    assert np.allclose(spa._ppf_t_cache[[0, -1]], [-2, 0.8])
+    assert np.isclose(spa.ppf(0.5), sps.gamma(a=3).ppf(0.5), atol=1e-2)
+
+
 def test_bvar_cdf_near_zero():
     spa = BivariateSaddlePointApprox(multivariate_norm(dim=2))
     assert np.isclose(spa.cdf(t=np.array([1e-9, 1e-9])), 0.25)
