@@ -1607,7 +1607,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         raise ValueError("Invalid shape")
 
             elif self._numdiff_backend == "findiff":
-                _dK = Gradient(self.K, self.dim)
+                _dK = Gradient(lambda tt: self.K(tt, loc=0, scale=1), self.dim)
             else:
                 raise ValueError("Invalid numdiff backend")
             self._dK = _dK

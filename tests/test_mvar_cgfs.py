@@ -893,6 +893,32 @@ def test_cumulants_at_zero_without_analytic_derivatives():
         assert np.allclose(cgf.d3K0, 0, atol=1e-6)
 
 
+@pytest.mark.parametrize(
+    "backend",
+    [
+        "numdifftools",
+        pytest.param("findiff", marks=pytest.mark.skipif(not has_findiff, reason="No findiff")),
+    ],
+)
+@pytest.mark.parametrize(
+    "scale",
+    [np.array([2.0, 3.0]), np.array([[2.0, 0.5], [-1.0, 3.0]])],
+    ids=["vector", "matrix"],
+)
+def test_numerical_dK_applies_loc_scale_once(backend, scale):
+    def K(t):
+        return np.sum(t**2 / 2 + t, axis=-1)
+
+    loc = np.array([1.0, 2.0])
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=K, dim=2, loc=loc, scale=scale, numdiff_backend=backend
+    )
+    A = np.diag(scale) if scale.ndim == 1 else scale
+    for t in [np.zeros(2), np.array([0.5, -1.0])]:
+        # dK_X(t) = A dK_Z(A^T t) + loc with dK_Z(s) = s + 1
+        assert np.allclose(cgf.dK(t), A @ (A.T @ t + 1) + loc, atol=1e-5)
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(

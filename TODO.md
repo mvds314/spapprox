@@ -232,7 +232,7 @@ Manual note: indeed, this seems to need a fix
   in `tests/test_cgfs.py` and `tests/test_mvar_cgfs.py`, and
   `test_cdf_at_zero_without_analytic_derivatives` in `tests/test_spa.py`.
 
-### [ ] 20. Multivariate findiff gradient applies `loc`/`scale` twice
+### [x] 20. Multivariate findiff gradient applies `loc`/`scale` twice
 
 - **Where:** `spapprox/cgf_base.py:1602`
 - **What:** the findiff `Gradient` is built on the transformed `self.K`, and the
@@ -241,6 +241,10 @@ Manual note: indeed, this seems to need a fix
   `MultivariateCumulantGeneratingFunction(K=lambda t: np.sum(t**2 / 2 + t, axis=-1), dim=2, loc=[1, 2], scale=2., numdiff_backend="findiff").dK(np.zeros(2))`
   -> `[7, 10]`; expected `[3, 4]` (numdifftools gives `[3, 4]`).
 - **Fix:** `Gradient(lambda tt: self.K(tt, loc=0, scale=1), self.domain.dim)`.
+- **Resolved:** the findiff `Gradient` is now built on the standardized `K`,
+  matching the numdifftools path and the findiff `Hessian`/`Tressian`.
+  Regression test: `test_numerical_dK_applies_loc_scale_once` in
+  `tests/test_mvar_cgfs.py` (both backends, vector and matrix scale).
 
 ### [ ] 21. Multivariate + univariate `add` ignores both operands' scale in the domain
 
