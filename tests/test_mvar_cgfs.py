@@ -709,6 +709,26 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
     assert np.allclose(mcgf1.d3K0, mcgf2.d3K0)
 
 
+@pytest.mark.parametrize("scale", [2.0, np.array([2.0, 2.0]), 2.0 * np.eye(2)])
+def test_scaled_derivatives_do_not_mutate_user_arrays(scale):
+    # User supplied derivatives returning a fixed array must not be scaled in place
+    C = np.eye(2)
+    T = np.zeros((2, 2, 2))
+    T[0, 0, 0] = T[1, 1, 1] = 1
+    mcgf = MultivariateCumulantGeneratingFunction(
+        K=lambda t: np.sum(np.square(t), axis=-1) / 2,
+        dim=2,
+        d2K=lambda t: C,
+        d3K=lambda t: T,
+        scale=scale,
+    )
+    for _ in range(3):
+        assert np.allclose(mcgf.d2K([0.0, 0.0]), 4 * np.eye(2))
+        assert np.allclose(mcgf.d3K([0.0, 0.0]), 8 * T)
+    assert np.array_equal(C, np.eye(2))
+    assert T[0, 0, 0] == T[1, 1, 1] == 1 and T.sum() == 2
+
+
 def test_slicing_cached_cumulants():
     # Y = A X with independent gamma components X_l (k2 = a_l, k3 = 2 a_l); slicing after
     # the cumulants are cached must slice d2K0 and d3K0 on all axes

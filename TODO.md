@@ -351,7 +351,7 @@ Contract violations and silently wrong results in narrower situations.
   of independent gammas. (The existing `test_slicing` cases never cached the cumulants
   before slicing, which is why this went unnoticed.)
 
-### [ ] 11. In-place scaling mutates caller / user arrays
+### [x] 11. In-place scaling mutates caller / user arrays
 
 - **Where:** `spapprox/diff.py:48` (`transform_rank3_tensor`, `T *= ...`);
   `spapprox/cgf_base.py:1804`, `1865` (multivariate `d2K` / `d3K`)
@@ -362,6 +362,11 @@ Contract violations and silently wrong results in narrower situations.
   three calls to `d2K(0)` -> `4, 16, 64` and `C` is modified (expected `4` each
   time). `d3K` with a vector scale: `8, 64, 512`.
 - **Fix:** `y = y * scale**2`; `T = T * Ai.reshape(shape)` (copy, not in place).
+- **Resolved:** applied as proposed, plus the same change for the scalar-scale
+  branch of `d3K` (`y = y * scale**3`). Regression tests:
+  `test_scaled_derivatives_do_not_mutate_user_arrays` in `tests/test_mvar_cgfs.py`
+  (scalar, vector and matrix scale) and
+  `test_transform_rank3_tensor_does_not_mutate_input` in `tests/test_diff.py`.
 
 ### [ ] 12. `transform_rank3_tensor` returns index-reversed output
 

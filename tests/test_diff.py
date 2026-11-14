@@ -11,6 +11,7 @@ from spapprox.diff import (
     TensorDerivative,
     Tressian,
     _has_findiff,
+    transform_rank3_tensor,
 )
 
 
@@ -710,3 +711,11 @@ if __name__ == "__main__":
                 "-s",
             ]
         )
+
+
+def test_transform_rank3_tensor_does_not_mutate_input():
+    T = np.ones((2, 2, 2), dtype=int)
+    res = transform_rank3_tensor(T, np.array([0.5, 2.0]))
+    assert np.array_equal(T, np.ones((2, 2, 2)))
+    assert res is not T
+    assert np.allclose(res, np.einsum("i,j,k->ijk", *[np.array([0.5, 2.0])] * 3))

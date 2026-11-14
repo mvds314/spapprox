@@ -45,7 +45,7 @@ def transform_rank3_tensor(T, *A):
         if Ai.ndim == 1:
             shape = [1] * T.ndim
             shape[i] = len(Ai)
-            T *= Ai.reshape(shape)
+            T = T * Ai.reshape(shape)
         else:
             T = np.tensordot(Ai, T, axes=(1, i))
     return T

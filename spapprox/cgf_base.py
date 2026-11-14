@@ -1821,7 +1821,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             y = self._d2K(ts)
             if scale.ndim == 0:
-                y *= scale**2
+                y = y * scale**2
             elif scale.ndim == 1:
                 # This is supposed to be equivalent to the else case
                 def diagscalemult(x):
@@ -1882,7 +1882,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             warnings.filterwarnings(action="ignore", message="All-NaN slice encountered")
             y = self._d3K(ts)
             if scale.ndim == 0:
-                y *= scale**3
+                y = y * scale**3
             else:
                 if y.ndim == 3:
                     y = transform_rank3_tensor(y, scale)
