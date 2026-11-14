@@ -29,6 +29,11 @@ class SaddlePointApprox(ABC):
     Interface for saddle point approximation of probability density functions
     """
 
+    # Half-width, in standardized units t * sqrt(K''(0)), of the window around t=0
+    # in which cdf approximations are interpolated rather than evaluated directly.
+    # The direct formulas suffer from catastrophic cancellation as t -> 0.
+    _cdf_singular_width = 1e-2
+
     def __init__(self, cgf, pdf_normalization=None):
         assert isinstance(
             cgf, (UnivariateCumulantGeneratingFunction, MultivariateCumulantGeneratingFunction)
@@ -173,17 +178,17 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
 
         [2] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
         """
-        t = np.asanyarray(t)
+        rho3 = self.cgf.d3K0 / np.power(self.cgf.d2K0, 3 / 2)
+        retval = self._interpolate_cdf_near_zero(
+            self._lugannani_rice, x, t, 1 / 2 + rho3 / 6 / np.sqrt(2 * np.pi)
+        )
+        return np.where(np.isnan(retval), fillna, retval)
+
+    def _lugannani_rice(self, x, t):
         with np.errstate(divide="ignore", invalid="ignore"):
             w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
             u = t * np.sqrt(self.cgf.d2K(t))
-            retval = sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
-        retval = np.where(
-            ~np.isclose(t, 0),
-            retval,
-            1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
-        )
-        return np.where(np.isnan(retval), fillna, retval)
+            return sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
 
     @type_wrapper(xloc=1)
     def _spapprox_cdf_BN(self, x, t, fillna=np.nan):
@@ -206,17 +211,37 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
 
         [3] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
         """
-        t = np.asanyarray(t)
+        rho3 = self.cgf.d3K0 / np.power(self.cgf.d2K0, 3 / 2)
+        retval = self._interpolate_cdf_near_zero(
+            self._barndorff_nielsen, x, t, sps.norm.cdf(rho3 / 6)
+        )
+        return np.where(np.isnan(retval), fillna, retval)
+
+    def _barndorff_nielsen(self, x, t):
         with np.errstate(divide="ignore", invalid="ignore"):
             w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
             u = t * np.sqrt(self.cgf.d2K(t))
-            retval = sps.norm.cdf(w + np.log(u / w) / w)
-        retval = np.where(
-            ~np.isclose(t, 0),
-            retval,
-            1 / 2 + self.cgf.d3K0 / 6 / np.sqrt(2 * np.pi) / np.power(self.cgf.d2K0, 3 / 2),
-        )
-        return np.where(np.isnan(retval), fillna, retval)
+            return sps.norm.cdf(w + np.log(u / w) / w)
+
+    def _interpolate_cdf_near_zero(self, formula, x, t, limit):
+        r"""
+        Evaluate ``formula(x, t)``, but replace values with :math:`|t|<h` by quadratic
+        interpolation through :math:`(-h, F(-h))`, :math:`(0, \text{limit})` and
+        :math:`(h, F(h))`, where :math:`F` is the formula as a function of :math:`t`
+        and :math:`h` is ``_cdf_singular_width`` in standardized units.
+        """
+        x, t = np.asanyarray(x), np.asanyarray(t)
+        retval = formula(x, t)
+        h = self._cdf_singular_width / np.sqrt(self.cgf.d2K0)
+        near = np.abs(t) < h
+        if np.any(near):
+            nodes = np.array([-h, h])
+            fm, fp = formula(self.cgf.dK(nodes), nodes)
+            interp = (
+                limit + (fp - fm) / (2 * h) * t + (fp - 2 * limit + fm) / (2 * h**2) * np.square(t)
+            )
+            retval = np.where(near, interp, retval)
+        return retval
 
     @property
     def dim(self):
@@ -266,6 +291,15 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             F(x) \approx \Phi(w + \log(u/w)/w)
 
         where :math:`\Phi` is the cumulative distribution of the standard normal.
+        For :math:`t = 0`, it is given by its limit
+
+        .. math::
+            F(x) \approx \Phi\left(\frac{K'''(0)}{6 K''(0)^{3/2}}\right).
+
+        Close to :math:`t=0` both approximations suffer from catastrophic cancellation,
+        so they are quadratically interpolated between the limit and the values at
+        :math:`t=\pm h`, with :math:`h` given by ``_cdf_singular_width`` in
+        standardized units :math:`t\sqrt{K''(0)}`.
 
         Parameters
         ----------
@@ -716,12 +750,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             t = self._dK_inv(x, **solver_kwargs)
         wrapper = PandasWrapper(x)
         x, t = np.asanyarray(x), np.asanyarray(t)
-        if np.allclose(t, 0, atol=1e-8):
-            # This is a singular case with a singularity removable by taking the limit, i.e., using continuity
-            return np.mean(
-                self.cdf(t=[[1e-7], [-1e-7]] * np.ones((2, 2)), fillna=fillna, **solver_kwargs)
-            )
-        y = self._spapprox_cdf(x, t)
+        y = self._spapprox_cdf(x, t, **solver_kwargs)
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
@@ -823,21 +852,69 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             computed using numerical root finding.
         fillna : float, optional
             The value to replace NaNs with.
+
+        Close to the singularities, i.e., when a component of :math:`\mathbf{t}` is
+        within ``_cdf_singular_width`` (in standardized units) of zero, the formulas
+        above suffer from catastrophic cancellation. There, the approximation is
+        quadratically interpolated in each such component through the nodes
+        :math:`-h, 0, h`. The value at :math:`\mathbf{t}=0` is obtained from the
+        neighbouring values on the axes by Richardson extrapolation.
         """
         # Handle vectorized evaluation
         if t.ndim > 1:
-            return np.asanyarray([self._spapprox_cdf(xx, tt) for xx, tt in zip(x, t)])
+            return np.asanyarray(
+                [self._spapprox_cdf(xx, tt, **solver_kwargs) for xx, tt in zip(x, t)]
+            )
         if t.ndim != 1 or x.ndim != 1 or len(t) != 2 or len(x) != 2:
             raise ValueError("2 dimension vector expected in bivariate case")
-        # Handle double singularity by continuity
-        if np.isclose(t, 0).all():
-            return np.mean(self.cdf(t=t, fillna=fillna, **solver_kwargs))
+        h = self._cdf_singular_width / np.sqrt(np.diag(self.cgf.d2K0))
+        near = np.abs(t) < h
+        if not near.any():
+            return self._bivariate_formula(x, t, **solver_kwargs)
+        nodes, weights = [], []
+        for tj, hj, nj in zip(t, h, near):
+            if nj:
+                nodes.append(np.array([-hj, 0.0, hj]))
+                # Quadratic Lagrange basis polynomials for the nodes -h, 0, h
+                weights.append(
+                    np.array([tj * (tj - hj) / 2, hj**2 - tj**2, tj * (tj + hj) / 2]) / hj**2
+                )
+            else:
+                nodes.append(np.array([tj]))
+                weights.append(np.ones(1))
+        vals = np.array(
+            [
+                [
+                    self._bivariate_formula_at(np.array([a, b]), h, **solver_kwargs)
+                    for b in nodes[1]
+                ]
+                for a in nodes[0]
+            ]
+        )
+        return weights[0] @ vals @ weights[1]
+
+    def _bivariate_formula_at(self, t, h, **solver_kwargs):
+        if np.all(t == 0):
+            # No closed form for the double singularity: extrapolate the averages over
+            # the neighbouring points on the axes, A(h) = F(0) + c h^2 + O(h^4).
+            def axis_mean(hh):
+                pts = [[hh[0], 0], [-hh[0], 0], [0, hh[1]], [0, -hh[1]]]
+                return np.mean([self._bivariate_formula_at(np.array(p), h) for p in pts])
+
+            return (4 * axis_mean(h) - axis_mean(2 * h)) / 3
+        return self._bivariate_formula(self.cgf.dK(t), t, **solver_kwargs)
+
+    def _bivariate_formula(self, x, t, **solver_kwargs):
+        """
+        Direct evaluation of the formula documented in :meth:`_spapprox_cdf` for a
+        single point, using the exact limits when a component of ``t`` is exactly 0.
+        """
         # Initialize
         t0 = t.copy()
         t0[..., 0] = 0
         s0 = t.copy()
         s0[..., 1] = 0
-        if not np.isclose(t[0], 0):
+        if t[0] != 0:
             # Note, slicing a component of a cgf sets the other variables to zero
             tt = self.cgf[1].dK_inv(x.T[1], **solver_kwargs)
             tt0 = np.vstack((np.zeros(np.shape(tt)), tt)).T.squeeze()
@@ -857,10 +934,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             u = t.T[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt11)
             tu = t.T[1] * np.sqrt(d2Kt11)
             n = sps.norm.pdf(w) * (1 / w - 1 / u)
-            if not np.isclose(t, 0).any():
+            if (t != 0).all():
                 tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
             else:
-                assert np.isclose(t[1], 0), "This should be the first special case with t[1] = 0"
                 if not np.isclose(tu, 0) and not np.isclose(tw, 0):
                     raise AssertionError("Invalid singular case")
                 d3K111s0 = self.cgf.d3K(s0)[..., 1, 1, 1]
@@ -868,7 +944,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                 tn = sps.norm.pdf(tx.T[0]) / 6 * (d3K111s0 / d2K11s0 ** (3 / 2))
                 assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
         else:
-            assert np.isclose(t[0], 0), "This should be the second special case with t[0] = 0"
             # Note, slicing a component of a cgf sets the other variables to zero
             ts = self.cgf[0].dK_inv(x.T[0], **solver_kwargs)
             ts0 = np.vstack((ts, np.zeros(np.shape(ts)))).T.squeeze()
@@ -888,7 +963,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             u = t.T[1] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt00)
             tu = t.T[0] * np.sqrt(d2Kt00)
             n = sps.norm.pdf(w) * (1 / w - 1 / u)
-            if not np.isclose(t, 0).any():
+            if (t != 0).all():
                 tn = sps.norm.pdf(tx.T[1]) * (1 / tw - 1 / tu)
             else:
                 if not np.isclose(tu, 0) and not np.isclose(tw, 0):

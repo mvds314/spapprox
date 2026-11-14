@@ -340,6 +340,30 @@ def test_cdf_at_zero_without_analytic_derivatives(backend):
     assert np.isclose(spa.cdf(t=0.0, backend=backend), 0.5)
 
 
+@pytest.mark.parametrize("backend", ["LR", "BN"])
+def test_cdf_near_zero_no_cancellation(backend):
+    a = 3
+    spa = UnivariateSaddlePointApprox(gamma(a=a))
+    rho3 = 2 / np.sqrt(a)
+    limit = 0.5 + rho3 / 6 / np.sqrt(2 * np.pi) if backend == "LR" else sps.norm.cdf(rho3 / 6)
+    assert np.isclose(spa.cdf(t=0.0, backend=backend), limit)
+    st = np.array([1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 5e-3, 9.99e-3, 1.01e-2, 2e-2])
+    t = np.concatenate([-st[::-1], [0.0], st]) / np.sqrt(a)
+    cdf = np.asarray(spa.cdf(t=t, backend=backend))
+    assert np.all(np.diff(cdf) > 0)
+    assert np.allclose(cdf, sps.gamma(a).cdf(spa.cgf.dK(t)), atol=2e-3)
+    # Points very close to zero are continuous with the limit
+    assert np.allclose(cdf[np.abs(t) < 1e-5], limit, atol=1e-5)
+    for tt in [1e-7, -1e-6]:
+        assert np.isclose(spa.cdf(t=tt, backend=backend), limit, atol=1e-5)
+
+
+def test_cdf_at_mean_after_fit_saddle_point_eqn():
+    spa = UnivariateSaddlePointApprox(gamma(a=3))
+    spa.fit_saddle_point_eqn()
+    assert np.isclose(spa.cdf(x=3.0), 0.5 + 2 / np.sqrt(3) / 6 / np.sqrt(2 * np.pi), atol=1e-4)
+
+
 def test_bvar_cdf_near_zero():
     spa = BivariateSaddlePointApprox(multivariate_norm(dim=2))
     assert np.isclose(spa.cdf(t=np.array([1e-9, 1e-9])), 0.25)
@@ -373,6 +397,32 @@ def test_bvar_cdf_independent_one_saddlepoint_component_zero():
         cdf = spa.cdf(t=t)
         assert np.isclose(cdf, u1.cdf(t=t[0]) * u2.cdf(t=t[1]), atol=1e-6)
         assert np.isclose(cdf, sps.gamma(3).cdf(x[0]) * sps.gamma(5).cdf(x[1]), atol=1e-3)
+
+
+def test_bvar_cdf_near_axes_no_cancellation():
+    g1, g2 = gamma(a=3), gamma(a=5)
+    spa = BivariateSaddlePointApprox(
+        MultivariateCumulantGeneratingFunction.from_univariate(g1, g2)
+    )
+    u1, u2 = UnivariateSaddlePointApprox(g1), UnivariateSaddlePointApprox(g2)
+    ts = [
+        [0.3, 1e-6],
+        [0.3, -2e-5],
+        [1e-6, -0.5],
+        [1e-7, 1e-7],
+        [0, 0],
+        [-1e-5, 2e-6],
+        [-0.6, 2e-3],
+    ]
+    for t in ts:
+        t = np.array(t, dtype=float)
+        assert np.isclose(spa.cdf(t=t), u1.cdf(t=t[0]) * u2.cdf(t=t[1]), atol=1e-6)
+    cov = np.array([[1, 0.6], [0.6, 2.0]])
+    spa = BivariateSaddlePointApprox(multivariate_norm(loc=np.zeros(2), cov=cov))
+    for t in [[0.3, 1e-6], [1e-7, 1e-7], [1e-6, -0.4]]:
+        t = np.array(t)
+        expected = sps.multivariate_normal(np.zeros(2), cov).cdf(spa.cgf.dK(t))
+        assert np.isclose(spa.cdf(t=t), expected, atol=1e-6)
 
 
 # TODO: then continue with a bootstrapping application

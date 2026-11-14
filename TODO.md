@@ -278,7 +278,7 @@ Manual note: indeed, this seems to need a fix
   (previously 34-184 mismatching points). Regression test:
   `test_stacked_domain_matches_K` in `tests/test_mvar_cgfs.py`.
 
-### [ ] 23. LR/BN `t=0` guard is far too tight -> catastrophic cancellation near the mean
+### [x] 23. LR/BN `t=0` guard is far too tight -> catastrophic cancellation near the mean
 
 - **Where:** `spapprox/spa.py:182`, `215`; bivariate `827`, `854`, `885`
 - **What:** `np.isclose(t, 0)` (atol 1e-8) only catches `t` essentially at 0;
@@ -288,6 +288,19 @@ Manual note: indeed, this seems to need a fix
   `fit_saddle_point_eqn()`, `cdf(x=3.0)` (the mean) -> `nan`. Bivariate
   `t=(0.3, 1e-6)` -> about 5.0.
 - **Fix:** widen the guard (e.g. `|w| < 1e-4`) or use a series expansion near 0.
+- **Resolved:** within `|t| sqrt(K''(0)) < 1e-2` (`_cdf_singular_width`) the
+  cdf is now quadratically interpolated through the exact limit at 0 and the
+  direct formula at `+-h`. That window was chosen from measurements against
+  mpmath: roundoff is ~1e-11 at the nodes, interpolation error ~1e-8. The
+  bivariate cdf interpolates per near-zero component (tensor product); the
+  value at `t=(0,0)` uses Richardson extrapolation of axis averages, replacing
+  the old average at `+-1e-7`, which was itself broken (`cdf(t=(0,0))` was
+  ~1e8). Also fixed the BN `t=0` value: it used the LR limit instead of
+  `Phi(rho3/6)` (off by 4.7e-4). Errors near 0 are now <= 5e-8 (univariate and
+  bivariate). Regression tests in `tests/test_spa.py`:
+  `test_cdf_near_zero_no_cancellation`,
+  `test_cdf_at_mean_after_fit_saddle_point_eqn`,
+  `test_bvar_cdf_near_axes_no_cancellation`.
 
 ### [ ] 24. `infer_t_range` loops forever on lattice / bounded-support CGFs
 
