@@ -364,6 +364,46 @@ def test_cdf_at_mean_after_fit_saddle_point_eqn():
     assert np.isclose(spa.cdf(x=3.0), 0.5 + 2 / np.sqrt(3) / 6 / np.sqrt(2 * np.pi), atol=1e-4)
 
 
+_INFER_T_RANGE_LATTICE_SCRIPT = """
+import warnings
+import numpy as np
+from spapprox import UnivariateSaddlePointApprox, binomial, gamma, poisson
+
+for cgf in [binomial(10, 0.3), poisson(3)]:
+    spa = UnivariateSaddlePointApprox(cgf)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        lb, ub = spa.infer_t_range()
+    assert any("Could not expand t range" in str(wi.message) for wi in w)
+    assert lb < 0 < ub
+    assert 0 <= spa.cdf(t=lb) < 0.05 and 0.95 < spa.cdf(t=ub) <= 1
+    val = spa.pdf(t=0.1)
+    assert np.isfinite(val) and val > 0, val
+
+# Distributions whose cdf does reach 0 and 1 are unaffected and do not warn
+with warnings.catch_warnings():
+    warnings.simplefilter("error", RuntimeWarning)
+    assert np.allclose(UnivariateSaddlePointApprox(gamma(a=3)).infer_t_range(), [-64.0, 0.9])
+"""
+
+
+def test_infer_t_range_lattice_terminates():
+    # Run in a subprocess so a regression to an infinite loop fails instead of hanging
+    import subprocess
+    import sys
+
+    try:
+        res = subprocess.run(
+            [sys.executable, "-c", _INFER_T_RANGE_LATTICE_SCRIPT],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail("infer_t_range did not terminate")
+    assert res.returncode == 0, res.stderr
+
+
 def test_bvar_cdf_near_zero():
     spa = BivariateSaddlePointApprox(multivariate_norm(dim=2))
     assert np.isclose(spa.cdf(t=np.array([1e-9, 1e-9])), 0.25)

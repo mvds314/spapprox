@@ -302,7 +302,7 @@ Manual note: indeed, this seems to need a fix
   `test_cdf_at_mean_after_fit_saddle_point_eqn`,
   `test_bvar_cdf_near_axes_no_cancellation`.
 
-### [ ] 24. `infer_t_range` loops forever on lattice / bounded-support CGFs
+### [x] 24. `infer_t_range` loops forever on lattice / bounded-support CGFs
 
 - **Where:** `spapprox/spa.py:444-466`
 - **What:** the expansion loop has no iteration cap and waits for the LR cdf to
@@ -312,6 +312,15 @@ Manual note: indeed, this seems to need a fix
   same for `poisson(3)` (worse with item 1: `lb=-0.0` never moves).
 - **Fix:** cap iterations; treat `nan`, cdf < 0 or cdf > 1 as end of range;
   raise if no range is found.
+- **Resolved:** each bound is expanded by a helper with an iteration cap
+  (`max_iter=500`). A step is accepted only if `dK` is finite and the cdf stays in
+  [0, 1] and moves towards its target; otherwise a smaller step is tried, and when
+  those run out the last valid bound is returned with a `RuntimeWarning`. (For
+  lattice CGFs the LR cdf turns around in the lower tail, e.g. it bottoms out at
+  ~0.015 for `binomial(10, .3)`.) Raises `ValueError` if the initial bounds give
+  no valid increasing cdf. Ranges for continuous distributions are unchanged.
+  Regression test: `test_infer_t_range_lattice_terminates` in `tests/test_spa.py`
+  (subprocess with timeout).
 
 ### [x] 25. CI install step cannot work
 

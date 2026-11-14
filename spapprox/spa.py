@@ -1,5 +1,6 @@
 import inspect
 import itertools
+import warnings
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -459,45 +460,57 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
                     )
         return self.cgf.dK(t)
 
-    def infer_t_range(self, atol=1e-4, rtol=1e-4):
+    def infer_t_range(self, atol=1e-4, rtol=1e-4, max_iter=500):
         """
         Infers a suitable range for so that it covers roughly the entire probability mass
+
+        The bounds are expanded until the cdf is close to zero (lower bound) or one (upper
+        bound). For lattice or bounded-support distributions the saddle point cdf may never
+        get there: it can turn around, leave :math:`[0, 1]`, or become ``nan``. Such a step is
+        treated as the end of the usable range, and the last valid bound is returned with a
+        warning.
         """
         # Determine initial range
         lb = next(-1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(-1 * 0.9**i)))
         ub = next(1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(1 * 0.9**i)))
         cdf_lb = self.cdf(x=self.cgf.dK(lb), t=lb, fillna=np.nan)
         cdf_ub = self.cdf(x=self.cgf.dK(ub), t=ub, fillna=np.nan)
-        assert lb < ub and cdf_lb < cdf_ub, "cdf is assumed to be increasing"
-        # Define scaling factors
-        lb_scalings = (1 - 1 / fib(i) for i in range(3, 100))
-        ub_scalings = (1 - 1 / fib(i) for i in range(3, 100))
-        lb_scaling = next(lb_scalings)
-        ub_scaling = next(ub_scalings)
-        # find lb through iterative scaling
-        while not np.isclose(cdf_lb, 0, atol=atol, rtol=rtol):
-            lb_new = lb / lb_scaling
-            x_new = self.cgf.dK(lb_new)
-            if not np.isnan(x_new):
-                lb = lb_new
-                cdf_lb = self.cdf(x=x_new, t=lb, fillna=np.nan)
-                continue
-            try:
-                lb_scaling = next(lb_scalings)
-            except StopIteration:
-                raise Exception("Could not find valid lb")
-        # find ub through iterative scaling
-        while not np.isclose(cdf_ub, 1, atol=atol, rtol=rtol):
-            ub_new = ub / ub_scaling
-            x_new = self.cgf.dK(ub_new)
-            if not np.isnan(x_new):
-                ub = ub_new
-                cdf_ub = self.cdf(x=x_new, t=ub, fillna=np.nan)
-                continue
-            try:
-                ub_scaling = next(ub_scalings)
-            except StopIteration:
-                raise Exception("Could not find valid ub")
+        if not (lb < ub and 0 <= cdf_lb < cdf_ub <= 1):
+            raise ValueError(
+                "Could not infer a t range: the cdf is not valid and increasing at the initial "
+                f"bounds t={lb}, t={ub} (cdf {cdf_lb}, {cdf_ub})"
+            )
+
+        def expand(bound, cdf_bound, target):
+            # Expand bound (away from zero) until the cdf is close to target; a step is only
+            # accepted if the cdf stays valid and moves towards target
+            scalings = (1 - 1 / fib(i) for i in range(3, 100))
+            scaling = next(scalings)
+            for _ in range(max_iter):
+                if np.isclose(cdf_bound, target, atol=atol, rtol=rtol):
+                    return bound
+                new = bound / scaling
+                x_new = self.cgf.dK(new)
+                if np.isfinite(x_new):
+                    cdf_new = self.cdf(x=x_new, t=new, fillna=np.nan)
+                    if 0 <= cdf_new <= 1 and abs(cdf_new - target) < abs(cdf_bound - target):
+                        bound, cdf_bound = new, cdf_new
+                        continue
+                try:
+                    scaling = next(scalings)
+                except StopIteration:
+                    break
+            warnings.warn(
+                f"Could not expand t range until cdf={target}, stopped at t={bound} with "
+                f"cdf={cdf_bound}; the saddle point cdf may not reach {target}, e.g., for "
+                "lattice or bounded-support distributions",
+                RuntimeWarning,
+                stacklevel=3,
+            )
+            return bound
+
+        lb = expand(lb, cdf_lb, 0)
+        ub = expand(ub, cdf_ub, 1)
         assert lb <= 0 <= ub
         return [lb, ub]
 
