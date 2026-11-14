@@ -258,7 +258,7 @@ Manual note: indeed, this seems to need a fix
   multivariate operand (previously 29-211 mismatching points). Regression
   test: `test_add_univariate_domain_matches_K` in `tests/test_mvar_cgfs.py`.
 
-### [ ] 22. `from_univariate` / `from_cgfs` combine domains of the standardized variables
+### [x] 22. `from_univariate` / `from_cgfs` combine domains of the standardized variables
 
 - **Where:** `spapprox/cgf_base.py:1973`, `2067`
 - **What:** the operands' domains are stacked untransformed, but the new object
@@ -271,6 +271,12 @@ Manual note: indeed, this seems to need a fix
   `from_univariate(exponential(scale=2), norm(loc=3))` and
   `from_univariate(norm(loc=-1), gamma(a=2, scale=0.5))` reports `[0.6, 0]` in
   domain while `K` is `nan`.
+- **Resolved:** both methods now stack each operand's domain in actual `t`
+  units via a new helper `_domain_in_t_units` (`mul(1/scale)` for univariate,
+  `ldotinv(scale_mat.T)` for multivariate operands). The domain matches the
+  analytic `K` exactly on a grid in all tested cases, including the note above
+  (previously 34-184 mismatching points). Regression test:
+  `test_stacked_domain_matches_K` in `tests/test_mvar_cgfs.py`.
 
 ### [ ] 23. LR/BN `t=0` guard is far too tight -> catastrophic cancellation near the mean
 

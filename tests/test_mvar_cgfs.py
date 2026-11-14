@@ -1,3 +1,4 @@
+import itertools
 from pathlib import Path
 
 import numpy as np
@@ -920,6 +921,67 @@ def _neg_log_K(u, a=1.0, scale=1.0):
 def test_add_univariate_domain_matches_K(mcgf, K_true):
     mcgf = mcgf()
     for t in [np.array([a, b]) for a in np.linspace(-2, 2, 17) for b in np.linspace(-2, 2, 17)]:
+        expected = K_true(t)
+        assert (t in mcgf.domain) == np.isfinite(expected)
+        assert np.isclose(mcgf.K(t), expected, equal_nan=True)
+
+
+@pytest.mark.parametrize(
+    "mcgf, K_true",
+    [
+        pytest.param(
+            lambda: MultivariateCumulantGeneratingFunction.from_univariate(
+                exponential(scale=0.5), norm()
+            ),
+            lambda t: _neg_log_K(t[0], scale=0.5) + t[1] ** 2 / 2,
+            id="from_univariate exp(0.5)",
+        ),
+        pytest.param(
+            lambda: MultivariateCumulantGeneratingFunction.from_univariate(
+                -1 * exponential(scale=2), gamma(a=2, scale=0.5)
+            ),
+            lambda t: _neg_log_K(t[0], scale=-2) + _neg_log_K(t[1], a=2, scale=0.5),
+            id="from_univariate -exp(2), gamma(2, 0.5)",
+        ),
+        pytest.param(
+            lambda: (
+                MultivariateCumulantGeneratingFunction.from_univariate(
+                    exponential(scale=2), norm(loc=3)
+                )
+                + MultivariateCumulantGeneratingFunction.from_univariate(
+                    norm(loc=-1), gamma(a=2, scale=0.5)
+                )
+            ),
+            lambda t: (
+                _neg_log_K(t[0], scale=2)
+                + t[1] ** 2 / 2
+                + 3 * t[1]
+                + t[0] ** 2 / 2
+                - t[0]
+                + _neg_log_K(t[1], a=2, scale=0.5)
+            ),
+            id="sum of from_univariate",
+        ),
+        pytest.param(
+            lambda: MultivariateCumulantGeneratingFunction.from_cgfs(
+                2
+                * MultivariateCumulantGeneratingFunction.from_univariate(
+                    exponential(), gamma(a=2)
+                ),
+                exponential(scale=0.5),
+            ),
+            lambda t: (
+                _neg_log_K(2 * t[0]) + _neg_log_K(2 * t[1], a=2) + _neg_log_K(t[2], scale=0.5)
+            ),
+            id="from_cgfs scaled multivariate, exp(0.5)",
+        ),
+    ],
+)
+def test_stacked_domain_matches_K(mcgf, K_true):
+    mcgf = mcgf()
+    grid = np.linspace(-2, 2, 9)
+    for t in itertools.product(*[grid] * mcgf.dim):
+        t = np.array(t)
         expected = K_true(t)
         assert (t in mcgf.domain) == np.isfinite(expected)
         assert np.isclose(mcgf.K(t), expected, equal_nan=True)

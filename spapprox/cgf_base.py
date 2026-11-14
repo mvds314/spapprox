@@ -792,6 +792,16 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             raise ValueError("Can only multiply with a scalar")
 
 
+def _domain_in_t_units(cgf):
+    """
+    Domain of :math:`t` on which ``cgf.K(t)`` is finite, i.e., the domain of the
+    standardized variable transformed by the cgf's scale.
+    """
+    if isinstance(cgf, UnivariateCumulantGeneratingFunction):
+        return cgf.domain.mul(1 / cgf.scale)
+    return cgf.domain.ldotinv(cgf.scale_mat.T)
+
+
 class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     r"""
     Class for cumulant generating function of a multivariate distribution
@@ -1980,7 +1990,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             dK0=dK0,
             d2K0=d2K0,
             d3K0=d3K0,
-            domain=Domain.from_domains(*[cgf.domain for cgf in cgfs]),
+            domain=Domain.from_domains(*[_domain_in_t_units(cgf) for cgf in cgfs]),
             numdiff_backend=(
                 next(c._numdiff_backend for c in cgfs)
                 if numdiff_backend is None
@@ -2074,7 +2084,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 d3K0 = block_diag_3d(*[cgf.d3K0 for cgf in cgfs])
             else:
                 d3K0 = None
-            domain = Domain.from_domains(*[cgf.domain for cgf in cgfs])
+            domain = Domain.from_domains(*[_domain_in_t_units(cgf) for cgf in cgfs])
             return cls(
                 K,
                 dim=dims.sum(),
