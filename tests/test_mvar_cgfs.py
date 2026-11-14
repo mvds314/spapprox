@@ -921,6 +921,23 @@ def _neg_log_K(u, a=1.0, scale=1.0):
         return np.where(scale * u < 1, -a * np.log1p(-scale * u), np.nan)
 
 
+@pytest.mark.parametrize("a", [[1.0, 1.0, 1.0], [0.5, 1.2, 1.3], [0.0, 1.0, 2.0]])
+def test_bivariate_gamma_domain_matches_K(a):
+    mcgf = bivariate_gamma(a=a)
+
+    def K_true(t):
+        val = _neg_log_K(t[0], a=a[1]) + _neg_log_K(t[1], a=a[2])
+        return val + _neg_log_K(t.sum(), a=a[0]) if a[0] > 0 else val
+
+    for t in [
+        np.array([x, y]) for x in np.linspace(-2, 0.95, 17) for y in np.linspace(-2, 0.95, 17)
+    ]:
+        expected = K_true(t)
+        assert (t in mcgf.domain) == np.isfinite(expected)
+        with np.errstate(all="ignore"):
+            assert np.isclose(mcgf.K(t), expected, equal_nan=True)
+
+
 @pytest.mark.parametrize(
     "mcgf, K_true",
     [

@@ -382,11 +382,15 @@ Contract violations and silently wrong results in narrower situations.
   matrices first. Regression test: `test_transform_rank3_tensor_axis_order` in
   `tests/test_diff.py` (distinct matrices, non-symmetric `T`, mixed inputs).
 
-### [ ] 13. `bivariate_gamma` domain omits `t1 + t2 < 1`
+### [x] 13. `bivariate_gamma` domain omits `t1 + t2 < 1`
 
 - **Where:** `spapprox/cgfs.py:217`
 - **Repro:** `t = [0.9, 0.9]` reports `in domain` -> `True` while `K(t)` -> `nan`.
 - **Fix:** add `B=[[1, 1]], b=[1]`.
+- **Resolved:** the constraint is added when `a[0] > 0`. For `a[0] = 0` the
+  components are independent and `K` is finite for `t1 + t2 >= 1`, but `K`
+  returned `0 * log(negative) = nan` there; that term is now skipped. Regression
+  test: `test_bivariate_gamma_domain_matches_K` in `tests/test_mvar_cgfs.py`.
 
 ### [x] 14. Multivariate `add` builds the wrong domain
 

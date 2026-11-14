@@ -178,7 +178,11 @@ def bivariate_gamma(a=None, loc=0, scale=1):
 
     def K(t, a=a):
         t = np.asanyarray(t)
-        return np.dot(-a, np.log([1 - t.T[0] - t.T[1], 1 - t.T[0], 1 - t.T[1]]))
+        val = -a[1] * np.log(1 - t.T[0]) - a[2] * np.log(1 - t.T[1])
+        if a[0] > 0:
+            # For a[0] = 0, skip the term, as it would evaluate to 0 * nan for t1 + t2 >= 1
+            val = val - a[0] * np.log(1 - t.T[0] - t.T[1])
+        return val
 
     def dK(t, a=a):
         t = np.asanyarray(t)
@@ -214,7 +218,11 @@ def bivariate_gamma(a=None, loc=0, scale=1):
         d2K=np.vectorize(d2K, signature="(2)->(2,2)"),
         d3K=np.vectorize(d3K, signature="(2)->(2,2,2)"),
         dim=2,
-        domain=Domain(l=np.ones(2), dim=2),
+        domain=(
+            Domain(l=np.ones(2), B=np.ones((1, 2)), b=np.ones(1), dim=2)
+            if a[0] > 0
+            else Domain(l=np.ones(2), dim=2)
+        ),
         loc=loc,
         scale=scale,
     )
