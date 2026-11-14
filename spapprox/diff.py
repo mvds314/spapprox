@@ -30,6 +30,9 @@ def transform_rank3_tensor(T, *A):
     .. math::
         T = A \cdot T \cdot A^T \cdot A^T \cdot A^T.
 
+    With three matrices :math:`A, B, C`, the transformation is
+    :math:`T_{ijk} = \sum_{l,m,n} A_{il} B_{jm} C_{kn} T_{lmn}`.
+
     Parameters
     ----------
     T : np.ndarray
@@ -38,17 +41,13 @@ def transform_rank3_tensor(T, *A):
         Transformation matrices, one, or three (one for each axis).
         They can also be provided as vectors, in which case they are assumed to be diagonal matrices with the diagonal given.
     """
+    T = np.asanyarray(T)
     assert T.ndim == 3, "Input tensor should be rank 3"
     if len(A) == 1:
         A = [A[0]] * 3
-    for i, Ai in enumerate(A):
-        if Ai.ndim == 1:
-            shape = [1] * T.ndim
-            shape[i] = len(Ai)
-            T = T * Ai.reshape(shape)
-        else:
-            T = np.tensordot(Ai, T, axes=(1, i))
-    return T
+    assert len(A) == 3, "Provide either one or three transformation matrices"
+    A = [np.diag(Ai) if np.ndim(Ai) == 1 else np.asanyarray(Ai) for Ai in A]
+    return np.einsum("il,jm,kn,lmn->ijk", *A, T)
 
 
 def block_diag_3d(*tensors):

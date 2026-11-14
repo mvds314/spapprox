@@ -719,3 +719,19 @@ def test_transform_rank3_tensor_does_not_mutate_input():
     assert np.array_equal(T, np.ones((2, 2, 2)))
     assert res is not T
     assert np.allclose(res, np.einsum("i,j,k->ijk", *[np.array([0.5, 2.0])] * 3))
+
+
+def test_transform_rank3_tensor_axis_order():
+    # Compare with the defining sum, using a non-symmetric tensor and distinct matrices
+    rng = np.random.default_rng(0)
+    T = rng.normal(size=(2, 3, 4))
+    A, B, C = rng.normal(size=(5, 2)), rng.normal(size=(6, 3)), rng.normal(size=(7, 4))
+    assert np.allclose(
+        transform_rank3_tensor(T, A, B, C), np.einsum("il,jm,kn,lmn->ijk", A, B, C, T)
+    )
+    T, A = rng.normal(size=(3, 3, 3)), rng.normal(size=(3, 3))
+    assert np.allclose(transform_rank3_tensor(T, A), np.einsum("il,jm,kn,lmn->ijk", A, A, A, T))
+    v = rng.normal(size=3)
+    assert np.allclose(
+        transform_rank3_tensor(T, v, A, A), np.einsum("il,jm,kn,lmn->ijk", np.diag(v), A, A, T)
+    )

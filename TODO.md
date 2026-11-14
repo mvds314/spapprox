@@ -368,7 +368,7 @@ Contract violations and silently wrong results in narrower situations.
   (scalar, vector and matrix scale) and
   `test_transform_rank3_tensor_does_not_mutate_input` in `tests/test_diff.py`.
 
-### [ ] 12. `transform_rank3_tensor` returns index-reversed output
+### [x] 12. `transform_rank3_tensor` returns index-reversed output
 
 - **Where:** `spapprox/diff.py:50`
 - **What:** `tensordot` moves each contracted axis to the front, reversing the
@@ -378,6 +378,9 @@ Contract violations and silently wrong results in narrower situations.
 - **Note:** masked in current use because callers pass one matrix and a
   symmetric `T`.
 - **Fix:** `np.einsum('il,jm,kn,lmn->ijk', A, B, C, T)`.
+- **Resolved:** applied as proposed; vector inputs are converted to diagonal
+  matrices first. Regression test: `test_transform_rank3_tensor_axis_order` in
+  `tests/test_diff.py` (distinct matrices, non-symmetric `T`, mixed inputs).
 
 ### [ ] 13. `bivariate_gamma` domain omits `t1 + t2 < 1`
 
