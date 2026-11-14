@@ -856,6 +856,36 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         .. math::
             \partial_{s} K(\mathbf{\tilde s_0}) = x.
 
+        The limits above are only used when a component of :math:`\mathbf{t}` is exactly
+        zero. Close to zero, the formulas suffer from catastrophic cancellation in the
+        terms :math:`1/w - 1/u` and :math:`1/\tilde w - 1/\tilde u`; the roundoff error
+        grows roughly like :math:`|t_j|^{-3}`. Therefore, the following is done, which goes
+        beyond [3] and [4]. Let
+
+        .. math::
+            h_j = \frac{\delta}{\sqrt{K''_{jj}(\mathbf{0})}}, \quad j=1,2,
+
+        where :math:`\delta` is ``_cdf_singular_width`` (0.01 by default), i.e., the
+        width is fixed in standardized units. For every component with
+        :math:`|t_j| < h_j`, the approximation is replaced by quadratic Lagrange
+        interpolation in that component through the nodes :math:`t_j \in \{-h_j, 0, h_j\}`.
+        If both components are near zero, a tensor product of these interpolations is
+        used, so that 9 nodes are evaluated. At the nodes, the formula is evaluated
+        directly, using the exact limits above for nodes on an axis. The interpolation
+        error is :math:`O(h^3)`.
+
+        At the double singularity :math:`\mathbf{t}=\mathbf{0}` no closed-form limit is
+        available. Instead, let :math:`A(h)` denote the average of the approximation at
+        the four points :math:`(\pm h_1, 0)` and :math:`(0, \pm h_2)`, which are evaluated
+        using the exact one-component limits. By symmetry, the odd-order terms cancel, so
+        that :math:`A(h) = F(\mathbf{0}) + c h^2 + O(h^4)`. The value at the origin is then
+        obtained by Richardson extrapolation:
+
+        .. math::
+            F(\mathbf{0}) \approx \frac{4 A(h) - A(2h)}{3},
+
+        which has error :math:`O(h^4)`.
+
         Parameters
         ----------
         x : array_like, optional (either x or t must be provided)
@@ -865,13 +895,6 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             computed using numerical root finding.
         fillna : float, optional
             The value to replace NaNs with.
-
-        Close to the singularities, i.e., when a component of :math:`\mathbf{t}` is
-        within ``_cdf_singular_width`` (in standardized units) of zero, the formulas
-        above suffer from catastrophic cancellation. There, the approximation is
-        quadratically interpolated in each such component through the nodes
-        :math:`-h, 0, h`. The value at :math:`\mathbf{t}=0` is obtained from the
-        neighbouring values on the axes by Richardson extrapolation.
         """
         # Handle vectorized evaluation
         if t.ndim > 1:
