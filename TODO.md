@@ -246,13 +246,17 @@ Manual note: indeed, this seems to need a fix
   Regression test: `test_numerical_dK_applies_loc_scale_once` in
   `tests/test_mvar_cgfs.py` (both backends, vector and matrix scale).
 
-### [ ] 21. Multivariate + univariate `add` ignores both operands' scale in the domain
+### [x] 21. Multivariate + univariate `add` ignores both operands' scale in the domain
 
 - **Where:** `spapprox/cgf_base.py:1362`
 - **What:** same family as item 10.
 - **Repro:** `s = multivariate_norm(dim=2) + exponential(scale=2)`;
   `[.4, .4] in s.domain` -> True, `s.K([.4, .4])` -> `nan`.
 - **Fix:** `self.domain.ldotinv(self.scale_mat.T).intersect(other.domain.mul(1/other.scale).ldotinv(np.ones((1, dim))))`.
+- **Resolved:** applied the suggested fix. The domain now matches the analytic
+  `K` exactly on a grid for `exp(2)`, `exp(0.5)`, `-exp(2)` and a scaled
+  multivariate operand (previously 29-211 mismatching points). Regression
+  test: `test_add_univariate_domain_matches_K` in `tests/test_mvar_cgfs.py`.
 
 ### [ ] 22. `from_univariate` / `from_cgfs` combine domains of the standardized variables
 

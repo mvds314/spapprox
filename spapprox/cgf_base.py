@@ -1367,7 +1367,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     and (hasattr(other, "_d3K0_cache") or other._d3K0_raw_cache is not None)
                     else None
                 ),
-                domain=self.domain.intersect(other.domain.ldotinv(np.ones((1, self.dim)))),
+                domain=self.domain.ldotinv(self.scale_mat.T).intersect(
+                    other.domain.mul(1 / other.scale).ldotinv(np.ones((1, self.dim)))
+                ),
                 numdiff_backend=self._numdiff_backend,
             )
         elif isinstance(other, MultivariateCumulantGeneratingFunction):

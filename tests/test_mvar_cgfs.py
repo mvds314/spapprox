@@ -879,6 +879,52 @@ def test_add_domain_matches_K(mcgf):
     assert np.array_equal([t in mcgf.domain for t in ts], finite)
 
 
+def _neg_log_K(u, a=1.0, scale=1.0):
+    with np.errstate(all="ignore"):
+        return np.where(scale * u < 1, -a * np.log1p(-scale * u), np.nan)
+
+
+@pytest.mark.parametrize(
+    "mcgf, K_true",
+    [
+        pytest.param(
+            lambda: multivariate_norm(dim=2) + exponential(scale=2),
+            lambda t: t @ t / 2 + _neg_log_K(t.sum(), scale=2),
+            id="exp(2)",
+        ),
+        pytest.param(
+            lambda: multivariate_norm(dim=2) + exponential(scale=0.5),
+            lambda t: t @ t / 2 + _neg_log_K(t.sum(), scale=0.5),
+            id="exp(0.5)",
+        ),
+        pytest.param(
+            lambda: multivariate_norm(dim=2) + (-1) * exponential(scale=2),
+            lambda t: t @ t / 2 + _neg_log_K(t.sum(), scale=-2),
+            id="-exp(2)",
+        ),
+        pytest.param(
+            lambda: (
+                2
+                * MultivariateCumulantGeneratingFunction.from_univariate(exponential(), gamma(a=2))
+                + gamma(a=3, scale=0.5)
+            ),
+            lambda t: (
+                _neg_log_K(2 * t[0])
+                + _neg_log_K(2 * t[1], a=2)
+                + _neg_log_K(t.sum(), a=3, scale=0.5)
+            ),
+            id="scaled self + gamma(3, 0.5)",
+        ),
+    ],
+)
+def test_add_univariate_domain_matches_K(mcgf, K_true):
+    mcgf = mcgf()
+    for t in [np.array([a, b]) for a in np.linspace(-2, 2, 17) for b in np.linspace(-2, 2, 17)]:
+        expected = K_true(t)
+        assert (t in mcgf.domain) == np.isfinite(expected)
+        assert np.isclose(mcgf.K(t), expected, equal_nan=True)
+
+
 def test_cumulants_at_zero_without_analytic_derivatives():
     def K(t):
         return 0.5 * np.sum(np.atleast_2d(t) ** 2, axis=-1).squeeze()
