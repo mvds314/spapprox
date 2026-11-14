@@ -2065,7 +2065,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             if dK0 is not None:
                 dK0 = np.asanyarray(dK0)
             elif all(cgf._dK0_raw_cache is not None or hasattr(cgf, "_dK0_cache") for cgf in cgfs):
-                dK0 = np.concatenate([cgf.dK0 for cgf in cgfs], axis=-1)
+                dK0 = np.concatenate([np.atleast_1d(cgf.dK0) for cgf in cgfs], axis=-1)
             else:
                 dK0 = None
             if d2K0 is not None:
@@ -2073,7 +2073,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             elif all(
                 cgf._d2K0_raw_cache is not None or hasattr(cgf, "_d2K0_cache") for cgf in cgfs
             ):
-                d2K0 = sp.linalg.block_diag(*[cgf.d2K0 for cgf in cgfs])
+                d2K0 = sp.linalg.block_diag(*[np.atleast_2d(cgf.d2K0) for cgf in cgfs])
             else:
                 d2K0 = None
             if d3K0 is not None:
@@ -2081,7 +2081,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             elif all(
                 cgf._d3K0_raw_cache is not None or hasattr(cgf, "_d3K0_cache") for cgf in cgfs
             ):
-                d3K0 = block_diag_3d(*[cgf.d3K0 for cgf in cgfs])
+                d3K0 = block_diag_3d(
+                    *[np.reshape(cgf.d3K0, (d,) * 3) for cgf, d in zip(cgfs, dims)]
+                )
             else:
                 d3K0 = None
             domain = Domain.from_domains(*[_domain_in_t_units(cgf) for cgf in cgfs])

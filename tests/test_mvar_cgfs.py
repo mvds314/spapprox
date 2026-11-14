@@ -1097,3 +1097,22 @@ if __name__ == "__main__":
                 # "-m tofix",
             ]
         )
+
+
+@pytest.mark.parametrize("gamma_first", [True, False])
+def test_from_cgfs_mixed_dims_cached_cumulants(gamma_first):
+    uni = gamma(a=3)
+    cov = np.array([[2.0, 0.5], [0.5, 1.0]])
+    mvar = multivariate_norm(loc=[1.0, 2.0], cov=cov)
+    for c in (uni, mvar):
+        _ = c.dK0, c.d2K0, c.d3K0
+    cgfs = (uni, mvar) if gamma_first else (mvar, uni)
+    mcgf = MultivariateCumulantGeneratingFunction.from_cgfs(*cgfs)
+    i = 0 if gamma_first else 2
+    j = [1, 2] if gamma_first else [0, 1]
+    dK0, d2K0, d3K0 = np.zeros(3), np.zeros((3, 3)), np.zeros((3, 3, 3))
+    dK0[i], d2K0[i, i], d3K0[i, i, i] = 3, 3, 6
+    dK0[j], d2K0[np.ix_(j, j)] = [1, 2], cov
+    assert np.allclose(mcgf.dK0, dK0)
+    assert np.allclose(mcgf.d2K0, d2K0)
+    assert np.allclose(mcgf.d3K0, d3K0)

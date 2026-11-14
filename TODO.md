@@ -406,7 +406,7 @@ Contract violations and silently wrong results in narrower situations.
   intersect had hidden it; `test_stack` started failing). Regression test:
   `test_add_domain_matches_K` in `tests/test_mvar_cgfs.py`.
 
-### [ ] 15. `from_cgfs` crashes on mixed univariate/multivariate input
+### [x] 15. `from_cgfs` crashes on mixed univariate/multivariate input
 
 - **Where:** `spapprox/cgf_base.py:2048`, `2064`
 - **What:** fails when cumulants are already cached and the inputs mix
@@ -414,6 +414,9 @@ Contract violations and silently wrong results in narrower situations.
 - **Repro:** `norm()` and `multivariate_norm(dim=2)` with cached cumulants;
   `from_cgfs(a, b)` -> `ValueError: zero-dimensional arrays cannot be concatenated`.
 - **Fix:** `np.atleast_1d(cgf.dK0)` and `np.reshape(cgf.d3K0, (d, d, d))`.
+- **Resolved:** applied as proposed, plus `np.atleast_2d` on `d2K0` for
+  robustness. Regression test: `test_from_cgfs_mixed_dims_cached_cumulants` in
+  `tests/test_mvar_cgfs.py` (both orders, compared to analytic cumulants).
 
 ### [x] 26. `Domain.intersect` returns a union for like-kind bounds
 
