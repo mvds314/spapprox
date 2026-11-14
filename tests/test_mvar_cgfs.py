@@ -709,6 +709,22 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
     assert np.allclose(mcgf1.d3K0, mcgf2.d3K0)
 
 
+def test_slicing_cached_cumulants():
+    # Y = A X with independent gamma components X_l (k2 = a_l, k3 = 2 a_l); slicing after
+    # the cumulants are cached must slice d2K0 and d3K0 on all axes
+    a = np.array([2.0, 3.0, 4.0])
+    A = np.array([[1.0, 1, 0], [0, 1, 0], [0, 1, 1]])
+    mcgf = MultivariateCumulantGeneratingFunction.from_univariate(*[gamma(a=ai) for ai in a])
+    mcgf = mcgf.ldot(A)
+    _ = mcgf.dK0, mcgf.d2K0, mcgf.d3K0
+    item = [0, 2]
+    sliced = mcgf[item]
+    B = A[item]
+    assert np.allclose(sliced.dK0, B @ a)
+    assert np.allclose(sliced.d2K0, np.einsum("il,jl,l->ij", B, B, a))
+    assert np.allclose(sliced.d3K0, np.einsum("il,jl,kl,l->ijk", B, B, B, 2 * a))
+
+
 @pytest.mark.parametrize(
     "mcgf,ts",
     [

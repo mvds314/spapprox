@@ -337,7 +337,7 @@ Manual note: indeed, this seems to need a fix
 
 Contract violations and silently wrong results in narrower situations.
 
-### [ ] 5. `__getitem__` slices cumulants on one axis only
+### [x] 5. `__getitem__` slices cumulants on one axis only
 
 - **Where:** `spapprox/cgf_base.py:1261`, `1266`
 - **What:** `d2K0[item]` where `d2K0[np.ix_(item, item)]` is meant; `d3K0` needs
@@ -345,6 +345,11 @@ Contract violations and silently wrong results in narrower situations.
 - **Repro:** slicing a cached 3-D CGF with `[0, 2]` yields a 2x3 "covariance"
   `[[4, 1, 0.5], [0.5, 0.2, 1]]` instead of `[[4, 0.5], [0.5, 1]]`.
 - **Fix:** use `np.ix_` on all axes.
+- **Resolved:** cached cumulants are now sliced with `np.ix_(item, item)` and
+  `np.ix_(item, item, item)`. Regression test: `test_slicing_cached_cumulants` in
+  `tests/test_mvar_cgfs.py`, which compares against analytic cumulants of a linear map
+  of independent gammas. (The existing `test_slicing` cases never cached the cumulants
+  before slicing, which is why this went unnoticed.)
 
 ### [ ] 11. In-place scaling mutates caller / user arrays
 

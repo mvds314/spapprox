@@ -1276,12 +1276,12 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                     else None
                 ),
                 d2K0=(
-                    self.d2K0[item]
+                    self.d2K0[np.ix_(item, item)]
                     if self._d2K0_raw_cache is not None or hasattr(self, "_d2K0_cache")
                     else None
                 ),
                 d3K0=(
-                    self.d3K0[item]
+                    self.d3K0[np.ix_(item, item, item)]
                     if self._d3K0_raw_cache is not None or hasattr(self, "_d3K0_cache")
                     else None
                 ),
