@@ -783,3 +783,21 @@ def test_block_diag_3d_dtype_and_inputs():
     assert res[0, 0, 0] == 1 and res[1, 1, 1] == 2 and res[2, 2, 2] == 3
     with pytest.raises(ValueError):
         block_diag_3d()
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+@pytest.mark.parametrize("h", [[1e-3] * 3, np.array([1e-3] * 3), [1e-3, 2e-3, 1e-2]])
+def test_partial_derivative_vector_h(h):
+    def lse(t):
+        return np.log(np.exp(np.asarray(t)).sum(axis=-1))
+
+    t = np.array([0.1, 0.2, 0.3])
+    p = np.exp(t) / np.exp(t).sum()
+    assert np.isclose(PartialDerivative(lse, 1, 1, 0, h=h)(t), -p[0] * p[1], atol=1e-6)
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+@pytest.mark.parametrize("orders", [(0,), (0, 0), (1, -1)])
+def test_partial_derivative_invalid_orders(orders):
+    with pytest.raises(ValueError, match="orders"):
+        PartialDerivative(lambda t: t, *orders)

@@ -21,6 +21,9 @@ class Domain:
     where :math:`A` and :math:`B` are matrices.
     """
 
+    # Make numpy defer to our reflected operators, e.g., ``ndarray * Domain``
+    __array_ufunc__ = None
+
     def __init__(
         self,
         dim=1,
@@ -188,6 +191,8 @@ class Domain:
             b = None if self.b is None else self.b + self.B.dot(np.full(self.dim, other))
         elif isinstance(other, np.ndarray) and other.ndim == 0:
             return self.add(other.tolist())
+        elif pd.api.types.is_list_like(other) and not isinstance(other, np.ndarray):
+            return self.add(np.asanyarray(other))
         elif pd.api.types.is_array_like(other) and len(other) == self.dim:
             a = None if self.a is None else self.a + self.A.dot(other)
             b = None if self.b is None else self.b + self.B.dot(other)
@@ -212,7 +217,7 @@ class Domain:
         return self.__add__(other)
 
     def __sub__(self, other):
-        return self.add(-1 * other)
+        return self.add(-np.asanyarray(other))
 
     def __rsub__(self, other):
         return (-1 * self).__add__(other)
@@ -246,6 +251,8 @@ class Domain:
                 le = self.ge * other if self.ge is not None else None
         elif isinstance(other, np.ndarray) and other.ndim == 0:
             return self.mul(other.tolist())
+        elif pd.api.types.is_list_like(other) and not isinstance(other, np.ndarray):
+            return self.mul(np.asanyarray(other))
         elif self.dim > 1 and pd.api.types.is_array_like(other):
             other = np.asanyarray(other)
             assert not np.any(np.isclose(other, 0)), "Cannot multiply with zero"

@@ -1,4 +1,5 @@
 import functools as ft
+import inspect
 import time
 from functools import reduce
 
@@ -30,11 +31,19 @@ def fib(n):
 
 def type_wrapper(xloc=0):
     def decorator(f):
+        xname = list(inspect.signature(f).parameters)[xloc]
+
         @ft.wraps(f)
         def wrapped(*args, **kwargs):
-            x = args[xloc]
+            if len(args) > xloc:
+                x = args[xloc]
+                args = tuple(np.asanyarray(x) if i == xloc else a for i, a in enumerate(args))
+            elif xname in kwargs:
+                x = kwargs[xname]
+                kwargs[xname] = np.asanyarray(x)
+            else:
+                return f(*args, **kwargs)
             wrapper = PandasWrapper(x)
-            args = tuple(np.asanyarray(x) if i == xloc else a for i, a in enumerate(args))
             y = np.asanyarray(f(*args, **kwargs))
             return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 

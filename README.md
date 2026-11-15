@@ -46,7 +46,7 @@ import scipy.stats as sps
 import spapprox as spa
 
 cgf_normal = spa.norm(loc=0, scale=1)
-spa_normal = spa.SaddlePointApprox(cgf_normal)
+spa_normal = spa.UnivariateSaddlePointApprox(cgf_normal)
 
 t = np.linspace(-3, 3)
 x = cgf_normal.dK(t)
@@ -62,9 +62,12 @@ You can install this library directly from GitHub:
 pip install git+https://github.com/mvds314/spapprox.git
 ```
 
-Optional dependencies are `numdifftools` for numerical differentiation and `fastnorm` for faster bivariate normal cdf evaluation.
+Optional dependencies are `numdifftools` (the default numerical differentiation backend), `findiff` (an alternative, faster finite difference backend, version >= 0.11), and `fastnorm` for faster bivariate normal cdf evaluation.
+Install them as extras, e.g.:
 
-````bash
+```bash
+pip install "spapprox[findiff,numdiff,fastnorm] @ git+https://github.com/mvds314/spapprox.git"
+```
 
 ## Development
 
@@ -72,12 +75,12 @@ For development purposes, clone the repo:
 
 ```bash
 git clone https://github.com/mvds314/spapprox.git
-````
+```
 
-Then navigate to the folder containing `setup.py` and run
+Then navigate to the folder containing `pyproject.toml` and run
 
 ```bash
-pip install -e .
+pip install -e ".[findiff,numdiff,fastnorm]"
 ```
 
 to install the package in edit mode.

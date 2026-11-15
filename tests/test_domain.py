@@ -424,3 +424,25 @@ def test_single_list_bound_converted_to_array(bound):
     np.testing.assert_array_equal(getattr(dom * 2, bound), [2, 4])
     stacked = dom.stack(Domain(dim=2))
     np.testing.assert_array_equal(getattr(stacked, f"{bound}_vect"), [1, 2, np.nan, np.nan])
+
+
+def test_ndarray_times_domain():
+    dom = Domain(dim=2, l=1)
+    for res in [np.array([2, -1]) * dom, dom * np.array([2, -1])]:
+        assert isinstance(res, Domain)
+        assert np.array_equal(res.l, [2, np.nan], equal_nan=True)
+    assert isinstance(np.array([1, 2]) + dom, Domain)
+
+
+def test_domain_list_add_mul():
+    dom = Domain(dim=2, l=1)
+    assert np.array_equal((dom + [1, 2]).l, (dom + np.array([1, 2])).l)
+    assert np.array_equal((dom - [1, 2]).l, (dom - np.array([1, 2])).l)
+    assert np.array_equal((dom * [1, 2]).l, (dom * np.array([1, 2])).l)
+    assert np.array_equal(([1, 2] * dom).l, [1, 2])
+
+
+def test_is_in_domain_keyword_argument():
+    dom = Domain(l=1)
+    assert dom.is_in_domain(t=0.5) is True
+    assert np.array_equal(dom.is_in_domain(t=[0.5, 2]), [True, False])

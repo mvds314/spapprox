@@ -154,6 +154,8 @@ class PartialDerivative:
             raise ValueError("orders should be a scalar or vector")
         if not np.all(np.asanyarray(orders) == np.round(np.asanyarray(orders))):
             raise ValueError("orders should be integers")
+        if np.any(np.asanyarray(orders) < 0) or np.sum(orders) < 1:
+            raise ValueError("orders should be non-negative, with at least one positive order")
         # Set value
         del self.dim
         if np.isscalar(orders) or np.asanyarray(orders).ndim == 0:
@@ -238,7 +240,9 @@ class PartialDerivative:
             raise ValueError("Dimensions do not match")
         # Use central differences by default
         sel = [self._half_width] * self.dim if self.dim > 0 else [self._half_width]
-        x = np.array([t + i * self.h for i in range(-self._half_width, self._half_width + 1)]).T
+        x = np.array(
+            [t + i * self._h_vect for i in range(-self._half_width, self._half_width + 1)]
+        ).T
         # But adjust if t-h or t+h is not in the domain (for any of the components)
         if np.isnan(self.f(x.T)).any():
             assert not np.isnan(self.f(np.zeros_like(t))), "Zeros is asserted to be in the domain"
@@ -258,7 +262,7 @@ class PartialDerivative:
                         if not np.isnan(fx[i : self._half_width]).any()
                     )
                     sel[0] += -shift
-                    x += self.h * shift
+                    x += self._h_vect * shift
                 elif np.isnan(fx[-1]):
                     # Shift to the left
                     if np.isnan(fx[: self._half_width]).any():
@@ -272,7 +276,7 @@ class PartialDerivative:
                     )
                     # Shift to the left
                     sel[0] += shift
-                    x += -self.h * shift
+                    x += -self._h_vect * shift
                 else:
                     raise RuntimeError("This should never happen, all cases should be handled")
             else:
@@ -299,7 +303,7 @@ class PartialDerivative:
                             if not np.isnan(fxx[i : self._half_width]).any()
                         )
                         sel[i] += -shift
-                        x[i] += self.h * shift
+                        x[i] += self._h_vect[i] * shift
                     elif np.isnan(fxx[-1]).any():
                         if np.isnan(fxx[: self._half_width]).any():
                             raise AssertionError(
@@ -312,7 +316,7 @@ class PartialDerivative:
                         )
                         # Shift to the left
                         sel[i] += shift
-                        x[i] += -self.h * shift
+                        x[i] += -self._h_vect[i] * shift
                     else:
                         raise RuntimeError("This should never happen, all cases should be handled")
                     if np.isnan(self.f(x[i])).any():

@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import logsumexp, softmax
 
 from .cgf_base import (
     MultivariateCumulantGeneratingFunction,
@@ -275,22 +276,19 @@ def univariate_empirical(x):
     draw one of then with equal probability.
     """
 
+    x = np.asanyarray(x, dtype=float)
+
+    # Use logsumexp and softmax to prevent overflow for large t * x
     @type_wrapper(xloc=0)
     def K(t, x=x):
-        if t.ndim == 0:
-            y = np.log(np.exp(t * x).mean())
-        else:
-            y = np.log(np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1))
+        tx = t * x if t.ndim == 0 else np.atleast_2d(t).T.dot(np.atleast_2d(x))
+        y = logsumexp(tx, axis=-1) - np.log(len(x))
         return y.tolist() if t.ndim == 1 else y
 
     @type_wrapper(xloc=0)
     def dK(t, x=x):
-        if t.ndim == 0:
-            y = (x * np.exp(t * x)).mean() / (np.exp(t * x).mean())
-        else:
-            y = (x * np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x)))).mean(axis=1) / (
-                np.exp(np.atleast_2d(t).T.dot(np.atleast_2d(x))).mean(axis=1)
-            )
+        tx = t * x if t.ndim == 0 else np.atleast_2d(t).T.dot(np.atleast_2d(x))
+        y = (softmax(tx, axis=-1) * x).sum(axis=-1)
         return y.tolist() if t.ndim == 1 else y
 
     return UnivariateCumulantGeneratingFunction(K, dK=dK)

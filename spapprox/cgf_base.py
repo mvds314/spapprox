@@ -27,6 +27,15 @@ from .diff import (
 )
 
 
+def _unwrap_scalar(x):
+    """
+    Convert numpy scalars and 0-d arrays to Python scalars, leave anything else as is.
+    """
+    if isinstance(x, (np.generic, np.ndarray)) and np.ndim(x) == 0:
+        return x.item()
+    return x
+
+
 class CumulantGeneratingFunction(ABC):
     r"""
     Base class for the cumulant generating function of a random variable (or vector) :math:`X`
@@ -213,7 +222,9 @@ class CumulantGeneratingFunction(ABC):
         return self.__add__(other)
 
     def __sub__(self, other):
-        return self.add(-1 * other, inplace=False)
+        if isinstance(other, CumulantGeneratingFunction):
+            return self.add(-1 * other, inplace=False)
+        return self.add(-np.asanyarray(other), inplace=False)
 
     def __rsub__(self, other):
         return self.mul(-1, inplace=False).add(other, inplace=False)
@@ -682,6 +693,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         ----------
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
         """
+        other = _unwrap_scalar(other)
         if isinstance(other, (int, float)):
             if inplace:
                 self.loc = self.loc + other
@@ -765,6 +777,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         ----------
         [1] Bertsekas, Tsitsiklis (2000) - Introduction to probability
         """
+        other = _unwrap_scalar(other)
         if isinstance(other, (int, float)):
             if inplace:
                 self.loc = other * self.loc
@@ -932,6 +945,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @CumulantGeneratingFunction.loc.setter
     def loc(self, loc):
+        loc = np.asanyarray(loc)
         self._validate_loc(loc)
         for attr in [
             "_loc_vect_cache",
@@ -946,10 +960,11 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         valid |= isinstance(loc, np.ndarray) and loc.ndim == 0
         valid |= isinstance(loc, np.ndarray) and loc.ndim == 1 and len(loc) == self.dim
         if not valid:
-            raise AssertionError("loc should be a scalar, vector of length {self.dim}")
+            raise AssertionError(f"loc should be a scalar or a vector of length {self.dim}")
 
     @CumulantGeneratingFunction.scale.setter
     def scale(self, scale):
+        scale = np.asanyarray(scale)
         self._validate_scale(scale)
         for attr in [
             "_scale_mat_cache",
@@ -1319,6 +1334,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         [2] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
         [3] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
         """
+        other = _unwrap_scalar(other)
         if isinstance(other, (int, float, np.ndarray, list)):
             if isinstance(other, list):
                 other = np.asanyarray(other)
@@ -1452,6 +1468,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         [2] Queens university lecture notes: https://mast.queensu.ca/~stat353/slides/5-multivariate_normal17_4.pdf
         [3] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
         """
+        other = _unwrap_scalar(other)
         if isinstance(other, (int, float)):
             if inplace:
                 # Note caches are reset in setters
@@ -1579,7 +1596,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             if np.isscalar(val):
                 val += np.sum(loc * t)
             elif pd.api.types.is_array_like(val) and val.ndim == 1 and t.ndim == 1:
-                val += np.atleast_2d(t).T.dot(loc).squeeze()
+                # Single evaluation point, K returned shape (1,)
+                val = val + np.sum(loc * t)
             elif pd.api.types.is_array_like(val) and val.ndim == 1:
                 val += np.sum((loc * t).T, axis=0)
             elif isinstance(val, np.ndarray) and val.ndim == 0:

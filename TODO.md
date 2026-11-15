@@ -623,63 +623,80 @@ Contract violations and silently wrong results in narrower situations.
 
 ## Low severity / robustness
 
-### [ ] 43. `ndarray * Domain` is hijacked by numpy
+### [x] 43. `ndarray * Domain` is hijacked by numpy
 
 - **Where:** `spapprox/domain.py:304-308`
 - **Repro:** `type(np.array([2, -1]) * Domain(dim=2, l=1))` -> `ndarray` (object
   array of Domains). `Domain * array` is fine.
 - **Fix:** `__array_ufunc__ = None` on the class.
+- **Fixed:** Regression test: `test_ndarray_times_domain` in `tests/test_domain.py`.
 
-### [ ] 44. Plain lists rejected for `Domain` vector add/mul
+### [x] 44. Plain lists rejected for `Domain` vector add/mul
 
 - **Where:** `spapprox/domain.py:197-208`, `237-245`
 - **Repro:** `Domain(dim=2, l=1) + [1, 2]` -> `ValueError`.
 - **Fix:** `is_list_like` + `np.asarray`.
+- **Fixed:** List-likes are converted with `np.asanyarray`; `Domain - list` fixed too. Regression
+  test: `test_domain_list_add_mul` in `tests/test_domain.py`.
 
-### [ ] 45. A list `h` breaks `PartialDerivative`
+### [x] 45. A list `h` breaks `PartialDerivative`
 
 - **Where:** `spapprox/diff.py:225`
 - **Repro:** `PartialDerivative(lse, 1, 1, 0, h=[1e-3] * 3)(t0)` -> `ValueError`.
 - **Fix:** use `self._h_vect`.
+- **Fixed:** Grid construction and domain shifts now use `_h_vect`. Regression test:
+  `test_partial_derivative_vector_h` in `tests/test_diff.py`.
 
-### [ ] 46. All-zero derivative orders crash
+### [x] 46. All-zero derivative orders crash
 
 - **Where:** `spapprox/diff.py:192`
 - **Repro:** `PartialDerivative(f, 0)` -> `ZeroDivisionError`.
 - **Fix:** validate `sum(orders) >= 1`.
+- **Fixed:** `orders` must be non-negative with at least one positive order. Regression test:
+  `test_partial_derivative_invalid_orders` in `tests/test_diff.py`.
 
-### [ ] 47. `type_wrapper` breaks on keyword arguments
+### [x] 47. `type_wrapper` breaks on keyword arguments
 
 - **Where:** `spapprox/util.py:35`
 - **Repro:** `Domain(l=1).is_in_domain(t=0.5)` -> `IndexError`.
 - **Fix:** fall back to `kwargs` by parameter name.
+- **Fixed:** Falls back to the keyword argument with the decorated parameter's name. Regression
+  test: `test_is_in_domain_keyword_argument` in `tests/test_domain.py`.
 
-### [ ] 48. Multivariate `cgf - list` fails
+### [x] 48. Multivariate `cgf - list` fails
 
 - **Where:** `spapprox/cgf_base.py:216`
 - **What:** `-1 * other` on a list yields `[]`.
 - **Repro:** `multivariate_norm(dim=2) - [1., 2.]` -> `AssertionError`.
 - **Fix:** `self.add(-np.asanyarray(other))`.
+- **Fixed:** Regression test: `test_multivariate_list_and_numpy_scalar_algebra` in
+  `tests/test_mvar_cgfs.py`.
 
-### [ ] 49. NumPy scalars rejected in CGF algebra
+### [x] 49. NumPy scalars rejected in CGF algebra
 
 - **Where:** `spapprox/cgf_base.py:676`, `757`, `1304`, `1427`
 - **Repro:** `norm() + np.int64(2)`, `norm() * np.float32(2)` -> `ValueError`.
 - **Fix:** `numbers.Real` / `pd.api.types.is_number`.
+- **Fixed:** NumPy scalars and 0-d arrays are unwrapped to Python scalars (`_unwrap_scalar`).
+  Regression tests: `test_numpy_scalar_algebra` in `tests/test_cgfs.py`,
+  `test_multivariate_list_and_numpy_scalar_algebra` in `tests/test_mvar_cgfs.py`.
 
-### [ ] 50. Unformatted error message and list `loc` rejected
+### [x] 50. Unformatted error message and list `loc` rejected
 
 - **Where:** `spapprox/cgf_base.py:928`
 - **Repro:** `M(K=..., dim=2, loc=[1., 2.])` -> message
   `"...vector of length {self.dim}"`.
 - **Fix:** add the `f` prefix; `np.asanyarray(loc)` before validation.
+- **Fixed:** The multivariate `loc` and `scale` setters convert to arrays before validation.
+  Regression test: `test_multivariate_list_loc` in `tests/test_mvar_cgfs.py`.
 
-### [ ] 51. `univariate_empirical` overflows
+### [x] 51. `univariate_empirical` overflows
 
 - **Where:** `spapprox/cgfs.py:273`, `281`
 - **Repro:** data `[1000, 1001, 1003]`: `K(1)` -> `inf` (true 1002.07),
   `dK(1)` -> `nan`.
 - **Fix:** logsumexp / max-shifted softmax.
+- **Fixed:** Regression test: `test_univariate_empirical_no_overflow` in `tests/test_cgfs.py`.
 
 ### [ ] 52. `ppf(0)` / `ppf(1)` return arbitrary finite values
 
@@ -687,20 +704,29 @@ Contract violations and silently wrong results in narrower situations.
 - **Repro:** `norm()`: `ppf(0.)` -> -64, `ppf(1.)` -> 16.
 - **Fix:** return the support bounds (e.g. `-inf`/`inf`).
 
-### [ ] 53. pdf normalization over a truncated `t` range biases exact cases
+### [x] 53. pdf normalization over a truncated `t` range biases exact cases
 
 - **Where:** `spapprox/spa.py:248`
 - **What:** normalized `norm` pdf has relative error +1e-4.
 - **Fix:** tighter tolerance or integrate over the full domain.
+- **Fixed:** The tail beyond the inferred `t` range is now integrated up to the domain bound on
+  each side where the cdf reached 0/1 (lattice tails stay excluded). The remaining
+  exponential bias came from `_spapprox_pdf` treating `d2K < 1e-8` as zero (via
+  `np.isclose`), which also made the pdf `nan` everywhere for small scales, e.g.
+  `norm(scale=1e-5)`; it now requires `d2K > 0`. Regression test:
+  `test_normalized_pdf_exact` in `tests/test_spa.py`.
 
-### [ ] 54. _Suspected:_ `K` returning shape `(1,)` breaks multivariate `loc`
+### [x] 54. _Suspected:_ `K` returning shape `(1,)` breaks multivariate `loc`
 
 - **Where:** `spapprox/cgf_base.py:1554`
 - **Repro:** `M(K=lambda t: np.atleast_1d(np.sum(t**2) / 2), dim=2, loc=[1, 2]).K([1, 1])`
   -> `ValueError: shapes (2,1) and (2,) not aligned`.
 - **Fix:** `val += np.dot(t, loc)`. Arguably user error; decide on the contract.
+- **Fixed:** Contract: a shape `(1,)` return for a single point is accepted; the `loc` term is
+  now `np.sum(loc * t)`. Regression test: `test_multivariate_K_returning_shape_one` in
+  `tests/test_mvar_cgfs.py`.
 
-### [ ] 55. README and config drift
+### [x] 55. README and config drift
 
 - `README.md:49`: example uses `spa.SaddlePointApprox`, which doesn't exist
   (should be `UnivariateSaddlePointApprox`).
@@ -708,12 +734,13 @@ Contract violations and silently wrong results in narrower situations.
 - `README.md:67-77`: mismatched code fences; refers to `setup.py`.
 - `pyproject.toml:14`: ruff comment claims "bugbear, isort", but only `E/F/W`
   are selected.
+- **Fixed:** All four points fixed.
 
 ---
 
 ## Tooling / packaging
 
-### [ ] 16. Python version floor conflicts with the syntax in use
+### [x] 16. Python version floor conflicts with the syntax in use
 
 - **Where:** `spapprox/diff.py:345`, `496` use `retval.T[*sel]` /
   `self._partials[*ijk]` -- star-in-index is Python 3.11+, while
@@ -723,6 +750,8 @@ Contract violations and silently wrong results in narrower situations.
 - **Decide:** either raise the floor to `>=3.11`, or rewrite the indexing
   expressions as `tuple(...)` subscripts.
 - **See also:** item 25 (CI).
+- **Fixed:** Raised the floor to `requires-python = ">=3.11"`, and fixed the remaining F401 and
+  E741 in `examples/`; `ruff check .` passes.
 
 ---
 

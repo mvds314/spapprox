@@ -140,9 +140,9 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
     def _spapprox_pdf(self, x, t, fillna=np.nan):
         t = np.asanyarray(t)
         d2Kt = self.cgf.d2K(t, fillna=fillna)
-        with np.errstate(divide="ignore"):
+        with np.errstate(divide="ignore", invalid="ignore"):
             retval = np.where(
-                ~np.isclose(d2Kt, 0) & ~np.isnan(d2Kt),
+                d2Kt > 0,
                 np.exp(self.cgf.K(t) - t * x) * np.sqrt(np.divide(1, 2 * np.pi * d2Kt)),
                 fillna,
             )
@@ -248,13 +248,27 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
 
     @property
     def _pdf_normalization(self):
+        r"""
+        Integral of the unnormalized pdf, computed in terms of :math:`t` as
+        :math:`\int \hat f(K'(t)) K''(t) dt`.
+
+        The bulk is integrated over the inferred :math:`t` range. On each side where the cdf
+        did reach 0 (or 1), the remaining tail is integrated up to the domain bound, so that
+        the result is not biased by the truncation. Elsewhere, e.g., for lattice
+        distributions, the tail is ignored, as the approximation becomes unreliable there.
+        """
         if not hasattr(self, "_pdf_normalization_cache") or self._pdf_normalization_cache is None:
-            a, b = self.infer_t_range()
-            val = quad(
-                lambda t: self.pdf(t=t, normalize_pdf=False, fillna=0) * self.cgf.d2K(t, fillna=0),
-                a=a,
-                b=b,
-            )[0]
+
+            def integrand(t):
+                return self.pdf(t=t, normalize_pdf=False, fillna=0) * self.cgf.d2K(t, fillna=0)
+
+            a, b, a_converged, b_converged = self._infer_t_range()
+            val = quad(integrand, a=a, b=b)[0]
+            lower, upper = self._t_domain_bounds()
+            if a_converged and lower < a:
+                val += quad(integrand, a=lower, b=a)[0]
+            if b_converged and b < upper:
+                val += quad(integrand, a=b, b=upper)[0]
             assert not np.isnan(val) and np.isfinite(val), ()
             self._pdf_normalization_cache = val
         return self._pdf_normalization_cache
@@ -458,6 +472,20 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
                     )
         return self.cgf.dK(t)
 
+    def _t_domain_bounds(self):
+        """
+        Lower and upper bounds of the domain of the cumulant generating function in terms of
+        :math:`t`, possibly infinite. Linear inequality constraints are not taken into account.
+        """
+        domain = self.cgf.domain.mul(1 / self.cgf.scale)
+        lower = max(
+            (np.nanmax(v) for v in (domain.g, domain.ge) if v is not None), default=-np.inf
+        )
+        upper = min(
+            (np.nanmin(v) for v in (domain.l, domain.le) if v is not None), default=np.inf
+        )
+        return lower, upper
+
     def infer_t_range(self, atol=1e-4, rtol=1e-4, max_iter=500):
         """
         Infers a suitable range for so that it covers roughly the entire probability mass
@@ -467,6 +495,14 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
         get there: it can turn around, leave :math:`[0, 1]`, or become ``nan``. Such a step is
         treated as the end of the usable range, and the last valid bound is returned with a
         warning.
+        """
+        lb, ub, _, _ = self._infer_t_range(atol=atol, rtol=rtol, max_iter=max_iter)
+        return [lb, ub]
+
+    def _infer_t_range(self, atol=1e-4, rtol=1e-4, max_iter=500):
+        """
+        Implements :meth:`infer_t_range`, but also returns, per bound, whether the cdf reached
+        its target.
         """
         # Determine initial range
         lb = next(-1 * 0.9**i for i in range(10000) if ~np.isnan(self.cgf.dK(-1 * 0.9**i)))
@@ -486,7 +522,7 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             scaling = next(scalings)
             for _ in range(max_iter):
                 if np.isclose(cdf_bound, target, atol=atol, rtol=rtol):
-                    return bound
+                    return bound, True
                 new = bound / scaling
                 x_new = self.cgf.dK(new)
                 if np.isfinite(x_new):
@@ -503,14 +539,14 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
                 f"cdf={cdf_bound}; the saddle point cdf may not reach {target}, e.g., for "
                 "lattice or bounded-support distributions",
                 RuntimeWarning,
-                stacklevel=3,
+                stacklevel=4,
             )
-            return bound
+            return bound, False
 
-        lb = expand(lb, cdf_lb, 0)
-        ub = expand(ub, cdf_ub, 1)
+        lb, lb_converged = expand(lb, cdf_lb, 0)
+        ub, ub_converged = expand(ub, cdf_ub, 1)
         assert lb <= 0 <= ub
-        return [lb, ub]
+        return lb, ub, lb_converged, ub_converged
 
     def fit_saddle_point_eqn(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
         """

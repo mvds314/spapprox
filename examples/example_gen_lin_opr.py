@@ -7,7 +7,7 @@ Created on Sun Jul 14 10:09:21 2024
 """
 
 import numpy as np
-from findiff import FinDiff, coefficients, Coefficient
+from findiff import FinDiff
 
 x, y, z = [np.linspace(0, 10, 100)] * 3
 dx, dy, dz = x[1] - x[0], y[1] - y[0], z[1] - z[0]

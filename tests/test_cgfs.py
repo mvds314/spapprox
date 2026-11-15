@@ -1026,3 +1026,28 @@ def test_laplace_dK_inv_at_mean(loc, scale):
     spa = UnivariateSaddlePointApprox(cgf)
     assert np.isclose(spa.cdf(x=loc), 0.5)
     assert np.isclose(spa.pdf(x=loc), spa.pdf(t=0))
+
+
+@pytest.mark.parametrize("other", [np.int64(2), np.float32(2.0), np.array(2.0)])
+def test_numpy_scalar_algebra(other):
+    cgf = norm(loc=1, scale=3)
+    assert np.isclose((cgf + other).mean, 3)
+    assert np.isclose((cgf - other).mean, -1)
+    assert np.isclose((cgf * other).mean, 2)
+    assert np.isclose((cgf * other).variance, 36)
+    assert np.isclose((other * cgf).mean, 2)
+
+
+def test_univariate_empirical_no_overflow():
+    x = np.array([1000.0, 1001.0, 1003.0])
+    cgf = univariate_empirical(x)
+    t = np.array([-1.0, 0.0, 1.0, 50.0])
+    # Exact values, shifted by the max to avoid overflow in the reference
+    tx = np.outer(t, x - x.max())
+    K = np.log(np.exp(tx).mean(axis=1)) + t * x.max()
+    w = np.exp(tx) / np.exp(tx).sum(axis=1, keepdims=True)
+    assert np.allclose(cgf.K(t), K)
+    assert np.allclose(cgf.dK(t), w @ x)
+    assert np.isclose(cgf.K(1.0), K[2])
+    assert np.isclose(cgf.dK(1.0), (w @ x)[2])
+    assert np.isclose(cgf.d2K(1.0), w[2] @ x**2 - (w[2] @ x) ** 2, rtol=1e-4)

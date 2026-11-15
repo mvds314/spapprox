@@ -107,6 +107,7 @@ def test_normalization(cgf, trange):
             lambda t: spa.pdf(t=t, fillna=0, normalize_pdf=True) * cgf.d2K(t, fillna=0),
             a=trange[0],
             b=trange[1],
+            points=[0],  # prevent quad from missing the mass around zero on wide ranges
         )[0],
         1,
         atol=5e-4,
@@ -528,3 +529,19 @@ def test_fitted_dK_inv_outside_grid_uses_solver():
     assert np.isclose(t[0], expected[0], atol=1e-3)
     assert np.isclose(spa._dK_inv(40.0), expected[1])
     assert np.isclose(spa.pdf(x=40.0), sps.gamma(a=3).pdf(40), rtol=0.1)
+
+
+@pytest.mark.parametrize(
+    "cgf,dist",
+    [
+        pytest.param(norm(loc=1, scale=2), sps.norm(loc=1, scale=2), id="Normal"),
+        pytest.param(norm(scale=1e-5), sps.norm(scale=1e-5), id="Normal small scale"),
+        pytest.param(exponential(scale=2), sps.expon(scale=2), id="Exponential"),
+        pytest.param(gamma(a=3, scale=0.5), sps.gamma(a=3, scale=0.5), id="Gamma"),
+    ],
+)
+def test_normalized_pdf_exact(cgf, dist):
+    # The normalized saddle point pdf is exact for these distributions
+    spa = UnivariateSaddlePointApprox(cgf)
+    x = dist.ppf([0.01, 0.3, 0.5, 0.9])
+    assert np.allclose(spa.pdf(x=x), dist.pdf(x), rtol=1e-6)

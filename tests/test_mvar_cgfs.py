@@ -1183,3 +1183,28 @@ def test_add_univariate_binds_operands():
     for val, exp in zip([s.K(t), s.dK(t), s.d2K(t)], expected):
         assert np.allclose(val, exp)
     assert np.allclose(expected[0], 0.25 + 1 + 0.5)
+
+
+def test_multivariate_list_and_numpy_scalar_algebra():
+    cgf = multivariate_norm(dim=2)
+    assert np.allclose((cgf - [1.0, 2.0]).mean, [-1, -2])
+    assert np.allclose((cgf + [1.0, 2.0]).mean, [1, 2])
+    assert np.allclose((cgf + np.int64(2)).mean, [2, 2])
+    assert np.allclose((cgf - np.int64(2)).mean, [-2, -2])
+    assert np.allclose((cgf * np.float32(2)).cov, 4 * np.eye(2))
+
+
+def test_multivariate_list_loc():
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=lambda t: np.sum(np.square(t), axis=-1) / 2, dim=2, loc=[1.0, 2.0]
+    )
+    assert np.allclose(cgf.dK0, [1, 2])
+    with pytest.raises(AssertionError, match="vector of length 2"):
+        cgf.loc = [1.0, 2.0, 3.0]
+
+
+def test_multivariate_K_returning_shape_one():
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=lambda t: np.atleast_1d(np.sum(np.square(t)) / 2), dim=2, loc=[1, 2]
+    )
+    assert np.allclose(cgf.K([1, 1]), 4)
