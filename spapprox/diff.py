@@ -54,12 +54,15 @@ def block_diag_3d(*tensors):
     """
     Equivalent to scipy.linalg.block_diag, but for 3d tensors.
     """
-    if not all(np.asanyarray(tensor).ndim == 3 for tensor in tensors):
+    if len(tensors) == 0:
+        raise ValueError("At least one tensor should be provided")
+    tensors = [np.asanyarray(tensor) for tensor in tensors]
+    if not all(tensor.ndim == 3 for tensor in tensors):
         raise ValueError("All tensors should be rank 3")
     # Determine the shape of the resulting tensor
     dim = sum(tensor.shape[0] for tensor in tensors)
     # Initialize the resulting tensor with zeros
-    result = np.zeros((dim, dim, dim), dtype=tensors[0].dtype)
+    result = np.zeros((dim, dim, dim), dtype=np.result_type(*tensors))
     # Place each input tensor along the diagonal
     current_index = 0
     for tensor in tensors:

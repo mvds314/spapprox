@@ -11,6 +11,7 @@ from spapprox.diff import (
     TensorDerivative,
     Tressian,
     _has_findiff,
+    block_diag_3d,
     transform_rank3_tensor,
 )
 
@@ -770,3 +771,15 @@ def test_tensor_derivatives_higher_acc():
         + 2 * np.einsum("i,j,k->ijk", p, p, p)
     )
     assert np.allclose(Tressian(lse, 2, acc=4, h=1e-2)(t), T, atol=1e-8)
+
+
+def test_block_diag_3d_dtype_and_inputs():
+    res = block_diag_3d(np.ones((1, 1, 1), int), 0.5 * np.ones((1, 1, 1)))
+    assert res.dtype == float
+    assert res[0, 0, 0] == 1 and res[1, 1, 1] == 0.5
+    assert res.sum() == 1.5
+    res = block_diag_3d([[[1.0]]], [[[2.0, 0], [0, 0]], [[0, 0], [0, 3.0]]])
+    assert res.shape == (3, 3, 3)
+    assert res[0, 0, 0] == 1 and res[1, 1, 1] == 2 and res[2, 2, 2] == 3
+    with pytest.raises(ValueError):
+        block_diag_3d()

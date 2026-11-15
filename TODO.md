@@ -517,12 +517,14 @@ Contract violations and silently wrong results in narrower situations.
   `test_basic[univariate laplace from multivariate]`. A scale-aware step would
   be needed to win in both regimes.
 
-### [ ] 33. `block_diag_3d` takes its dtype from the first tensor
+### [x] 33. `block_diag_3d` takes its dtype from the first tensor
 
 - **Where:** `spapprox/diff.py:63`
 - **Repro:** `block_diag_3d(np.ones((1, 1, 1), int), 0.5 * np.ones((1, 1, 1)))[1, 1, 1]`
   -> 0 (expected 0.5). Lists -> `AttributeError`; no arguments -> `IndexError`.
 - **Fix:** `np.result_type(*tensors)` and `np.asarray` on each input.
+- **Resolved:** applied as proposed, plus a `ValueError` for no arguments.
+  Regression test: `test_block_diag_3d_dtype_and_inputs` in `tests/test_diff.py`.
 
 ### [ ] 34. Singular-scale range check in multivariate `dK_inv` ignores `loc`
 
