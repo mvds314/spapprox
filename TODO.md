@@ -600,13 +600,15 @@ Contract violations and silently wrong results in narrower situations.
 - **Resolved (together with item 7):** ppf grid now lives in `_ppf_t_cache`.
   Regression test: `test_fit_ppf_and_saddle_point_eqn_caches_are_independent`.
 
-### [ ] 41. Interpolated `dK_inv` silently clamps outside the fitted grid
+### [x] 41. Interpolated `dK_inv` silently clamps outside the fitted grid
 
 - **Where:** `spapprox/spa.py:504`
 - **Repro:** `gamma(a=3)`, grid ends at `x=30`; after fitting, `pdf(x=40)` ->
   5.34e-15 vs 3.49e-15 unfitted (50% off).
 - **Fix:** `np.interp(..., left=np.nan, right=np.nan)` and fall back to the root
   solver.
+- **Resolved:** applied as proposed. Regression test:
+  `test_fitted_dK_inv_outside_grid_uses_solver` in `tests/test_spa.py`.
 
 ### [ ] 42. `laplace().dK_inv(0)` is `0/0`
 

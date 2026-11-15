@@ -515,3 +515,16 @@ def test_clear_cache_keeps_user_pdf_normalization():
     assert spa._pdf_normalization_cache is not None
     spa.clear_cache()
     assert not hasattr(spa, "_pdf_normalization_cache")
+
+
+def test_fitted_dK_inv_outside_grid_uses_solver():
+    spa = UnivariateSaddlePointApprox(gamma(a=3))
+    x = np.array([2.0, 40.0, 1e-3])
+    expected = spa.cgf.dK_inv(x)
+    spa.fit_saddle_point_eqn()
+    assert spa._x_cache[0] > x[2] and spa._x_cache[-1] < x[1]
+    t = spa._dK_inv(x)
+    assert np.allclose(t[1:], expected[1:])
+    assert np.isclose(t[0], expected[0], atol=1e-3)
+    assert np.isclose(spa._dK_inv(40.0), expected[1])
+    assert np.isclose(spa.pdf(x=40.0), sps.gamma(a=3).pdf(40), rtol=0.1)

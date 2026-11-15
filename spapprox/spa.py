@@ -552,7 +552,15 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
     @type_wrapper(xloc=1)
     def _dK_inv(self, x, **solver_kwargs):
         if hasattr(self, "_x_cache") and hasattr(self, "_t_cache"):
-            return np.interp(x, self._x_cache, self._t_cache)
+            x = np.asanyarray(x, dtype=float)
+            t = np.atleast_1d(
+                np.interp(x, self._x_cache, self._t_cache, left=np.nan, right=np.nan)
+            )
+            # Outside the fitted grid, fall back to the root solver instead of clamping
+            outside = np.atleast_1d((x < self._x_cache[0]) | (x > self._x_cache[-1]))
+            if np.any(outside):
+                t[outside] = super()._dK_inv(np.atleast_1d(x)[outside], **solver_kwargs)
+            return t.reshape(x.shape)
         else:
             return super()._dK_inv(x, **solver_kwargs)
 
