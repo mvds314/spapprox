@@ -449,13 +449,15 @@ Contract violations and silently wrong results in narrower situations.
   `test_invalid_bound_combinations`, `test_intersect_mixed_strictness` in
   `tests/test_domain.py`.
 
-### [ ] 28. List bounds are only converted to arrays when several are given
+### [x] 28. List bounds are only converted to arrays when several are given
 
 - **Where:** `spapprox/domain.py:62-65`
 - **Repro:** `d = Domain(dim=2, l=[1, 2])`: `d + 1` -> `TypeError` (list
   concatenation); `d * 2` -> `AssertionError` (list repeated); `d.l_vect`,
   `d.stack(...)` -> `ValueError`.
 - **Fix:** convert outside the `len(specified_bounds) > 1` block.
+- **Resolved:** applied as proposed. Regression test:
+  `test_single_list_bound_converted_to_array` in `tests/test_domain.py`.
 
 ### [ ] 29. `Domain.ldotinv` with a 1-D `C` calls `ldot`
 

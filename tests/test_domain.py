@@ -352,3 +352,14 @@ if __name__ == "__main__":
                 "-s",
             ]
         )
+
+
+@pytest.mark.parametrize("bound", ["l", "le", "g", "ge"])
+def test_single_list_bound_converted_to_array(bound):
+    dom = Domain(dim=2, **{bound: [1, 2]})
+    assert isinstance(getattr(dom, bound), np.ndarray)
+    np.testing.assert_array_equal(getattr(dom, f"{bound}_vect"), [1, 2])
+    np.testing.assert_array_equal(getattr(dom + 1, bound), [2, 3])
+    np.testing.assert_array_equal(getattr(dom * 2, bound), [2, 4])
+    stacked = dom.stack(Domain(dim=2))
+    np.testing.assert_array_equal(getattr(stacked, f"{bound}_vect"), [1, 2, np.nan, np.nan])

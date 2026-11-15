@@ -44,12 +44,10 @@ class Domain:
             assert all(x is None or np.isscalar(x) or len(x) == dim for x in [l, le, ge, g]), (
                 "Bounds should be scalars or have matching dim"
             )
-            specified_bounds = [x for x in [l, le, ge, g] if x is not None]
-            if len(specified_bounds) > 1:
-                l = np.asanyarray(l) if l is not None and not np.isscalar(l) else l  # noqa: E741
-                g = np.asanyarray(g) if g is not None and not np.isscalar(g) else g
-                le = np.asanyarray(le) if le is not None and not np.isscalar(le) else le
-                ge = np.asanyarray(ge) if ge is not None and not np.isscalar(ge) else ge
+            l = np.asanyarray(l) if l is not None and not np.isscalar(l) else l  # noqa: E741
+            g = np.asanyarray(g) if g is not None and not np.isscalar(g) else g
+            le = np.asanyarray(le) if le is not None and not np.isscalar(le) else le
+            ge = np.asanyarray(ge) if ge is not None and not np.isscalar(ge) else ge
         for lower in [g, ge]:
             for upper in [l, le]:
                 if lower is not None and upper is not None:
