@@ -1737,7 +1737,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 assert isinstance(scale_inv, np.ndarray) and scale_inv.ndim == 2, (
                     "The (pseudo)-inverse should be matrix"
                 )
-                if not np.allclose(scale.dot(scale_inv.dot(x - loc)), x):
+                if not np.allclose(scale.dot(scale_inv.dot(x - loc)), x - loc):
                     return np.full(self.dim, fillna)
             # Proceed with finding a solution numerically
             kwargs["x0"] = np.zeros(x.shape) if t0 is None else np.asanyarray(t0)

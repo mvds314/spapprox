@@ -1116,3 +1116,13 @@ def test_from_cgfs_mixed_dims_cached_cumulants(gamma_first):
     assert np.allclose(mcgf.dK0, dK0)
     assert np.allclose(mcgf.d2K0, d2K0)
     assert np.allclose(mcgf.d3K0, d3K0)
+
+
+@pytest.mark.parametrize("loc", [np.zeros(2), np.ones(2), np.array([1.0, -2.0])])
+def test_dK_inv_singular_scale_with_loc(loc):
+    cgf = multivariate_norm(dim=2).ldot([[1, 1], [1, 1]]) + loc
+    for x in [loc + 1, loc - 3]:
+        t = cgf.dK_inv(x)
+        assert np.allclose(cgf.dK(t), x)
+    # x - loc outside the range of the scale: no solution
+    assert np.all(np.isnan(cgf.dK_inv(loc + np.array([1.0, 2.0]))))

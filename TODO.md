@@ -526,12 +526,14 @@ Contract violations and silently wrong results in narrower situations.
 - **Resolved:** applied as proposed, plus a `ValueError` for no arguments.
   Regression test: `test_block_diag_3d_dtype_and_inputs` in `tests/test_diff.py`.
 
-### [ ] 34. Singular-scale range check in multivariate `dK_inv` ignores `loc`
+### [x] 34. Singular-scale range check in multivariate `dK_inv` ignores `loc`
 
 - **Where:** `spapprox/cgf_base.py:1720`
 - **Repro:** `(multivariate_norm(dim=2).ldot([[1, 1], [1, 1]]) + [1, 1]).dK_inv([2, 2])`
   -> `[nan, nan]` (a valid `t` exists; works with `loc=0`).
 - **Fix:** `np.allclose(scale @ scale_inv @ (x - loc), x - loc)`.
+- **Resolved:** applied as proposed. Regression test:
+  `test_dK_inv_singular_scale_with_loc` in `tests/test_mvar_cgfs.py`.
 
 ### [ ] 35. Numerical derivatives use `self.dim` instead of `self.domain.dim`
 
