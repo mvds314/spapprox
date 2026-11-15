@@ -283,6 +283,50 @@ def test_ldotinv_vector_matches_column(dom):
     np.testing.assert_array_equal(dom.ldotinv(C[:, None]).is_in_domain(ys), expected)
 
 
+@pytest.mark.parametrize(
+    "dom",
+    [
+        Domain(dim=2, l=1),
+        Domain(dim=2, l=[1, np.nan], ge=-1),
+        Domain(dim=2, le=[1, 2], g=[-1, 0]),
+        Domain(dim=2, l=1, le=0.5, ge=-1),
+    ],
+)
+@pytest.mark.parametrize(
+    "C",
+    [
+        -np.eye(2),
+        np.array([[1.0, -2.0], [0.5, 1.0]]),
+        np.array([[1.0, -1.0]]),
+        np.array([-1.0, -2.0]),
+        np.array([[1.0, 1.0], [1.0, -1.0], [0.0, -3.0]]),
+    ],
+)
+def test_ldot_matches_image(dom, C):
+    res = dom.ldot(C)
+    Cm = np.atleast_2d(C)
+    # Offset avoids grid points on the boundary, where roundoff decides membership
+    grid = np.linspace(-3, 3, 61) + 0.0123
+    x = np.stack(np.meshgrid(grid, grid), axis=-1).reshape(-1, 2)
+    y = x @ Cm.T
+    if Cm.shape[0] == 1:
+        y = y[:, 0]
+    # Every image point of the domain should be in the transformed domain
+    assert np.all(res.is_in_domain(y)[dom.is_in_domain(x)])
+    if Cm.shape[0] == Cm.shape[1]:
+        # Invertible: exact domain
+        np.testing.assert_array_equal(res.is_in_domain(y), dom.is_in_domain(x))
+    else:
+        # Interval bounds are attained (or approached) at the corners of the box
+        for i in range(Cm.shape[0]):
+            yi = (x @ Cm.T)[dom.is_in_domain(x), i]
+            for bound, f in [("l", max), ("le", max), ("g", min), ("ge", min)]:
+                b = getattr(res, f"{bound}_vect")[i]
+                if not np.isnan(b):
+                    tol = 0.11 * np.abs(Cm[i]).sum()
+                    assert f(yi) == pytest.approx(b, abs=tol)
+
+
 @pytest.mark.parametrize("ge", [1.0, -1.0, np.array([1.0, -2.0])])
 def test_ldotinv_ge_bound(ge):
     dom = Domain(dim=2, ge=ge)

@@ -112,16 +112,16 @@ counterpart here, so domains propagate automatically instead of being recomputed
 | `add(other)` / `+`, `-` | shifting a CGF by a constant |
 | `mul(other)` / `*` | scaling a CGF |
 | `intersect(other)` | `cgf1 + cgf2` -- the sum is finite only where both are |
-| `ldot(A)` | `mcgf.ldot(A)` |
-| `ldotinv(A)` | the inverse map, used when undoing a scale transform |
+| `ldot(C)` | domain of `y = C x` (not used by the CGF classes) |
+| `ldotinv(C)` | `{y : C y in D}`; used by `mcgf.ldot(A)` and scale transforms (t-domain maps through `C = A^T`) |
 | `stack(other)` / `from_domains(*domains)` | stacking CGFs into a random vector |
 
 Transforming a box under a general linear map does not stay a box, which is why
-`Domain` carries the `A x <= a` / `B x < b` machinery at all. Be aware that
-`ldot` is the weakest link here -- its own docstring notes that `A` need not be
-invertible (so the transform is sometimes impossible) and that combining several
-bounds into one **can enlarge the domain**. Treat a `ldot`-derived domain as a
-superset, not an exact answer.
+`Domain` carries the `A x <= a` / `B x < b` machinery at all. `ldotinv` is
+exact. `ldot` is exact only for square invertible `C` (it routes through
+`ldotinv(inv(C))`); otherwise it supports bound-only domains and bounds each
+output component separately by sign-aware interval arithmetic, so the result
+**is a superset** of the true domain, not an exact answer.
 
 When adding a distribution to `cgfs.py`, supply a `Domain` whenever the CGF is
 not finite on all of $\mathbb{R}$ -- otherwise `PartialDerivative` will happily

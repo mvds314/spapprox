@@ -469,7 +469,7 @@ Contract violations and silently wrong results in narrower situations.
   `test_ldotinv_vector_matches_column` in `tests/test_domain.py` (compares with
   the definition `C y in D` pointwise).
 
-### [ ] 30. `Domain.ldot` ignores negative entries of `C`
+### [x] 30. `Domain.ldot` ignores negative entries of `C`
 
 - **Where:** `spapprox/domain.py:330-360`
 - **What:** the result is not even a superset of the true domain; it can be
@@ -478,6 +478,11 @@ Contract violations and silently wrong results in narrower situations.
   domain is `y > -1`.
 - **Fix:** route through `ldotinv(inv(C))` when invertible; otherwise combine
   `C+ @ upper` and `C- @ lower` per output component.
+- **Resolved:** applied as proposed. The interval path uses the tightest of the
+  strict/inclusive bounds per input component and marks an output bound strict
+  if any contributing bound is. Regression test: `test_ldot_matches_image` in
+  `tests/test_domain.py` (exact for invertible `C`; superset with attained
+  bounds otherwise).
 
 ### [ ] 31. `PartialDerivative` with `acc > 2` always crashes
 

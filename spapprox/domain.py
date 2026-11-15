@@ -304,58 +304,73 @@ class Domain:
         Left side dot product. Leads to the domain of :math:`y=Cx`.
         This extends the multiplication (scaling) functionality to generic linear transformations.
 
-        As :math:`A` is not necessarily invertible, sometimes this transformation is not possible.
+        If :math:`C` is square and invertible, the exact domain
+        :math:`\{y: C^{-1}y\in D\}` is returned via :meth:`ldotinv`.
 
-        Also, note that this might expand the domain, as several bounds are combined into one.
-
-        Not completely sure how useful this is.
+        Otherwise, only bound constraints are supported, and every component of :math:`y`
+        is bounded with interval arithmetic: with :math:`C^+` and :math:`C^-` the positive
+        and negative parts of :math:`C`, the upper bound is :math:`C^+u + C^-\ell` and the
+        lower bound :math:`C^+\ell + C^-u`, where :math:`u` and :math:`\ell` are the tightest
+        upper and lower bounds of :math:`x`. A bound is strict if any contributing bound is.
+        The result is a superset of the true domain, as the components are bounded separately.
         """
         assert other is not None
-        other = np.asanyarray(other)
-        if self.has_ineq_constraints:
-            try:
-                inv = np.linalg.inv(other)
-            except np.linalg.LinAlgError:
-                raise Exception(
-                    "Provided transformation must be invertible for domains with ineq constraints"
-                )
-            return self.ldotinv(inv)
-        elif other.ndim == 1 and len(other) == self.dim:
-            return self.ldot(np.atleast_2d(other))
-        elif other.ndim == 2 and other.shape[1] == self.dim:
-            if self.l is None:
-                l = None  # noqa: E741
-            elif np.isscalar(self.l):
-                l = other.dot(np.full(self.dim, self.l))  # noqa: E741
-            else:
-                l = other.dot(self.l)  # noqa: E741
-            if self.g is None:
-                g = None
-            elif np.isscalar(self.g):
-                g = other.dot(np.full(self.dim, self.g))
-            else:
-                g = other.dot(self.g)
-            if self.le is None:
-                le = None
-            elif np.isscalar(self.le):
-                le = other.dot(np.full(self.dim, self.le))
-            else:
-                le = other.dot(self.le)
-            if self.ge is None:
-                ge = None
-            elif np.isscalar(self.ge):
-                ge = other.dot(np.full(self.dim, self.ge))
-            else:
-                ge = other.dot(self.ge)
-            dim = other.shape[0] if other.ndim == 2 else 1
-            if dim == 1:
-                l = l[0] if l is not None else None  # noqa: E741
-                g = g[0] if g is not None else None
-                le = le[0] if le is not None else None
-                ge = ge[0] if ge is not None else None
-            return Domain(l=l, g=g, le=le, ge=ge, A=None, a=None, B=None, b=None, dim=dim)
-        else:
+        other = np.asanyarray(other, dtype=float)
+        if other.ndim == 1 and len(other) == self.dim:
+            return self.ldot(other[None, :])
+        if other.ndim != 2 or other.shape[1] != self.dim:
             raise ValueError("Invalid shape")
+        if other.shape[0] == self.dim:
+            try:
+                return self.ldotinv(np.linalg.inv(other))
+            except np.linalg.LinAlgError:
+                pass
+        if self.has_ineq_constraints:
+            raise Exception(
+                "Provided transformation must be invertible for domains with ineq constraints"
+            )
+        dim = other.shape[0]
+        if not self.has_bounds:
+            return Domain(dim=dim)
+        # Tightest bounds of x, and whether they are strict; nan means no bound
+        upper = np.fmin(self.l_vect, self.le_vect)
+        upper_strict = ~np.isnan(self.l_vect) & (
+            np.isnan(self.le_vect) | (self.l_vect <= self.le_vect)
+        )
+        upper = np.where(np.isnan(upper), np.inf, upper)
+        lower = np.fmax(self.g_vect, self.ge_vect)
+        lower_strict = ~np.isnan(self.g_vect) & (
+            np.isnan(self.ge_vect) | (self.g_vect >= self.ge_vect)
+        )
+        lower = np.where(np.isnan(lower), -np.inf, lower)
+        pos, neg = other > 0, other < 0
+        with np.errstate(invalid="ignore"):
+            y_upper = np.where(pos, other * upper, 0).sum(axis=1) + np.where(
+                neg, other * lower, 0
+            ).sum(axis=1)
+            y_lower = np.where(pos, other * lower, 0).sum(axis=1) + np.where(
+                neg, other * upper, 0
+            ).sum(axis=1)
+        y_upper_strict = ((pos & upper_strict) | (neg & lower_strict)).any(axis=1)
+        y_lower_strict = ((pos & lower_strict) | (neg & upper_strict)).any(axis=1)
+
+        def _split(bound, strict):
+            finite = np.isfinite(bound)
+            res_strict = np.where(finite & strict, bound, np.nan)
+            res_incl = np.where(finite & ~strict, bound, np.nan)
+            out = []
+            for res in (res_strict, res_incl):
+                if np.all(np.isnan(res)):
+                    out.append(None)
+                elif dim == 1:
+                    out.append(float(res[0]))
+                else:
+                    out.append(res)
+            return out
+
+        l, le = _split(y_upper, y_upper_strict)  # noqa: E741
+        g, ge = _split(y_lower, y_lower_strict)
+        return Domain(l=l, g=g, le=le, ge=ge, dim=dim)
 
     def ldotinv(self, other):
         """
