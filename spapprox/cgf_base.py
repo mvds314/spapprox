@@ -1346,17 +1346,25 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 )
         elif isinstance(other, UnivariateCumulantGeneratingFunction):
             assert not inplace, "inplace not supported for UnivariateCumulantGeneratingFunction"
+            # Bind loc and scale at construction, so later changes to the operands don't leak in
+            ls, ss, lo, so = self.loc, self.scale, other.loc, other.scale
             return MultivariateCumulantGeneratingFunction(
-                lambda t: self.K(t) + other.K(np.sum(t, axis=-1)),
+                lambda t: self.K(t, loc=ls, scale=ss) + other.K(np.sum(t, axis=-1), loc=lo, scale=so),
                 dim=self.dim,
                 dK=lambda t: np.apply_along_axis(
-                    lambda x: np.add(x, other.dK(np.sum(t, axis=-1))), 0, self.dK(t)
+                    lambda x: np.add(x, other.dK(np.sum(t, axis=-1), loc=lo, scale=so)),
+                    0,
+                    self.dK(t, loc=ls, scale=ss),
                 ),
                 d2K=lambda t: np.apply_along_axis(
-                    lambda x: np.add(x, other.d2K(np.sum(t, axis=-1))), 0, self.d2K(t)
+                    lambda x: np.add(x, other.d2K(np.sum(t, axis=-1), loc=lo, scale=so)),
+                    0,
+                    self.d2K(t, loc=ls, scale=ss),
                 ),
                 d3K=lambda t: np.apply_along_axis(
-                    lambda x: np.add(x, other.d3K(np.sum(t, axis=-1))), 0, self.d3K(t)
+                    lambda x: np.add(x, other.d3K(np.sum(t, axis=-1), loc=lo, scale=so)),
+                    0,
+                    self.d3K(t, loc=ls, scale=ss),
                 ),
                 # Extract scaled derivatives and pass them if unscaled derivatives are already computed
                 dK0=(

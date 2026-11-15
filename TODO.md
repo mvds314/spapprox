@@ -566,7 +566,7 @@ Contract violations and silently wrong results in narrower situations.
 - **Resolved:** applied as proposed. Regression test:
   `test_add_not_inplace_by_default` in `tests/test_mvar_cgfs.py`.
 
-### [ ] 38. Multivariate + univariate `add` late-binds `self`
+### [x] 38. Multivariate + univariate `add` late-binds `self`
 
 - **Where:** `spapprox/cgf_base.py:1332-1341`
 - **What:** the lambdas read `self.loc`/`self.scale` at call time, so mutating
@@ -575,6 +575,9 @@ Contract violations and silently wrong results in narrower situations.
   -> `10.75`.
 - **Fix:** capture as lambda defaults, like the multivariate + multivariate
   branch.
+- **Resolved:** `loc`/`scale` of both operands are bound at construction and
+  passed explicitly (the univariate `other` late-bound too). Regression test:
+  `test_add_univariate_binds_operands` in `tests/test_mvar_cgfs.py`.
 
 ### [ ] 39. `clear_cache` evaluates every property
 

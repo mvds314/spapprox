@@ -1172,3 +1172,14 @@ def test_add_not_inplace_by_default():
     # Explicit inplace still works for constants
     assert cgf.add(np.array([1, 2]), inplace=True) is cgf
     assert np.allclose(cgf.loc, [1, 2])
+
+
+def test_add_univariate_binds_operands():
+    a, b = multivariate_norm(dim=2), norm(loc=1)
+    s = a + b
+    t = np.array([0.5, 0.5])
+    expected = [s.K(t), s.dK(t), s.d2K(t)]
+    a.loc, a.scale, b.loc, b.scale = np.array([10.0, 10.0]), 2.0, 5.0, 3.0
+    for val, exp in zip([s.K(t), s.dK(t), s.d2K(t)], expected):
+        assert np.allclose(val, exp)
+    assert np.allclose(expected[0], 0.25 + 1 + 0.5)
