@@ -1126,3 +1126,19 @@ def test_dK_inv_singular_scale_with_loc(loc):
         assert np.allclose(cgf.dK(t), x)
     # x - loc outside the range of the scale: no solution
     assert np.all(np.isnan(cgf.dK_inv(loc + np.array([1.0, 2.0]))))
+
+
+@pytest.mark.skipif(not has_findiff, reason="No findiff")
+@pytest.mark.parametrize("backend", ["numdifftools", "findiff"])
+def test_numerical_derivatives_of_projection(backend):
+    # Y = X1 + X2 with X1, X2 iid standard exponential, K_Y(t) = -2 log(1 - t)
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=lambda t: -np.sum(np.log(1 - np.asarray(t)), axis=-1),
+        dim=2,
+        domain=Domain(dim=2, l=1),
+        numdiff_backend=backend,
+    ).ldot(np.array([[1.0, 1.0]]))
+    t = np.array([0.2])
+    assert np.allclose(cgf.dK(t), 2 / (1 - t), rtol=1e-5)
+    assert np.allclose(cgf.d2K(t), 2 / (1 - t) ** 2, rtol=1e-5)
+    assert np.allclose(cgf.d3K(t), 4 / (1 - t) ** 3, rtol=1e-3)

@@ -1619,7 +1619,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         raise ValueError("Invalid shape")
 
             elif self._numdiff_backend == "findiff":
-                _dK = Gradient(lambda tt: self.K(tt, loc=0, scale=1), self.dim)
+                _dK = Gradient(lambda tt: self.K(tt, loc=0, scale=1), self.domain.dim)
             else:
                 raise ValueError("Invalid numdiff backend")
             self._dK = _dK
@@ -1806,7 +1806,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                 )
             elif self._numdiff_backend == "findiff":
                 assert self.dim > 0
-                _d2K = Hessian(lambda tt: self.K(tt, loc=0, scale=1), self.dim)
+                _d2K = Hessian(lambda tt: self.K(tt, loc=0, scale=1), self.domain.dim)
             else:
                 raise ValueError("Invalid numdiff backend")
             self._d2K = _d2K
@@ -1870,7 +1870,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             t = np.full(self.dim, t)
         if self._d3K is None:
             # TODO: implement also with numdifftools backend?
-            self._d3K = Tressian(lambda tt: self.K(tt, loc=0, scale=1), self.dim)
+            self._d3K = Tressian(lambda tt: self.K(tt, loc=0, scale=1), self.domain.dim)
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
         assert self._d3K is not None, "d3K must be specified"

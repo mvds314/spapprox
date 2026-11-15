@@ -535,7 +535,7 @@ Contract violations and silently wrong results in narrower situations.
 - **Resolved:** applied as proposed. Regression test:
   `test_dK_inv_singular_scale_with_loc` in `tests/test_mvar_cgfs.py`.
 
-### [ ] 35. Numerical derivatives use `self.dim` instead of `self.domain.dim`
+### [x] 35. Numerical derivatives use `self.dim` instead of `self.domain.dim`
 
 - **Where:** `spapprox/cgf_base.py:1602`, `1789`, `1853`
 - **What:** breaks projections where the underlying dimension differs.
@@ -543,6 +543,9 @@ Contract violations and silently wrong results in narrower situations.
   with findiff, `dK`/`d2K`/`d3K` raise "Dimensions do not match"; with
   numdifftools, `d3K` does.
 - **Fix:** pass `self.domain.dim`.
+- **Resolved:** applied as proposed for `Gradient`, `Hessian` and `Tressian`.
+  Regression test: `test_numerical_derivatives_of_projection` in
+  `tests/test_mvar_cgfs.py`.
 
 ### [ ] 36. `from_cgfs` with only univariate inputs drops keyword arguments
 
