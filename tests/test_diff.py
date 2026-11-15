@@ -735,3 +735,38 @@ def test_transform_rank3_tensor_axis_order():
     assert np.allclose(
         transform_rank3_tensor(T, v, A, A), np.einsum("il,jm,kn,lmn->ijk", np.diag(v), A, A, T)
     )
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+@pytest.mark.parametrize("order", [1, 2, 3])
+def test_partial_derivative_higher_acc(order):
+    errors = [
+        abs(PartialDerivative(np.exp, order, acc=acc, h=1e-2)(0.3) - np.exp(0.3))
+        for acc in [2, 4, 6]
+    ]
+    assert errors[0] < 1e-4
+    assert errors[1] < errors[0] / 100
+    assert errors[2] < 1e-8
+    # One-sided stencils near the boundary of the domain
+    f = lambda t: np.where(np.asarray(t) < 0.31, np.exp(t), np.nan)  # noqa: E731
+    assert PartialDerivative(f, order, acc=4, h=1e-2)(0.3) == pytest.approx(np.exp(0.3), rel=1e-6)
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+def test_tensor_derivatives_higher_acc():
+    def lse(t):
+        return np.log(np.exp(np.asarray(t)).sum(axis=-1))
+
+    t = np.array([0.1, 0.2])
+    p = np.exp(t) / np.exp(t).sum()
+    H = np.diag(p) - np.outer(p, p)
+    assert np.allclose(Hessian(lse, 2, acc=4, h=1e-2)(t), H, atol=1e-8)
+    d = np.eye(2)
+    T = (
+        np.einsum("ij,jk,i->ijk", d, d, p)
+        - np.einsum("ij,i,k->ijk", d, p, p)
+        - np.einsum("ik,i,j->ijk", d, p, p)
+        - np.einsum("jk,i,j->ijk", d, p, p)
+        + 2 * np.einsum("i,j,k->ijk", p, p, p)
+    )
+    assert np.allclose(Tressian(lse, 2, acc=4, h=1e-2)(t), T, atol=1e-8)

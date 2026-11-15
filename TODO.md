@@ -484,7 +484,7 @@ Contract violations and silently wrong results in narrower situations.
   `tests/test_domain.py` (exact for invertible `C`; superset with attained
   bounds otherwise).
 
-### [ ] 31. `PartialDerivative` with `acc > 2` always crashes
+### [x] 31. `PartialDerivative` with `acc > 2` always crashes
 
 - **Where:** `spapprox/diff.py:173`
 - **What:** grid size is `2*order+1` regardless of `acc`.
@@ -492,6 +492,12 @@ Contract violations and silently wrong results in narrower situations.
   (broadcast); `Tressian(..., acc=4)` -> `IndexError`.
 - **Fix:** size the grid from `acc` (e.g. `2*((order+1)//2 - 1 + acc//2) + 1`)
   plus one-sided headroom.
+- **Resolved:** findiff applies the stencil to the whole grid (forward/backward
+  stencils at the edges), which needs `center_half + forward_max` points; the
+  half-width is now derived from `fd.coefficients(order, acc)` (at least
+  `order`, so `acc=2` grids are unchanged). Regression tests:
+  `test_partial_derivative_higher_acc`, `test_tensor_derivatives_higher_acc` in
+  `tests/test_diff.py`.
 
 ### [ ] 32. Default finite-difference step is poorly chosen
 

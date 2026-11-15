@@ -161,15 +161,29 @@ class PartialDerivative:
             self._orders = tuple(int(i) for i in orders)
 
     @property
-    def _max_order(self):
-        if not hasattr(self, "_max_order_cache"):
-            self._max_order_cache = int(np.max(self.orders))
-        return self._max_order_cache
+    def _half_width(self):
+        """
+        Number of grid points on each side of the evaluation point.
+
+        Findiff applies the stencil on the whole grid, using forward (backward) stencils
+        at the boundaries, which requires a grid of at least ``center_half + forward_max``
+        points. The grid also has at least ``order`` points on each side.
+        """
+        if not hasattr(self, "_half_width_cache"):
+            half = 0
+            for order in set(np.atleast_1d(self.orders)):
+                if order == 0:
+                    continue
+                coefs = fd.coefficients(int(order), self.acc)
+                min_size = max(coefs["center"]["offsets"]) + max(coefs["forward"]["offsets"])
+                half = max(half, int(order), int(np.ceil((min_size - 1) / 2)))
+            self._half_width_cache = half
+        return self._half_width_cache
 
     @property
     def _grid_size(self):
         if not hasattr(self, "_grid_size_cache"):
-            self._grid_size_cache = 2 * self._max_order + 1
+            self._grid_size_cache = 2 * self._half_width + 1
         return self._grid_size_cache
 
     @property
@@ -220,38 +234,38 @@ class PartialDerivative:
         if not (t.ndim == self.dim == 0 or len(t) == self.dim):
             raise ValueError("Dimensions do not match")
         # Use central differences by default
-        sel = [self._max_order] * self.dim if self.dim > 0 else [self._max_order]
-        x = np.array([t + i * self.h for i in range(-self._max_order, self._max_order + 1)]).T
+        sel = [self._half_width] * self.dim if self.dim > 0 else [self._half_width]
+        x = np.array([t + i * self.h for i in range(-self._half_width, self._half_width + 1)]).T
         # But adjust if t-h or t+h is not in the domain (for any of the components)
         if np.isnan(self.f(x.T)).any():
             assert not np.isnan(self.f(np.zeros_like(t))), "Zeros is asserted to be in the domain"
             if self.dim == 0:
                 fx = self.f(x)
-                if np.isnan(fx[self._max_order]):
+                if np.isnan(fx[self._half_width]):
                     raise AssertionError("Cannot be none at point to be evaluated")
-                if np.isnan(fx[: self._max_order]).any():
+                if np.isnan(fx[: self._half_width]).any():
                     # Shift to the right
-                    if np.isnan(fx[self._max_order :]).any():
+                    if np.isnan(fx[self._half_width :]).any():
                         raise AssertionError(
-                            f"Either t - {self._max_order}h up to t, or t up to t + {self._max_order}h should be in the domain"
+                            f"Either t - {self._half_width}h up to t, or t up to t + {self._half_width}h should be in the domain"
                         )
                     shift = next(
                         i
-                        for i in range(self._max_order + 1)
-                        if not np.isnan(fx[i : self._max_order]).any()
+                        for i in range(self._half_width + 1)
+                        if not np.isnan(fx[i : self._half_width]).any()
                     )
                     sel[0] += -shift
                     x += self.h * shift
                 elif np.isnan(fx[-1]):
                     # Shift to the left
-                    if np.isnan(fx[: self._max_order]).any():
+                    if np.isnan(fx[: self._half_width]).any():
                         raise AssertionError(
-                            f"Either t - {self._max_order}h up to t, or t up to t + {self._max_order}h should be in the domain"
+                            f"Either t - {self._half_width}h up to t, or t up to t + {self._half_width}h should be in the domain"
                         )
                     shift = next(
                         i
-                        for i in range(self._max_order + 1)
-                        if not np.isnan(fx[self._max_order : self._grid_size - i]).any()
+                        for i in range(self._half_width + 1)
+                        if not np.isnan(fx[self._half_width : self._grid_size - i]).any()
                     )
                     # Shift to the left
                     sel[0] += shift
@@ -264,34 +278,34 @@ class PartialDerivative:
                     xx[:, i] = x[i]
                     fxx = self.f(xx)
                     assert len(fxx) == self._grid_size, (
-                        f"f is assumed to be scalar, {self._grid_size} retvals are expected when feeding t-{self._max_order}h,.., t,.. t+{self._max_order}h"
+                        f"f is assumed to be scalar, {self._grid_size} retvals are expected when feeding t-{self._half_width}h,.., t,.. t+{self._half_width}h"
                     )
                     if not np.isnan(fxx).any():
                         continue
-                    if np.isnan(fxx[self._max_order]).any():
+                    if np.isnan(fxx[self._half_width]).any():
                         raise AssertionError("Domain is assumed to be rectangular")
-                    if np.isnan(fxx[: self._max_order]).any():
+                    if np.isnan(fxx[: self._half_width]).any():
                         # Shift to the right
-                        if np.isnan(fxx[self._max_order :]).any():
+                        if np.isnan(fxx[self._half_width :]).any():
                             raise AssertionError(
-                                f"Either t - {self._max_order}h up to t, or t up to t + {self._max_order}h should be in the domain"
+                                f"Either t - {self._half_width}h up to t, or t up to t + {self._half_width}h should be in the domain"
                             )
                         shift = next(
                             i
-                            for i in range(self._max_order + 1)
-                            if not np.isnan(fxx[i : self._max_order]).any()
+                            for i in range(self._half_width + 1)
+                            if not np.isnan(fxx[i : self._half_width]).any()
                         )
                         sel[i] += -shift
                         x[i] += self.h * shift
                     elif np.isnan(fxx[-1]).any():
-                        if np.isnan(fxx[: self._max_order]).any():
+                        if np.isnan(fxx[: self._half_width]).any():
                             raise AssertionError(
-                                f"Either t - {self._max_order}h up to t, or t up to t + {self._max_order}h should be in the domain"
+                                f"Either t - {self._half_width}h up to t, or t up to t + {self._half_width}h should be in the domain"
                             )
                         shift = next(
                             i
-                            for i in range(self._max_order + 1)
-                            if not np.isnan(fxx[self._max_order : self._grid_size - i]).any()
+                            for i in range(self._half_width + 1)
+                            if not np.isnan(fxx[self._half_width : self._grid_size - i]).any()
                         )
                         # Shift to the left
                         sel[i] += shift
