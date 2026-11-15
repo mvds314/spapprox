@@ -15,6 +15,7 @@ from spapprox import (
     Domain,
     MultivariateCumulantGeneratingFunction,
     UnivariateCumulantGeneratingFunction,
+    UnivariateSaddlePointApprox,
     binomial,
     bivariate_gamma,
     chi2,
@@ -1014,3 +1015,14 @@ if __name__ == "__main__":
                 # "-m tofix",
             ]
         )
+
+
+@pytest.mark.parametrize("loc, scale", [(0, 1), (2, 3)])
+def test_laplace_dK_inv_at_mean(loc, scale):
+    cgf = laplace(loc=loc, scale=scale)
+    assert cgf.dK_inv(loc) == 0
+    x = loc + scale * np.array([-1e8, -2.0, -1e-10, 1e-10, 0.5, 1e8])
+    assert np.allclose(cgf.dK(cgf.dK_inv(x)), x, rtol=1e-8)
+    spa = UnivariateSaddlePointApprox(cgf)
+    assert np.isclose(spa.cdf(x=loc), 0.5)
+    assert np.isclose(spa.pdf(x=loc), spa.pdf(t=0))

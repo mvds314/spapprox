@@ -610,12 +610,14 @@ Contract violations and silently wrong results in narrower situations.
 - **Resolved:** applied as proposed. Regression test:
   `test_fitted_dK_inv_outside_grid_uses_solver` in `tests/test_spa.py`.
 
-### [ ] 42. `laplace().dK_inv(0)` is `0/0`
+### [x] 42. `laplace().dK_inv(0)` is `0/0`
 
 - **Where:** `spapprox/cgfs.py:231`
 - **What:** `cdf(x=0)` and `pdf(x=0)` -> `nan` (cdf should be 0.5); same at
   `x=loc`.
 - **Fix:** `x / (1 + sqrt(1 + x**2))` -- stable and 0 at 0.
+- **Resolved:** applied as proposed. Regression test:
+  `test_laplace_dK_inv_at_mean` in `tests/test_cgfs.py`.
 
 ---
 

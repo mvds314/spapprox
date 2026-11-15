@@ -236,7 +236,7 @@ def laplace(loc=0, scale=1):
     return UnivariateCumulantGeneratingFunction(
         K=lambda t: -np.log(1 - t**2),
         dK=lambda t: 2 * t / (1 - t**2),
-        dK_inv=lambda x: (1 - np.sqrt(1 + x**2)) / (-1 * x),
+        dK_inv=lambda x: x / (1 + np.sqrt(1 + x**2)),
         d2K=lambda t: 2 * (1 + t**2) / (1 - t**2) ** 2,
         d3K=lambda t: 4 * t * (3 + t**2) / (1 - t**2) ** 3,
         domain=Domain(g=-1, l=1),
