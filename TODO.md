@@ -556,13 +556,15 @@ Contract violations and silently wrong results in narrower situations.
 - **Resolved:** applied as proposed. Regression test:
   `test_from_cgfs_univariate_forwards_kwargs` in `tests/test_mvar_cgfs.py`.
 
-### [ ] 37. Multivariate `add` defaults to `inplace=True`
+### [x] 37. Multivariate `add` defaults to `inplace=True`
 
 - **Where:** `spapprox/cgf_base.py:1278`
 - **What:** univariate `add` defaults to `False`. `c.add(np.array([1, 1]))`
   mutates `c.loc` and returns `c`; `c.add(other_mcgf)` ->
   `AssertionError: inplace not supported`.
 - **Fix:** default `inplace=False`.
+- **Resolved:** applied as proposed. Regression test:
+  `test_add_not_inplace_by_default` in `tests/test_mvar_cgfs.py`.
 
 ### [ ] 38. Multivariate + univariate `add` late-binds `self`
 

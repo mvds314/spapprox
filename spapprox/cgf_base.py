@@ -1293,7 +1293,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         else:
             raise ValueError("Invalid index")
 
-    def add(self, other, inplace=True):
+    def add(self, other, inplace=False):
         r"""
         We use the following properties of the cumulant generating function
         for independent random vectors :math:`X` and :math:`Y`:

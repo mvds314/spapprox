@@ -1156,3 +1156,19 @@ def test_from_cgfs_univariate_forwards_kwargs():
     assert np.allclose(mcgf.dK0, [1, 2])
     assert np.allclose(mcgf.d2K0, 7 * np.eye(2))
     assert mcgf._numdiff_backend == "findiff"
+
+
+def test_add_not_inplace_by_default():
+    cgf = multivariate_norm(loc=np.zeros(2), dim=2)
+    res = cgf.add(np.array([1, 2]))
+    assert res is not cgf
+    assert np.allclose(cgf.loc, 0)
+    assert np.allclose(res.dK([0, 0]), [1, 2])
+    res = cgf.add(multivariate_norm(loc=np.ones(2), dim=2))
+    assert np.allclose(res.dK([0, 0]), [1, 1])
+    res = cgf.add(norm(loc=1))
+    assert np.allclose(res.dK([0, 0]), [1, 1])
+    assert np.allclose(cgf.loc, 0)
+    # Explicit inplace still works for constants
+    assert cgf.add(np.array([1, 2]), inplace=True) is cgf
+    assert np.allclose(cgf.loc, [1, 2])
