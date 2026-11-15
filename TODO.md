@@ -508,6 +508,14 @@ Contract violations and silently wrong results in narrower situations.
   1.6e-4 (vs 3e-7 at `h=1e-3`). Log-sum-exp `Tressian` error 1.9e-4 (vs 1.6e-7);
   under findiff 0.11 one 2-D entry is ~2% off.
 - **Fix:** `max(...)`, or `eps**(1/(n+2))` scaling.
+- **Findings (left as is, by decision):** `eps**(1/(n+acc))` is much better for
+  well-scaled functions (max rel. error, old -> new: d3 exp/poisson/empirical
+  `1e-4 -> 2e-7..4e-6`; d1 `~3e-8 -> ~1e-11`), but worse for CGFs evaluated
+  close to a domain singularity, where `K` is small and steep: d3 of
+  `laplace(scale=3)` at `t=0.2` `1.7e-6 -> 9.4e-5`, `-log(1-t)` at `1-t=0.01`
+  `3e-4 -> 1.7e-2`. It also breaks the findiff reference (not the CGF) in
+  `test_basic[univariate laplace from multivariate]`. A scale-aware step would
+  be needed to win in both regimes.
 
 ### [ ] 33. `block_diag_3d` takes its dtype from the first tensor
 
