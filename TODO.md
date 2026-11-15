@@ -579,13 +579,17 @@ Contract violations and silently wrong results in narrower situations.
   passed explicitly (the univariate `other` late-bound too). Regression test:
   `test_add_univariate_binds_operands` in `tests/test_mvar_cgfs.py`.
 
-### [ ] 39. `clear_cache` evaluates every property
+### [x] 39. `clear_cache` evaluates every property
 
 - **Where:** `spapprox/spa.py:100`
 - **What:** `inspect.getmembers` triggers the expensive `_pdf_normalization`
   integration (hangs for `binomial`, item 24) and deletes a user-supplied
   `pdf_normalization`.
 - **Fix:** iterate over `vars(self)`.
+- **Resolved:** applied as proposed; a user-supplied `pdf_normalization` is
+  kept (stored separately and restored). Regression tests:
+  `test_clear_cache_does_not_evaluate_properties`,
+  `test_clear_cache_keeps_user_pdf_normalization` in `tests/test_spa.py`.
 
 ### [x] 40. `fit_ppf` and `fit_saddle_point_eqn` share `_t_cache`
 

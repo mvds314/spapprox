@@ -489,3 +489,29 @@ if __name__ == "__main__":
                 "-m tofix",
             ]
         )
+
+
+def test_clear_cache_does_not_evaluate_properties():
+    class Approx(UnivariateSaddlePointApprox):
+        @property
+        def _pdf_normalization(self):
+            raise AssertionError("pdf normalization should not be evaluated")
+
+    spa = Approx(norm())
+    spa.fit_saddle_point_eqn(num=100)
+    spa.clear_cache()
+    assert not hasattr(spa, "_x_cache") and not hasattr(spa, "_t_cache")
+
+
+def test_clear_cache_keeps_user_pdf_normalization():
+    spa = UnivariateSaddlePointApprox(norm(), pdf_normalization=2.0)
+    spa.fit_saddle_point_eqn(num=100)
+    spa.clear_cache()
+    assert spa._pdf_normalization == 2.0
+    assert np.isclose(spa.pdf(t=0), sps.norm.pdf(0) / 2)
+    # Computed normalizations are cleared
+    spa = UnivariateSaddlePointApprox(norm())
+    spa.pdf(t=0)
+    assert spa._pdf_normalization_cache is not None
+    spa.clear_cache()
+    assert not hasattr(spa, "_pdf_normalization_cache")

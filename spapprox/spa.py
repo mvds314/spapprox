@@ -1,4 +1,3 @@
-import inspect
 import itertools
 import warnings
 from abc import ABC, abstractmethod
@@ -40,6 +39,7 @@ class SaddlePointApprox(ABC):
             cgf, (UnivariateCumulantGeneratingFunction, MultivariateCumulantGeneratingFunction)
         )
         self.cgf = cgf
+        self._pdf_normalization_user = pdf_normalization
         self._pdf_normalization_cache = pdf_normalization
 
     def pdf(self, x=None, t=None, normalize_pdf=True, fillna=np.nan, **solver_kwargs):
@@ -101,14 +101,12 @@ class SaddlePointApprox(ABC):
         """
         Clear any information stored from fit functions
         """
-        cached_attribs = [
-            k
-            for k, v in inspect.getmembers(self, lambda a: not inspect.isroutine(a))
-            if k.endswith("_cache")
-        ]
-        for attr in cached_attribs:
-            if hasattr(self, attr):
-                delattr(self, attr)
+        # Use vars, as inspect.getmembers would evaluate (expensive) properties
+        for attr in [k for k in vars(self) if k.endswith("_cache")]:
+            delattr(self, attr)
+        # Keep a user-supplied pdf normalization
+        if getattr(self, "_pdf_normalization_user", None) is not None:
+            self._pdf_normalization_cache = self._pdf_normalization_user
 
 
 class UnivariateSaddlePointApprox(SaddlePointApprox):
@@ -622,6 +620,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
     def __init__(self, cgf, pdf_normalization=None):
         assert isinstance(cgf, MultivariateCumulantGeneratingFunction)
         self.cgf = cgf
+        self._pdf_normalization_user = pdf_normalization
         self._pdf_normalization_cache = pdf_normalization
 
     def __getitem__(self, i):
