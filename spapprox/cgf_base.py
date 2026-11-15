@@ -2011,7 +2011,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         if not all(isinstance(cgf, CumulantGeneratingFunction) for cgf in cgfs):
             raise AssertionError("All cgfs must be CumulantGeneratingFunction")
         if all(isinstance(cgf, UnivariateCumulantGeneratingFunction) for cgf in cgfs):
-            return cls.from_univariate(*cgfs)
+            return cls.from_univariate(
+                *cgfs, numdiff_backend=numdiff_backend, dK0=dK0, d2K0=d2K0, d3K0=d3K0
+            )
         else:
             dims = np.array(
                 [

@@ -1142,3 +1142,17 @@ def test_numerical_derivatives_of_projection(backend):
     assert np.allclose(cgf.dK(t), 2 / (1 - t), rtol=1e-5)
     assert np.allclose(cgf.d2K(t), 2 / (1 - t) ** 2, rtol=1e-5)
     assert np.allclose(cgf.d3K(t), 4 / (1 - t) ** 3, rtol=1e-3)
+
+
+def test_from_cgfs_univariate_forwards_kwargs():
+    mcgf = MultivariateCumulantGeneratingFunction.from_cgfs(
+        norm(),
+        norm(),
+        dK0=np.array([1.0, 2.0]),
+        d2K0=7 * np.eye(2),
+        d3K0=np.zeros((2, 2, 2)),
+        numdiff_backend="findiff",
+    )
+    assert np.allclose(mcgf.dK0, [1, 2])
+    assert np.allclose(mcgf.d2K0, 7 * np.eye(2))
+    assert mcgf._numdiff_backend == "findiff"

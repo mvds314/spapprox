@@ -547,12 +547,14 @@ Contract violations and silently wrong results in narrower situations.
   Regression test: `test_numerical_derivatives_of_projection` in
   `tests/test_mvar_cgfs.py`.
 
-### [ ] 36. `from_cgfs` with only univariate inputs drops keyword arguments
+### [x] 36. `from_cgfs` with only univariate inputs drops keyword arguments
 
 - **Where:** `spapprox/cgf_base.py:1994`
 - **Repro:** `from_cgfs(norm(), norm(), d2K0=7 * np.eye(2), numdiff_backend="findiff")`
   -> `d2K0` is `I`, backend `numdifftools`.
 - **Fix:** forward the kwargs to `from_univariate`.
+- **Resolved:** applied as proposed. Regression test:
+  `test_from_cgfs_univariate_forwards_kwargs` in `tests/test_mvar_cgfs.py`.
 
 ### [ ] 37. Multivariate `add` defaults to `inplace=True`
 
