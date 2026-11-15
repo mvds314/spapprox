@@ -206,7 +206,7 @@ order 1/2/3. `transform_rank3_tensor` and `block_diag_3d` exist because a
 which numpy has no one-liner for.
 
 `domain.py` defines where a CGF is finite: scalar bounds `l`, `le`, `ge`, `g`
-(strict/inclusive lower and upper, required to satisfy `g > ge > le > l`) plus
+(`x < l`, `x <= le`, `x >= ge`, `x > g`; lower bounds may not exceed upper ones) plus
 linear inequalities `A x <= a` and `B x < b`. `Domain` mirrors the CGF algebra
 (`add`, `mul`, `ldot`, `ldotinv`, `intersect`, `stack`, `from_domains`) so
 domains propagate automatically when CGFs are combined. `is_in_domain(t)` is the

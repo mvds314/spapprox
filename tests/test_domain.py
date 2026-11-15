@@ -107,6 +107,47 @@ def test_domain_nD():
     assert pd.api.types.is_array_like(res) and len(res) == 2 and all(res == [False, True])
 
 
+@pytest.mark.parametrize(
+    "kwargs, inside, outside",
+    [
+        pytest.param(dict(l=1, le=2), [0.5], [1, 1.5], id="l < le"),
+        pytest.param(dict(l=2, le=1), [1], [1.5], id="le < l"),
+        pytest.param(dict(l=np.inf, le=np.inf), [1e300], [], id="infinite upper bounds"),
+        pytest.param(dict(le=1, ge=1), [1], [0.9, 1.1], id="single point"),
+        pytest.param(dict(g=1, ge=0), [1.5], [0, 1], id="g > ge"),
+        pytest.param(dict(dim=2, l=[1, 3], le=[2, 2]), [[0.5, 2]], [[1.5, 0]], id="2D"),
+        pytest.param(dict(dim=2, le=1, ge=[1, 0]), [[1, 0.5]], [[0.5, 0.5]], id="2D point"),
+    ],
+)
+def test_valid_bound_combinations(kwargs, inside, outside):
+    dom = Domain(**kwargs)
+    for t in inside:
+        assert t in dom
+    for t in outside:
+        assert t not in dom
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        pytest.param(dict(g=2, l=1), id="g > l"),
+        pytest.param(dict(ge=2, le=1), id="ge > le"),
+        pytest.param(dict(ge=2, l=1), id="ge > l"),
+        pytest.param(dict(dim=2, ge=[0, 2], le=1), id="2D ge > le"),
+        pytest.param(dict(dim=2, g=[0, 2], l=[1, 1]), id="2D g > l"),
+    ],
+)
+def test_invalid_bound_combinations(kwargs):
+    with pytest.raises(AssertionError):
+        Domain(**kwargs)
+
+
+def test_intersect_mixed_strictness():
+    dom = Domain(l=1).intersect(Domain(le=2))
+    assert 0.5 in dom
+    assert 1 not in dom and 1.5 not in dom
+
+
 def test_trans_domain_1D():
     # Addtion
     dom = Domain(l=3, g=-1, le=2)
@@ -248,7 +289,10 @@ def test_ldotinv_ge_bound(ge):
         pytest.param(Domain(ge=-2), Domain(ge=-1), [-1.0], [-1.5], id="ge"),
         pytest.param(Domain(l=2), Domain(g=-1), [0.0], [-1.5, 2.5], id="l and g"),
         pytest.param(
-            Domain(dim=2, l=1), Domain(dim=2, l=[2, 0.5]), [[0.9, 0.4]], [[1.5, 0], [0, 0.7]],
+            Domain(dim=2, l=1),
+            Domain(dim=2, l=[2, 0.5]),
+            [[0.9, 0.4]],
+            [[1.5, 0], [0, 0.7]],
             id="2D",
         ),
         pytest.param(

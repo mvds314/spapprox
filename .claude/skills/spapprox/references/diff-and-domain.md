@@ -87,13 +87,14 @@ Domain(dim=1, l=None, g=None, le=None, ge=None, A=None, a=None, B=None, b=None)
 A point is in the domain when it satisfies **all** of:
 
 - strict/inclusive bounds `l` (less), `le` (less-equal), `ge` (greater-equal),
-  `g` (greater) -- required to satisfy the ordering `g > ge > le > l`, asserted in
-  the constructor;
+  `g` (greater), i.e. `x < l`, `x <= le`, `x >= ge`, `x > g`; the constructor
+  asserts that no lower bound (`g`, `ge`) exceeds an upper bound (`l`, `le`),
+  ignoring NaN (absent) entries;
 - the linear inequalities $Ax \le a$ and $Bx < b$.
 
 For `dim == 1` the bounds must be scalars; for `dim > 1` they may be scalars
 (broadcast) or length-`dim` vectors, and the ordering constraint is checked
-row-wise via a pandas frame. Properties `l_vect`, `g_vect`, `le_vect`, `ge_vect`
+elementwise. Properties `l_vect`, `g_vect`, `le_vect`, `ge_vect`
 materialize the vector forms; `has_bounds`, `has_lower_bounds`,
 `has_upper_bounds`, `has_strict_bounds`, `has_inclusive_bounds` and
 `has_ineq_constraints` are cheap predicates used to skip work.

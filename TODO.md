@@ -433,7 +433,7 @@ Contract violations and silently wrong results in narrower situations.
 - **Resolved:** applied as proposed via a NaN-aware helper. Regression test:
   `test_intersect` in `tests/test_domain.py`.
 
-### [ ] 27. Bound-ordering validation is wrong and inconsistent
+### [x] 27. Bound-ordering validation is wrong and inconsistent
 
 - **Where:** `spapprox/domain.py:12`, `46`, `61`
 - **What:** the code enforces `l > le > ge > g` while docstring and messages say
@@ -443,6 +443,11 @@ Contract violations and silently wrong results in narrower situations.
   `Domain(l=1).intersect(Domain(le=2))` -> `AssertionError`.
 - **Fix:** only require upper bounds >= lower bounds, consistently across
   dimensions; fix the docstring.
+- **Resolved:** applied as proposed: a single elementwise check (NaN entries
+  ignored) for every dimension; equal strict bounds (empty domain) are allowed.
+  Regression tests: `test_valid_bound_combinations`,
+  `test_invalid_bound_combinations`, `test_intersect_mixed_strictness` in
+  `tests/test_domain.py`.
 
 ### [ ] 28. List bounds are only converted to arrays when several are given
 

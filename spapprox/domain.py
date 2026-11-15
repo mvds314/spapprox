@@ -8,8 +8,10 @@ class Domain:
     r"""
     Represents the domain of a function.
     For a value to be in the domain, it should satisfy all the specified upper
-    and lower bound contraints: less, greater, less-equal, and greater-equal.
-    The specified bounds should satisfy: :math:`g>ge>le>l`.
+    and lower bound contraints: less, greater, less-equal, and greater-equal,
+    i.e., :math:`x<l`, :math:`x>g`, :math:`x\leq le`, and :math:`x\geq ge`.
+    The lower bounds :math:`g` and :math:`ge` should not exceed the upper bounds
+    :math:`l` and :math:`le`.
 
     Also, it should satisfy the linear inequality:
 
@@ -38,31 +40,23 @@ class Domain:
             assert all(x is None or np.isscalar(x) for x in [l, le, ge, g]), (
                 "Bounds should be scalars in dim 1."
             )
-            specified_bounds = [x for x in [l, le, ge, g] if x is not None]
-            if len(specified_bounds) > 1:
-                assert all(
-                    specified_bounds[i] > specified_bounds[i + 1]
-                    for i in range(len(specified_bounds) - 1)
-                ), "Bounds should satisfy: g>ge>le>l"
         else:
             assert all(x is None or np.isscalar(x) or len(x) == dim for x in [l, le, ge, g]), (
                 "Bounds should be scalars or have matching dim"
             )
-            specified_bounds = [np.asanyarray(x) for x in [l, le, ge, g] if x is not None]
+            specified_bounds = [x for x in [l, le, ge, g] if x is not None]
             if len(specified_bounds) > 1:
-                df = pd.DataFrame(
-                    data=np.nan, index=range(self.dim), columns=["l", "le", "ge", "g"]
-                )
-                df["l"] = l
-                df["le"] = le
-                df["ge"] = ge
-                df["g"] = g
-                for _, sr in df.iterrows():
-                    assert sr.dropna().is_monotonic_decreasing, "Bounds should satisfy: g>ge>le>l"
                 l = np.asanyarray(l) if l is not None and not np.isscalar(l) else l  # noqa: E741
                 g = np.asanyarray(g) if g is not None and not np.isscalar(g) else g
                 le = np.asanyarray(le) if le is not None and not np.isscalar(le) else le
                 ge = np.asanyarray(ge) if ge is not None and not np.isscalar(ge) else ge
+        for lower in [g, ge]:
+            for upper in [l, le]:
+                if lower is not None and upper is not None:
+                    # NaN entries represent absent bounds and compare as False
+                    assert not np.any(
+                        np.asarray(lower, dtype=float) > np.asarray(upper, dtype=float)
+                    ), "Lower bounds (g, ge) should not exceed upper bounds (l, le)"
         self.l = l
         self.g = g
         self.le = le
