@@ -266,6 +266,23 @@ def test_trans_domain_nD():
     assert [2, 2] in dom
 
 
+@pytest.mark.parametrize(
+    "dom",
+    [
+        Domain(dim=2, l=1),
+        Domain(dim=2, le=[1, 2], g=-1),
+        Domain(dim=2, A=[[1, -1]], a=[0.5], B=[[1, 1]], b=[2]),
+        Domain(dim=2),
+    ],
+)
+def test_ldotinv_vector_matches_column(dom):
+    C = np.array([2.0, -3.0])
+    ys = np.linspace(-2, 2, 81)
+    expected = dom.is_in_domain(np.outer(ys, C))
+    np.testing.assert_array_equal(dom.ldotinv(C).is_in_domain(ys), expected)
+    np.testing.assert_array_equal(dom.ldotinv(C[:, None]).is_in_domain(ys), expected)
+
+
 @pytest.mark.parametrize("ge", [1.0, -1.0, np.array([1.0, -2.0])])
 def test_ldotinv_ge_bound(ge):
     dom = Domain(dim=2, ge=ge)

@@ -459,12 +459,15 @@ Contract violations and silently wrong results in narrower situations.
 - **Resolved:** applied as proposed. Regression test:
   `test_single_list_bound_converted_to_array` in `tests/test_domain.py`.
 
-### [ ] 29. `Domain.ldotinv` with a 1-D `C` calls `ldot`
+### [x] 29. `Domain.ldotinv` with a 1-D `C` calls `ldot`
 
 - **Where:** `spapprox/domain.py:376-380`
 - **Repro:** `1.0 in Domain(dim=2, l=1).ldotinv([2., 3.])` -> True (with `l=5`);
   expected False (`y < 1/3`). The 2-D column form is correct.
 - **Fix:** `return self.ldotinv(other[:, None])`.
+- **Resolved:** applied as proposed. Regression test:
+  `test_ldotinv_vector_matches_column` in `tests/test_domain.py` (compares with
+  the definition `C y in D` pointwise).
 
 ### [ ] 30. `Domain.ldot` ignores negative entries of `C`
 

@@ -366,10 +366,7 @@ class Domain:
         assert other is not None
         other = np.asanyarray(other)
         if other.ndim == 1 and len(other) == self.dim:
-            if not self.has_bounds and not self.has_ineq_constraints:
-                return Domain(dim=1)
-            else:
-                return self.ldot(np.expand_dims(other, axis=0))
+            return self.ldotinv(other[:, None])
         elif other.ndim == 2 and other.shape[0] == self.dim:
             if not self.has_bounds and not self.has_ineq_constraints:
                 return Domain(dim=other.shape[1])
