@@ -23,6 +23,7 @@ from spapprox import (
     multivariate_norm,
     norm,
 )
+from spapprox.domain import Domain
 from spapprox.mvn import _mvn_logtail, _mvn_tail_derivatives
 from spapprox.spa import _bvn_tail_derivatives
 
@@ -377,6 +378,69 @@ def test_conditional_bivariate_gamma_convergence():
     assert errors[1] < errors[0] / 5
 
 
+def _trivariate_gamma(a):
+    """Common gamma Y0 plus independent Y_j: X_j = Y0 + Y_j, j=1..3, a=(a0,a1,a2,a3)."""
+    a0, a1, a2, a3 = a
+    c = np.array([a1, a2, a3], dtype=float)
+
+    def K(t):
+        t = np.asanyarray(t)
+        return -(c * np.log(1 - t)).sum(-1) - a0 * np.log(1 - t.sum(-1))
+
+    def dK(t):
+        t = np.asanyarray(t)
+        return c / (1 - t) + a0 / (1 - t.sum(-1, keepdims=True))
+
+    def d2K(t):
+        t = np.asarray(t, float)
+        return np.diag(c / (1 - t) ** 2) + a0 / (1 - t.sum()) ** 2
+
+    def d3K(t):
+        t = np.asarray(t, float)
+        T = np.full((3, 3, 3), 2 * a0 / (1 - t.sum()) ** 3)
+        for j in range(3):
+            T[j, j, j] += 2 * c[j] / (1 - t[j]) ** 3
+        return T
+
+    return MultivariateCumulantGeneratingFunction(
+        K=K,
+        dK=dK,
+        d2K=np.vectorize(d2K, signature="(3)->(3,3)"),
+        d3K=np.vectorize(d3K, signature="(3)->(3,3,3)"),
+        dim=3,
+        domain=Domain(l=np.ones(3), B=np.ones((1, 3)), b=np.ones(1), dim=3),
+    )
+
+
+def _trivariate_gamma_conditional(a, x2, x3):
+    """Exact cdf of X1 given X2=x2, X3=x3: Y0|X2,X3 has density ~ y^(a0-1)(x2-y)^(a2-1)(x3-y)^(a3-1)e^y."""
+    a0, a1, a2, a3 = a
+    m = min(x2, x3)
+    w = lambda y: y ** (a0 - 1) * (x2 - y) ** (a2 - 1) * (x3 - y) ** (a3 - 1) * np.exp(y)
+    Z = quad(w, 0, m)[0]
+    g = sps.gamma(a1)
+    return np.vectorize(lambda x: quad(lambda y: w(y) * g.cdf(x - y), 0, m)[0] / Z)
+
+
+@pytest.mark.parametrize("i", [0, 1])
+def test_conditional_trivariate_gamma(i):
+    # Second order beats first order and converges faster in n, also for a middle index
+    errors = {"Skovgaard": [], "Kolassa": []}
+    for k in [1, 4]:
+        a = np.array([1, 2, 3, 2]) * k
+        x2, x3 = 5.0 * k, 4.0 * k
+        cdf = _trivariate_gamma_conditional(a, x2, x3)
+        # Variable i takes the role of X1, relabel the others to keep the given values in order
+        spa = MultivariateSaddlePointApprox(_trivariate_gamma(a if i == 0 else a[[0, 2, 1, 3]]))
+        x = np.array([0.8, 1.0, 1.3]) * 2 * k
+        for backend in errors:
+            got = spa.conditional_cdf(x, [x2, x3], i=i, backend=backend)
+            errors[backend].append(np.max(np.abs(got - cdf(x))))
+    assert errors["Kolassa"][0] < errors["Skovgaard"][0] / 4
+    assert errors["Kolassa"][1] < errors["Skovgaard"][1] / 8
+    assert errors["Kolassa"][1] < errors["Kolassa"][0] / 15
+
+
 @pytest.mark.parametrize("dim", [2, 3])
 def test_conditional_kolassa_normal(dim):
     cov = np.array([[2.0, 0.6, 0.3], [0.6, 1.0, -0.4], [0.3, -0.4, 1.5]])[:dim, :dim]
@@ -419,6 +483,62 @@ def test_conditional_unknown_backend():
     spa = BivariateSaddlePointApprox(bivariate_gamma(a=[1, 2, 3]))
     with pytest.raises(ValueError):
         spa.conditional_cdf(1.0, [2.0], backend="nope")
+    with pytest.raises(ValueError):
+        spa.conditional_cdf(1.0, [2.0], delta=0)
+
+
+def _poisson_sum(lams, A):
+    """Cgf of X = A^T N with N_m independent Poisson(lams_m): a vector on a lattice."""
+    lams = np.asarray(lams, float)
+    A = np.asarray(A, float)
+    d = A.shape[1]
+    K = lambda t: (lams * (np.exp(np.asanyarray(t) @ A.T) - 1)).sum(-1)
+    dK = lambda t: (lams * np.exp(np.asanyarray(t) @ A.T)) @ A
+
+    def d2K(t):
+        e = lams * np.exp(A @ np.asarray(t, float))
+        return np.einsum("m,mi,mj->ij", e, A, A)
+
+    def d3K(t):
+        e = lams * np.exp(A @ np.asarray(t, float))
+        return np.einsum("m,mi,mj,mk->ijk", e, A, A, A)
+
+    return MultivariateCumulantGeneratingFunction(
+        K=K,
+        dK=dK,
+        d2K=np.vectorize(d2K, signature=f"({d})->({d},{d})"),
+        d3K=np.vectorize(d3K, signature=f"({d})->({d},{d},{d})"),
+        dim=d,
+        domain=Domain(dim=d),
+    )
+
+
+def test_conditional_lattice_binomial():
+    # N1 given N1 + N2 = s is binomial; the lattice corrections are accurate and converge in n
+    errors = {"Skovgaard": [], "Kolassa": []}
+    for k in [1, 4]:
+        spa = MultivariateSaddlePointApprox(_poisson_sum([2.0 * k, 3.0 * k], [[1, 1], [0, 1]]))
+        s = 5 * k
+        n = np.arange(1, s)
+        for backend in errors:
+            got = spa.conditional_cdf(n, [s], backend=backend, delta=1.0)
+            errors[backend].append(np.max(np.abs(got - sps.binom.cdf(n, s, 0.4))))
+    assert errors["Skovgaard"][1] < 5e-4
+    assert errors["Kolassa"][0] < errors["Skovgaard"][0] / 3
+    assert errors["Kolassa"][1] < errors["Kolassa"][0] / 20
+    # Without the lattice correction the approximation is bad
+    assert np.max(np.abs(spa.conditional_cdf(n, [s]) - sps.binom.cdf(n, s, 0.4))) > 0.05
+
+
+@pytest.mark.parametrize("backend", ["Skovgaard", "Kolassa"])
+def test_conditional_lattice_scale_invariant(backend):
+    n = np.arange(1, 5)
+    unit = MultivariateSaddlePointApprox(_poisson_sum([2.0, 3.0], [[1, 1], [0, 1]]))
+    double = MultivariateSaddlePointApprox(_poisson_sum([2.0, 3.0], [[2, 1], [0, 1]]))
+    assert np.allclose(
+        unit.conditional_cdf(n, [5], backend=backend, delta=1.0),
+        double.conditional_cdf(2 * n, [5], backend=backend, delta=2.0),
+    )
 
 
 def test_conditional_continuous_at_singularity():

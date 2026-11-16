@@ -907,7 +907,7 @@ Or into a separate model, e.g., bootstrap.py
 
 - add the conditional distribution, e.g., Skovgaard (1987) / Kolassa & Li (2010) section 4
   (phase A done on branch `feature/conditional-skovgaard`:
-  `conditional_cdf` (also `backend="Kolassa"`, second order) / `conditional_pdf`; see `docs/conditional_cdf_plan.md` for B-G)
+  `conditional_cdf` (also `backend="Kolassa"`, second order, and `delta=` for lattice) / `conditional_pdf`; see `docs/conditional_cdf_plan.md` for B-G)
   (marginal approximations are available as `spa[i]`, `spa[[i, j]]`)
 - implement Dirichlet bootstrap
 - implement multivariate saddle point approximations
@@ -918,6 +918,9 @@ Or into a separate model, e.g., bootstrap.py
     phase A turns out not to be accurate enough
   - `fit_cdf` for the multivariate case is not implemented
   - lattice variables: continuity-corrected version of Kolassa (2003) eq. (13)
+  - bivariate `"KL"` and `"Wang"` cdf return NaN, plus `invalid value in sqrt` warnings
+    (`spa.py`, `_kl_cdf_ordered`), when a saddlepoint component is at or near zero; reproduce
+    with `examples/example_Wang1990.py`, e.g. cells (x=0, y=1.0) and (x=-1.0, y=0.0)
 - implement other bootstraps
 - jackknife stuff
 - conditional distributions

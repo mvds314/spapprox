@@ -220,7 +220,12 @@ A2. `w_hat`, `u_hat`, the formula and the singularity interpolation (`h` in stan
 A3. `conditional_cdf` (vectorized), `conditional_pdf`.
 A4. Tests (see validation).
 
-### Phase B: lattice continuity corrections
+### Phase B: lattice continuity corrections (done, via `delta`)
+
+Done as `conditional_cdf(..., delta=span)`: `P(X <= x)` is `1 - P2(X >= x + delta)`, evaluated at `x + delta/2`
+with `u = 2 sinh(tau_i delta / 2) sigma / delta`. The `1/delta` was confirmed by a rescaling test
+(`2 N1` with `delta=2` must equal `N1` with `delta=1`). `P1` was not implemented. Tested on
+Poisson to binomial; negative binomial to Polya is open.
 
 B1. `P1` and `P2` survival functions, left tail via `F(k) = 1 - P(X >= k + 1)`.
 B2. `lattice` argument, `delta` handling, and conditioning on continuous or lattice
@@ -232,7 +237,9 @@ B3. Tests on Poisson to binomial and negative binomial to Polya.
 Done as `conditional_cdf(..., backend="Kolassa")`. The third and fourth bracket terms use the
 inverse Hessian at `tau_hat` as written above (confirmed by fitting against the exact gamma
 conditional). `k_{ijkl}` is a central difference of `d3K` (`_d4K_central`), no `d4K` was added.
-The lattice version (eq. 11) remains open.
+The lattice version (eq. 11) is done too (`delta`): `z = 2 sinh(tau_i delta/2) sigma / delta`, the factor
+`1/delta` is not in the paper but needed for scale invariance; the two lattice terms of the bracket
+scale correctly as written. Also validated on a trivariate gamma (index `i = 0` and `1`).
 
 C1. Fourth derivatives (see caveats). Decide `d4K` vs numerical contraction.
 C2. `rho4`, `rho13sq`, `rho23sq`, and the bracket, at `tau_hat` and `tau_0`.

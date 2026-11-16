@@ -169,6 +169,8 @@ cubic-interpolated; the pdf is un-normalized. `backend="Kolassa"` selects the se
 Kolassa (1996) eq. (10), error about $n^{-3}$ in the gamma test (vs $n^{-1}$): the bracket
 uses invariants $\rho_4,\rho_{13}^2,\rho_{23}^2$ of the joint cgf at $\hat\tau$ minus those of the
 **marginal** of $X_J$ (J blocks) at $\tau_0$; $k_{ijkl}$ is a finite difference of `d3K`.
+`delta=span` handles a lattice $X_i$ (second continuity correction, Kolassa eq. (11) for the
+second order; $\hat u$ carries $1/\delta$ for scale invariance); `x` must lie on the lattice.
 Plan: `docs/conditional_cdf_plan.md`.
 
 `cdf(x=None, t=None, fillna=np.nan, backend="Kolassa")` works in any dimension

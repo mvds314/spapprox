@@ -54,6 +54,20 @@ spa_normal.pdf(t=t)
 sps.norm.pdf(x)
 ```
 
+## Conditional distributions
+
+For a random vector, the distribution of one component given the others,
+$P(X_i \leq x \mid X_J = x_J)$, is approximated with the double saddle point approximation of Skovgaard (1987),
+or the second order version of Kolassa (1996) with `backend="Kolassa"`.
+Use `delta=1` for a discrete variable of interest.
+
+```python
+cgf = spa.multivariate_norm(loc=[0, 0], cov=[[1, 0.5], [0.5, 1]])
+spa_mvn = spa.MultivariateSaddlePointApprox(cgf)
+spa_mvn.conditional_cdf([-1, 0, 1], given=[0.3], i=0)
+spa_mvn.conditional_pdf([-1, 0, 1], given=[0.3], i=0)
+```
+
 ## Installation
 
 You can install this library directly from GitHub:
