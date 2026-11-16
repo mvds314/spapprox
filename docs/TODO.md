@@ -5,7 +5,6 @@
 - Finish bivariate approximation:
   - basically this case: test_bvar_cdf_near_zero
   - are there more edge cases?
-- Conditional approximation (Skovgard approximation)
 - Multivariate approximation: cdf phase A done (`backend="Kolassa"`); phase B only if
   needed, see `docs/multivariate_cdf_plan.md`
 
