@@ -15,6 +15,9 @@ approximations (`spa[i]`, `spa[[i, j]]`) and the multivariate machinery in `spa.
 | Butler (2007), ch. 4 (4.1, 4.2.1-4.2.2, 4.4.3-4.4.4) and 5.4.5 | Multivariate conditioning, pdf (4.7)/(4.14), lattice corrections (4.15)-(4.18), `t_hat = 0` limit | Phase A, B, pdf |
 | Kolassa (1996), Ann. Statist. 24(1), 353-364, Theorem 6.1, eqs. (2), (3), (10), (11) | Second-order terms, error `O(N^-5/2)` instead of `O(N^-3/2)`, continuous and lattice | Phase C |
 | Paolella (2007), Intermediate Probability, sections 5.2-5.3 (eq. 5.18) | Same formula as Broda & Paolella | Cross-check only (read via the literature skill, not the book) |
+| Kolassa & Li (2010), Bernoulli 16(4), section 4, eqs. (4.1)-(4.8) | Conditional tail `P(T_{1..d0} >= t | T_{-} = t_-)` for a **vector** of interest (`d0 >= 1`), relative error `O(1/n)`, continuous and lattice, via the same nested signed roots as the unconditional case | Phase F |
+| Wang (1990), J. Appl. Prob. 27, 586-597 | Bivariate cdf only (basis of `"Wang"` backend); mentions the conditional case only as a pointer to Skovgaard | No conditional content |
+| Broda & Paolella (2011), section 32.3 and 32.6 | Partial expectation `G(x) = ∫ y f(y) dy` and expected shortfall of one variable (Martin 2006): `mu * [Phi(w) + phi(w) * (x/mu ... )]`, eq. (32.19) | Conditional *expectation* given an event on the same variable, not conditioning on another variable |
 | DiCiccio, Martin & Young (1993), Biometrika 80, 781-790 | Laplace-based marginal density then a tail formula; nonlinear statistics, ancillary conditioning | Not planned, see phase E |
 | Gatto & Jammalamadaka (1999), JASA 94, 533-541 | Conditional saddlepoint for testing problems | Not planned, see phase E |
 
@@ -232,6 +235,33 @@ C4. Compare orders: error against exact conditionals, check the convergence rate
 
 D1. Update `spapprox` skill (`spa-api.md`), README, TODO.
 D2. Remove the TODO marker in `tests/test_spa.py`.
+
+### Phase F: vector of interest (Kolassa & Li 2010, section 4)
+
+`P(X_I >= x_I | X_J = x_J)` with `|I| >= 1`. Same structure as the multivariate cdf
+phases (nested signed roots, orthant reflection), with the components of `w_hat` of the
+conditioning variables substituted. The `d0 = 1` case should reproduce phase A at first
+order. This inherits the difficulty of the unconditional Kolassa & Li (2010) method
+(see `multivariate_cdf_plan.md`, phase B), so only do it if the vector case is needed.
+Their Table 3 (three iid exponentials, `Y = (X_2, X_3, X_1 + X_2 + X_3)`, `n = 10`; exact values
+from Wang's unpublished report [15]) is a regression target. Typo alert: eq. (4.9) text
+writes `T_{-d0} > t_{-d0}` where the equality is meant.
+
+### Conditioning on inequalities (no source found)
+
+None of Skovgaard, Butler ch. 4, Broda & Paolella, Kolassa (1996), Kolassa & Li (2010)
+or Wang (1990) treats `X_J >= x_J` or interval events as conditioning. They all condition on
+equality. Wang's 1993 paper on conditional inference is not in the library and its title
+points to the same equality case. Proposal, not literature: use the definition,
+
+```
+P(X_i <= x_i | X_J >= x_J) = P(X_i <= x_i, X_J >= x_J) / P(X_J >= x_J)
+```
+
+with the numerator from the existing orthant/cdf code (`"Kolassa"`, `"KL"`, `"Wang"`
+backends and reflection) and the denominator from `spa[J].cdf`. Intervals are differences.
+Accuracy is that of the two orthant approximations, to be checked against exact
+conditionals (e.g. bivariate gamma by quadrature) before documenting it.
 
 ### Phase E: not planned (decide later)
 
