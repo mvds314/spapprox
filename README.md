@@ -34,6 +34,8 @@ To be implemented are:
 - Approximating conditional distributions
 - Approximating the distribution of the quotient of random variables
 
+For a discrete (lattice) variable, pass the span of the lattice, e.g., `cdf(x, delta=1)` or `pdf(x, delta=1)`, to get the continuity-corrected cdf or the probability mass function.
+
 ## Basic example
 
 To understand what is going on, it is helpful to read the [Wikipedia page](https://en.wikipedia.org/wiki/Saddlepoint_approximation_method) on the saddle point approximation.
