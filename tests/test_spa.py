@@ -421,9 +421,12 @@ def test_bvar_cdf_independent_reduces_to_product():
     for t in [[-1.5, -1.2], [-0.5, 0.5], [0.3, -0.4], [0.6, 0.2]]:
         t = np.array(t)
         x = spa.cgf.dK(t)
-        cdf = spa.cdf(t=t)
+        exact = sps.gamma(3).cdf(x[0]) * sps.gamma(5).cdf(x[1])
+        cdf = spa.cdf(t=t, backend="Wang")
         assert np.isclose(cdf, u1.cdf(t=t[0]) * u2.cdf(t=t[1]), atol=1e-6)
-        assert np.isclose(cdf, sps.gamma(3).cdf(x[0]) * sps.gamma(5).cdf(x[1]), atol=1e-3)
+        assert np.isclose(cdf, exact, atol=1e-3)
+        # Kolassa and Li omit the O(1/n) product term, so it does not factorize exactly
+        assert np.isclose(spa.cdf(t=t), exact, atol=6e-3)
 
 
 def test_bvar_cdf_independent_one_saddlepoint_component_zero():
@@ -436,9 +439,11 @@ def test_bvar_cdf_independent_one_saddlepoint_component_zero():
     for t in [[0.5, 0], [-0.8, 0], [0, 0.4], [0, -1.0]]:
         t = np.array(t, dtype=float)
         x = spa.cgf.dK(t)
-        cdf = spa.cdf(t=t)
+        exact = sps.gamma(3).cdf(x[0]) * sps.gamma(5).cdf(x[1])
+        cdf = spa.cdf(t=t, backend="Wang")
         assert np.isclose(cdf, u1.cdf(t=t[0]) * u2.cdf(t=t[1]), atol=1e-6)
-        assert np.isclose(cdf, sps.gamma(3).cdf(x[0]) * sps.gamma(5).cdf(x[1]), atol=1e-3)
+        assert np.isclose(cdf, exact, atol=1e-3)
+        assert np.isclose(spa.cdf(t=t), exact, atol=6e-3)
 
 
 def test_bvar_cdf_near_axes_no_cancellation():
@@ -458,13 +463,31 @@ def test_bvar_cdf_near_axes_no_cancellation():
     ]
     for t in ts:
         t = np.array(t, dtype=float)
-        assert np.isclose(spa.cdf(t=t), u1.cdf(t=t[0]) * u2.cdf(t=t[1]), atol=1e-6)
+        expected = u1.cdf(t=t[0]) * u2.cdf(t=t[1])
+        assert np.isclose(spa.cdf(t=t, backend="Wang"), expected, atol=1e-6)
     cov = np.array([[1, 0.6], [0.6, 2.0]])
     spa = BivariateSaddlePointApprox(multivariate_norm(loc=np.zeros(2), cov=cov))
-    for t in [[0.3, 1e-6], [1e-7, 1e-7], [1e-6, -0.4]]:
-        t = np.array(t)
+    for t in [[0.3, 1e-6], [1e-7, 1e-7], [1e-6, -0.4], [0, 0]]:
+        t = np.array(t, dtype=float)
         expected = sps.multivariate_normal(np.zeros(2), cov).cdf(spa.cgf.dK(t))
-        assert np.isclose(spa.cdf(t=t), expected, atol=1e-6)
+        for backend in ["KL", "Wang"]:
+            assert np.isclose(spa.cdf(t=t, backend=backend), expected, atol=1e-6)
+
+
+def test_bvar_cdf_kl_continuous_near_singularities():
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=[2, 1, 3]))
+    sd = np.sqrt(np.diag(spa.cgf.d2K0))
+    eps = 1e-9
+    for z in [-0.8, -0.2, 0.3, 0.9]:
+        for p, q in [([z, eps], [z, -eps]), ([eps, z], [-eps, z])]:
+            assert np.isclose(spa.cdf(t=np.array(p) / sd), spa.cdf(t=np.array(q) / sd), atol=1e-6)
+    for z in [-0.6, 0.5]:
+        for p in [[z, z], [z, -z]]:
+            p = np.array(p) / sd
+            assert np.isclose(spa.cdf(t=p * [1, 1 + eps]), spa.cdf(t=p * [1 + eps, 1]), atol=1e-6)
+    # The marginal saddlepoint of the second component is zero at its mean
+    vals = [spa.cdf(x=[4.0, spa.cgf.dK0[1] + d]) for d in [-1e-6, 0, 1e-6]]
+    assert np.allclose(vals, vals[1], atol=1e-6)
 
 
 def _bivariate_gamma_cdf(x, a):
@@ -498,12 +521,22 @@ def test_bvar_cdf_wang_1990_table_1(dx, dy, expected):
     # gamma variables, evaluated at deviations (dx, dy) from the mean 2
     spa = BivariateSaddlePointApprox(bivariate_gamma(a=[10, 10, 10]))
     x = 10 * (np.array([dx, dy]) + 2)
-    assert np.isclose(spa.cdf(x=x), expected, rtol=5e-3, atol=6e-4)
+    assert np.isclose(spa.cdf(x=x, backend="Wang"), expected, rtol=5e-3, atol=6e-4)
 
 
-@pytest.mark.parametrize("k,max_err", [(1, 0.04), (16, 0.003)])
-def test_bvar_cdf_dependent_accuracy(k, max_err):
-    # Wang's order-of-integration rule; without it the errors are 0.245 and 0.033
+@pytest.mark.parametrize(
+    "backend,k,max_err",
+    [
+        # With Wang's order-of-integration rule; without it the errors are 0.245 and 0.033
+        ("Wang", 1, 0.04),
+        ("Wang", 16, 0.003),
+        # Relative error O(1/n)
+        ("KL", 1, 0.006),
+        ("KL", 16, 4e-4),
+        ("KL", 64, 1e-4),
+    ],
+)
+def test_bvar_cdf_dependent_accuracy(backend, k, max_err):
     a = np.array([2.0, 1.0, 3.0]) * k
     spa = BivariateSaddlePointApprox(bivariate_gamma(a=a))
     errs = []
@@ -512,17 +545,25 @@ def test_bvar_cdf_dependent_accuracy(k, max_err):
         if t.sum() >= 0.97:
             continue
         x = spa.cgf.dK(t)
-        errs.append(abs(spa.cdf(t=t) - _bivariate_gamma_cdf(x, a)))
+        errs.append(abs(spa.cdf(t=t, backend=backend) - _bivariate_gamma_cdf(x, a)))
     assert max(errs) < max_err
 
 
-def test_bvar_cdf_invariant_to_relabeling():
+@pytest.mark.parametrize("backend", ["KL", "Wang"])
+def test_bvar_cdf_invariant_to_relabeling(backend):
     a = np.array([2.0, 1.0, 3.0])
     spa = BivariateSaddlePointApprox(bivariate_gamma(a=a))
     spa_swapped = BivariateSaddlePointApprox(bivariate_gamma(a=a[[0, 2, 1]]))
     for t in [[-0.6, 0.3], [0.4, -0.7], [0.2, 0.3], [-0.5, -0.2]]:
         t = np.array(t)
-        assert np.isclose(spa.cdf(t=t), spa_swapped.cdf(t=t[::-1]), atol=1e-10)
+        expected = spa_swapped.cdf(t=t[::-1], backend=backend)
+        assert np.isclose(spa.cdf(t=t, backend=backend), expected, atol=1e-10)
+
+
+def test_bvar_cdf_invalid_backend():
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=[2, 1, 3]))
+    with pytest.raises(ValueError):
+        spa.cdf(t=np.array([0.1, 0.2]), backend="foo")
 
 
 # TODO: then continue with a bootstrapping application

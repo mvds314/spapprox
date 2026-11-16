@@ -24,6 +24,49 @@ else:
     _has_fastnorm = True
 
 
+def _bvn_cdf(x, rho):
+    """Standard bivariate normal cdf with correlation ``rho`` at the point ``x``."""
+    if _has_fastnorm:
+        return fastnorm.bivar_norm_cdf(x, rho)
+    return sps.multivariate_normal([0, 0], np.array([[1, rho], [rho, 1]])).cdf(x)
+
+
+def _lagrange_weights(nodes, x):
+    """Weights of the Lagrange interpolating polynomial through ``nodes`` at ``x``."""
+    nodes = np.asarray(nodes, dtype=float)
+    return np.array(
+        [
+            np.prod([(x - nk) / (nj - nk) for k, nk in enumerate(nodes) if k != j])
+            for j, nj in enumerate(nodes)
+        ]
+    )
+
+
+def _bvn_tail_derivatives(b, c):
+    r"""
+    The tail probability :math:`T(\mathbf{b}) = P(\mathbf{Z}\geq\mathbf{b})` with
+    :math:`\mathbf{Z}\sim N(0, A)`, :math:`A = [[1+c^2, c], [c, 1]]`, and its partial
+    derivatives :math:`T_1, T_2, T_{11}, T_{12}, T_{111}, T_{112}` with respect to
+    :math:`\mathbf{b}`.
+    """
+    s1 = np.sqrt(1 + c**2)
+    g = c / s1
+    T = _bvn_cdf(np.array([-b[0] / s1, -b[1]]), g)
+    # Z2 | Z1 = b1 ~ N(c b1 / s1^2, 1 / s1^2), and Z1 | Z2 = b2 ~ N(c b2, 1)
+    z = s1 * b[1] - g * b[0]
+    p = sps.norm.pdf(b[0] / s1) / s1
+    p1 = -b[0] / s1**2 * p
+    p2 = (b[0] ** 2 / s1**4 - 1 / s1**2) * p
+    phiz, sfz = sps.norm.pdf(z), sps.norm.sf(z)
+    T1 = -p * sfz
+    T2 = -sps.norm.pdf(b[1]) * sps.norm.sf(b[0] - c * b[1])
+    T11 = -p1 * sfz - g * p * phiz
+    T12 = s1 * p * phiz
+    T111 = -p2 * sfz - 2 * g * p1 * phiz - g**2 * z * p * phiz
+    T112 = s1 * p1 * phiz + g * s1 * z * p * phiz
+    return T, T1, T2, T11, T12, T111, T112
+
+
 class SaddlePointApprox(ABC):
     """
     Interface for saddle point approximation of probability density functions
@@ -776,7 +819,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
     and :math:`\mathbf{\tilde t}= \left[\tilde s,\tilde t\right]` solves
     the saddle point equation :math:`K(\mathbf{\tilde t})=x`.
 
-    We follow the approach as outlined in [4] Section 5.2.
+    The cumulative distribution function is approximated by the method of [6] by
+    default, see :meth:`_kl_cdf`, or by the method of [3] as outlined in [4] Section
+    5.2, see :meth:`_wang_cdf`.
 
     References
     ----------
@@ -790,27 +835,64 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
     [5] Kolassa (2006) - Serie approximations in statistics
 
-    [6] Kolassa, Li (2011) - Series approximations to multivariate saddlepoint approximations
+    [6] Kolassa, Li (2010) - Multivariate saddlepoint approximations in tail probability
+    and conditional inference
+
+    [7] Li (2009) - Saddlepoint approximation, PhD thesis, Rutgers University
+
+    [8] Kolassa (2003) - Multivariate saddlepoint tail probability approximations
 
     """
 
-    def cdf(self, x=None, t=None, fillna=np.nan, **solver_kwargs):
+    def cdf(self, x=None, t=None, fillna=np.nan, backend="KL", **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function in
         the bivariate case.
+
+        Parameters
+        ----------
+        x : array_like, optional (either x or t must be provided)
+            The values at which to evaluate the cumulative distribution function.
+        t : array_like, optional (either x or t must be provided)
+            Solution of the saddle point equation. If not provided, it will be
+            computed using numerical root finding.
+        fillna : float, optional
+            The value to replace NaNs with.
+        backend : str, optional
+            Either 'KL' for the approximation of Kolassa and Li (2010), see
+            :meth:`_kl_cdf`, which has relative error :math:`O(n^{-1})`, or 'Wang' for
+            the approximation of Wang (1990), see :meth:`_wang_cdf`, which converges
+            more slowly when the components are dependent.
         """
         assert x is not None or t is not None
+        if backend not in ("KL", "Wang"):
+            raise ValueError("backend must be either 'KL' or 'Wang'")
         if x is None:
             x = self.cgf.dK(t)
         elif t is None:
             t = self._dK_inv(x, **solver_kwargs)
         wrapper = PandasWrapper(x)
         x, t = np.asanyarray(x), np.asanyarray(t)
-        y = self._spapprox_cdf(x, t, **solver_kwargs)
+        y = self._spapprox_cdf(x, t, backend=backend, **solver_kwargs)
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
-    def _spapprox_cdf(self, x, t, fillna=np.nan, **solver_kwargs):
+    def _spapprox_cdf(self, x, t, backend="KL", **solver_kwargs):
+        # Handle vectorized evaluation
+        if t.ndim > 1:
+            return np.asanyarray(
+                [
+                    self._spapprox_cdf(xx, tt, backend=backend, **solver_kwargs)
+                    for xx, tt in zip(x, t)
+                ]
+            )
+        if t.ndim != 1 or x.ndim != 1 or len(t) != 2 or len(x) != 2:
+            raise ValueError("2 dimension vector expected in bivariate case")
+        if backend == "KL":
+            return self._kl_cdf(x, t, **solver_kwargs)
+        return self._wang_cdf(x, t, **solver_kwargs)
+
+    def _wang_cdf(self, x, t, **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function in
         the bivariate case.
@@ -942,21 +1024,11 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
         Parameters
         ----------
-        x : array_like, optional (either x or t must be provided)
-            The values at which to evaluate the cumulative distribution function.
-        t : array_like, optional (either x or t must be provided)
-            Solution of the saddle point equation. If not provided, it will be
-            computed using numerical root finding.
-        fillna : float, optional
-            The value to replace NaNs with.
+        x : array_like
+            A single point at which to evaluate the cumulative distribution function.
+        t : array_like
+            Solution of the saddle point equation at ``x``.
         """
-        # Handle vectorized evaluation
-        if t.ndim > 1:
-            return np.asanyarray(
-                [self._spapprox_cdf(xx, tt, **solver_kwargs) for xx, tt in zip(x, t)]
-            )
-        if t.ndim != 1 or x.ndim != 1 or len(t) != 2 or len(x) != 2:
-            raise ValueError("2 dimension vector expected in bivariate case")
         h = self._cdf_singular_width / np.sqrt(np.diag(self.cgf.d2K0))
         near = np.abs(t) < h
         if not near.any():
@@ -1052,25 +1124,251 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             d2K_outer = self.cgf.d2K(t_outer)[..., inner, inner]
             tn = sps.norm.pdf(x1) / 6 * (d3K / d2K_outer ** (3 / 2))
         # Put everything together
-        if _has_fastnorm:
-            if np.ndim(rho) == 0:
-                retval = fastnorm.bivar_norm_cdf(tx, rho)
-            else:
-                retval = np.array(
-                    [fastnorm.bivar_norm_cdf(_tx, _rho) for _tx, _rho in zip(tx, rho)]
-                )
-        else:
-            if np.ndim(rho) == 0:
-                retval = sps.multivariate_normal([0, 0], np.array([[1, rho], [rho, 1]])).cdf(tx)
-            else:
-                retval = np.array(
-                    [
-                        sps.multivariate_normal([0, 0], np.array([[1, _rho], [_rho, 1]])).cdf(_tx)
-                        for _tx, _rho in zip(tx, rho)
-                    ]
-                )
+        retval = _bvn_cdf(tx, rho)
         retval += sps.norm.cdf(tw) * n + sps.norm.cdf(w) * tn + n * tn
         return retval
+
+    def _kl_cdf(self, x, t, **solver_kwargs):
+        r"""
+        Saddle point approximation of the cumulative distribution function in the
+        bivariate case, following Kolassa and Li [6] and Li [7] Chapter 3.
+
+        The approximation is for an upper orthant probability, and has relative error
+        :math:`O(n^{-1})` uniformly, also when the components are dependent. We
+        evaluate it for the orthant in which both saddlepoint components are positive,
+        so that the orthant probability is small, and obtain the cdf by
+        inclusion-exclusion. Let :math:`\sigma_j=\text{sign}(t_j)` (1 if :math:`t_j=0`),
+        and let :math:`J = P(\sigma_1 X_1 \geq \sigma_1 x_1, \sigma_2 X_2 \geq \sigma_2 x_2)`
+        which is approximated by applying the upper tail approximation to the random
+        vector with cumulant generating function :math:`K^*(\tau)=K(\sigma\odot\tau)`.
+        Then
+
+        .. math::
+            F(\mathbf{x}) =
+            \begin{cases}
+                J & \text{if } \sigma=(-1,-1),\\
+                F_1(x_1) - J & \text{if } \sigma=(-1,1),\\
+                F_2(x_2) - J & \text{if } \sigma=(1,-1),\\
+                F_1(x_1) + F_2(x_2) - 1 + J & \text{if } \sigma=(1,1),
+            \end{cases}
+
+        where the marginal cdfs :math:`F_j` are approximated by the Lugannani-Rice
+        formula. Without the reflection, the approximation breaks down when the orthant
+        probability is close to one.
+
+        In the remainder, :math:`K` denotes the reflected :math:`K^*`, and the reflected
+        point and saddlepoint are denoted by :math:`\mathbf{x}` and :math:`\hat\tau`.
+        Following [6], define
+
+        .. math::
+            \hat w_2 = \text{sign}(\tilde\tau_2)\sqrt{2(\tilde\tau_2 x_2 - K(0, \tilde\tau_2))},\\
+            \hat w_1 = \text{sign}(\hat\tau_1)\sqrt{2(\hat\tau\cdot\mathbf{x} - K(\hat\tau)
+                - \tilde\tau_2 x_2 + K(0, \tilde\tau_2))},\\
+            \check w_2 = \hat w_2 - \text{sign}(\hat\tau_2)\sqrt{2(\hat\tau\cdot\mathbf{x}
+                - K(\hat\tau) - \hat\tau_1 x_1 + K(\hat\tau_1, 0))},
+
+        where :math:`\tilde\tau_2` solves the marginal saddlepoint equation
+        :math:`\partial_2 K(0, \tilde\tau_2) = x_2`. In the parametrization of [6], the
+        pole :math:`\tau_2=0` is at :math:`w_2=\tilde w_2(w_1)`, with
+        :math:`\check w_2=\tilde w_2(\hat w_1)`. Let :math:`c = \tilde w_2'(\hat w_1)`
+        and :math:`d = \tilde w_2''(\hat w_1)`, which are computed analytically from the
+        derivatives of :math:`K` up to third order at :math:`\hat\tau` (see
+        :meth:`_kl_tail`). Furthermore, let
+
+        .. math::
+            \hat{\mathbf{u}} = (\hat w_1, \hat w_2 - \check w_2), \quad
+            A = \begin{bmatrix} 1 + c^2 & c \\ c & 1\end{bmatrix}, \quad
+            \mathbf{b} = A\hat{\mathbf{u}},\quad
+            C = \exp\left(-\tfrac{1}{2}(\hat w_1^2 + \hat w_2^2)
+                + \tfrac{1}{2}\hat{\mathbf{u}}^T A \hat{\mathbf{u}}\right),
+
+        and let :math:`T(\mathbf{b})=P(\mathbf{Z}\geq \mathbf{b})` with
+        :math:`\mathbf{Z}\sim N(0, A)`. Then :math:`J\approx I^\emptyset + I^{\{1\}}
+        + I^{\{2\}}`, with
+
+        .. math::
+            I^\emptyset = C\left(T - \frac{d}{6}\left[3c(\partial_1+\hat u_1)^3
+                + 3(\partial_1+\hat u_1)^2(\partial_2+\hat u_2)\right]T\right),\\
+            I^{\{1\}} = -C\left(\frac{1}{\hat\tau_1 \sqrt{K_{11}-K_{12}^2/K_{22}}}
+                - \frac{1}{\hat w_1}\right)\partial_1 T,\\
+            I^{\{2\}} = \left(\frac{1}{\tilde\tau_2\sqrt{K_{22}(0, \tilde\tau_2)}}
+                - \frac{1}{\hat w_2}\right)\bar\Phi(\hat w_1)\phi(\hat w_2),
+
+        where the second derivatives in :math:`I^{\{1\}}` are evaluated at
+        :math:`\hat\tau`, and the derivatives of :math:`T` are with respect to
+        :math:`\mathbf{b}`. The cubic correction in :math:`I^\emptyset` is not given in
+        [6] and [7], which refer to [8]. It follows by expanding the exponent
+        up to third order around :math:`\hat{\mathbf{u}}`: only :math:`\tilde w_2` is
+        not quadratic, so the only non-zero third derivatives are
+        :math:`g_{111}=3cd` and :math:`g_{112}=d`. The resulting Gaussian integrals are
+        obtained by applying :math:`-\partial_{b_j} - \hat u_j` to :math:`T`. Without
+        this term, the relative error is :math:`O(n^{-1/2})`.
+
+        The approximation is not symmetric in the two variables. Moreover, with the
+        reflection, it is discontinuous across the axis :math:`t_2=0`: at
+        :math:`\hat\tau_2=0`, the sum of the two reflected orthant approximations
+        :math:`I^\emptyset + I^{\{1\}} + I^{\{2\}}` differs from the Lugannani-Rice
+        approximation of the marginal tail of :math:`X_1` by :math:`O(n^{-1})`. Across the
+        axis :math:`t_1=0`, it is continuous, as :math:`\hat w_2` is the signed root of the
+        marginal of :math:`X_2`. Therefore, going beyond [6], we use a weighted average
+        of the approximations :math:`F_{12}` and :math:`F_{21}` with the variables in
+        either order:
+
+        .. math::
+            F(\mathbf{x}) \approx \frac{z_2^2}{z_1^2+z_2^2}F_{12}(\mathbf{x})
+                + \frac{z_1^2}{z_1^2+z_2^2}F_{21}(\mathbf{x}),
+                \quad z_j = t_j\sqrt{K''_{jj}(\mathbf{0})},
+
+        which is continuous, and does not depend on the order of the variables. The
+        accuracy is the same as for either order.
+
+        The formulas are singular when a component of :math:`\hat\tau` is zero, and
+        :math:`I^{\{2\}}` is singular when :math:`\tilde\tau_2=0`. Close to these
+        singularities, the formulas suffer from catastrophic cancellation, as in
+        :meth:`_wang_cdf`. Let :math:`h_j` be as in :meth:`_wang_cdf`. For every
+        component with :math:`|t_j| < h_j`, :math:`J` is replaced by cubic Lagrange
+        interpolation in that component through the nodes
+        :math:`t_j\in\{-2h_j,-h_j,h_j,2h_j\}`, with a tensor product if both components
+        are close to zero. The orientation :math:`\sigma` is kept fixed across the
+        nodes. Similarly, if :math:`|\tilde\tau_2| < h_2`, the first factor of
+        :math:`I^{\{2\}}` is interpolated in :math:`\tilde\tau_2`.
+
+        Parameters
+        ----------
+        x : array_like
+            A single point at which to evaluate the cumulative distribution function.
+        t : array_like
+            Solution of the saddle point equation at ``x``.
+        """
+        if not hasattr(self, "_swapped_spa"):
+            self._swapped_spa = BivariateSaddlePointApprox(self.cgf[[1, 0]])
+        z2 = np.square(t) * np.diag(self.cgf.d2K0)
+        w = z2[1] / z2.sum() if z2.sum() > 0 else 0.5
+        retval = 0.0
+        if w > 0:
+            retval += w * self._kl_cdf_ordered(x, t, **solver_kwargs)
+        if w < 1:
+            retval += (1 - w) * self._swapped_spa._kl_cdf_ordered(
+                x[::-1], t[::-1], **solver_kwargs
+            )
+        return retval
+
+    def _kl_cdf_ordered(self, x, t, **solver_kwargs):
+        """
+        The approximation of :meth:`_kl_cdf` with the variables in the given order.
+        """
+        h = self._cdf_singular_width / np.sqrt(np.diag(self.cgf.d2K0))
+        sg = np.where(t < 0, -1.0, 1.0)
+        tm = [self.cgf[i].dK_inv(x[i], **solver_kwargs) for i in range(2)]
+        if not hasattr(self, "_marginal_spas"):
+            self._marginal_spas = [UnivariateSaddlePointApprox(self.cgf[i]) for i in range(2)]
+        F = [self._marginal_spas[i].cdf(x=x[i], t=tm[i], **solver_kwargs) for i in range(2)]
+        near = np.abs(t) < h
+        if not near.any():
+            J = self._kl_tail(x, t, sg, tm[1], h[1])
+        else:
+            nodes, weights = [], []
+            for tj, hj, nj in zip(t, h, near):
+                if nj:
+                    nodes.append(np.array([-2, -1, 1, 2]) * hj)
+                    weights.append(_lagrange_weights(nodes[-1], tj))
+                else:
+                    nodes.append(np.array([tj]))
+                    weights.append(np.ones(1))
+            vals = np.empty((len(nodes[0]), len(nodes[1])))
+            for i, a in enumerate(nodes[0]):
+                for j, b in enumerate(nodes[1]):
+                    p = np.array([a, b])
+                    xp = self.cgf.dK(p)
+                    ttp = self.cgf[1].dK_inv(xp[1], t0=tm[1], **solver_kwargs)
+                    vals[i, j] = self._kl_tail(xp, p, sg, ttp, h[1])
+            J = weights[0] @ vals @ weights[1]
+        if sg[0] < 0 and sg[1] < 0:
+            return J
+        elif sg[0] < 0:
+            return F[0] - J
+        elif sg[1] < 0:
+            return F[1] - J
+        return F[0] + F[1] - 1 + J
+
+    def _kl_marginal_factor(self, tt):
+        r"""
+        The factor :math:`1/(\tilde\tau_2\sqrt{K_{22}(0,\tilde\tau_2)}) - 1/\hat w_2` of
+        :math:`I^{\{2\}}` in :meth:`_kl_cdf`, in the original (unreflected) coordinates.
+        """
+        t0 = np.array([0.0, tt])
+        w = np.sign(tt) * np.sqrt(2 * (tt * self.cgf.dK(t0)[1] - self.cgf.K(t0)))
+        return 1 / (tt * np.sqrt(self.cgf.d2K(t0)[1, 1])) - 1 / w
+
+    def _kl_tail(self, x, t, sg, tt, h2):
+        r"""
+        Approximation of :math:`P(\sigma_1 X_1 \geq \sigma_1 x_1, \sigma_2 X_2 \geq
+        \sigma_2 x_2)` of :meth:`_kl_cdf` for a single point, where ``tt`` is the
+        marginal saddlepoint of :math:`X_2` and ``h2`` the width used to interpolate the
+        factor of :math:`I^{\{2\}}` when ``tt`` is close to zero.
+
+        The derivatives of :math:`\tilde w_2` are obtained as follows. Parametrize the
+        curve :math:`(\tau_1, \tilde\tau_2(\tau_1))`, with :math:`\tilde\tau_2(\tau_1)`
+        the minimizer of :math:`K(\tau_1, \tau_2) - \tau_2 x_2`, by :math:`\tau_1`. Let
+        :math:`e = w_1 - \hat w_1` and :math:`f = \tilde w_2 - \hat w_2` along this curve.
+        Then :math:`\frac12 e^2 = L(\hat\tau_1) - L(\tau_1)` and
+        :math:`\frac12 f^2 = D(\tau_1)`, with
+        :math:`L(\tau_1)= \tau_1 x_1 + \tilde\tau_2 x_2 - K(\tau_1, \tilde\tau_2)` and
+        :math:`D(\tau_1) = \tilde\tau_2 x_2 - K(\tau_1, \tilde\tau_2) + K(\tau_1, 0)`.
+        Implicit differentiation at :math:`\hat\tau_1` gives
+
+        .. math::
+            e' = \sqrt{S},\quad e'' = \frac{S'}{3e'},\quad
+            f' = \frac{K_1(\hat\tau_1, 0) - x_1}{f},\quad
+            f'' = \frac{K_{11}(\hat\tau_1, 0) - S - f'^2}{f},
+
+        where :math:`S = K_{11} - K_{12}^2/K_{22}` and :math:`S'` is its derivative along
+        the curve, which involves the third derivatives of :math:`K`. Finally,
+        :math:`\tilde w_2' = f'/e'` and :math:`\tilde w_2'' = (f''e' - f'e'')/e'^3`.
+        """
+        K, dK, d2K, d3K = self.cgf.K, self.cgf.dK, self.cgf.d2K, self.cgf.d3K
+        ts = sg * t
+        t10 = np.array([t[0], 0.0])
+        t02 = np.array([0.0, tt])
+        Lh = np.dot(t, x) - K(t)
+        m2 = tt * x[1] - K(t02)
+        w2h = sg[1] * np.sign(tt) * np.sqrt(2 * m2)
+        w1h = np.sign(ts[0]) * np.sqrt(2 * (Lh - m2))
+        w2c = w2h - np.sign(ts[1]) * np.sqrt(2 * (Lh - t[0] * x[0] + K(t10)))
+        # Derivatives of the reflected cumulant generating function
+        k2 = d2K(t) * np.outer(sg, sg)
+        k3 = d3K(t) * np.einsum("i,j,k->ijk", sg, sg, sg)
+        r = k2[0, 1] / k2[1, 1]
+        S = k2[0, 0] - r * k2[0, 1]
+        dS = (k3[0, 0, 0] - 2 * r * k3[0, 0, 1] + r**2 * k3[0, 1, 1]) - r * (
+            k3[0, 0, 1] - 2 * r * k3[0, 1, 1] + r**2 * k3[1, 1, 1]
+        )
+        e1 = np.sqrt(S)
+        e2 = dS / (3 * e1)
+        f = w2c - w2h
+        f1 = sg[0] * (dK(t10)[0] - x[0]) / f
+        f2 = (d2K(t10)[0, 0] - S - f1**2) / f
+        c = f1 / e1
+        d = (f2 * e1 - f1 * e2) / e1**3
+        # Leading term and its cubic correction
+        u = np.array([w1h, w2h - w2c])
+        A = np.array([[1 + c**2, c], [c, 1.0]])
+        b = A @ u
+        C = np.exp(-(w1h**2 + w2h**2) / 2 + u @ A @ u / 2)
+        T, T1, T2, T11, T12, T111, T112 = _bvn_tail_derivatives(b, c)
+        D111 = T111 + 3 * u[0] * T11 + 3 * u[0] ** 2 * T1 + u[0] ** 3 * T
+        D112 = (
+            T112 + 2 * u[0] * T12 + u[0] ** 2 * T2 + u[1] * (T11 + 2 * u[0] * T1 + u[0] ** 2 * T)
+        )
+        I0 = C * (T - d / 6 * (3 * c * D111 + 3 * D112))
+        I1 = -C * (1 / (ts[0] * e1) - 1 / w1h) * T1
+        if np.abs(tt) >= h2:
+            fac = self._kl_marginal_factor(tt)
+        else:
+            nodes = np.array([-2, -1, 1, 2]) * h2
+            fac = _lagrange_weights(nodes, tt) @ [self._kl_marginal_factor(n) for n in nodes]
+        I2 = sg[1] * fac * sps.norm.sf(w1h) * sps.norm.pdf(w2h)
+        return I0 + I1 + I2
 
     def _dK_inv(self, x, **solver_kwargs):
         # TODO: implement multivariate interpolation with radial basis functions or something like that

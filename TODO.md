@@ -771,7 +771,7 @@ Contract violations and silently wrong results in narrower situations.
 
 ## Needs a literature check (unresolved)
 
-### [ ] 56. Bivariate cdf converges too slowly under dependence (partially fixed)
+### [x] 56. Bivariate cdf converges too slowly under dependence
 
 - **Where:** `spapprox/spa.py:836-912`
 - **What:** even with items 17 and 18 fixed, the error for dependent pairs only
@@ -802,7 +802,8 @@ Contract violations and silently wrong results in narrower situations.
 
   Regression tests: `test_bvar_cdf_wang_1990_table_1`, `test_bvar_cdf_dependent_accuracy`,
   `test_bvar_cdf_invariant_to_relabeling`.
-- **Still open:** the error still shrinks like `n^(-1/2)` at fixed standardized points.
+- **Limitation of Wang's method:** the error still shrinks like `n^(-1/2)` at fixed
+  standardized points.
   This is intrinsic to Wang's formula (Wang's own table has errors of ~0.009 at n=10;
   Kolassa & Li (2010) note that Wang's argument is incomplete near the pole). Two more
   findings:
@@ -812,18 +813,48 @@ Contract violations and silently wrong results in narrower situations.
     Lugannani--Rice correction `1/x_tilde - 1/(t_tilde_0 sqrt(K_tt))` is 3--20x more
     accurate at k=1, but does not change the rate. It is not in the literature, so it was
     not adopted.
-- **Next step:** Kolassa & Li (2010) / Li (2009, PhD thesis, ch. 3), which has relative
-  error `O(1/n)`. A prototype reaches the `1/n` rate: max errors 4.1e-3, 8.9e-4, 2.5e-4,
-  6.5e-5, 1.7e-5 for k=1..256. Two things are needed that the paper omits:
+- **Resolved:** the default is now `cdf(..., backend="KL")`, the method of Kolassa & Li
+  (2010) / Li (2009, PhD thesis, ch. 3), which has relative error `O(1/n)`. Wang's method
+  is kept as `backend="Wang"`. Max abs error for `bivariate_gamma([2, 1, 3] * k)` vs
+  exact quadrature:
+
+  | k    | 1      | 4      | 16     | 64     | 256    |
+  | ---- | ------ | ------ | ------ | ------ | ------ |
+  | Wang | 0.035  | 0.0050 | 0.0023 | 0.0013 | 7.3e-4 |
+  | KL   | 4.1e-3 | 8.9e-4 | 2.5e-4 | 6.5e-5 | 1.7e-5 |
+
+  Three things were needed that the paper omits:
   - The cubic term of `I^∅`, which the thesis only references to Kolassa (2003). Only
     `w_tilde_2(w_1)` is non-quadratic, so `g_111 = 3 w2' w2''`, `g_112 = w2''`, and the
     other cubic derivatives vanish. The Gaussian integrals follow by applying
     `(-d/db_i - u_hat_i)` to the bivariate normal tail. Without this term the error is
-    `O(n^(-1/2))` and worse than Wang's.
+    `O(n^(-1/2))` and worse than Wang's. (Also: the thesis prints the correlation as
+    `c/(1+c^2)`; it is `c/sqrt(1+c^2)`.)
   - Applying the upper-tail formula in the orthant where both saddlepoint components are
     positive (reflect `K(±s, ±t)`), then inclusion--exclusion with univariate
     Lugannani--Rice marginals. Without this, `C = exp(...)` blows up when the orthant
     probability is close to 1.
+  - The reflection makes the result jump across the axis `t_2 = 0` (up to 3.4e-3 at
+    k=1), because the `X_1` marginal tail implied by KL differs from Lugannani--Rice at
+    `O(1/n)`. It is continuous across `t_1 = 0`. The two variable orders are therefore
+    blended with weight `z_2^2/(z_1^2+z_2^2)` on the given order (`z` the standardized
+    saddlepoint). This is continuous (jumps < 1e-7), symmetric in the variables, and as
+    accurate as either order. Picking the order with the smaller `|z|` still left jumps of
+    6.6e-4.
+
+  Regression tests: `test_bvar_cdf_dependent_accuracy` (both backends),
+  `test_bvar_cdf_kl_continuous_near_singularities`, `test_bvar_cdf_invariant_to_relabeling`
+  (both backends), KL checks in the independence and near-axis tests.
+- **Remaining findings (not fixed):**
+  - KL does not factorize exactly under independence: max error 4.6e-3 for
+    `gamma(3) x gamma(5)`, versus 1.3e-4 for the product of the Lugannani--Rice marginals
+    (and for Wang, which factorizes exactly). Adding the `O(1/n)` term
+    `I^{12} = phi(w1) phi(w2) [G(t) - G(t1, 0) - G(0, t2) + 1] / (w1 (w2 - w2_check))`
+    restores factorization (1.3e-4), but trades accuracy under dependence: max error with
+    vs without it 2.1e-3 vs 5.1e-3 at correlation 0.09, but 2.0e-2 vs 6.6e-3 at 0.75. Not
+    adopted.
+  - The "Wang can exceed 1" and `I21` variant findings above still apply to
+    `backend="Wang"`.
 
 ---
 
