@@ -15,6 +15,7 @@ from .cgfs import (
     UnivariateCumulantGeneratingFunction,
     univariate_sample_mean,
 )
+from .mvn import _kolassa_orthant
 from .util import fib, type_wrapper
 
 try:
@@ -678,7 +679,8 @@ class UnivariateSaddlePointApproxMean(UnivariateSaddlePointApprox):
 class MultivariateSaddlePointApprox(SaddlePointApprox):
     r"""
     Given the cumulant generating function of a random vector, this class
-    provides the saddle point approximation of the probability density function.
+    provides the saddle point approximation of the probability density function,
+    and of the cumulative distribution function, see :meth:`_kolassa_cdf`.
 
     The multivariate saddle point approximation is given by
 
@@ -703,6 +705,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
     [3] Reid (1988) - Saddlepoint methods and statistical inference
     [4] Gatto (2000) - Symbolic computation for approximating distributions of some families of one and two-sample nonparametric test statistics
     [5] Gatto (2019) - Saddlepoint approximations for data in simplices
+    [6] Kolassa (2003) - Multivariate saddlepoint tail probability approximations
     """
 
     def __init__(self, cgf, pdf_normalization=None):
@@ -838,9 +841,158 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             for i in range(self.dim)
         ]
 
-    def cdf(self, *args, x=None, t=None, fillna=np.nan, **solver_kwargs):
-        # TODO: make a basic implementation with numerical integration
-        raise NotImplementedError(f"CDF not implemented for {self.__class__.__name__}")
+    # Map of the cdf backends to the methods that evaluate them at a single point
+    _cdf_backends = {"Kolassa": "_kolassa_cdf"}
+
+    def cdf(self, x=None, t=None, fillna=np.nan, backend="Kolassa", **solver_kwargs):
+        r"""
+        Saddle point approximation of the cumulative distribution function.
+
+        Parameters
+        ----------
+        x : array_like, optional (either x or t must be provided)
+            The values at which to evaluate the cumulative distribution function. The
+            last axis indexes the components.
+        t : array_like, optional (either x or t must be provided)
+            Solution of the saddle point equation. If not provided, it will be
+            computed using numerical root finding.
+        fillna : float, optional
+            The value to replace NaNs with.
+        backend : str, optional
+            'Kolassa' for the approximation of Kolassa (2003), see
+            :meth:`_kolassa_cdf`.
+        """
+        assert x is not None or t is not None
+        if backend not in self._cdf_backends:
+            raise ValueError(f"backend must be one of {list(self._cdf_backends)}")
+        if x is None:
+            x = self.cgf.dK(t)
+        elif t is None:
+            t = self._dK_inv(x, **solver_kwargs)
+        wrapper = PandasWrapper(x)
+        x, t = np.asanyarray(x), np.asanyarray(t)
+        y = np.asanyarray(self._spapprox_cdf(x, t, backend=backend, **solver_kwargs))
+        y = np.where(np.isnan(y), fillna, y)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+
+    def _spapprox_cdf(self, x, t, backend="Kolassa", **solver_kwargs):
+        # Handle vectorized evaluation
+        if t.ndim > 1:
+            return np.asanyarray(
+                [
+                    self._spapprox_cdf(xx, tt, backend=backend, **solver_kwargs)
+                    for xx, tt in zip(x, t)
+                ]
+            )
+        if t.ndim != 1 or x.ndim != 1 or len(t) != self.dim or len(x) != self.dim:
+            raise ValueError(f"{self.dim} dimensional vector expected")
+        return getattr(self, self._cdf_backends[backend])(x, t, **solver_kwargs)
+
+    def _kolassa_cdf(self, x, t, **solver_kwargs):
+        r"""
+        Saddle point approximation of the cumulative distribution function in any
+        dimension, following Kolassa (2003).
+
+        For a subvector :math:`\mathbf{X}_A`, :math:`A\subseteq\{1,\ldots,d\}`, and signs
+        :math:`\sigma\in\{-1,1\}^A`, let
+
+        .. math::
+            P_A^\sigma = P\left(\sigma_j X_j \geq \sigma_j x_j,\ j\in A\right),
+
+        so that :math:`F(\mathbf{x}) = P_{\{1,\ldots,d\}}^{(-1,\ldots,-1)}`. The random
+        vector :math:`(\sigma_jX_j)_{j\in A}` has cumulant generating function
+        :math:`K_A(\sigma\odot\tau)`, with :math:`K_A` the cumulant generating
+        function of the marginal :math:`\mathbf{X}_A`, and saddlepoint
+        :math:`\sigma\odot\hat\tau_A`, where :math:`\hat\tau_A` is the saddlepoint of
+        :math:`\mathbf{X}_A` at :math:`\mathbf{x}_A`. If all components of
+        :math:`\sigma\odot\hat\tau_A` are non-negative, :math:`P_A^\sigma` is
+        approximated by eq. (5) of [1], see :func:`spapprox.mvn._kolassa_orthant`.
+        Otherwise, pick the first :math:`j` with :math:`\sigma_j\hat\tau_{A,j}<0`, and
+        use (see the text after eq. (13) of [1])
+
+        .. math::
+            P_A^\sigma = P_{A\setminus\{j\}}^{\sigma_{-j}} - P_A^{\sigma'},
+
+        where :math:`\sigma'` equals :math:`\sigma` with :math:`\sigma_j` flipped, and
+        :math:`P_\emptyset = 1`. The second term has one negative saddlepoint component
+        fewer, and the first one is a lower dimensional problem with its own
+        saddlepoint, so that the recursion terminates. It visits at most :math:`3^d`
+        subproblems, and solves at most :math:`2^d-2` additional saddlepoint
+        equations.
+
+        Unlike the plan of using the Lugannani-Rice formula for the one-dimensional
+        problems, eq. (5) is used in every dimension, including one. If
+        :math:`\hat\tau_{A,j}=0`, the marginal saddlepoint of
+        :math:`\mathbf{X}_{A\setminus\{j\}}` equals :math:`\hat\tau_{A,-j}`, and the
+        two orthant approximations on either side of :math:`x_j` add up exactly to the
+        approximation of :math:`P_{A\setminus\{j\}}^{\sigma_{-j}}`. Hence, the
+        approximation is continuous across the hyperplanes :math:`\hat\tau_j=0`, which
+        would not hold with Lugannani-Rice in the one-dimensional problems. Moreover,
+        the approximation is exact for the normal distribution, does not depend on the
+        order of the variables, and has no singularities, so that no interpolation is
+        needed near :math:`\hat\tau_j=0`. Its error is :math:`O(n^{-1})`, but not
+        uniformly relative, so that the relative accuracy far in the tails is poor.
+
+        The normal orthant probabilities and their derivatives are evaluated with
+        relative accuracy, see :func:`spapprox.mvn._mvn_logtail`. This is important,
+        as eq. (5) multiplies them by the potentially huge factor
+        :math:`\exp(\hat\tau^T K''(\hat\tau)\hat\tau/2)`.
+
+        Parameters
+        ----------
+        x : array_like
+            A single point at which to evaluate the cumulative distribution function.
+        t : array_like
+            Solution of the saddle point equation at ``x``.
+
+        References
+        ----------
+        [1] Kolassa (2003) - Multivariate saddlepoint tail probability approximations
+        """
+        d = self.dim
+        x, t = np.asarray(x, dtype=float), np.asarray(t, dtype=float)
+        if not (np.isfinite(x).all() and np.isfinite(t).all()):
+            return np.nan
+        saddles = {tuple(range(d)): t}
+        cache = {}
+
+        def saddle(A):
+            if A not in saddles:
+                if len(A) == 1:
+                    saddles[A] = np.atleast_1d(self.cgf[A[0]].dK_inv(x[A[0]], **solver_kwargs))
+                else:
+                    saddles[A] = np.asarray(self[list(A)].cgf.dK_inv(x[list(A)], **solver_kwargs))
+            return saddles[A]
+
+        def orthant(A, sg):
+            idx = list(A)
+            tau = saddle(A)
+            te = np.zeros(d)
+            te[idx] = tau
+            k2 = self.cgf.d2K(te)[np.ix_(idx, idx)] * np.outer(sg, sg)
+            k3 = self.cgf.d3K(te)[np.ix_(idx, idx, idx)] * np.einsum("i,j,k->ijk", sg, sg, sg)
+            return _kolassa_orthant(self.cgf.K(te), k2, k3, sg * tau, tau @ x[idx])
+
+        def tail(A, sg):
+            if not A:
+                return 1.0
+            key = (A, tuple(sg))
+            if key not in cache:
+                tau = saddle(A)
+                if np.isnan(tau).any():
+                    cache[key] = np.nan
+                    return np.nan
+                neg = np.flatnonzero(sg * tau < 0)
+                if len(neg) == 0:
+                    cache[key] = orthant(A, sg)
+                else:
+                    j = neg[0]
+                    flipped = sg.copy()
+                    flipped[j] *= -1
+                    cache[key] = tail(A[:j] + A[j + 1 :], np.delete(sg, j)) - tail(A, flipped)
+            return cache[key]
+
+        return tail(tuple(range(d)), -np.ones(d))
 
     def fit_cdf(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000):
         """
@@ -866,8 +1018,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
     the saddle point equation :math:`K(\mathbf{\tilde t})=x`.
 
     The cumulative distribution function is approximated by the method of [6] by
-    default, see :meth:`_kl_cdf`, or by the method of [3] as outlined in [4] Section
-    5.2, see :meth:`_wang_cdf`.
+    default, see :meth:`_kl_cdf`, by the method of [3] as outlined in [4] Section
+    5.2, see :meth:`_wang_cdf`, or by the method of [8], see :meth:`_kolassa_cdf`.
 
     References
     ----------
@@ -890,6 +1042,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
     """
 
+    _cdf_backends = {"KL": "_kl_cdf", "Wang": "_wang_cdf", "Kolassa": "_kolassa_cdf"}
+
     def cdf(self, x=None, t=None, fillna=np.nan, backend="KL", **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function in
@@ -906,37 +1060,13 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             The value to replace NaNs with.
         backend : str, optional
             Either 'KL' for the approximation of Kolassa and Li (2010), see
-            :meth:`_kl_cdf`, which has relative error :math:`O(n^{-1})`, or 'Wang' for
+            :meth:`_kl_cdf`, which has relative error :math:`O(n^{-1})`, 'Wang' for
             the approximation of Wang (1990), see :meth:`_wang_cdf`, which converges
-            more slowly when the components are dependent.
+            more slowly when the components are dependent, or 'Kolassa' for the
+            approximation of Kolassa (2003), see :meth:`_kolassa_cdf`, which has
+            error :math:`O(n^{-1})`, but not uniformly relative.
         """
-        assert x is not None or t is not None
-        if backend not in ("KL", "Wang"):
-            raise ValueError("backend must be either 'KL' or 'Wang'")
-        if x is None:
-            x = self.cgf.dK(t)
-        elif t is None:
-            t = self._dK_inv(x, **solver_kwargs)
-        wrapper = PandasWrapper(x)
-        x, t = np.asanyarray(x), np.asanyarray(t)
-        y = self._spapprox_cdf(x, t, backend=backend, **solver_kwargs)
-        y = np.where(np.isnan(y), fillna, y)
-        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
-
-    def _spapprox_cdf(self, x, t, backend="KL", **solver_kwargs):
-        # Handle vectorized evaluation
-        if t.ndim > 1:
-            return np.asanyarray(
-                [
-                    self._spapprox_cdf(xx, tt, backend=backend, **solver_kwargs)
-                    for xx, tt in zip(x, t)
-                ]
-            )
-        if t.ndim != 1 or x.ndim != 1 or len(t) != 2 or len(x) != 2:
-            raise ValueError("2 dimension vector expected in bivariate case")
-        if backend == "KL":
-            return self._kl_cdf(x, t, **solver_kwargs)
-        return self._wang_cdf(x, t, **solver_kwargs)
+        return super().cdf(x=x, t=t, fillna=fillna, backend=backend, **solver_kwargs)
 
     def _wang_cdf(self, x, t, **solver_kwargs):
         r"""

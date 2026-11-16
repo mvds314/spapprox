@@ -156,10 +156,28 @@ single bootstrap sample.
 $$f(\mathbf{x}) \approx (2\pi)^{-d/2}\,\lvert\det H\rvert^{-1/2}
 \exp\big(K(\mathbf{t}) - \mathbf{x}\cdot\mathbf{t}\big)$$
 
-with $H = K''(\mathbf{t})$, following Gatto (2000) Sec. 5.2. Explicitly **not**
-implemented: `cdf`, `__getitem__` (marginal approximation) and `condition`
-(conditional approximation) all raise `NotImplementedError`. The README lists
-conditional distributions as future work.
+with $H = K''(\mathbf{t})$, following Gatto (2000) Sec. 5.2. Marginals are
+available as `spa[i]` / `spa[[i, j]]`; `condition` (conditional approximation)
+raises `NotImplementedError`.
+
+`cdf(x=None, t=None, fillna=np.nan, backend="Kolassa")` works in any dimension
+(phase A of `docs/multivariate_cdf_plan.md`). `_kolassa_cdf` evaluates eq. (5) of
+Kolassa (2003) for orthants in which the (reflected) saddlepoint is non-negative,
+and otherwise recurses via $P_A^\sigma = P_{A\setminus j}^{\sigma_{-j}} -
+P_A^{\sigma'}$, solving the marginal saddlepoint equations of the subvectors. The
+1-D base case is also eq. (5) (Robinson-type), not Lugannani-Rice: that makes the
+approximation exactly continuous across $\hat\tau_j = 0$; LR would jump by
+$O(n^{-1})$. It has no singularities, is exact for the normal, and is permutation
+invariant. Error $O(n^{-1})$, about 1.5x that of `"KL"` in 2-D.
+
+`spapprox/mvn.py` holds the numerics: `_mvn_logtail` (normal orthant probability
+in log-space with **relative** accuracy, via Genz's separation of variables and a
+tensor Gauss-Legendre rule in $y$-space; near machine precision for $d \le 4$),
+`_mvn_tail_derivatives` (derivatives up to order 3, Kolassa (2003) eq. (8) plus
+the product rule), and `_kolassa_orthant`. Do not use
+`scipy.stats.multivariate_normal.cdf` there: it controls only the absolute error
+(`releps` is ignored), which the factor $\exp(\hat\tau^T\Sigma\hat\tau/2)$
+blows up in the tails.
 
 `BivariateSaddlePointApprox` adds a `cdf` for $d = 2$, following
 Wang (1990) / Paolella (2007). It approximates via a bivariate normal cdf term

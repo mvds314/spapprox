@@ -38,6 +38,7 @@ cleverly avoiding solving it -- drives most of the API surface below.
 ```
 spapprox/
 +-- util.py        (32 loc)   type_wrapper, Timer, fib
++-- mvn.py        (236 loc)   normal orthant probabilities, Kolassa (2003) orthant formula
 +-- diff.py       (569 loc)   numerical differentiation via findiff
 +-- domain.py     (587 loc)   Domain: where K is finite
 +-- cgf_base.py  (1919 loc)   CGF base + Univariate/Multivariate classes  <- the heart
@@ -49,7 +50,7 @@ examples/         standalone matplotlib demo scripts (not part of the test suite
 ```
 
 Dependencies run strictly one way:
-`util / diff / domain -> cgf_base -> cgfs -> spa`. Nothing in `diff.py` or
+`util / diff / domain -> cgf_base -> cgfs -> spa` (and `mvn -> spa`). Nothing in `diff.py` or
 `domain.py` knows about CGFs; keep it that way when adding code.
 
 Public API (`spapprox/__init__.py`): the two CGF classes, `Domain`, the four
@@ -180,9 +181,12 @@ mean *without bootstrapping* -- see `examples/example_nonparametric_bootstrap.py
 - `UnivariateSaddlePointApprox(cgf)` -- `pdf`, `cdf`, `ppf`.
 - `UnivariateSaddlePointApproxMean(cgf, sample_size)` -- sample mean; thin
   subclass wiring in `univariate_sample_mean`.
-- `MultivariateSaddlePointApprox(cgf)` -- `pdf` only; `cdf`, marginals
-  (`__getitem__`) and `condition` raise `NotImplementedError`.
-- `BivariateSaddlePointApprox(cgf)` -- adds a bivariate `cdf`.
+- `MultivariateSaddlePointApprox(cgf)` -- `pdf`, marginals (`spa[i]`,
+  `spa[[i, j]]`), and `cdf(backend="Kolassa")` for any dimension (Kolassa
+  (2003), built on the normal orthant helpers in `mvn.py`); `condition` raises
+  `NotImplementedError`.
+- `BivariateSaddlePointApprox(cgf)` -- adds the bivariate cdf backends `"KL"`
+  (default) and `"Wang"`, and inherits `"Kolassa"`.
 
 `cdf` has two interchangeable backends selected by `backend=`: `"LR"`
 (Lugannani-Rice, the default) and `"BN"` (Barndorff-Nielsen). Both are singular
@@ -272,7 +276,7 @@ tolerance.
   `example_findiff_multivariate.py` and `example_gen_lin_opr.py` still use the
   deprecated `FinDiff` API. Do not treat them as behavioral references, and note
   they need `matplotlib`, which is not a declared dependency.
-- **Multivariate support is incomplete by design, not by accident.** Several
-  methods raise `NotImplementedError` (multivariate cdf, marginal and conditional
-  approximations). The README lists conditional distributions and quotients of
+- **Multivariate support is incomplete by design, not by accident.** Some
+  methods raise `NotImplementedError` (conditional approximations, `fit_cdf`). The
+  plan for the multivariate cdf is in `docs/multivariate_cdf_plan.md`. The README lists conditional distributions and quotients of
   random variables as future work.

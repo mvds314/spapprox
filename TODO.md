@@ -6,7 +6,8 @@
   - basically this case: test_bvar_cdf_near_zero
   - are there more edge cases?
 - Conditional approximation (Skovgard approximation)
-- Multivariate approximation
+- Multivariate approximation: cdf phase A done (`backend="Kolassa"`); phase B only if
+  needed, see `docs/multivariate_cdf_plan.md`
 
 - Work on bootstrap distributions (see Booth and Butler)
 
@@ -908,6 +909,13 @@ Or into a separate model, e.g., bootstrap.py
   (marginal approximations are available as `spa[i]`, `spa[[i, j]]`)
 - implement Dirichlet bootstrap
 - implement multivariate saddle point approximations
+  - cdf for any dimension: phase A of `docs/multivariate_cdf_plan.md` is done,
+    `MultivariateSaddlePointApprox.cdf(backend="Kolassa")` (Kolassa 2003). Error
+    `O(1/n)`, about 1.5x that of `"KL"` in 2-D; exact for the normal; continuous;
+    symmetric. Phase B (Kolassa & Li 2010 for `d > 2`) is open, and only worth it if
+    phase A turns out not to be accurate enough
+  - `fit_cdf` for the multivariate case is not implemented
+  - lattice variables: continuity-corrected version of Kolassa (2003) eq. (13)
 - implement other bootstraps
 - jackknife stuff
 - conditional distributions

@@ -1,8 +1,9 @@
 # Plan: saddlepoint cdf for random vectors of dimension d > 2
 
-Status: draft, not started. `MultivariateSaddlePointApprox.cdf` currently raises
-`NotImplementedError`; only the bivariate case (`BivariateSaddlePointApprox`, backends
-`"KL"` and `"Wang"`) is implemented.
+Status: phase A done, see [Phase A: outcome](#phase-a-outcome).
+`MultivariateSaddlePointApprox.cdf(backend="Kolassa")` works in any dimension, and
+`BivariateSaddlePointApprox` offers it next to `"KL"` (default) and `"Wang"`. Phase B is
+not started.
 
 ## Sources
 
@@ -141,9 +142,51 @@ A6. **Validation**:
 A7. **Tests** in `tests/test_spa.py` (mark as slow where QMC makes them expensive),
     docstrings with the formulas, a TODO.md entry, ruff, and `pytest -m "not slow"`.
 
+## Phase A: outcome
+
+Implemented in `spapprox/mvn.py` (numerics) and `MultivariateSaddlePointApprox._kolassa_cdf`
+(recursion); tests in `tests/test_spa.py`. Deviations from the steps above:
+
+- **Orthant probabilities (A1).** `scipy.stats.multivariate_normal.cdf` is unusable: it
+  controls only the absolute error (`releps` is ignored, also in 2-D), and the prefactor
+  `exp(t_hat' Sigma t_hat / 2)` blows that up in the tails. `_mvn_logtail` uses Genz's
+  separation of variables in log-space instead, with a tensor Gauss-Legendre rule in the
+  `y` variables on truncated intervals `[a_i, a_i + s_i]`. The integrands are analytic
+  there, so it converges exponentially: relative error ~1e-14 for `d <= 3` against
+  adaptive quadrature, also for probabilities of 1e-24. Gauss-Legendre in Genz's
+  `w`-space converged only algebraically (~1e-5) because of the endpoint singularities
+  of `Phi^-1`; Sobol QMC was similar. The truncation needs the mass to be near the
+  corner `b` (`Sigma^-1 b >= 0`), which holds for all orthants in eq. (5), including the
+  conditional ones in eq. (8). The nodes per dimension shrink for `d >= 5`, to keep
+  the total under 2e5.
+- **Derivatives (A1).** One recursion handles distinct and repeated indices: eq. (8)
+  plus the product and chain rules. Results are memoized per evaluation, and the
+  prefactor is applied in log-space, so nothing over- or underflows.
+- **1-D base case (A3).** Eq. (5) with `d = 1` (Robinson-type), not Lugannani-Rice. When
+  `t_hat_j = 0`, the two reflected orthant approximations add up *exactly* to the
+  lower-dimensional one, so the recursion is continuous, but only if the 1-D level is
+  also eq. (5). With LR, the cdf of the 3-D gamma below would jump by ~3e-3 across
+  the hyperplanes.
+- **Near zero (A4).** Not needed: eq. (5) has no singularity at `t_hat_j = 0`, and the
+  measured jumps across the hyperplanes are O(eps).
+
+Measured (A6):
+
+| Case | Result |
+| ---- | ------ |
+| Normal, `d = 3, 4, 5`, correlated | exact to ~1e-9 (the accuracy of the QMC reference) |
+| `bivariate_gamma([2, 1, 3] * k)`, max abs error | k=1: 7.4e-3, 4: 1.7e-3, 16: 4.0e-4, 64: 1.0e-4, 256: 2.6e-5 |
+| same, `"KL"` | k=1: 4.1e-3, 4: 9.2e-4, 16: 2.5e-4, 64: 6.5e-5, 256: 1.6e-5 |
+| 3-D gamma `Z_0 + Z_i`, `a = [2, 1, 3, 1.5] * k` | k=1: 1.2e-2, 4: 3.1e-3, 16: 7.5e-4, 64: 1.9e-4 |
+| permutation invariance, reflection consistency | to machine precision |
+| cost | ~0.05-0.2 s per point for `d = 3`, ~0.3 s for `d = 5` (normal) |
+
+So phase A has a clean `O(1/n)` rate, with errors about 1.5x those of `"KL"` in 2-D.
+That is good enough to postpone phase B.
+
 ## Risks and open questions
 
-- **QMC noise for d >= 3.** Genz's algorithm has an absolute error of about 1e-6 and is
+- **QMC noise for d >= 3.** (Resolved: deterministic Gauss-Legendre SOV, see the outcome.) Genz's algorithm has an absolute error of about 1e-6 and is
   randomized, so fix the seed. The cubic term needs up to three derivatives, each a
   lower-dim orthant probability. That works, but the cost grows with the number of index
   triples.

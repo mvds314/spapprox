@@ -2,6 +2,7 @@ import itertools
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 import scipy.stats as sps
 from scipy.integrate import quad
@@ -22,6 +23,8 @@ from spapprox import (
     multivariate_norm,
     norm,
 )
+from spapprox.mvn import _mvn_logtail, _mvn_tail_derivatives
+from spapprox.spa import _bvn_tail_derivatives
 
 
 @pytest.mark.parametrize(
@@ -296,6 +299,7 @@ def test_bvar_spa(cgf, dist, ts, dim):
         x = spa.cgf.dK(t)
         assert np.allclose(spa.cdf(t=t), dist.cdf(x), atol=1e-6)
     assert np.allclose(spa.cdf(t=ts), dist.cdf(spa.cgf.dK(ts)), atol=1e-6)
+    assert np.allclose(spa.cdf(t=ts, backend="Kolassa"), dist.cdf(spa.cgf.dK(ts)), atol=1e-6)
 
 
 # TODO: continue here with the conditional Skovgaard approximation
@@ -699,3 +703,159 @@ def test_normalized_pdf_exact(cgf, dist):
     spa = UnivariateSaddlePointApprox(cgf)
     x = dist.ppf([0.01, 0.3, 0.5, 0.9])
     assert np.allclose(spa.pdf(x=x), dist.pdf(x), rtol=1e-6)
+
+
+def test_mvn_logtail_relative_accuracy_in_tails():
+    # Equicorrelated: Z_i = sqrt(r) U + sqrt(1 - r) E_i gives a 1-D reference integral
+    for d, r in [(2, 0.5), (3, 0.3), (4, 0.6)]:
+        S = (1 - r) * np.eye(d) + r
+        for scale in [0.0, 1.0, 4.0, 8.0]:
+            b = S @ np.full(d, scale)
+            integrand = lambda u: (
+                sps.norm.pdf(u) * np.prod(sps.norm.sf((b - np.sqrt(r) * u) / np.sqrt(1 - r)))
+            )
+            ref = quad(integrand, -12, 12 + b.max(), epsabs=0, epsrel=1e-13, limit=500)[0]
+            assert np.isclose(np.exp(_mvn_logtail(b, S)), ref, rtol=1e-9, atol=0)
+
+
+def test_mvn_tail_derivatives():
+    c = 0.7
+    b = np.array([0.4, -0.3])
+    ms = [(), (0,), (1,), (0, 0), (0, 1), (0, 0, 0), (0, 0, 1)]
+    D = _mvn_tail_derivatives(b, np.array([[1 + c**2, c], [c, 1.0]]), ms)
+    ref = _bvn_tail_derivatives(b, c)
+    # Without fastnorm, the reference orthant probability is quasi-Monte Carlo
+    assert np.isclose(D[()], ref[0], atol=2e-5)
+    assert np.allclose([D[R] for R in ms[1:]], ref[1:], atol=1e-12)
+    # Finite differences in 3-D, and the log-scale
+    rng = np.random.default_rng(1)
+    X = rng.normal(size=(3, 3))
+    S = X @ X.T + 0.5 * np.eye(3)
+    b = S @ np.array([0.3, 0.1, 0.5])
+    ms = [()] + [
+        R for o in (1, 2, 3) for R in itertools.combinations_with_replacement(range(3), o)
+    ]
+    D = _mvn_tail_derivatives(b, S, ms)
+    h = 1e-3
+
+    def fd(R, bb):
+        if not R:
+            return np.exp(_mvn_logtail(bb, S))
+        e = np.zeros(3)
+        e[R[0]] = h
+        return (fd(R[1:], bb + e) - fd(R[1:], bb - e)) / (2 * h)
+
+    for R in ms:
+        assert np.isclose(D[R], fd(R, b), atol=1e-6)
+    D2 = _mvn_tail_derivatives(b, S, ms, logscale=3.0)
+    assert np.allclose([D2[R] * np.exp(-3.0) for R in ms], [D[R] for R in ms], atol=1e-15)
+
+
+@pytest.mark.parametrize("d", [3, pytest.param(4, marks=pytest.mark.slow)])
+def test_mvar_cdf_kolassa_normal_exact(d):
+    rng = np.random.default_rng(3)
+    X = rng.normal(size=(d, d))
+    cov = X @ X.T + 0.5 * np.eye(d)
+    mean = rng.normal(size=d)
+    spa = MultivariateSaddlePointApprox(multivariate_norm(loc=mean, cov=cov))
+    xs = mean + rng.normal(size=(4, d)) * np.sqrt(np.diag(cov)) * 1.5
+    ref = [
+        sps.multivariate_normal.cdf(
+            x, mean, cov, abseps=1e-9, maxpts=10**7, rng=np.random.default_rng(0)
+        )
+        for x in xs
+    ]
+    assert np.allclose(spa.cdf(x=xs), ref, atol=1e-8)
+
+
+def _common_gamma(a):
+    # (Z0 + Z1, Z0 + Z2, Z0 + Z3) with independent Zi ~ Gamma(a[i])
+    A = np.array([[1, 1, 0, 0], [1, 0, 1, 0], [1, 0, 0, 1.0]])
+    return MultivariateCumulantGeneratingFunction.from_univariate(*[gamma(a=ai) for ai in a]).ldot(
+        A
+    )
+
+
+def _common_gamma_cdf(x, a):
+    integrand = lambda z: (
+        sps.gamma(a[0]).pdf(z) * np.prod([sps.gamma(ai).cdf(xi - z) for ai, xi in zip(a[1:], x)])
+    )
+    return quad(integrand, 0, min(x), limit=200, epsabs=1e-13, epsrel=1e-10)[0]
+
+
+@pytest.mark.parametrize(
+    "k,max_err",
+    [
+        (1, 0.015),
+        pytest.param(4, 4e-3, marks=pytest.mark.slow),
+        pytest.param(16, 1e-3, marks=pytest.mark.slow),
+    ],
+)
+def test_mvar_cdf_kolassa_gamma_accuracy(k, max_err):
+    # Error O(1/n), with n proportional to k
+    a = np.array([2.0, 1.0, 3.0, 1.5]) * k
+    spa = MultivariateSaddlePointApprox(_common_gamma(a))
+    errs = []
+    for z in itertools.product([-1.4, 0.5, 1.6], repeat=3):
+        t = np.array(z) / np.sqrt(k) / 3
+        x = spa.cgf.dK(t)
+        if np.isnan(x).any():
+            # Outside the domain
+            assert np.isnan(spa.cdf(t=t)) and spa.cdf(t=t, fillna=0) == 0
+            continue
+        errs.append(abs(spa.cdf(t=t) - _common_gamma_cdf(x, a)))
+    assert max(errs) < max_err
+
+
+@pytest.mark.parametrize("k,max_err", [(1, 0.008), pytest.param(16, 5e-4, marks=pytest.mark.slow)])
+def test_bvar_cdf_kolassa_accuracy(k, max_err):
+    a = np.array([2.0, 1.0, 3.0]) * k
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=a))
+    errs = []
+    for zs, zt in itertools.product([-1.5, -0.3, 0.4, 1.8], [-1.5, 0.35, 1.7]):
+        t = np.array([zs, zt]) / np.sqrt(k) / 2.2
+        if t.sum() >= 0.97:
+            continue
+        x = spa.cgf.dK(t)
+        errs.append(abs(spa.cdf(t=t, backend="Kolassa") - _bivariate_gamma_cdf(x, a)))
+    assert max(errs) < max_err
+
+
+def test_mvar_cdf_kolassa_continuous_and_symmetric():
+    a = np.array([2.0, 1.0, 3.0, 1.5])
+    spa = MultivariateSaddlePointApprox(_common_gamma(a))
+    eps = 1e-9
+    for base in [[0.2, -0.3, 0.1], [-0.3, -0.2, -0.1]]:
+        for idx in [[0], [1], [2], [0, 2]]:
+            p, q = np.array(base), np.array(base)
+            p[idx], q[idx] = eps, -eps
+            assert np.isclose(spa.cdf(t=p), spa.cdf(t=q), atol=1e-7)
+    assert np.isclose(spa.cdf(t=np.zeros(3)), spa.cdf(t=np.full(3, 1e-9)), atol=1e-7)
+    # Relabeling the variables permutes the result
+    perm = [2, 0, 1]
+    A = np.array([[1, 1, 0, 0], [1, 0, 1, 0], [1, 0, 0, 1.0]])
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(*[gamma(a=ai) for ai in a])
+    spa_perm = MultivariateSaddlePointApprox(cgf.ldot(A[perm]))
+    for t in [[0.2, -0.3, 0.1], [0.1, 0.2, 0.15]]:
+        t = np.array(t)
+        assert np.isclose(spa.cdf(t=t), spa_perm.cdf(t=t[perm]), atol=1e-12)
+    # P(X <= x) + P(X1 > x1, X2 <= x2, X3 <= x3) = P(X2 <= x2, X3 <= x3)
+    x = spa.cgf.dK(np.array([0.2, -0.3, 0.1]))
+    D = np.diag([-1.0, 1, 1])
+    spa_refl = MultivariateSaddlePointApprox(spa.cgf.ldot(D))
+    lhs = spa.cdf(x=x) + spa_refl.cdf(x=D @ x)
+    assert np.isclose(lhs, spa[[1, 2]].cdf(x=x[1:], backend="Kolassa"), atol=1e-10)
+
+
+def test_mvar_cdf_vectorized_and_invalid_backend():
+    cov = np.array([[2.0, 0.5, 0.3], [0.5, 1.0, -0.4], [0.3, -0.4, 3.0]])
+    spa = MultivariateSaddlePointApprox(multivariate_norm(loc=np.zeros(3), cov=cov))
+    xs = np.array([[0.1, 0.2, -0.3], [1.0, -0.5, 2.0]])
+    vals = spa.cdf(x=xs)
+    assert np.allclose(vals, [spa.cdf(x=x) for x in xs])
+    assert np.allclose(spa.cdf(x=pd.DataFrame(xs)).values, vals)
+    assert np.isclose(spa[[1]].cdf(x=[0.3]), sps.norm.cdf(0.3))
+    with pytest.raises(ValueError):
+        spa.cdf(x=xs[0], backend="KL")
+    with pytest.raises(ValueError):
+        spa.cdf(x=xs[0, :2])
