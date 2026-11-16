@@ -719,22 +719,18 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             assert not inplace, "inplace not supported for UnivariateCumulantGeneratingFunction"
             return UnivariateCumulantGeneratingFunction(
                 # Pass cumulant generating function and its derivatives
-                lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.K(
-                    t, scale=ss, loc=ls
-                )
-                + other.K(t, scale=so, loc=lo),
-                dK=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.dK(
-                    t, loc=ls, scale=ss
-                )
-                + other.dK(t, loc=lo, scale=so),
-                d2K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.d2K(
-                    t, scale=ss, loc=ls
-                )
-                + other.d2K(t, scale=so, loc=lo),
-                d3K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.d3K(
-                    t, scale=ss, loc=ls
-                )
-                + other.d3K(t, scale=so, loc=lo),
+                lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: (
+                    self.K(t, scale=ss, loc=ls) + other.K(t, scale=so, loc=lo)
+                ),
+                dK=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: (
+                    self.dK(t, loc=ls, scale=ss) + other.dK(t, loc=lo, scale=so)
+                ),
+                d2K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: (
+                    self.d2K(t, scale=ss, loc=ls) + other.d2K(t, scale=so, loc=lo)
+                ),
+                d3K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: (
+                    self.d3K(t, scale=ss, loc=ls) + other.d3K(t, scale=so, loc=lo)
+                ),
                 # Extract scaled derivatives and pass them if unscaled derivatives are already computed
                 dK0=(
                     self.dK0 + other.dK0
@@ -1365,7 +1361,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             # Bind loc and scale at construction, so later changes to the operands don't leak in
             ls, ss, lo, so = self.loc, self.scale, other.loc, other.scale
             return MultivariateCumulantGeneratingFunction(
-                lambda t: self.K(t, loc=ls, scale=ss) + other.K(np.sum(t, axis=-1), loc=lo, scale=so),
+                lambda t: (
+                    self.K(t, loc=ls, scale=ss) + other.K(np.sum(t, axis=-1), loc=lo, scale=so)
+                ),
                 dim=self.dim,
                 dK=lambda t: np.apply_along_axis(
                     lambda x: np.add(x, other.dK(np.sum(t, axis=-1), loc=lo, scale=so)),
@@ -1410,22 +1408,18 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             assert not inplace, "inplace not supported for MultivariateCumulantGeneratingFunction"
             assert self.dim == other.dim, "Dimensions must be equal"
             return MultivariateCumulantGeneratingFunction(
-                lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.K(
-                    t, scale=ss, loc=ls
-                )
-                + other.K(t, scale=so, loc=lo),
-                dK=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.dK(
-                    t, loc=ls, scale=ss
-                )
-                + other.dK(t, loc=lo, scale=so),
-                d2K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.d2K(
-                    t, scale=ss, loc=ls
-                )
-                + other.d2K(t, scale=so, loc=lo),
-                d3K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: self.d3K(
-                    t, scale=ss, loc=ls
-                )
-                + other.d3K(t, scale=so, loc=lo),
+                lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: (
+                    self.K(t, scale=ss, loc=ls) + other.K(t, scale=so, loc=lo)
+                ),
+                dK=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: (
+                    self.dK(t, loc=ls, scale=ss) + other.dK(t, loc=lo, scale=so)
+                ),
+                d2K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: (
+                    self.d2K(t, scale=ss, loc=ls) + other.d2K(t, scale=so, loc=lo)
+                ),
+                d3K=lambda t, ss=self.scale, so=other.scale, ls=self.loc, lo=other.loc: (
+                    self.d3K(t, scale=ss, loc=ls) + other.d3K(t, scale=so, loc=lo)
+                ),
                 # Extract scaled derivatives and pass them if unscaled derivatives are already computed
                 dK0=(
                     self.dK0 + other.dK0

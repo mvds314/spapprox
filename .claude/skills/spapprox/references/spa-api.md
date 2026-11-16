@@ -157,8 +157,15 @@ $$f(\mathbf{x}) \approx (2\pi)^{-d/2}\,\lvert\det H\rvert^{-1/2}
 \exp\big(K(\mathbf{t}) - \mathbf{x}\cdot\mathbf{t}\big)$$
 
 with $H = K''(\mathbf{t})$, following Gatto (2000) Sec. 5.2. Marginals are
-available as `spa[i]` / `spa[[i, j]]`; `condition` (conditional approximation)
-raises `NotImplementedError`.
+available as `spa[i]` / `spa[[i, j]]`; the `condition` stub still raises
+`NotImplementedError`, use `conditional_cdf` / `conditional_pdf` instead.
+
+`conditional_cdf(x, given, i=0)` and `conditional_pdf` give $X_i \mid X_J = x_J$
+(equality conditioning only): Skovgaard's double saddlepoint,
+$F \approx \Phi(w) + \phi(w)(1/w - 1/u)$ (Broda & Paolella 32.24-32.26), error
+$O(n^{-1})$, exact for the normal. The numerator saddlepoint is the full one, the
+denominator one is the marginal saddlepoint of $X_J$. Near $w=u=0$ the cdf is
+cubic-interpolated; the pdf is un-normalized. Plan: `docs/conditional_cdf_plan.md`.
 
 `cdf(x=None, t=None, fillna=np.nan, backend="Kolassa")` works in any dimension
 (phase A of `docs/multivariate_cdf_plan.md`). `_kolassa_cdf` evaluates eq. (5) of

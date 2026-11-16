@@ -526,9 +526,7 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
         lower = max(
             (np.nanmax(v) for v in (domain.g, domain.ge) if v is not None), default=-np.inf
         )
-        upper = min(
-            (np.nanmin(v) for v in (domain.l, domain.le) if v is not None), default=np.inf
-        )
+        upper = min((np.nanmin(v) for v in (domain.l, domain.le) if v is not None), default=np.inf)
         return lower, upper
 
     def infer_t_range(self, atol=1e-4, rtol=1e-4, max_iter=500):
@@ -764,6 +762,176 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
 
     def condition(self, i, x):
         raise NotImplementedError("Condition the approximation on the ith variable")
+
+    # Half-width, in conditional standard deviations of the variable of interest, of the
+    # window around the singular point of the conditional cdf in which it is interpolated.
+    _conditional_singular_width = 1e-2
+
+    def _conditional_inputs(self, x, given, i):
+        """Validate the input of the conditional methods, return (i, J, x, given)."""
+        i = self._normalize_index(i)
+        J = [j for j in range(self.dim) if j != i]
+        if not J:
+            raise ValueError("Conditioning requires at least a two dimensional distribution")
+        x = np.asarray(x, dtype=float)
+        given = np.asarray(given, dtype=float)
+        if given.ndim == 1:
+            if len(given) != len(J):
+                raise ValueError(f"given must have {len(J)} components")
+            given = np.broadcast_to(given, (x.size, len(J)))
+        elif given.ndim == 2 and given.shape == (x.size, len(J)):
+            pass
+        else:
+            raise ValueError(f"given must have shape ({len(J)},) or ({x.size}, {len(J)})")
+        return i, J, x, given
+
+    def _conditional_denominator_saddle(self, i, J, xJ, **solver_kwargs):
+        """Saddlepoint with component i fixed at zero, solving dK_J = x_J."""
+        if len(J) == 1:
+            tJ = np.atleast_1d(self.cgf[J[0]].dK_inv(xJ[0], **solver_kwargs))
+        else:
+            tJ = np.asarray(self.cgf[J].dK_inv(xJ, **solver_kwargs))
+        tau0 = np.zeros(self.dim)
+        tau0[J] = tJ
+        return tau0
+
+    def _conditional_terms(self, xfull, i, J, tau0, **solver_kwargs):
+        r"""
+        Return :math:`(\hat w, \hat\tau_i, \hat\sigma)` with
+        :math:`\hat\sigma=\sqrt{\det K''(\hat\tau)/\det K_{JJ}''(\tau_0)}`, so that
+        :math:`\hat u=\hat\tau_i\hat\sigma`, at ``xfull``, with :math:`\tau_0` the
+        denominator saddlepoint.
+        """
+        tau = np.asarray(self.cgf.dK_inv(xfull, **solver_kwargs), dtype=float)
+        H = np.asarray(self.cgf.d2K(tau))
+        H0 = np.asarray(self.cgf.d2K(tau0))
+        w2 = 2 * (tau @ xfull - self.cgf.K(tau) - tau0 @ xfull + self.cgf.K(tau0))
+        sign, logdet = np.linalg.slogdet(H)
+        sign0, logdet0 = np.linalg.slogdet(H0[np.ix_(J, J)])
+        if not (np.isfinite(w2) and sign > 0 and sign0 > 0):
+            return np.nan, np.nan, np.nan
+        # Rounding can push w2 slightly below zero close to the singularity
+        w = np.sign(tau[i]) * np.sqrt(max(w2, 0.0))
+        return w, tau[i], np.exp((logdet - logdet0) / 2)
+
+    def conditional_cdf(self, x, given, i=0, fillna=np.nan, **solver_kwargs):
+        r"""
+        Saddle point approximation of the conditional cumulative distribution function
+        :math:`P(X_i\leq x\mid X_J=x_J)`, with :math:`J` all other components, following
+        the double saddlepoint approximation of Skovgaard (1987).
+
+        There are two saddlepoints. The numerator saddlepoint :math:`\hat\tau` solves
+        :math:`K'(\hat\tau)=(x, x_J)`. The denominator saddlepoint :math:`\tau_0` solves
+        :math:`K_J'(\tau_0)=x_J` with its :math:`i`-th component equal to zero, that is, it
+        is the saddlepoint of the marginal of :math:`X_J`. Then, see [1] (32.24)-(32.26)
+        and [2] (4.12)-(4.13),
+
+        .. math::
+            P(X_i\leq x\mid X_J=x_J) \approx \Phi(\hat w)
+            + \phi(\hat w)\left(\frac{1}{\hat w} - \frac{1}{\hat u}\right),
+
+        with
+
+        .. math::
+            \hat w = \text{sign}(\hat\tau_i)\sqrt{2\left[\hat\tau^Tx - K(\hat\tau)
+            - \tau_0^Tx + K(\tau_0)\right]},\qquad
+            \hat u = \hat\tau_i\sqrt{\det K''(\hat\tau) / \det K_{JJ}''(\tau_0)}.
+
+        The approximation is exact for the normal distribution. At :math:`\hat\tau_i=0`
+        both :math:`\hat w` and :math:`\hat u` vanish. The singularity is removable, and
+        within ``_conditional_singular_width`` conditional standard deviations of this
+        point the approximation is replaced by a cubic interpolation.
+
+        Parameters
+        ----------
+        x : array_like
+            Values of the variable of interest.
+        given : array_like
+            Values of the conditioning variables, in increasing order of their index.
+            Either a vector, used for all values of ``x``, or an array with one row for
+            each value of ``x``.
+        i : int, optional
+            Index of the variable of interest. Default is the first.
+        fillna : float, optional
+            The value to replace NaNs with.
+
+        References
+        ----------
+        [1] Broda and Paolella (2011) - Saddlepoint approximations: a review and some new
+            applications, Section 32.4.1
+        [2] Butler (2007) - Saddlepoint approximations with applications, Section 4.2.1
+        [3] Skovgaard (1987) - Saddlepoint expansions for conditional distributions
+        """
+        i, J, x, given = self._conditional_inputs(x, given, i)
+        wrapper = PandasWrapper(x)
+        y = np.array(
+            [
+                self._conditional_cdf_at(xi, xJ, i, J, **solver_kwargs)
+                for xi, xJ in zip(x.ravel(), given)
+            ]
+        ).reshape(x.shape)
+        y = np.where(np.isnan(y), fillna, y)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+
+    def _conditional_cdf_at(self, xi, xJ, i, J, **solver_kwargs):
+        if not (np.isfinite(xi) and np.isfinite(xJ).all()):
+            return np.nan
+        tau0 = self._conditional_denominator_saddle(i, J, xJ, **solver_kwargs)
+
+        def point(x):
+            xfull = np.empty(self.dim)
+            xfull[i], xfull[J] = x, xJ
+            w, tau_i, sigma = self._conditional_terms(xfull, i, J, tau0, **solver_kwargs)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                return sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / (tau_i * sigma))
+
+        # Interpolate near the singular point x_i = K_i'(tau_0), where tau_hat_i = 0
+        center = float(self.cgf.dK(tau0)[i])
+        H0 = np.asarray(self.cgf.d2K(tau0))
+        h = self._conditional_singular_width / np.sqrt(np.linalg.inv(H0)[i, i])
+        if abs(xi - center) < h:
+            nodes = center + h * np.array([-4.0, -2.0, 2.0, 4.0])
+            coef = np.polyfit(nodes - center, [point(v) for v in nodes], deg=3)
+            return np.polyval(coef, xi - center)
+        return point(xi)
+
+    def conditional_pdf(self, x, given, i=0, fillna=np.nan, **solver_kwargs):
+        r"""
+        Saddle point approximation of the conditional probability density function of
+        :math:`X_i` given :math:`X_J=x_J`, with :math:`J` all other components. It is the
+        ratio of the joint and the marginal saddle point densities, see [1] (4.7) and
+        (4.14),
+
+        .. math::
+            f(x\mid x_J) \approx \sqrt{\frac{\det K_{JJ}''(\tau_0)}{\det K''(\hat\tau)}}
+            \,\phi(\hat w),
+
+        where :math:`\hat\tau`, :math:`\tau_0` and :math:`\hat w` are as in
+        :meth:`conditional_cdf`. The result is not normalized.
+
+        Parameters
+        ----------
+        x, given, i, fillna :
+            See :meth:`conditional_cdf`.
+
+        References
+        ----------
+        [1] Butler (2007) - Saddlepoint approximations with applications, Section 4.1
+        """
+        i, J, x, given = self._conditional_inputs(x, given, i)
+        wrapper = PandasWrapper(x)
+        y = np.empty(x.size)
+        for k, (xi, xJ) in enumerate(zip(x.ravel(), given)):
+            if not (np.isfinite(xi) and np.isfinite(xJ).all()):
+                y[k] = np.nan
+                continue
+            tau0 = self._conditional_denominator_saddle(i, J, xJ, **solver_kwargs)
+            xfull = np.empty(self.dim)
+            xfull[i], xfull[J] = xi, xJ
+            w, _, sigma = self._conditional_terms(xfull, i, J, tau0, **solver_kwargs)
+            y[k] = sps.norm.pdf(w) / sigma
+        y = np.where(np.isnan(y), fillna, y).reshape(x.shape)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
     @type_wrapper(xloc=1)
     def _spapprox_pdf(self, x, t, fillna=np.nan):
@@ -1422,9 +1590,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         if w > 0:
             retval += w * self._kl_cdf_ordered(x, t, **solver_kwargs)
         if w < 1:
-            retval += (1 - w) * self[[1, 0]]._kl_cdf_ordered(
-                x[::-1], t[::-1], **solver_kwargs
-            )
+            retval += (1 - w) * self[[1, 0]]._kl_cdf_ordered(x[::-1], t[::-1], **solver_kwargs)
         return retval
 
     def _kl_cdf_ordered(self, x, t, **solver_kwargs):

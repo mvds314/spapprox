@@ -302,7 +302,104 @@ def test_bvar_spa(cgf, dist, ts, dim):
     assert np.allclose(spa.cdf(t=ts, backend="Kolassa"), dist.cdf(spa.cgf.dK(ts)), atol=1e-6)
 
 
-# TODO: continue here with the conditional Skovgaard approximation
+def _gamma_conditional(a, x2):
+    """Exact cdf and pdf of X1 given X2=x2 for bivariate_gamma(a): X1 = Y0 + Y1, X2 = Y0 + Y2."""
+    a0, a1, a2 = a
+    y0 = sps.beta(a0, a2)
+    g1 = sps.gamma(a1)
+
+    def pdf(x1):
+        return quad(lambda u: y0.pdf(u / x2) / x2 * g1.pdf(x1 - u), 0, min(x1, x2))[0]
+
+    def cdf(x1):
+        return quad(lambda u: y0.pdf(u / x2) / x2 * g1.cdf(x1 - u), 0, min(x1, x2))[0]
+
+    return np.vectorize(cdf), np.vectorize(pdf)
+
+
+@pytest.mark.parametrize(
+    "cov,given",
+    [
+        pytest.param([[2, 1], [1, 2]], [0.7], id="Bivariate"),
+        pytest.param(
+            [[2, 0.5, -0.3], [0.5, 1, 0.4], [-0.3, 0.4, 1.5]], [0.7, -0.4], id="Trivariate"
+        ),
+    ],
+)
+@pytest.mark.parametrize("i", [0, -1])
+def test_conditional_normal(cov, given, i):
+    cov = np.asarray(cov, dtype=float)
+    d = len(cov)
+    i = i % d
+    J = [j for j in range(d) if j != i]
+    spa = MultivariateSaddlePointApprox(multivariate_norm(loc=[0.3] * d, cov=cov))
+    # Exact conditional of a normal
+    mu = 0.3 + cov[i, J] @ np.linalg.solve(cov[np.ix_(J, J)], np.asarray(given) - 0.3)
+    var = cov[i, i] - cov[i, J] @ np.linalg.solve(cov[np.ix_(J, J)], cov[J, i])
+    dist = sps.norm(loc=mu, scale=np.sqrt(var))
+    x = np.linspace(mu - 4 * np.sqrt(var), mu + 4 * np.sqrt(var), 41)
+    assert np.allclose(spa.conditional_cdf(x, given, i=i), dist.cdf(x), atol=1e-8)
+    assert np.allclose(spa.conditional_pdf(x, given, i=i), dist.pdf(x), atol=1e-8)
+    # Scalar input, and the point at the singularity of the formula
+    assert np.isclose(spa.conditional_cdf(mu, given, i=i), 0.5, atol=1e-6)
+    assert np.isclose(spa.conditional_pdf(mu, given, i=i), dist.pdf(mu), atol=1e-8)
+
+
+def test_conditional_independent():
+    spa = MultivariateSaddlePointApprox(multivariate_norm(loc=0, cov=[[1, 0], [0, 4]]))
+    x = np.linspace(-3, 3, 7)
+    for y in [-1.0, 0.0, 2.0]:
+        assert np.allclose(spa.conditional_cdf(x, [y], i=0), sps.norm.cdf(x), atol=1e-8)
+
+
+@pytest.mark.parametrize("a", [(1, 2, 3), (3, 2, 4)])
+def test_conditional_bivariate_gamma(a):
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=a))
+    x2 = 5.0
+    cdf, pdf = _gamma_conditional(a, x2)
+    x = np.linspace(0.5, 12, 24)
+    got = spa.conditional_cdf(x, [x2], i=0)
+    assert np.allclose(got, cdf(x), atol=6e-3)
+    got = spa.conditional_pdf(x, [x2], i=0)
+    assert np.allclose(got, pdf(x), rtol=0.1, atol=1e-3)
+
+
+def test_conditional_bivariate_gamma_convergence():
+    # The relative error is O(1/n) for the sum of n iid vectors, here a -> k * a
+    errors = []
+    for k in [1, 8]:
+        a = np.array([1, 2, 3]) * k
+        spa = BivariateSaddlePointApprox(bivariate_gamma(a=a))
+        x2 = 5.0 * k
+        cdf, _ = _gamma_conditional(a, x2)
+        x = np.array([0.5, 1.0, 1.5]) * 2 * k
+        errors.append(np.max(np.abs(spa.conditional_cdf(x, [x2], i=0) / cdf(x) - 1)))
+    assert errors[1] < errors[0] / 5
+
+
+def test_conditional_continuous_at_singularity():
+    # tau_hat[i] = 0 at x_i = E[X_i | X_J] under the saddlepoint, where w = u = 0
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=(1, 2, 3)))
+    x2 = 5.0
+    x0 = spa.cgf[1].dK_inv(x2)
+    center = float(spa.cgf.dK([0.0, x0])[0])
+    xs = center + np.linspace(-0.05, 0.05, 41)
+    vals = spa.conditional_cdf(xs, [x2], i=0)
+    assert np.isfinite(vals).all()
+    assert np.all(np.diff(vals) > 0)
+    assert np.abs(np.diff(vals, 2)).max() < 1e-5
+
+
+def test_conditional_input_shapes():
+    spa = MultivariateSaddlePointApprox(multivariate_norm(loc=0, cov=[[2, 1], [1, 2]]))
+    xs = np.array([-1.0, 0.0, 1.0])
+    ys = np.array([0.5, -0.5, 1.0])
+    # One conditioning value per point
+    got = spa.conditional_cdf(xs, ys[:, None], i=0)
+    expected = [spa.conditional_cdf(x, [y], i=0) for x, y in zip(xs, ys)]
+    assert np.allclose(got, expected)
+    with pytest.raises(ValueError):
+        spa.conditional_cdf(xs, [0.0, 1.0], i=0)
 
 
 def test_ppf_with_t0():
