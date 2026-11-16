@@ -17,6 +17,25 @@ Short version: `util / diff / domain -> cgf_base -> cgfs -> spa`. Build a CGF
 (`cgfs.py` factories), do algebra on it (`+` sums independent variables), hand it
 to an approximation class (`spa.py`).
 
+## Workflow
+
+All changes go through pull requests into `main`; do not commit to `main` directly.
+Do each piece of work on its own branch in a separate **git worktree**, so that
+parallel tasks and the main checkout stay untouched:
+
+```bash
+git worktree add ../spapprox-<topic> -b feature/<topic> main
+cd ../spapprox-<topic>            # work, test, commit here
+gh pr create                      # open the PR (draft while in progress)
+# after the merge:
+git worktree remove ../spapprox-<topic>
+git branch -d feature/<topic> && git push origin --delete feature/<topic>
+```
+
+Wait for the CI check to pass before merging. The version in `pyproject.toml` is
+CalVer (`YY.MM.N`); bump it in the PR for a user-visible change. Larger features get a
+written plan in `docs/` first, and follow-ups are listed in `docs/TODO.md`.
+
 ## Setup
 
 Editable install (flit backend, no setup.py):
