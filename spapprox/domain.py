@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import numpy as np
 import pandas as pd
 
@@ -9,8 +8,10 @@ class Domain:
     r"""
     Represents the domain of a function.
     For a value to be in the domain, it should satisfy all the specified upper
-    and lower bound contraints: less, greater, less-equal, and greater-equal.
-    The specified bounds should satisfy: :math:`g>ge>le>l`.
+    and lower bound contraints: less, greater, less-equal, and greater-equal,
+    i.e., :math:`x<l`, :math:`x>g`, :math:`x\leq le`, and :math:`x\geq ge`.
+    The lower bounds :math:`g` and :math:`ge` should not exceed the upper bounds
+    :math:`l` and :math:`le`.
 
     Also, it should satisfy the linear inequality:
 
@@ -19,6 +20,9 @@ class Domain:
         Bx < b,
     where :math:`A` and :math:`B` are matrices.
     """
+
+    # Make numpy defer to our reflected operators, e.g., ``ndarray * Domain``
+    __array_ufunc__ = None
 
     def __init__(
         self,
@@ -36,34 +40,24 @@ class Domain:
         self.dim = dim
         # Validate bound constraints
         if dim == 1:
-            assert all(
-                x is None or np.isscalar(x) for x in [l, le, ge, g]
-            ), "Bounds should be scalars in dim 1."
-            specified_bounds = [x for x in [l, le, ge, g] if x is not None]
-            if len(specified_bounds) > 1:
-                assert all(
-                    specified_bounds[i] > specified_bounds[i + 1]
-                    for i in range(len(specified_bounds) - 1)
-                ), "Bounds should satisfy: g>ge>le>l"
+            assert all(x is None or np.isscalar(x) for x in [l, le, ge, g]), (
+                "Bounds should be scalars in dim 1."
+            )
         else:
-            assert all(
-                x is None or np.isscalar(x) or len(x) == dim for x in [l, le, ge, g]
-            ), "Bounds should be scalars or have matching dim"
-            specified_bounds = [np.asanyarray(x) for x in [l, le, ge, g] if x is not None]
-            if len(specified_bounds) > 1:
-                df = pd.DataFrame(
-                    data=np.nan, index=range(self.dim), columns=["l", "le", "ge", "g"]
-                )
-                df["l"] = l
-                df["le"] = le
-                df["ge"] = ge
-                df["g"] = g
-                for _, sr in df.iterrows():
-                    assert sr.dropna().is_monotonic_decreasing, "Bounds should satisfy: g>ge>le>l"
-                l = np.asanyarray(l) if l is not None and not np.isscalar(l) else l  # noqa: E741
-                g = np.asanyarray(g) if g is not None and not np.isscalar(g) else g
-                le = np.asanyarray(le) if le is not None and not np.isscalar(le) else le
-                ge = np.asanyarray(ge) if ge is not None and not np.isscalar(ge) else ge
+            assert all(x is None or np.isscalar(x) or len(x) == dim for x in [l, le, ge, g]), (
+                "Bounds should be scalars or have matching dim"
+            )
+            l = np.asanyarray(l) if l is not None and not np.isscalar(l) else l  # noqa: E741
+            g = np.asanyarray(g) if g is not None and not np.isscalar(g) else g
+            le = np.asanyarray(le) if le is not None and not np.isscalar(le) else le
+            ge = np.asanyarray(ge) if ge is not None and not np.isscalar(ge) else ge
+        for lower in [g, ge]:
+            for upper in [l, le]:
+                if lower is not None and upper is not None:
+                    # NaN entries represent absent bounds and compare as False
+                    assert not np.any(
+                        np.asarray(lower, dtype=float) > np.asarray(upper, dtype=float)
+                    ), "Lower bounds (g, ge) should not exceed upper bounds (l, le)"
         self.l = l
         self.g = g
         self.le = le
@@ -197,6 +191,8 @@ class Domain:
             b = None if self.b is None else self.b + self.B.dot(np.full(self.dim, other))
         elif isinstance(other, np.ndarray) and other.ndim == 0:
             return self.add(other.tolist())
+        elif pd.api.types.is_list_like(other) and not isinstance(other, np.ndarray):
+            return self.add(np.asanyarray(other))
         elif pd.api.types.is_array_like(other) and len(other) == self.dim:
             a = None if self.a is None else self.a + self.A.dot(other)
             b = None if self.b is None else self.b + self.B.dot(other)
@@ -221,7 +217,7 @@ class Domain:
         return self.__add__(other)
 
     def __sub__(self, other):
-        return self.add(-1 * other)
+        return self.add(-np.asanyarray(other))
 
     def __rsub__(self, other):
         return (-1 * self).__add__(other)
@@ -255,6 +251,8 @@ class Domain:
                 le = self.ge * other if self.ge is not None else None
         elif isinstance(other, np.ndarray) and other.ndim == 0:
             return self.mul(other.tolist())
+        elif pd.api.types.is_list_like(other) and not isinstance(other, np.ndarray):
+            return self.mul(np.asanyarray(other))
         elif self.dim > 1 and pd.api.types.is_array_like(other):
             other = np.asanyarray(other)
             assert not np.any(np.isclose(other, 0)), "Cannot multiply with zero"
@@ -313,58 +311,73 @@ class Domain:
         Left side dot product. Leads to the domain of :math:`y=Cx`.
         This extends the multiplication (scaling) functionality to generic linear transformations.
 
-        As :math:`A` is not necessarily invertible, sometimes this transformation is not possible.
+        If :math:`C` is square and invertible, the exact domain
+        :math:`\{y: C^{-1}y\in D\}` is returned via :meth:`ldotinv`.
 
-        Also, note that this might expand the domain, as several bounds are combined into one.
-
-        Not completely sure how useful this is.
+        Otherwise, only bound constraints are supported, and every component of :math:`y`
+        is bounded with interval arithmetic: with :math:`C^+` and :math:`C^-` the positive
+        and negative parts of :math:`C`, the upper bound is :math:`C^+u + C^-\ell` and the
+        lower bound :math:`C^+\ell + C^-u`, where :math:`u` and :math:`\ell` are the tightest
+        upper and lower bounds of :math:`x`. A bound is strict if any contributing bound is.
+        The result is a superset of the true domain, as the components are bounded separately.
         """
         assert other is not None
-        other = np.asanyarray(other)
-        if self.has_ineq_constraints:
-            try:
-                inv = np.linalg.inv(other)
-            except np.linalg.LinAlgError:
-                raise Exception(
-                    "Provided transformation must be invertible for domains with ineq constraints"
-                )
-            return self.ldotinv(inv)
-        elif other.ndim == 1 and len(other) == self.dim:
-            return self.ldot(np.atleast_2d(other))
-        elif other.ndim == 2 and other.shape[1] == self.dim:
-            if self.l is None:
-                l = None  # noqa: E741
-            elif np.isscalar(self.l):
-                l = other.dot(np.full(self.dim, self.l))  # noqa: E741
-            else:
-                l = other.dot(self.l)  # noqa: E741
-            if self.g is None:
-                g = None
-            elif np.isscalar(self.g):
-                g = other.dot(np.full(self.dim, self.g))
-            else:
-                g = other.dot(self.g)
-            if self.le is None:
-                le = None
-            elif np.isscalar(self.le):
-                le = other.dot(np.full(self.dim, self.le))
-            else:
-                le = other.dot(self.le)
-            if self.ge is None:
-                ge = None
-            elif np.isscalar(self.ge):
-                ge = other.dot(np.full(self.dim, self.ge))
-            else:
-                ge = other.dot(self.ge)
-            dim = other.shape[0] if other.ndim == 2 else 1
-            if dim == 1:
-                l = l[0] if l is not None else None  # noqa: E741
-                g = g[0] if g is not None else None
-                le = le[0] if le is not None else None
-                ge = ge[0] if ge is not None else None
-            return Domain(l=l, g=g, le=le, ge=ge, A=None, a=None, B=None, b=None, dim=dim)
-        else:
+        other = np.asanyarray(other, dtype=float)
+        if other.ndim == 1 and len(other) == self.dim:
+            return self.ldot(other[None, :])
+        if other.ndim != 2 or other.shape[1] != self.dim:
             raise ValueError("Invalid shape")
+        if other.shape[0] == self.dim:
+            try:
+                return self.ldotinv(np.linalg.inv(other))
+            except np.linalg.LinAlgError:
+                pass
+        if self.has_ineq_constraints:
+            raise Exception(
+                "Provided transformation must be invertible for domains with ineq constraints"
+            )
+        dim = other.shape[0]
+        if not self.has_bounds:
+            return Domain(dim=dim)
+        # Tightest bounds of x, and whether they are strict; nan means no bound
+        upper = np.fmin(self.l_vect, self.le_vect)
+        upper_strict = ~np.isnan(self.l_vect) & (
+            np.isnan(self.le_vect) | (self.l_vect <= self.le_vect)
+        )
+        upper = np.where(np.isnan(upper), np.inf, upper)
+        lower = np.fmax(self.g_vect, self.ge_vect)
+        lower_strict = ~np.isnan(self.g_vect) & (
+            np.isnan(self.ge_vect) | (self.g_vect >= self.ge_vect)
+        )
+        lower = np.where(np.isnan(lower), -np.inf, lower)
+        pos, neg = other > 0, other < 0
+        with np.errstate(invalid="ignore"):
+            y_upper = np.where(pos, other * upper, 0).sum(axis=1) + np.where(
+                neg, other * lower, 0
+            ).sum(axis=1)
+            y_lower = np.where(pos, other * lower, 0).sum(axis=1) + np.where(
+                neg, other * upper, 0
+            ).sum(axis=1)
+        y_upper_strict = ((pos & upper_strict) | (neg & lower_strict)).any(axis=1)
+        y_lower_strict = ((pos & lower_strict) | (neg & upper_strict)).any(axis=1)
+
+        def _split(bound, strict):
+            finite = np.isfinite(bound)
+            res_strict = np.where(finite & strict, bound, np.nan)
+            res_incl = np.where(finite & ~strict, bound, np.nan)
+            out = []
+            for res in (res_strict, res_incl):
+                if np.all(np.isnan(res)):
+                    out.append(None)
+                elif dim == 1:
+                    out.append(float(res[0]))
+                else:
+                    out.append(res)
+            return out
+
+        l, le = _split(y_upper, y_upper_strict)  # noqa: E741
+        g, ge = _split(y_lower, y_lower_strict)
+        return Domain(l=l, g=g, le=le, ge=ge, dim=dim)
 
     def ldotinv(self, other):
         """
@@ -375,10 +388,7 @@ class Domain:
         assert other is not None
         other = np.asanyarray(other)
         if other.ndim == 1 and len(other) == self.dim:
-            if not self.has_bounds and not self.has_ineq_constraints:
-                return Domain(dim=1)
-            else:
-                return self.ldot(np.expand_dims(other, axis=0))
+            return self.ldotinv(other[:, None])
         elif other.ndim == 2 and other.shape[0] == self.dim:
             if not self.has_bounds and not self.has_ineq_constraints:
                 return Domain(dim=other.shape[1])
@@ -396,7 +406,7 @@ class Domain:
                     A = np.vstack((A, -np.eye(self.dim)))
                     a = np.append(
                         a,
-                        np.full(self.dim, self.ge) if np.isscalar(self.ge) else self.ge,
+                        np.full(self.dim, -self.ge) if np.isscalar(self.ge) else -self.ge,
                     )
                 sel = ~np.isnan(a)
                 A = A[sel]
@@ -436,68 +446,31 @@ class Domain:
             dim=other.shape[1],
         )
 
+    def _intersect_bounds(self, x, y, combine):
+        if x is None:
+            return y
+        if y is None:
+            return x
+        if self.dim == 1:
+            return float(combine(np.squeeze(x), np.squeeze(y)))
+        if pd.api.types.is_number(x) and pd.api.types.is_number(y):
+            return float(combine(x, y))
+        return combine(x * np.ones(self.dim), y * np.ones(self.dim))
+
     def intersect(self, other):
         """
         Intersect with another domain, i.e., the result should be in both.
         """
-        assert other is not None and isinstance(
-            other, Domain
-        ), "Can only intersect with another Domain"
-        assert self.dim == other.dim, "Dimensions should match"
-        if self.l is not None and other.l is not None:
-            if self.dim == 1 or (
-                pd.api.types.is_number(self.l) and pd.api.types.is_number(other.l)
-            ):
-                l = max(self.l, other.l)  # noqa: E741
-            else:
-                l = np.max(  # noqa: E741
-                    [self.l * np.ones(self.dim), other.l * np.ones(self.dim)], axis=0
-                )  # noqa: E741
-        elif self.l is not None:
-            l = self.l  # noqa: E741
-        elif other.l is not None:
-            l = other.l  # noqa: E741
-        else:
-            l = None  # noqa: E741
-        if self.g is not None and other.g is not None:
-            if self.dim == 1 or (
-                pd.api.types.is_number(self.g) and pd.api.types.is_number(other.g)
-            ):
-                g = min(self.g, other.g)
-            else:
-                g = np.min([self.g * np.ones(self.dim), other.g * np.ones(self.dim)], axis=0)
-        elif self.g is not None:
-            g = self.g
-        elif other.g is not None:
-            g = other.g
-        else:
-            g = None
-        if self.le is not None and other.le is not None:
-            if self.dim == 1 or (
-                pd.api.types.is_number(self.le) and pd.api.types.is_number(other.le)
-            ):
-                le = max(self.le, other.le)
-            else:
-                le = np.max([self.le * np.ones(self.dim), other.le * np.ones(self.dim)], axis=0)
-        elif self.le is not None:
-            le = self.le
-        elif other.le is not None:
-            le = other.le
-        else:
-            le = None
-        if self.ge is not None and other.ge is not None:
-            if self.dim == 1 or (
-                pd.api.types.is_number(self.ge) and pd.api.types.is_number(other.ge)
-            ):
-                ge = min(self.ge, other.ge)
-            else:
-                ge = np.min([self.ge * np.ones(self.dim), other.ge * np.ones(self.dim)], axis=0)
-        elif self.ge is not None:
-            ge = self.ge
-        elif other.ge is not None:
-            ge = other.ge
-        else:
-            ge = None
+        assert other is not None and isinstance(other, Domain), (
+            "Can only intersect with another Domain"
+        )
+        if self.dim != other.dim:
+            raise AssertionError("Dimensions should match")
+        # l and le are upper bounds, g and ge lower bounds; NaN entries mean "no bound"
+        l = self._intersect_bounds(self.l, other.l, np.fmin)  # noqa: E741
+        g = self._intersect_bounds(self.g, other.g, np.fmax)
+        le = self._intersect_bounds(self.le, other.le, np.fmin)
+        ge = self._intersect_bounds(self.ge, other.ge, np.fmax)
         if self.A is not None and other.A is not None:
             A = np.vstack((self.A, other.A))
             a = np.append(self.a, other.a)
@@ -565,7 +538,7 @@ class Domain:
             if any(d.A is not None for d in domains):
                 A = np.zeros((sum(d.A.shape[0] if d.A is not None else 0 for d in domains), dim))
                 a = np.zeros(A.shape[0])
-                i, j = 0
+                i, j = 0, 0
                 for d in domains:
                     if d.A is not None:
                         A[i : i + d.A.shape[0], j : j + d.dim] = d.A
@@ -580,7 +553,7 @@ class Domain:
             if any(d.B is not None for d in domains):
                 B = np.zeros((sum(d.B.shape[0] if d.B is not None else 0 for d in domains), dim))
                 b = np.zeros(B.shape[0])
-                i, j = 0
+                i, j = 0, 0
                 for d in domains:
                     if d.B is not None:
                         B[i : i + d.B.shape[0], j : j + d.dim] = d.B

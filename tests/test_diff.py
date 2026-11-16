@@ -1,0 +1,803 @@
+import itertools
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+from spapprox.diff import (
+    Gradient,
+    Hessian,
+    PartialDerivative,
+    TensorDerivative,
+    Tressian,
+    _has_findiff,
+    block_diag_3d,
+    transform_rank3_tensor,
+)
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+@pytest.mark.parametrize(
+    "f, gradf, dim, h, points, error",
+    [
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Simple 2D square",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x) * np.array([1, 2]), axis=-1),
+            lambda x: 2 * x * np.array([1, 2]),
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Simple 2D square with weights",
+        ),
+        pytest.param(
+            lambda x: np.where(np.all(x > 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
+            lambda x: np.where(
+                np.tile(np.all(x > 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
+            ).squeeze(),
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Simple 2D square with domain constraint",
+        ),
+        pytest.param(
+            lambda x: np.where(np.all(x >= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
+            lambda x: np.where(
+                np.tile(np.all(x >= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
+            ).squeeze(),
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Simple 2D square with domain constraint",
+        ),
+        pytest.param(
+            lambda x: np.where(np.all(x <= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
+            lambda x: np.where(
+                np.tile(np.all(x <= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
+            ).squeeze(),
+            2,
+            1e-6,
+            np.array([np.linspace(-1, 0, 10), np.linspace(-1, 0, 10)]).T,
+            None,
+            id="Simple 2D square with domain constraint",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            np.vectorize(lambda x: 2 * x, signature="(1)->(1)"),
+            1,
+            1e-6,
+            np.atleast_2d(np.linspace(0, 1, 10)).T,
+            None,
+            id="Simple 1D square",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            np.vectorize(lambda x: 2 * x, signature="(1)->(1)"),
+            1,
+            1e-6,
+            np.linspace(0, 1, 10),
+            ValueError,
+            id="ValueError, 1D square",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            0,
+            1e-6,
+            np.linspace(0, 1, 10),
+            ValueError,
+            id="ValueError, 0D square",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            1,
+            -1e-6,
+            np.linspace(0, 1, 10),
+            ValueError,
+            id="ValueError, negative h",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 3).T,
+            ValueError,
+            id="ValueError, 3D square",
+        ),
+    ],
+)
+def test_grad(f, gradf, dim, h, points, error):
+    if error is None:
+        grad = Gradient(f, dim, h=h)
+        for p in points:
+            gp = grad(p)
+            gradfp = gradf(p)
+            assert gp.ndim == gradfp.ndim == 1
+            assert len(gp) == len(gradfp) == dim
+            assert np.allclose(gp, gradfp, atol=1e-6, equal_nan=True)
+            # Test versus partial
+            grad_from_partial = np.array(
+                [
+                    PartialDerivative(f, *np.eye(dim, dtype=int)[i].tolist(), dim=dim, h=h)(p)
+                    for i in range(dim)
+                ]
+            )
+            assert np.allclose(grad_from_partial, gp, atol=1e-6, equal_nan=True)
+            # Test versus tensor derivative
+            tdp = TensorDerivative(f, dim, 1, h=h, acc=2)(p)
+            assert np.allclose(tdp, gp, atol=1e-6, equal_nan=True)
+        assert np.allclose(grad(points), gradf(points), equal_nan=True)
+    else:
+        for p in points:
+            with pytest.raises(error):
+                grad = Gradient(f, dim, h=h)
+                grad(p)
+        with pytest.raises(error):
+            grad = Gradient(f, dim, h=h)
+            grad(points)
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+@pytest.mark.parametrize(
+    "f, gradf, ndim, dim, h, points, error",
+    [
+        # Tests for the vector case
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            2,
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Simple 2D square",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x) * np.array([1, 2]), axis=-1),
+            lambda x: 2 * x * np.array([1, 2]),
+            2,
+            None,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Simple 2D square with weights",
+        ),
+        # Vector case with different domain constraints
+        pytest.param(
+            lambda x: np.where(np.all(x > 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
+            lambda x: np.where(
+                np.tile(np.all(x > 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
+            ).squeeze(),
+            2,
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Simple 2D square with domain constraint",
+        ),
+        pytest.param(
+            lambda x: np.where(np.all(x >= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
+            lambda x: np.where(
+                np.tile(np.all(x >= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
+            ).squeeze(),
+            2,
+            None,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Simple 2D square with domain constraint",
+        ),
+        pytest.param(
+            lambda x: np.where(np.all(x <= 0, axis=-1), np.sum(np.square(x), axis=-1), np.nan),
+            lambda x: np.where(
+                np.tile(np.all(x <= 0, axis=-1), (2, 1)).T, 2 * x, np.nan * np.ones_like(x)
+            ).squeeze(),
+            2,
+            2,
+            1e-6,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Simple 2D square with domain constraint",
+        ),
+        # Tests for the 1D vector case
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            1,
+            1,
+            1e-6,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D square",
+        ),
+        pytest.param(
+            lambda x: np.where(np.asanyarray(x) > 0, np.square(x), np.nan),
+            lambda x: np.where(
+                np.asanyarray(x) > 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
+            ),
+            1,
+            1,
+            1e-6,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D square with domain constraint",
+        ),
+        pytest.param(
+            lambda x: np.where(np.asanyarray(x) >= 0, np.square(x), np.nan),
+            lambda x: np.where(
+                np.asanyarray(x) >= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
+            ),
+            1,
+            1,
+            1e-6,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D square with domain constraint",
+        ),
+        pytest.param(
+            lambda x: np.where(np.asanyarray(x) <= 0, np.square(x), np.nan),
+            lambda x: np.where(
+                np.asanyarray(x) <= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
+            ),
+            1,
+            1,
+            1e-6,
+            np.expand_dims(np.linspace(-1, 0, 10), axis=-1),
+            None,
+            id="1D square with domain constraint",
+        ),
+        # Tests for the scalar case
+        pytest.param(
+            lambda x: np.square(x),
+            lambda x: 2 * x,
+            1,
+            0,
+            1e-6,
+            np.linspace(0, 1, 10),
+            None,
+            id="Scalar square",
+        ),
+        pytest.param(
+            lambda x: np.where(np.asanyarray(x) > 0, np.square(x), np.nan),
+            lambda x: np.where(
+                np.asanyarray(x) > 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
+            ),
+            1,
+            None,
+            1e-6,
+            np.linspace(0, 1, 10),
+            None,
+            id="Scalar square with domain constraint",
+        ),
+        pytest.param(
+            lambda x: np.where(np.asanyarray(x) >= 0, np.square(x), np.nan),
+            lambda x: np.where(
+                np.asanyarray(x) >= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
+            ),
+            1,
+            0,
+            1e-6,
+            np.linspace(0, 1, 10),
+            None,
+            id="Scalar square with domain constraint",
+        ),
+        pytest.param(
+            lambda x: np.where(np.asanyarray(x) <= 0, np.square(x), np.nan),
+            lambda x: np.where(
+                np.asanyarray(x) <= 0, 2 * np.asanyarray(x), np.nan * np.ones_like(x)
+            ),
+            1,
+            None,
+            1e-6,
+            np.linspace(-1, 0, 10),
+            None,
+            id="Scalar square with domain constraint",
+        ),
+        # Those should raise an error
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            2,
+            2,
+            1e-6,
+            np.linspace(-1, 0, 10),
+            ValueError,
+            id="ValueError, 2D square",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            2,
+            2,
+            -1e-6,
+            np.linspace(-1, 0, 10),
+            ValueError,
+            id="ValueError, negative h",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * x,
+            1,
+            1,
+            [1e-6, 1e-6],
+            np.linspace(-1, 0, 10),
+            ValueError,
+            id="ValueError, 1D square with 2D h",
+        ),
+        pytest.param(
+            lambda x: np.square(x),
+            lambda x: 2 * x,
+            1,
+            1,
+            1e-6,
+            np.linspace(0, 1, 10),
+            ValueError,
+            id="ValueError, 1D case with scalar input",
+        ),
+    ],
+)
+def test_first_order_partial_derivatives(f, gradf, ndim, dim, h, points, error):
+    if error is None:
+        assert ndim >= 1, "Invalid test"
+        assert dim is None or ndim == dim or (dim == 0 and ndim == 1), (
+            "Invalid test, ndim can only differ from dim in scalar case"
+        )
+        for i in range(ndim):
+            # Note we only test first order derivatives here
+            orders = np.eye(ndim, dtype=int)[i].tolist()
+            pdi = PartialDerivative(f, *orders, dim=dim, h=h)
+            assert dim is None or pdi.dim == dim
+            for p in points:
+                gradfp = gradf(p)
+                gradfpi = gradfp if np.isscalar(gradfp) or gradfp.ndim == 0 else gradfp[i]
+                pdip = pdi(p)
+                assert np.asanyarray(p).ndim <= 1, "Invalid test case"
+                assert np.isscalar(pdip)
+                assert np.allclose(pdip, gradfpi, atol=1e-6, equal_nan=True)
+            dpipoints = pdi(points)
+            assert dpipoints.ndim == 1, "A vector is expected as return value"
+            if pdi.dim == 0:
+                assert np.allclose(dpipoints, gradf(points), equal_nan=True)
+            else:
+                assert np.allclose(dpipoints, gradf(points)[:, i], equal_nan=True)
+    else:
+        for i in range(ndim):
+            orders = np.eye(ndim, dtype=int)[i].tolist()
+            for p in points:
+                with pytest.raises(error):
+                    PartialDerivative(f, *orders, dim=dim, h=h)(p)
+            with pytest.raises(error):
+                PartialDerivative(f, *orders, dim=dim, h=h)(points)
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+@pytest.mark.parametrize(
+    "f, df, orders, dim, h, points, error",
+    [
+        # Scalar higher order derivatives
+        pytest.param(
+            lambda x: np.square(x),
+            lambda x: 2 * np.ones_like(x),
+            [2],
+            0,
+            None,
+            np.linspace(0, 1, 10),
+            None,
+            id="Scalar square second order",
+        ),
+        pytest.param(
+            lambda x: np.power(x, 3),
+            lambda x: 3 * 2 * x,
+            [2],
+            None,
+            None,
+            np.linspace(0, 1, 10),
+            None,
+            id="Scalar cube second order",
+        ),
+        pytest.param(
+            lambda x: np.power(x, 3),
+            lambda x: 3 * 2 * np.ones_like(x),
+            [3],
+            0,
+            None,
+            np.linspace(0, 1, 2),
+            None,
+            id="Scalar cube third order",
+        ),
+        pytest.param(
+            lambda x: np.power(x, 4),
+            lambda x: 4 * 3 * 2 * np.ones_like(x),
+            [4],
+            None,
+            1e-2,
+            np.linspace(0, 1, 10),
+            None,
+            id="Scalar fourth order",
+        ),
+        # Vector case with higher order derivatives
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            lambda x: 2 * np.ones_like(x.take(0, axis=-1)),
+            [2, 0],
+            2,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Vector square second order",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.power(x, 3), axis=-1),
+            lambda x: 3 * 2 * x.take(1, axis=-1),
+            [0, 2],
+            None,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Vector cube second order",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.power(x, 3), axis=-1),
+            lambda x: 3 * 2 * np.ones_like(x.take(0, axis=-1)),
+            [3, 0],
+            2,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Vector cube third order",
+        ),
+        # 1D vector higher order derivatives
+        pytest.param(
+            lambda x: np.square(x),
+            lambda x: 2 * np.ones_like(x),
+            [2],
+            1,
+            None,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D square second order",
+        ),
+        pytest.param(
+            lambda x: np.power(x, 3),
+            np.vectorize(lambda x: 3 * 2 * x.squeeze(), signature="(1)->()"),
+            [2],
+            1,
+            None,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D cube second order",
+        ),
+        pytest.param(
+            lambda x: np.power(x, 3),
+            lambda x: 3 * 2 * np.ones_like(x),
+            [3],
+            1,
+            None,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D cube third order",
+        ),
+        pytest.param(
+            lambda x: np.power(x, 4),
+            lambda x: 4 * 3 * 2 * np.ones_like(x),
+            [4],
+            1,
+            1e-2,
+            np.expand_dims(np.linspace(0, 1, 10), axis=-1),
+            None,
+            id="1D fourth order",
+        ),
+        # Higher order mixed derivatives
+        pytest.param(
+            lambda x: np.sum(np.power(x, 2), axis=-1),
+            lambda x: np.sum(np.zeros_like(x), axis=-1),
+            [1, 1],
+            None,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Vector square second order mixed",
+        ),
+        pytest.param(
+            lambda x: np.prod(np.power(x, 2), axis=-1),
+            lambda x: 4 * np.prod(x, axis=-1),
+            [1, 1],
+            2,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Vector product second order mixed",
+        ),
+        # Should raise Errors
+        pytest.param(
+            lambda x: np.sum(np.power(x, 3), axis=-1),
+            lambda x: 3 * 2 * x,
+            [2, 2],
+            None,
+            1e-6,
+            np.linspace(0, 1, 10),
+            ValueError,
+            id="ValueError, vector case with scalar input",
+        ),
+    ],
+)
+def test_higher_order_partial_derivatives(f, df, orders, dim, h, points, error):
+    if error is None:
+        pd = PartialDerivative(f, *orders, dim=dim, h=h, acc=2)
+        for p in points:
+            assert np.asanyarray(p).ndim <= 1, "Invalid test case"
+            pdp = pd(p)
+            assert np.isscalar(pdp)
+            assert np.allclose(pdp, df(p), atol=1e-3, equal_nan=True)
+        dppoints = pd(points)
+        assert dppoints.ndim == 1, "A vector is expected as return value"
+        assert np.allclose(dppoints, df(points), atol=1e-3, equal_nan=True)
+    else:
+        for p in points:
+            with pytest.raises(error):
+                PartialDerivative(f, *orders, dim=dim, h=h, acc=2)(p)
+        with pytest.raises(error):
+            PartialDerivative(f, *orders, dim=dim, h=h)(points)
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+@pytest.mark.parametrize(
+    "f, df, dim, order, h, points, error",
+    [
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            np.vectorize(lambda x: 2 * x, signature="(1)->(1)"),
+            1,
+            1,
+            None,
+            np.array([np.linspace(0, 1, 10)]).T,
+            None,
+            id="Tensor derivate 1D gradient",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            np.vectorize(lambda x: 2 * x, signature="(2)->(2)"),
+            2,
+            1,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Tensor derivate 2D gradient",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            np.vectorize(lambda x: 2 * np.eye(1), signature="(1)->(1,1)"),
+            1,
+            2,
+            None,
+            np.array([np.linspace(0, 1, 10)]).T,
+            None,
+            id="Simple 1D square, Hessian",
+        ),
+        pytest.param(
+            lambda x: np.sum(np.square(x), axis=-1),
+            np.vectorize(lambda x: 2 * np.eye(2), signature="(2)->(2,2)"),
+            2,
+            2,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Simple 2D square, Hessian",
+        ),
+        pytest.param(
+            lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
+            np.vectorize(
+                lambda x: np.diag(x) + np.ones((2, 2)) - np.eye(2), signature="(2)->(2,2)"
+            ),
+            2,
+            2,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="2D polynomial, Hessian",
+        ),
+        pytest.param(
+            lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
+            lambda p: Hessian(
+                lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1), 2
+            )(p),
+            2,
+            2,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Explicit Hessian test",
+        ),
+        pytest.param(
+            lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
+            np.vectorize(
+                lambda x: np.array([[[1.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 1.0]]]),
+                signature="(2)->(2,2,2)",
+            ),
+            2,
+            3,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="2D polynomial, Tressian",
+        ),
+        pytest.param(
+            lambda x: 1 / 24 * np.prod(np.power(x, 4), axis=-1),
+            np.vectorize(
+                lambda x: np.array(
+                    [
+                        [
+                            [1.0 * x[0] * x[1] ** 4, 2.0 * x[0] ** 2 * x[1] ** 3],
+                            [2.0 * x[0] ** 2 * x[1] ** 3, 2.0 * x[0] ** 3 * x[1] ** 2],
+                        ],
+                        [
+                            [2.0 * x[0] ** 2 * x[1] ** 3, 2.0 * x[0] ** 3 * x[1] ** 2],
+                            [2.0 * x[0] ** 3 * x[1] ** 2, 1.0 * x[0] ** 4 * x[1]],
+                        ],
+                    ]
+                ),
+                signature="(2)->(2,2,2)",
+            ),
+            2,
+            3,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Involved Tressian",
+        ),
+        pytest.param(
+            lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1),
+            lambda p: Tressian(
+                lambda x: np.sum(1 / 6 * np.power(x, 3), axis=-1) + np.prod(x, axis=-1), 2
+            )(p),
+            2,
+            3,
+            None,
+            np.array([np.linspace(0, 1, 10)] * 2).T,
+            None,
+            id="Explicit Tressian test",
+        ),
+    ],
+)
+def test_tensor_derivative(f, df, dim, order, h, points, error):
+    td = TensorDerivative(f, dim, order, h=h, acc=2)
+    assert td.order == order
+    assert td.dim == dim
+    assert td.shape == (dim,) * order
+    assert td.f is f, "f should be unique and not be copied"
+    assert len(td) == dim
+    # Partial derivatives are only instantiated uniquely up to permutation
+    for ijk in td.keys(unique=True):
+        partial = td[ijk]
+        for ijkp in set(itertools.permutations(ijk, td.order)):
+            assert partial is td[ijkp], "Those two partials should be equal"
+    for p in points:
+        assert np.asanyarray(p).ndim <= 1, "Invalid test case"
+        tdp = td(p)
+        assert tdp.shape == td.shape
+        assert np.allclose(tdp, df(p), atol=1e-3, equal_nan=True)
+    tdpoints = td(points)
+    assert tdpoints.ndim == td.order + 1, "A tensor is expected as return value"
+    assert np.allclose(tdpoints, df(points), atol=5e-3)
+
+
+if __name__ == "__main__":
+    if True:
+        pytest.main(
+            [
+                str(Path(__file__)),
+                # str(Path(__file__)) + "::test_grad",
+                # str(Path(__file__)) + "::test_first_order_partial_derivatives",
+                # str(Path(__file__)) + "::test_higher_order_partial_derivatives",
+                # str(Path(__file__)) + "::test_tensor_derivative",
+                # "-k",
+                # "test_partial_derivative",
+                "--tb=no",
+                "-v",
+                # "--pdb",
+                # "-m tofix",
+                # "-W error::DeprecationWarning",
+                "-s",
+            ]
+        )
+
+
+def test_transform_rank3_tensor_does_not_mutate_input():
+    T = np.ones((2, 2, 2), dtype=int)
+    res = transform_rank3_tensor(T, np.array([0.5, 2.0]))
+    assert np.array_equal(T, np.ones((2, 2, 2)))
+    assert res is not T
+    assert np.allclose(res, np.einsum("i,j,k->ijk", *[np.array([0.5, 2.0])] * 3))
+
+
+def test_transform_rank3_tensor_axis_order():
+    # Compare with the defining sum, using a non-symmetric tensor and distinct matrices
+    rng = np.random.default_rng(0)
+    T = rng.normal(size=(2, 3, 4))
+    A, B, C = rng.normal(size=(5, 2)), rng.normal(size=(6, 3)), rng.normal(size=(7, 4))
+    assert np.allclose(
+        transform_rank3_tensor(T, A, B, C), np.einsum("il,jm,kn,lmn->ijk", A, B, C, T)
+    )
+    T, A = rng.normal(size=(3, 3, 3)), rng.normal(size=(3, 3))
+    assert np.allclose(transform_rank3_tensor(T, A), np.einsum("il,jm,kn,lmn->ijk", A, A, A, T))
+    v = rng.normal(size=3)
+    assert np.allclose(
+        transform_rank3_tensor(T, v, A, A), np.einsum("il,jm,kn,lmn->ijk", np.diag(v), A, A, T)
+    )
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+@pytest.mark.parametrize("order", [1, 2, 3])
+def test_partial_derivative_higher_acc(order):
+    errors = [
+        abs(PartialDerivative(np.exp, order, acc=acc, h=1e-2)(0.3) - np.exp(0.3))
+        for acc in [2, 4, 6]
+    ]
+    assert errors[0] < 1e-4
+    assert errors[1] < errors[0] / 100
+    assert errors[2] < 1e-8
+    # One-sided stencils near the boundary of the domain
+    f = lambda t: np.where(np.asarray(t) < 0.31, np.exp(t), np.nan)  # noqa: E731
+    assert PartialDerivative(f, order, acc=4, h=1e-2)(0.3) == pytest.approx(np.exp(0.3), rel=1e-6)
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+def test_tensor_derivatives_higher_acc():
+    def lse(t):
+        return np.log(np.exp(np.asarray(t)).sum(axis=-1))
+
+    t = np.array([0.1, 0.2])
+    p = np.exp(t) / np.exp(t).sum()
+    H = np.diag(p) - np.outer(p, p)
+    assert np.allclose(Hessian(lse, 2, acc=4, h=1e-2)(t), H, atol=1e-8)
+    d = np.eye(2)
+    T = (
+        np.einsum("ij,jk,i->ijk", d, d, p)
+        - np.einsum("ij,i,k->ijk", d, p, p)
+        - np.einsum("ik,i,j->ijk", d, p, p)
+        - np.einsum("jk,i,j->ijk", d, p, p)
+        + 2 * np.einsum("i,j,k->ijk", p, p, p)
+    )
+    assert np.allclose(Tressian(lse, 2, acc=4, h=1e-2)(t), T, atol=1e-8)
+
+
+def test_block_diag_3d_dtype_and_inputs():
+    res = block_diag_3d(np.ones((1, 1, 1), int), 0.5 * np.ones((1, 1, 1)))
+    assert res.dtype == float
+    assert res[0, 0, 0] == 1 and res[1, 1, 1] == 0.5
+    assert res.sum() == 1.5
+    res = block_diag_3d([[[1.0]]], [[[2.0, 0], [0, 0]], [[0, 0], [0, 3.0]]])
+    assert res.shape == (3, 3, 3)
+    assert res[0, 0, 0] == 1 and res[1, 1, 1] == 2 and res[2, 2, 2] == 3
+    with pytest.raises(ValueError):
+        block_diag_3d()
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+@pytest.mark.parametrize("h", [[1e-3] * 3, np.array([1e-3] * 3), [1e-3, 2e-3, 1e-2]])
+def test_partial_derivative_vector_h(h):
+    def lse(t):
+        return np.log(np.exp(np.asarray(t)).sum(axis=-1))
+
+    t = np.array([0.1, 0.2, 0.3])
+    p = np.exp(t) / np.exp(t).sum()
+    assert np.isclose(PartialDerivative(lse, 1, 1, 0, h=h)(t), -p[0] * p[1], atol=1e-6)
+
+
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+@pytest.mark.parametrize("orders", [(0,), (0, 0), (1, -1)])
+def test_partial_derivative_invalid_orders(orders):
+    with pytest.raises(ValueError, match="orders"):
+        PartialDerivative(lambda t: t, *orders)

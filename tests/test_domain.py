@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
+
 from spapprox import Domain
 
 
@@ -107,6 +105,47 @@ def test_domain_nD():
     assert [0.4, 0, 0.4] in dom
     res = dom.is_in_domain([[0.5, 0, 0.5], [0.4, 0, 0.4]])
     assert pd.api.types.is_array_like(res) and len(res) == 2 and all(res == [False, True])
+
+
+@pytest.mark.parametrize(
+    "kwargs, inside, outside",
+    [
+        pytest.param(dict(l=1, le=2), [0.5], [1, 1.5], id="l < le"),
+        pytest.param(dict(l=2, le=1), [1], [1.5], id="le < l"),
+        pytest.param(dict(l=np.inf, le=np.inf), [1e300], [], id="infinite upper bounds"),
+        pytest.param(dict(le=1, ge=1), [1], [0.9, 1.1], id="single point"),
+        pytest.param(dict(g=1, ge=0), [1.5], [0, 1], id="g > ge"),
+        pytest.param(dict(dim=2, l=[1, 3], le=[2, 2]), [[0.5, 2]], [[1.5, 0]], id="2D"),
+        pytest.param(dict(dim=2, le=1, ge=[1, 0]), [[1, 0.5]], [[0.5, 0.5]], id="2D point"),
+    ],
+)
+def test_valid_bound_combinations(kwargs, inside, outside):
+    dom = Domain(**kwargs)
+    for t in inside:
+        assert t in dom
+    for t in outside:
+        assert t not in dom
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        pytest.param(dict(g=2, l=1), id="g > l"),
+        pytest.param(dict(ge=2, le=1), id="ge > le"),
+        pytest.param(dict(ge=2, l=1), id="ge > l"),
+        pytest.param(dict(dim=2, ge=[0, 2], le=1), id="2D ge > le"),
+        pytest.param(dict(dim=2, g=[0, 2], l=[1, 1]), id="2D g > l"),
+    ],
+)
+def test_invalid_bound_combinations(kwargs):
+    with pytest.raises(AssertionError):
+        Domain(**kwargs)
+
+
+def test_intersect_mixed_strictness():
+    dom = Domain(l=1).intersect(Domain(le=2))
+    assert 0.5 in dom
+    assert 1 not in dom and 1.5 not in dom
 
 
 def test_trans_domain_1D():
@@ -227,6 +266,113 @@ def test_trans_domain_nD():
     assert [2, 2] in dom
 
 
+@pytest.mark.parametrize(
+    "dom",
+    [
+        Domain(dim=2, l=1),
+        Domain(dim=2, le=[1, 2], g=-1),
+        Domain(dim=2, A=[[1, -1]], a=[0.5], B=[[1, 1]], b=[2]),
+        Domain(dim=2),
+    ],
+)
+def test_ldotinv_vector_matches_column(dom):
+    C = np.array([2.0, -3.0])
+    ys = np.linspace(-2, 2, 81)
+    expected = dom.is_in_domain(np.outer(ys, C))
+    np.testing.assert_array_equal(dom.ldotinv(C).is_in_domain(ys), expected)
+    np.testing.assert_array_equal(dom.ldotinv(C[:, None]).is_in_domain(ys), expected)
+
+
+@pytest.mark.parametrize(
+    "dom",
+    [
+        Domain(dim=2, l=1),
+        Domain(dim=2, l=[1, np.nan], ge=-1),
+        Domain(dim=2, le=[1, 2], g=[-1, 0]),
+        Domain(dim=2, l=1, le=0.5, ge=-1),
+    ],
+)
+@pytest.mark.parametrize(
+    "C",
+    [
+        -np.eye(2),
+        np.array([[1.0, -2.0], [0.5, 1.0]]),
+        np.array([[1.0, -1.0]]),
+        np.array([-1.0, -2.0]),
+        np.array([[1.0, 1.0], [1.0, -1.0], [0.0, -3.0]]),
+    ],
+)
+def test_ldot_matches_image(dom, C):
+    res = dom.ldot(C)
+    Cm = np.atleast_2d(C)
+    # Offset avoids grid points on the boundary, where roundoff decides membership
+    grid = np.linspace(-3, 3, 61) + 0.0123
+    x = np.stack(np.meshgrid(grid, grid), axis=-1).reshape(-1, 2)
+    y = x @ Cm.T
+    if Cm.shape[0] == 1:
+        y = y[:, 0]
+    # Every image point of the domain should be in the transformed domain
+    assert np.all(res.is_in_domain(y)[dom.is_in_domain(x)])
+    if Cm.shape[0] == Cm.shape[1]:
+        # Invertible: exact domain
+        np.testing.assert_array_equal(res.is_in_domain(y), dom.is_in_domain(x))
+    else:
+        # Interval bounds are attained (or approached) at the corners of the box
+        for i in range(Cm.shape[0]):
+            yi = (x @ Cm.T)[dom.is_in_domain(x), i]
+            for bound, f in [("l", max), ("le", max), ("g", min), ("ge", min)]:
+                b = getattr(res, f"{bound}_vect")[i]
+                if not np.isnan(b):
+                    tol = 0.11 * np.abs(Cm[i]).sum()
+                    assert f(yi) == pytest.approx(b, abs=tol)
+
+
+@pytest.mark.parametrize("ge", [1.0, -1.0, np.array([1.0, -2.0])])
+def test_ldotinv_ge_bound(ge):
+    dom = Domain(dim=2, ge=ge)
+    lower = np.broadcast_to(ge, (2,))
+    inv = dom.ldotinv(np.eye(2))
+    assert list(lower) in inv
+    assert list(lower + 0.5) in inv
+    assert list(lower - [0.5, 0]) not in inv
+    assert list(lower - [0, 0.5]) not in inv
+    inv = dom.ldotinv(2 * np.eye(2))
+    assert list(lower / 2) in inv
+    assert list(lower / 2 - [0.25, 0]) not in inv
+
+
+@pytest.mark.parametrize(
+    "d1,d2,inside,outside",
+    [
+        pytest.param(Domain(l=1), Domain(l=2), [0.5], [1.5], id="l"),
+        pytest.param(Domain(le=1), Domain(le=2), [1.0], [1.5], id="le"),
+        pytest.param(Domain(g=-2), Domain(g=-1), [-0.5], [-1.5], id="g"),
+        pytest.param(Domain(ge=-2), Domain(ge=-1), [-1.0], [-1.5], id="ge"),
+        pytest.param(Domain(l=2), Domain(g=-1), [0.0], [-1.5, 2.5], id="l and g"),
+        pytest.param(
+            Domain(dim=2, l=1),
+            Domain(dim=2, l=[2, 0.5]),
+            [[0.9, 0.4]],
+            [[1.5, 0], [0, 0.7]],
+            id="2D",
+        ),
+        pytest.param(
+            Domain(dim=2, l=[np.nan, 1]),
+            Domain(dim=2, l=[1, np.nan]),
+            [[0.5, 0.5]],
+            [[1.5, 0], [0, 1.5]],
+            id="2D nan bounds",
+        ),
+    ],
+)
+def test_intersect(d1, d2, inside, outside):
+    for dom in [d1.intersect(d2), d2.intersect(d1)]:
+        for t in inside:
+            assert t in dom
+        for t in outside:
+            assert t not in dom
+
+
 def test_from_domains():
     # Initialize
     dom1 = Domain(l=3, g=-1, le=2, dim=3)
@@ -241,14 +387,62 @@ def test_from_domains():
             assert x not in dom
 
 
+@pytest.mark.parametrize("kind", ["A", "B"])
+def test_from_domains_linear_constraints(kind):
+    lin = {kind: [[1, 1]], kind.lower(): [1]}
+    dom = Domain.from_domains(Domain(dim=2, **lin), Domain(dim=1, l=1))
+    assert dom.dim == 3
+    assert np.allclose(getattr(dom, kind), [[1, 1, 0]])
+    assert np.allclose(getattr(dom, kind.lower()), [1])
+    assert [0.2, 0.2, 0] in dom
+    assert [0.6, 0.6, 0] not in dom
+    assert [0.2, 0.2, 2] not in dom
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_domain_nD",
-                "--tb=auto",
-                "--pdb",
+                # str(Path(__file__)) + "::test_from_domains",
+                # "-k",
+                # "test_domain_nD",
+                "--tb=no",
+                "-v",
+                # "--pdb",
+                "-s",
             ]
         )
+
+
+@pytest.mark.parametrize("bound", ["l", "le", "g", "ge"])
+def test_single_list_bound_converted_to_array(bound):
+    dom = Domain(dim=2, **{bound: [1, 2]})
+    assert isinstance(getattr(dom, bound), np.ndarray)
+    np.testing.assert_array_equal(getattr(dom, f"{bound}_vect"), [1, 2])
+    np.testing.assert_array_equal(getattr(dom + 1, bound), [2, 3])
+    np.testing.assert_array_equal(getattr(dom * 2, bound), [2, 4])
+    stacked = dom.stack(Domain(dim=2))
+    np.testing.assert_array_equal(getattr(stacked, f"{bound}_vect"), [1, 2, np.nan, np.nan])
+
+
+def test_ndarray_times_domain():
+    dom = Domain(dim=2, l=1)
+    for res in [np.array([2, -1]) * dom, dom * np.array([2, -1])]:
+        assert isinstance(res, Domain)
+        assert np.array_equal(res.l, [2, np.nan], equal_nan=True)
+    assert isinstance(np.array([1, 2]) + dom, Domain)
+
+
+def test_domain_list_add_mul():
+    dom = Domain(dim=2, l=1)
+    assert np.array_equal((dom + [1, 2]).l, (dom + np.array([1, 2])).l)
+    assert np.array_equal((dom - [1, 2]).l, (dom - np.array([1, 2])).l)
+    assert np.array_equal((dom * [1, 2]).l, (dom * np.array([1, 2])).l)
+    assert np.array_equal(([1, 2] * dom).l, [1, 2])
+
+
+def test_is_in_domain_keyword_argument():
+    dom = Domain(l=1)
+    assert dom.is_in_domain(t=0.5) is True
+    assert np.array_equal(dom.is_in_domain(t=[0.5, 2]), [True, False])

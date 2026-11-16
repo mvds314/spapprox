@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
+import itertools
 from pathlib import Path
 
 import numpy as np
@@ -9,26 +7,25 @@ import pytest
 import scipy as sp
 import scipy.stats as sps
 from scipy.integrate import quad  # , dblquad
-from spapprox import (
-    MultivariateCumulantGeneratingFunction,
-    UnivariateCumulantGeneratingFunction,
-    exponential,
-    multivariate_norm,
-    # Domain,
-    norm,
-)
-
-# gamma,
-# chi2,
-# laplace,
-# poisson,
-# binomial,
-# univariate_sample_mean,
-# univariate_empirical,
-from spapprox.util import type_wrapper
 from statsmodels.stats.moment_helpers import cov2corr
 
+from spapprox import (
+    Domain,
+    MultivariateCumulantGeneratingFunction,
+    MultivariateSaddlePointApprox,
+    UnivariateCumulantGeneratingFunction,
+    bivariate_gamma,
+    exponential,
+    gamma,
+    multivariate_norm,
+    norm,
+)
+from spapprox.diff import _has_findiff as has_findiff
+from spapprox.diff import block_diag_3d
+from spapprox.util import type_wrapper
 
+
+@pytest.mark.slow
 def test_2d_from_uniform():
     cgf1 = norm()
     cgf2 = norm()
@@ -65,7 +62,7 @@ def test_2d_from_uniform():
     assert np.allclose(mcgf.K(ts), val)
     assert np.allclose(mcgf_from_univ.K(ts), val)
     assert np.allclose(mcgf_int.K(ts), val, atol=1e-3)
-    # Test the derivatives
+    # Test first order derivatives
     for t in ts:
         val = mcgf.dK(t)
         assert pd.api.types.is_array_like(val) and len(val.shape) == 1 and len(val) == 2
@@ -75,7 +72,7 @@ def test_2d_from_uniform():
     assert np.allclose(mcgf.dK(ts), val)
     assert np.allclose(mcgf_from_univ.dK(ts), val)
     assert np.allclose(mcgf_int.dK(ts), val, atol=1e-3)
-    # Test inverse of the derivatives
+    # Test inverse of first order derivative
     for t in ts:
         assert np.allclose(mcgf.dK_inv(mcgf.dK(t)), t)
         assert np.allclose(mcgf_from_univ.dK_inv(mcgf_from_univ.dK(t)), t)
@@ -94,24 +91,46 @@ def test_2d_from_uniform():
     assert np.allclose(mcgf.d2K(ts), val)
     assert np.allclose(mcgf_from_univ.d2K(ts), val)
     assert np.allclose(mcgf_int.d2K(ts), val, atol=1e-3)
+    # Test the third order derivatives
+    for t in ts:
+        val = mcgf.d3K(t)
+        assert pd.api.types.is_array_like(val) and len(val.shape) == 3 and val.shape == (2, 2, 2)
+        assert np.allclose(val, mcgf_from_univ.d3K(t))
+        if has_findiff:
+            assert np.allclose(val, mcgf_int.d3K(t), atol=1e-2)
+    val = np.array([mcgf.d3K(t) for t in ts])
+    assert np.allclose(mcgf.d3K(ts), val)
+    assert np.allclose(mcgf_from_univ.d3K(ts), val)
+    if has_findiff:
+        assert np.allclose(mcgf_int.d3K(ts), val, atol=1e-2)
 
 
 @pytest.mark.parametrize(
     "mcgf,mean,cov",
     [
-        # Standard multivariate normal
-        (multivariate_norm(), 0, np.eye(2)),
-        # Multivariate normal with covmat specification
-        (
+        pytest.param(
+            multivariate_norm(),
+            0,
+            np.eye(2),
+            id="Standard multivariate normal",
+        ),
+        pytest.param(
             multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 2]])),
             [1, 2],
             np.array([[2, 1], [1, 2]]),
+            id="Multivariate normal with covmat specification",
         ),
-        # Multivariate normal with scale specification
-        (
+        pytest.param(
             multivariate_norm(loc=[1, 2], scale=np.arange(1, 5).reshape((2, 2))),
             [1, 2],
             np.arange(1, 5).reshape((2, 2)).dot(np.arange(1, 5).reshape((2, 2)).T),
+            id="Multivariate normal with scale specification",
+        ),
+        pytest.param(
+            bivariate_gamma([1, 2, 3]),
+            [1 + 2, 1 + 3],
+            np.array([[1 + 2, 1], [1, 1 + 3]]),
+            id="Bivariate gamma",
         ),
     ],
 )
@@ -122,146 +141,266 @@ def test_statistics(mcgf, mean, cov):
 
 
 @pytest.mark.parametrize(
-    "mcgf1,mcgf2,dim",
+    "mcgf1,mcgf2,ts,dim",
     [
-        # add vector
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.zeros(2), scale=1) + np.array([1, 2]),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Add vector",
         ),
-        # add a vector in a different way
-        (
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                norm() + 1, norm() + 2, dK0=[1, 2], d2K0=np.eye(2), d3K0=np.zeros((2, 2, 2))
+            ),
+            multivariate_norm(loc=np.zeros(2), scale=1) + np.array([1, 2]),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
+            2,
+            id="Add vector and test derivatives at zero logic",
+        ),
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.zeros(2), scale=1).add(np.array([1, 2])),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Add vector in a different way",
         ),
-        # add hen specified as loc
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.array([1, 2]), scale=1),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Add and compare using loc",
         ),
-        # Add a constant
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm() + 1, norm() + 2),
             multivariate_norm(loc=np.array([0, 1]), scale=1) + 1,
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Add a constant",
         ),
-        # add scalar
-        (
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1) + 1,
             multivariate_norm(loc=np.ones(2), scale=1),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Add scalar",
         ),
-        # Add multivariate cumulant genering function
-        (
+        pytest.param(
             multivariate_norm(loc=np.ones(2), scale=1)
             + multivariate_norm(loc=np.zeros(2), scale=1),
             multivariate_norm(loc=np.ones(2), scale=np.sqrt(2)),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Add multivariate cumulant generating function",
         ),
-        # Add multivariate cumulant genering function
-        (
+        pytest.param(
             multivariate_norm(loc=np.ones(2), scale=1) + norm(loc=0, scale=1),
             multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]])),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Addition with covariance structure",
+        ),
+        pytest.param(
+            multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]]))
+            + multivariate_norm(loc=np.ones(2), cov=np.array([[2, 1], [1, 2]])),
+            np.sqrt(2)
+            * multivariate_norm(loc=np.sqrt(2) * np.ones(2), cov=np.array([[2, 1], [1, 2]])),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
+            2,
+            id="Another test with a covariance structure",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3))
+            + gamma(1.1),
+            bivariate_gamma([1.1, 1.2, 1.3]),
+            [[-1, -2], [0, 0], [0.9, 0], [0, 0.9]],
+            2,
+            id="Test with nonzero higher order derivatives through bivariate gamma",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                gamma(1.2),
+                gamma(1.3),
+                dK0=[gamma(1.2).dK0, gamma(1.3).dK0],
+                d2K0=np.diag([gamma(1.2).d2K0, gamma(1.3).d2K0]),
+                d3K0=np.array([[[gamma(1.2).d3K0, 0], [0, 0]], [[0, 0], [0, gamma(1.3).d3K0]]]),
+            ),
+            bivariate_gamma([0, 1.2, 1.3]),
+            [[-1, -2], [0, 0], [0.9, 0], [0, 0.9]],
+            2,
+            id="Test with nonzero higher order derivatives specified at 0 through bivariate gamma",
         ),
     ],
 )
-def test_addition(mcgf1, mcgf2, dim):
+def test_addition(mcgf1, mcgf2, ts, dim):
     assert mcgf1.dim == mcgf2.dim == dim
-    ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+        assert np.allclose(mcgf1.d3K(t), mcgf2.d3K(t))
         assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
         assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
-    for f in ["K", "dK", "d2K"]:
+    for f in ["K", "dK", "d2K", "d3K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
     assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
     assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
-
-
-@pytest.mark.parametrize(
-    "mcgf1,mcgf2,dim",
-    [
-        # multiply by or divide by vector in several equivalent ways
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
-            multivariate_norm(loc=np.zeros(2), scale=1) * np.array([1, 2]),
-            2,
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
-            multivariate_norm(loc=np.zeros(2), scale=1) / np.array([1, 0.5]),
-            2,
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
-            multivariate_norm(loc=np.zeros(2), scale=1).mul(np.array([1, 2]), inplace=True),
-            2,
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
-            multivariate_norm(loc=0, scale=np.array([1, 2])),
-            2,
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
-            multivariate_norm(loc=0, scale=np.array([1, 2])),
-            2,
-        ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
-            multivariate_norm(loc=0, scale=np.diag(np.array([1, 2]))),
-            2,
-        ),
-        # Multiply by a constant
-        (
-            multivariate_norm(loc=np.array([0, 3]), scale=3),
-            multivariate_norm(loc=np.array([0, 1]), scale=1) * 3,
-            2,
-        ),
-        (
-            multivariate_norm(loc=np.array([0, 3]), scale=3),
-            multivariate_norm(loc=np.array([0, 1]), scale=1) / (1 / 3),
-            2,
-        ),
-    ],
-)
-def test_multiplication_and_division(mcgf1, mcgf2, dim):
-    # multiply vector in several equivalent ways
-    assert mcgf1.dim == mcgf2.dim == dim
-    ts = [[1, 2], [0, 0], [1, 0], [0, 1]]
-    for t in ts:
-        assert np.isclose(mcgf1.K(t), mcgf2.K(t))
-        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-        assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
-        assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
-    for f in ["K", "dK", "d2K"]:
-        val = np.array([getattr(mcgf1, f)(t) for t in ts])
-        assert np.allclose(getattr(mcgf1, f)(ts), val)
-        assert np.allclose(getattr(mcgf2, f)(ts), val)
-    assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
-    assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
+    assert np.allclose(mcgf1.dK0, mcgf2.dK0)
+    assert np.allclose(mcgf1.d2K0, mcgf2.d2K0)
+    assert np.allclose(mcgf1.d3K0, mcgf2.d3K0)
 
 
 @pytest.mark.parametrize(
     "mcgf1,mcgf2,ts,dim",
     [
-        # Multiplication with identity
-        (
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
+            multivariate_norm(loc=np.zeros(2), scale=1) * np.array([1, 2]),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
+            2,
+            id="Multiply normal by vector",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3) * 2),
+            bivariate_gamma([0, 1.2, 1.3]) * np.array([1, 2]),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Multiply gamma by vector",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
+            multivariate_norm(loc=np.zeros(2), scale=1) / np.array([1, 0.5]),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
+            2,
+            id="Divide normal by vector",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3) * 0.5)
+            + MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.1)).ldot(
+                [[1], [0.5]]
+            ),
+            bivariate_gamma([1.1, 1.2, 1.3]) / np.array([1, 2]),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Divide gamma by vector",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
+            multivariate_norm(loc=np.zeros(2), scale=1).mul(np.array([1, 2]), inplace=True),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
+            2,
+            id="Multiply by vector inplace",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
+            multivariate_norm(loc=0, scale=np.array([1, 2])),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
+            2,
+            id="Multiply normal through scaling with vector",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3) * 2)
+            + MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.1)).ldot([[1], [2]]),
+            bivariate_gamma([1.1, 1.2, 1.3], scale=np.array([1, 2])),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Multiply gamma through scaling with vector",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm() * 2),
+            multivariate_norm(loc=0, scale=np.diag([1, 2])),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
+            2,
+            id="Multiply normal through scaling with diagonal matrix",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3) * 2)
+            + MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.1)).ldot([[1], [2]]),
+            bivariate_gamma([1.1, 1.2, 1.3], scale=np.diag([1, 2])),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Multiply gamma through scaling with diagonal matrix",
+        ),
+        pytest.param(
+            multivariate_norm(loc=np.array([0, 3]), scale=3),
+            multivariate_norm(loc=np.array([0, 1]), scale=1) * 3,
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
+            2,
+            id="Multiply normal by constant",
+        ),
+        pytest.param(
+            (
+                MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3))
+                + gamma(1.1)
+            )
+            * 3,
+            bivariate_gamma([1.1, 1.2, 1.3], scale=3),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Multiply gamma by constant",
+        ),
+        pytest.param(
+            multivariate_norm(loc=np.array([0, 3]), scale=3),
+            multivariate_norm(loc=np.array([0, 1]), scale=1) / (1 / 3),
+            [[1, 2], [0, 0], [1, 0], [0, 1]],
+            2,
+            id="Divide normal by constant",
+        ),
+        pytest.param(
+            (
+                MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.2), gamma(1.3))
+                + gamma(1.1)
+            )
+            / (1 / 3),
+            bivariate_gamma([1.1, 1.2, 1.3], scale=3),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Divide gamma by constant",
+        ),
+    ],
+)
+def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
+    assert mcgf1.dim == mcgf2.dim == dim
+    for t in ts:
+        assert np.isclose(mcgf1.K(t), mcgf2.K(t))
+        assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
+        assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
+        assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
+        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+        assert np.allclose(mcgf1.d3K(t), mcgf2.d3K(t))
+    for f in ["K", "dK", "d2K", "d3K"]:
+        val = np.array([getattr(mcgf1, f)(t) for t in ts])
+        assert np.allclose(getattr(mcgf1, f)(ts), val)
+        assert np.allclose(getattr(mcgf2, f)(ts), val)
+    assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
+    assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
+    assert np.allclose(mcgf1.dK0, mcgf2.dK0)
+    assert np.allclose(mcgf1.d2K0, mcgf2.d2K0)
+    assert np.allclose(mcgf1.d3K0, mcgf2.d3K0)
+
+
+@pytest.mark.parametrize(
+    "mcgf1,mcgf2,ts,dim",
+    [
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(2 * np.eye(2)),
             multivariate_norm(loc=np.zeros(2), scale=2),
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Multiply normal with scaled identity",
         ),
-        (
+        pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3]).ldot(2 * np.eye(2)),
+            bivariate_gamma([1.1, 1.2, 1.3], scale=2),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Multiply gamma with scaled identity",
+        ),
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(
                 np.linalg.cholesky(cov2corr(np.array([[2, 1], [1, 3]]), return_std=False))
             )
@@ -270,30 +409,58 @@ def test_multiplication_and_division(mcgf1, mcgf2, dim):
             multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]])),
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Multiply normal with Cholesky versus specification of covmat",
         ),
-        (
+        pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3]).ldot([[1.01, 1.02], [1.03, 1.04]]),
+            bivariate_gamma([1.1, 1.2, 1.3], scale=np.array([[1.01, 1.02], [1.03, 1.04]])),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Multiply gamma with generic matrix",
+        ),
+        pytest.param(
             multivariate_norm(loc=0, scale=1, dim=3).ldot(np.array([[1, 0, 1], [0, 1, 1]])),
             multivariate_norm(loc=0, scale=1, dim=2) + norm(),
             [[1, 2], [0, 0], [1, 0], [0, 1]],
             2,
+            id="Project 3D normal on 2D normal",
         ),
-        (
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.ones(2)),
             norm(loc=0, scale=np.sqrt(2)),
             [-1, -2, 0, 2, 4],
             None,
+            id="Inner product 3D normal",
         ),
-        (
+        pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3]).ldot(np.ones(2)),
+            2 * gamma(1.1) + gamma(1.2) + gamma(1.3),
+            [-0.1, -0.2, 0, 0.2, 0.4],
+            None,
+            id="Inner product 2D gamma",
+        ),
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.atleast_2d(np.ones(2)))[[0]],
             multivariate_norm(loc=0, scale=np.sqrt(2), dim=1),
             [[-1], [-2], [0], [2], [4]],
             None,
+            id="Project 3D normal on 1D and select",
         ),
-        (
+        pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3]).ldot(np.atleast_2d(np.ones(2))),
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                2 * gamma(1.1) + gamma(1.2) + gamma(1.3)
+            ),
+            [[-0.1], [-0.2], [0], [0.2], [0.4]],
+            None,
+            id="Project 2D gamma on 1D",
+        ),
+        pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(np.atleast_2d(np.ones(2))),
             multivariate_norm(loc=0, scale=np.sqrt(2), dim=1),
             [[-1], [-2], [0], [2], [4]],
             None,
+            id="Project 3D normal on 1D",
         ),
     ],
 )
@@ -305,30 +472,36 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
-        assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
-        assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
-    for f in ["K", "dK", "d2K"]:
+        assert np.allclose(mcgf1.d3K(t), mcgf2.d3K(t))
+        assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t, atol=1e-6)
+        assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t, atol=1e-6)
+    for f in ["K", "dK", "d2K", "d3K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
-    assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
-    assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
+    assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts, atol=1e-6)
+    assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts, atol=1e-6)
     if not isinstance(mcgf1, UnivariateCumulantGeneratingFunction):
         assert np.allclose(mcgf2.cov, mcgf1.cov)
+    assert np.allclose(mcgf1.dK0, mcgf2.dK0)
+    assert np.allclose(mcgf1.d2K0, mcgf2.d2K0)
+    assert np.allclose(mcgf1.d3K0, mcgf2.d3K0)
 
 
 @pytest.mark.parametrize(
-    "mcgf1,mcgf2,dim",
+    "mcgf1,mcgf2,ts,dim",
     [
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
                 multivariate_norm(loc=np.zeros(2), scale=1),
                 multivariate_norm(loc=np.zeros(2), scale=2),
             ),
             multivariate_norm(loc=np.zeros(4), scale=np.array([1, 1, 2, 2])),
+            [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]],
             4,
+            id="Stack mulvariate normals with difference scale",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
                 multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]])),
                 multivariate_norm(loc=[3, 4], cov=np.array([[2, 0.5], [0.5, 1]])),
@@ -339,9 +512,11 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
                     np.array([[2, 1], [1, 3]]), np.array([[2, 0.5], [0.5, 1]])
                 ),
             ),
+            [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]],
             4,
+            id="Stack different multivariate normals",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
                 multivariate_norm(loc=[1, 2], cov=np.array([[2, 1], [1, 3]])),
                 norm(loc=3, scale=2),
@@ -351,44 +526,100 @@ def test_ldot(mcgf1, mcgf2, ts, dim):
                 loc=[1, 2, 3, 4],
                 cov=sp.linalg.block_diag(np.array([[2, 1], [1, 3]]), np.array([[4, 0], [0, 1]])),
             ),
+            [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]],
             4,
+            id="Stack different multivariate normals and univariates",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma([1.1, 1.2, 1.3]),
+                norm(loc=3, scale=2),
+            ),
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                gamma(1.2), gamma(1.3), norm(loc=3, scale=2)
+            )
+            + MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.1)).ldot(
+                [[1], [1], [0]]
+            ),
+            [[0.1, 0.2, 0.3], [0, 0, 0], [0.1, 0, 0.2], [0, 0.1, 0]],
+            3,
+            id="Stack different gammas and univariates",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma([1.1, 1.2, 1.3]),
+                norm(loc=3, scale=2),
+                dK0=np.append(bivariate_gamma([1.1, 1.2, 1.3]).dK0, norm(loc=3, scale=2).dK0),
+                d2K0=sp.linalg.block_diag(
+                    bivariate_gamma([1.1, 1.2, 1.3]).d2K0, norm(loc=3, scale=2).d2K0
+                ),
+                d3K0=block_diag_3d(
+                    bivariate_gamma([1.1, 1.2, 1.3]).d3K0, np.atleast_3d(norm(loc=3, scale=2).d3K0)
+                ),
+            ),
+            MultivariateCumulantGeneratingFunction.from_univariate(
+                gamma(1.2), gamma(1.3), norm(loc=3, scale=2)
+            )
+            + MultivariateCumulantGeneratingFunction.from_univariate(gamma(1.1)).ldot(
+                [[1], [1], [0]]
+            ),
+            [[0.1, 0.2, 0.3], [0, 0, 0], [0.1, 0, 0.2], [0, 0.1, 0]],
+            3,
+            id="Stack different gammas and univariates with derivatives at zero specified",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma([1.1, 1.2, 1.3]),
+                dK0=bivariate_gamma([1.1, 1.2, 1.3]).dK0,
+                d2K0=bivariate_gamma([1.1, 1.2, 1.3]).d2K0,
+                d3K0=bivariate_gamma([1.1, 1.2, 1.3]).d3K0,
+            ),
+            bivariate_gamma([1.1, 1.2, 1.3]),
+            [[0.1, 0.2], [0, 0], [0.1, 0], [0, 0.1]],
+            2,
+            id="Stack different gammas and univariates with derivatives at zero specified",
         ),
     ],
 )
-def test_stack(mcgf1, mcgf2, dim):
+def test_stack(mcgf1, mcgf2, ts, dim):
     assert isinstance(mcgf1, MultivariateCumulantGeneratingFunction)
     assert mcgf1.dim == mcgf2.dim == dim
-    ts = [[1, 2, 3, 4], [0, 0, 0, 0], [1, 0, 2, 3], [0, 1, 0, 1]]
     for t in ts:
         assert np.allclose(mcgf1.K(t), mcgf2.K(t))
         assert np.allclose(mcgf1.dK(t), mcgf2.dK(t))
-        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
         assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
         assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
-    for f in ["K", "dK", "d2K"]:
+        assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
+        assert np.allclose(mcgf1.d3K(t), mcgf2.d3K(t))
+    for f in ["K", "dK", "d2K", "d3K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
     assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
     assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
+    assert np.allclose(mcgf1.dK0, mcgf2.dK0)
+    assert np.allclose(mcgf1.d2K0, mcgf2.d2K0)
+    assert np.allclose(mcgf1.d3K0, mcgf2.d3K0)
 
 
 @pytest.mark.parametrize(
     "mcgf1,mcgf2,ts,dim",
     [
-        (
+        pytest.param(
             multivariate_norm(loc=np.zeros(4), scale=np.array([1, 1, 2, 2]))[0],
             norm(loc=0, scale=1),
             [-2, -1, 0, 1, 2],
             None,
+            id="First element of 2D norm",
         ),
-        (
-            multivariate_norm(loc=[1, 2, 3, 4], scale=np.array([1, 1, 2, 2]))[-1],
-            norm(loc=4, scale=2),
-            [-2, -1, 0, 1, 2],
+        pytest.param(
+            bivariate_gamma(a=[1.1, 1.2, 1.3], scale=2)[-1],
+            gamma(1.1, scale=2) + gamma(1.3, scale=2),
+            [-0.2, -0.1, 0, 0.1, 0.2],
             None,
+            id="Last element of bivariate gamma",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_cgfs(
                 multivariate_norm(loc=np.zeros(2), scale=1),
                 multivariate_norm(loc=np.zeros(2), scale=2),
@@ -396,20 +627,59 @@ def test_stack(mcgf1, mcgf2, dim):
             norm(loc=0, scale=1),
             [-2, -1, 0, 1, 2],
             None,
+            id="Slicing normal from from cgfs",
         ),
-        (
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma(a=[1.1, 1.2, 1.3], scale=2),
+                bivariate_gamma(a=[1.1, 1.2, 1.3], scale=2),
+            )[0],
+            gamma(1.1, scale=2) + gamma(1.2, scale=2),
+            [-0.2, -0.1, 0, 0.1, 0.2],
+            None,
+            id="Slicing gamma from from cgfs",
+        ),
+        pytest.param(
             multivariate_norm(loc=[1, 2, 3, 4], scale=np.array([1, 1, 2, 2]))[[1, 2]],
             multivariate_norm(loc=[2, 3], scale=np.array([1, 2])),
             [[-2, -1], [0, 1], [2, 0]],
             2,
+            id="Slice 4D normal",
         ),
-        (
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma(a=[1.1, 1.2, 1.3], scale=2),
+                bivariate_gamma(a=[1.01, 1.02, 1.03], scale=2),
+            )[[1, 2]],
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                gamma(1.1, scale=2) + gamma(1.3, scale=2),
+                gamma(1.01, scale=2) + gamma(1.02, scale=2),
+            ),
+            [[-0.2, -0.1], [0, 0.1], [0.2, 0]],
+            None,
+            id="Slicing 2D gamma from from bivariate gammas",
+        ),
+        pytest.param(
+            (
+                MultivariateCumulantGeneratingFunction.from_cgfs(
+                    bivariate_gamma(a=[0, 1.2, 1.3], scale=2),
+                    bivariate_gamma(a=[0, 1.02, 1.03], scale=2),
+                )
+                + gamma(1.01) * 2
+            )[[1, 2]],
+            bivariate_gamma([1.01, 1.3, 1.02], scale=2),
+            [[-0.2, -0.1], [0, 0.1], [0.2, 0]],
+            None,
+            id="Slicing bivariate gamma from from bivariate gammas",
+        ),
+        pytest.param(
             multivariate_norm(loc=[1, 2, 3], scale=np.diag([1, 2, 3]))[[0, 2]],
             multivariate_norm(loc=[1, 3], scale=np.diag([1, 3])),
             [[-2, -1], [0, 1], [2, 0]],
             2,
+            id="Another slice of 4D normal",
         ),
-        (
+        pytest.param(
             multivariate_norm(
                 loc=[1, 2, 3],
                 cov=np.array([[1, 0.5, 0.1], [0.5, 2, 0.2], [0.1, 0.2, 3]]),
@@ -417,6 +687,7 @@ def test_stack(mcgf1, mcgf2, dim):
             multivariate_norm(loc=[1, 3], cov=np.array([[1, 0.1], [0.1, 3]])),
             [[-2, -1], [0, 1], [2, 0]],
             2,
+            id="Slicing of 3D normal",
         ),
     ],
 )
@@ -430,56 +701,93 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
         assert np.allclose(mcgf1.d2K(t), mcgf2.d2K(t))
         assert np.allclose(mcgf1.dK_inv(mcgf1.dK(t)), t)
         assert np.allclose(mcgf2.dK_inv(mcgf2.dK(t)), t)
-    for f in ["K", "dK", "d2K"]:
+    for f in ["K", "dK", "d2K", "d3K"]:
         val = np.array([getattr(mcgf1, f)(t) for t in ts])
         assert np.allclose(getattr(mcgf1, f)(ts), val)
         assert np.allclose(getattr(mcgf2, f)(ts), val)
     assert np.allclose(mcgf1.dK_inv(mcgf1.dK(ts)), ts)
     assert np.allclose(mcgf2.dK_inv(mcgf2.dK(ts)), ts)
+    assert np.allclose(mcgf1.dK0, mcgf2.dK0)
+    assert np.allclose(mcgf1.d2K0, mcgf2.d2K0)
+    assert np.allclose(mcgf1.d3K0, mcgf2.d3K0)
+
+
+@pytest.mark.parametrize("scale", [2.0, np.array([2.0, 2.0]), 2.0 * np.eye(2)])
+def test_scaled_derivatives_do_not_mutate_user_arrays(scale):
+    # User supplied derivatives returning a fixed array must not be scaled in place
+    C = np.eye(2)
+    T = np.zeros((2, 2, 2))
+    T[0, 0, 0] = T[1, 1, 1] = 1
+    mcgf = MultivariateCumulantGeneratingFunction(
+        K=lambda t: np.sum(np.square(t), axis=-1) / 2,
+        dim=2,
+        d2K=lambda t: C,
+        d3K=lambda t: T,
+        scale=scale,
+    )
+    for _ in range(3):
+        assert np.allclose(mcgf.d2K([0.0, 0.0]), 4 * np.eye(2))
+        assert np.allclose(mcgf.d3K([0.0, 0.0]), 8 * T)
+    assert np.array_equal(C, np.eye(2))
+    assert T[0, 0, 0] == T[1, 1, 1] == 1 and T.sum() == 2
+
+
+def test_slicing_cached_cumulants():
+    # Y = A X with independent gamma components X_l (k2 = a_l, k3 = 2 a_l); slicing after
+    # the cumulants are cached must slice d2K0 and d3K0 on all axes
+    a = np.array([2.0, 3.0, 4.0])
+    A = np.array([[1.0, 1, 0], [0, 1, 0], [0, 1, 1]])
+    mcgf = MultivariateCumulantGeneratingFunction.from_univariate(*[gamma(a=ai) for ai in a])
+    mcgf = mcgf.ldot(A)
+    _ = mcgf.dK0, mcgf.d2K0, mcgf.d3K0
+    item = [0, 2]
+    sliced = mcgf[item]
+    B = A[item]
+    assert np.allclose(sliced.dK0, B @ a)
+    assert np.allclose(sliced.d2K0, np.einsum("il,jl,l->ij", B, B, a))
+    assert np.allclose(sliced.d3K0, np.einsum("il,jl,kl,l->ijk", B, B, B, 2 * a))
 
 
 @pytest.mark.parametrize(
     "mcgf,ts",
     [
-        # multivariate normal with inverse defined
-        (
+        pytest.param(
             multivariate_norm(dim=2),
             [[-2, -1], [0, 1], [2, 0]],
+            id="Standard multivariate normal",
         ),
-        (
+        pytest.param(
             multivariate_norm(dim=2, scale=[1, 2], loc=[1, 2]),
             [[-2, -1], [0, 1], [2, 0]],
+            id="Transformed multivariate normal",
         ),
-        # multivariate normal without inverse defined
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()),
             [[-2, -1], [0, 1], [2, 0]],
+            id="Standard multivariate normal without explicit inverse",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(norm(), norm()).ldot(
                 np.array([[1, 2], [2, 1]])
             ),
             [[-2, -1], [0, 1], [2, 0]],
+            id="Scaled multivariate normal without explicit inverse",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 norm(loc=2, scale=3), norm(loc=1, scale=2)
             ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
             [[-2, -1, 0], [0, 1, 1], [2, 0, 0]],
+            id="3D degenerate normal",
         ),
-        (
-            MultivariateCumulantGeneratingFunction.from_univariate(
-                norm(loc=2, scale=3), norm(loc=1, scale=2)
-            ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
-            [[-2, -1, 0]],
-        ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 norm(loc=2, scale=3), exponential(loc=1, scale=2)
             ).ldot(np.array([[1, 2], [2, 1], [3, 2]])),
             [[-2, -1, 0]],
+            id="Degenerate normal and exponential",
         ),
-        (
+        pytest.param(
             MultivariateCumulantGeneratingFunction.from_univariate(
                 exponential(loc=5),
                 norm(loc=3),
@@ -493,6 +801,32 @@ def test_slicing(mcgf1, mcgf2, ts, dim):
                 )
             ),
             [[-2, -1], [0, -5], [-2, 0]],
+            id="Projection",
+        ),
+        pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3]),
+            [[0.1, 0], [0, 0]],
+            id="Bivariate gamma",
+        ),
+        pytest.param(
+            bivariate_gamma([1.1, 1.2, 1.3], loc=0.05, scale=0.95),
+            [[-0.2, -0.1], [0, -0.5], [-0.2, 0], [0.1, 0], [0, 0]],
+            id="Transformed bivariate gamma",
+        ),
+        pytest.param(
+            MultivariateCumulantGeneratingFunction.from_cgfs(
+                bivariate_gamma([1.1, 1.2, 1.3], loc=0.05, scale=0.95),
+                norm(loc=2),
+            ).ldot(
+                np.array(
+                    [
+                        [1, 2, 2],
+                        [2, 1, 3],
+                    ]
+                )
+            ),
+            [[-0.2, -0.1], [0, -0.5], [-0.2, 0]],
+            id="Projection with bivariate gamma and normal",
         ),
     ],
 )
@@ -529,14 +863,396 @@ def test_from_univariate():
             assert not mcgf.domain.is_in_domain(t)
 
 
+def _mvar_neglog_cgf(dim):
+    def d3K(t):
+        out = np.zeros((dim,) * 3)
+        out[np.diag_indices(dim, ndim=3)] = 2 / (1 - t) ** 3
+        return out
+
+    return MultivariateCumulantGeneratingFunction(
+        K=lambda t: -np.sum(np.log(1 - t), axis=-1),
+        dK=lambda t: 1 / (1 - t),
+        d2K=lambda t: (
+            np.apply_along_axis(np.diag, -1, 1 / (1 - t) ** 2)
+            if np.ndim(t) > 1
+            else np.diag(1 / (1 - t) ** 2)
+        ),
+        d3K=d3K,
+        dim=dim,
+        domain=Domain(dim=dim, l=1),
+    )
+
+
+def test_dKinv_with_t0():
+    mcgf = _mvar_neglog_cgf(2)
+    assert np.allclose(mcgf.dK_inv(np.array([2.0, 4.0]), t0=np.zeros(2)), [0.5, 0.75])
+
+
+def test_d2K_d3K_single_t_out_of_domain():
+    mcgf = _mvar_neglog_cgf(1)
+    t = np.array([2.0])
+    d2K = mcgf.d2K(t)
+    assert np.shape(d2K) == (1, 1) and np.all(np.isnan(d2K))
+    d3K = mcgf.d3K(t)
+    assert np.shape(d3K) == (1, 1, 1) and np.all(np.isnan(d3K))
+
+
+@pytest.mark.parametrize(
+    "mcgf",
+    [
+        pytest.param(
+            lambda: multivariate_norm(loc=[3, 3]) + _mvar_neglog_cgf(2), id="loc on self"
+        ),
+        pytest.param(
+            lambda: _mvar_neglog_cgf(2) + multivariate_norm(loc=[3, 3]), id="loc on other"
+        ),
+        pytest.param(
+            lambda: multivariate_norm(loc=[3, 3]) + 2 * _mvar_neglog_cgf(2), id="scaled other"
+        ),
+    ],
+)
+def test_add_domain_matches_K(mcgf):
+    mcgf = mcgf()
+    ts = [[a, b] for a in np.linspace(-3, 3, 25) for b in np.linspace(-3, 3, 25)]
+    with np.errstate(all="ignore"):
+        finite = np.isfinite([mcgf.K(t) for t in ts])
+    assert np.array_equal([t in mcgf.domain for t in ts], finite)
+
+
+def _neg_log_K(u, a=1.0, scale=1.0):
+    with np.errstate(all="ignore"):
+        return np.where(scale * u < 1, -a * np.log1p(-scale * u), np.nan)
+
+
+@pytest.mark.parametrize("a", [[1.0, 1.0, 1.0], [0.5, 1.2, 1.3], [0.0, 1.0, 2.0]])
+def test_bivariate_gamma_domain_matches_K(a):
+    mcgf = bivariate_gamma(a=a)
+
+    def K_true(t):
+        val = _neg_log_K(t[0], a=a[1]) + _neg_log_K(t[1], a=a[2])
+        return val + _neg_log_K(t.sum(), a=a[0]) if a[0] > 0 else val
+
+    for t in [
+        np.array([x, y]) for x in np.linspace(-2, 0.95, 17) for y in np.linspace(-2, 0.95, 17)
+    ]:
+        expected = K_true(t)
+        assert (t in mcgf.domain) == np.isfinite(expected)
+        with np.errstate(all="ignore"):
+            assert np.isclose(mcgf.K(t), expected, equal_nan=True)
+
+
+@pytest.mark.parametrize(
+    "mcgf, K_true",
+    [
+        pytest.param(
+            lambda: multivariate_norm(dim=2) + exponential(scale=2),
+            lambda t: t @ t / 2 + _neg_log_K(t.sum(), scale=2),
+            id="exp(2)",
+        ),
+        pytest.param(
+            lambda: multivariate_norm(dim=2) + exponential(scale=0.5),
+            lambda t: t @ t / 2 + _neg_log_K(t.sum(), scale=0.5),
+            id="exp(0.5)",
+        ),
+        pytest.param(
+            lambda: multivariate_norm(dim=2) + (-1) * exponential(scale=2),
+            lambda t: t @ t / 2 + _neg_log_K(t.sum(), scale=-2),
+            id="-exp(2)",
+        ),
+        pytest.param(
+            lambda: (
+                2
+                * MultivariateCumulantGeneratingFunction.from_univariate(exponential(), gamma(a=2))
+                + gamma(a=3, scale=0.5)
+            ),
+            lambda t: (
+                _neg_log_K(2 * t[0])
+                + _neg_log_K(2 * t[1], a=2)
+                + _neg_log_K(t.sum(), a=3, scale=0.5)
+            ),
+            id="scaled self + gamma(3, 0.5)",
+        ),
+    ],
+)
+def test_add_univariate_domain_matches_K(mcgf, K_true):
+    mcgf = mcgf()
+    for t in [np.array([a, b]) for a in np.linspace(-2, 2, 17) for b in np.linspace(-2, 2, 17)]:
+        expected = K_true(t)
+        assert (t in mcgf.domain) == np.isfinite(expected)
+        assert np.isclose(mcgf.K(t), expected, equal_nan=True)
+
+
+@pytest.mark.parametrize(
+    "mcgf, K_true",
+    [
+        pytest.param(
+            lambda: MultivariateCumulantGeneratingFunction.from_univariate(
+                exponential(scale=0.5), norm()
+            ),
+            lambda t: _neg_log_K(t[0], scale=0.5) + t[1] ** 2 / 2,
+            id="from_univariate exp(0.5)",
+        ),
+        pytest.param(
+            lambda: MultivariateCumulantGeneratingFunction.from_univariate(
+                -1 * exponential(scale=2), gamma(a=2, scale=0.5)
+            ),
+            lambda t: _neg_log_K(t[0], scale=-2) + _neg_log_K(t[1], a=2, scale=0.5),
+            id="from_univariate -exp(2), gamma(2, 0.5)",
+        ),
+        pytest.param(
+            lambda: (
+                MultivariateCumulantGeneratingFunction.from_univariate(
+                    exponential(scale=2), norm(loc=3)
+                )
+                + MultivariateCumulantGeneratingFunction.from_univariate(
+                    norm(loc=-1), gamma(a=2, scale=0.5)
+                )
+            ),
+            lambda t: (
+                _neg_log_K(t[0], scale=2)
+                + t[1] ** 2 / 2
+                + 3 * t[1]
+                + t[0] ** 2 / 2
+                - t[0]
+                + _neg_log_K(t[1], a=2, scale=0.5)
+            ),
+            id="sum of from_univariate",
+        ),
+        pytest.param(
+            lambda: MultivariateCumulantGeneratingFunction.from_cgfs(
+                2
+                * MultivariateCumulantGeneratingFunction.from_univariate(
+                    exponential(), gamma(a=2)
+                ),
+                exponential(scale=0.5),
+            ),
+            lambda t: (
+                _neg_log_K(2 * t[0]) + _neg_log_K(2 * t[1], a=2) + _neg_log_K(t[2], scale=0.5)
+            ),
+            id="from_cgfs scaled multivariate, exp(0.5)",
+        ),
+    ],
+)
+def test_stacked_domain_matches_K(mcgf, K_true):
+    mcgf = mcgf()
+    grid = np.linspace(-2, 2, 9)
+    for t in itertools.product(*[grid] * mcgf.dim):
+        t = np.array(t)
+        expected = K_true(t)
+        assert (t in mcgf.domain) == np.isfinite(expected)
+        assert np.isclose(mcgf.K(t), expected, equal_nan=True)
+
+
+def test_cumulants_at_zero_without_analytic_derivatives():
+    def K(t):
+        return 0.5 * np.sum(np.atleast_2d(t) ** 2, axis=-1).squeeze()
+
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=K, dim=2, loc=np.array([1.0, 2.0]), scale=np.array([2.0, 3.0])
+    )
+    assert np.allclose(cgf.dK0, [1, 2])
+    assert np.allclose(cgf.d2K0, np.diag([4, 9]))
+    if has_findiff:
+        cgf = MultivariateCumulantGeneratingFunction(K=K, dim=2, numdiff_backend="findiff")
+        assert np.allclose(cgf.d3K0, 0, atol=1e-6)
+
+
+@pytest.mark.parametrize(
+    "backend",
+    [
+        "numdifftools",
+        pytest.param("findiff", marks=pytest.mark.skipif(not has_findiff, reason="No findiff")),
+    ],
+)
+@pytest.mark.parametrize(
+    "scale",
+    [np.array([2.0, 3.0]), np.array([[2.0, 0.5], [-1.0, 3.0]])],
+    ids=["vector", "matrix"],
+)
+def test_numerical_dK_applies_loc_scale_once(backend, scale):
+    def K(t):
+        return np.sum(t**2 / 2 + t, axis=-1)
+
+    loc = np.array([1.0, 2.0])
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=K, dim=2, loc=loc, scale=scale, numdiff_backend=backend
+    )
+    A = np.diag(scale) if scale.ndim == 1 else scale
+    for t in [np.zeros(2), np.array([0.5, -1.0])]:
+        # dK_X(t) = A dK_Z(A^T t) + loc with dK_Z(s) = s + 1
+        assert np.allclose(cgf.dK(t), A @ (A.T @ t + 1) + loc, atol=1e-5)
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(
             [
                 str(Path(__file__)),
-                "-k",
-                "test_dKinv",
-                "--tb=auto",
-                "--pdb",
+                # str(Path(__file__)) + "::test_dKinv",
+                # "-k",
+                # "test_dKinv",
+                "--tb=no",
+                "--durations=10",
+                # "--pdb",
+                "-s",
+                "-v",
+                # "-m 'not slow'",
+                # "-m tofix",
             ]
         )
+
+
+@pytest.mark.parametrize("gamma_first", [True, False])
+def test_from_cgfs_mixed_dims_cached_cumulants(gamma_first):
+    uni = gamma(a=3)
+    cov = np.array([[2.0, 0.5], [0.5, 1.0]])
+    mvar = multivariate_norm(loc=[1.0, 2.0], cov=cov)
+    for c in (uni, mvar):
+        _ = c.dK0, c.d2K0, c.d3K0
+    cgfs = (uni, mvar) if gamma_first else (mvar, uni)
+    mcgf = MultivariateCumulantGeneratingFunction.from_cgfs(*cgfs)
+    i = 0 if gamma_first else 2
+    j = [1, 2] if gamma_first else [0, 1]
+    dK0, d2K0, d3K0 = np.zeros(3), np.zeros((3, 3)), np.zeros((3, 3, 3))
+    dK0[i], d2K0[i, i], d3K0[i, i, i] = 3, 3, 6
+    dK0[j], d2K0[np.ix_(j, j)] = [1, 2], cov
+    assert np.allclose(mcgf.dK0, dK0)
+    assert np.allclose(mcgf.d2K0, d2K0)
+    assert np.allclose(mcgf.d3K0, d3K0)
+
+
+@pytest.mark.parametrize("loc", [np.zeros(2), np.ones(2), np.array([1.0, -2.0])])
+def test_dK_inv_singular_scale_with_loc(loc):
+    cgf = multivariate_norm(dim=2).ldot([[1, 1], [1, 1]]) + loc
+    for x in [loc + 1, loc - 3]:
+        t = cgf.dK_inv(x)
+        assert np.allclose(cgf.dK(t), x)
+    # x - loc outside the range of the scale: no solution
+    assert np.all(np.isnan(cgf.dK_inv(loc + np.array([1.0, 2.0]))))
+
+
+@pytest.mark.skipif(not has_findiff, reason="No findiff")
+@pytest.mark.parametrize("backend", ["numdifftools", "findiff"])
+def test_numerical_derivatives_of_projection(backend):
+    # Y = X1 + X2 with X1, X2 iid standard exponential, K_Y(t) = -2 log(1 - t)
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=lambda t: -np.sum(np.log(1 - np.asarray(t)), axis=-1),
+        dim=2,
+        domain=Domain(dim=2, l=1),
+        numdiff_backend=backend,
+    ).ldot(np.array([[1.0, 1.0]]))
+    t = np.array([0.2])
+    assert np.allclose(cgf.dK(t), 2 / (1 - t), rtol=1e-5)
+    assert np.allclose(cgf.d2K(t), 2 / (1 - t) ** 2, rtol=1e-5)
+    assert np.allclose(cgf.d3K(t), 4 / (1 - t) ** 3, rtol=1e-3)
+
+
+def test_from_cgfs_univariate_forwards_kwargs():
+    mcgf = MultivariateCumulantGeneratingFunction.from_cgfs(
+        norm(),
+        norm(),
+        dK0=np.array([1.0, 2.0]),
+        d2K0=7 * np.eye(2),
+        d3K0=np.zeros((2, 2, 2)),
+        numdiff_backend="findiff",
+    )
+    assert np.allclose(mcgf.dK0, [1, 2])
+    assert np.allclose(mcgf.d2K0, 7 * np.eye(2))
+    assert mcgf._numdiff_backend == "findiff"
+
+
+def test_add_not_inplace_by_default():
+    cgf = multivariate_norm(loc=np.zeros(2), dim=2)
+    res = cgf.add(np.array([1, 2]))
+    assert res is not cgf
+    assert np.allclose(cgf.loc, 0)
+    assert np.allclose(res.dK([0, 0]), [1, 2])
+    res = cgf.add(multivariate_norm(loc=np.ones(2), dim=2))
+    assert np.allclose(res.dK([0, 0]), [1, 1])
+    res = cgf.add(norm(loc=1))
+    assert np.allclose(res.dK([0, 0]), [1, 1])
+    assert np.allclose(cgf.loc, 0)
+    # Explicit inplace still works for constants
+    assert cgf.add(np.array([1, 2]), inplace=True) is cgf
+    assert np.allclose(cgf.loc, [1, 2])
+
+
+def test_add_univariate_binds_operands():
+    a, b = multivariate_norm(dim=2), norm(loc=1)
+    s = a + b
+    t = np.array([0.5, 0.5])
+    expected = [s.K(t), s.dK(t), s.d2K(t)]
+    a.loc, a.scale, b.loc, b.scale = np.array([10.0, 10.0]), 2.0, 5.0, 3.0
+    for val, exp in zip([s.K(t), s.dK(t), s.d2K(t)], expected):
+        assert np.allclose(val, exp)
+    assert np.allclose(expected[0], 0.25 + 1 + 0.5)
+
+
+def test_multivariate_list_and_numpy_scalar_algebra():
+    cgf = multivariate_norm(dim=2)
+    assert np.allclose((cgf - [1.0, 2.0]).mean, [-1, -2])
+    assert np.allclose((cgf + [1.0, 2.0]).mean, [1, 2])
+    assert np.allclose((cgf + np.int64(2)).mean, [2, 2])
+    assert np.allclose((cgf - np.int64(2)).mean, [-2, -2])
+    assert np.allclose((cgf * np.float32(2)).cov, 4 * np.eye(2))
+
+
+def test_multivariate_list_loc():
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=lambda t: np.sum(np.square(t), axis=-1) / 2, dim=2, loc=[1.0, 2.0]
+    )
+    assert np.allclose(cgf.dK0, [1, 2])
+    with pytest.raises(AssertionError, match="vector of length 2"):
+        cgf.loc = [1.0, 2.0, 3.0]
+
+
+@pytest.mark.parametrize(
+    "backend",
+    [
+        "numdifftools",
+        pytest.param("findiff", marks=pytest.mark.skipif(not has_findiff, reason="No findiff")),
+    ],
+)
+def test_multivariate_K_returning_shape_one(backend):
+    # A K returning shape (1,) for a single point should behave as one returning a scalar
+    kwargs = dict(dim=2, loc=[1, 2], numdiff_backend=backend)
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=lambda t: np.atleast_1d(np.sum(np.square(t), axis=-1) / 2), **kwargs
+    )
+    ref = MultivariateCumulantGeneratingFunction(
+        K=lambda t: np.sum(np.square(t), axis=-1) / 2, **kwargs
+    )
+    t = np.array([1.0, 1.0])
+    ts = np.array([[1.0, 1.0], [0.0, 0.5]])
+    assert isinstance(cgf.K(t), float) and np.isclose(cgf.K(t), 4)
+    assert np.allclose(cgf.K(ts), ref.K(ts))
+    assert isinstance(cgf.ldot(np.array([1.0, 1.0])).K(1.0), float)
+    assert isinstance(cgf[0].K(1.0), float)
+    for f in ["dK", "d2K"]:
+        assert np.allclose(getattr(cgf, f)(t), getattr(ref, f)(t))
+    assert np.allclose(cgf.dK_inv([2.0, 3.0]), [1, 1])
+    approx, ref_approx = MultivariateSaddlePointApprox(cgf), MultivariateSaddlePointApprox(ref)
+    pdf = approx.pdf(t=[0.5, 0.5], normalize_pdf=False)
+    assert isinstance(pdf, float)
+    assert np.isclose(pdf, ref_approx.pdf(t=[0.5, 0.5], normalize_pdf=False))
+
+
+@pytest.mark.parametrize("dim", [1, 2])
+def test_multivariate_point_shapes(dim):
+    # A point is a vector of length dim, also when dim is 1; a scalar is broadcast to a point
+    cgf = multivariate_norm(loc=0, scale=np.sqrt(2), dim=dim)
+    point, points = np.full(dim, 0.5), np.full((3, dim), 0.5)
+    for t in [0.5, point]:
+        assert np.shape(cgf.K(t)) == ()
+        assert np.shape(cgf.dK(t)) == (dim,)
+        assert np.shape(cgf.d2K(t)) == (dim, dim)
+        assert np.shape(cgf.dK_inv(t)) == (dim,)
+    assert np.allclose(cgf.dK_inv(1.0), cgf.dK_inv(np.ones(dim)))
+    assert np.shape(cgf.K(points)) == (3,)
+    assert np.shape(cgf.dK(points)) == (3, dim)
+    assert np.shape(cgf.d2K(points)) == (3, dim, dim)
+    assert np.shape(cgf.dK_inv(points)) == (3, dim)
+    for bad in [np.full(dim + 2, 0.5), np.full((3, dim + 2), 0.5), np.zeros((2, 2, dim))]:
+        for f in ["K", "dK", "d2K", "dK_inv"]:
+            with pytest.raises(ValueError, match="vector of length"):
+                getattr(cgf, f)(bad)

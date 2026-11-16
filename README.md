@@ -17,9 +17,9 @@ For a random variable $X$, cumulant generating function $K(t)$ is given by:
 $$K(t) = \log\text{E} \exp(t X).$$
 Roughly, it contains all information about the random variable's moments, particularly $K'(0)=E X$.
 For common distributions (normal, exponential, gamma etc.), the cumulant generating function is known.
-Some are implemented as part of this software, others you can find on, e.g., Wikepdia.
+Some are implemented as part of this software, others you can find on, e.g., Wikipedia.
 
-Why is this useful? Now, it's not always straigtforward to find the distribution of, e.g., the sum of (independent) random variables, as you can can't simply sum
+Why is this useful? Now, it's not always straightforward to find the distribution of, e.g., the sum of (independent) random variables, as you can't simply sum
 the distribution functions. You can, however, sum their cumulant generating functions!
 The saddle point approximation can, subsequently be used to approximate the pdf and cdf given the cumulant generating function.
 
@@ -32,7 +32,7 @@ Altogether, applications include:
 To be implemented are:
 
 - Approximating conditional distributions
-- Approximating the distirbution of the quotient of random variables
+- Approximating the distribution of the quotient of random variables
 
 ## Basic example
 
@@ -46,7 +46,7 @@ import scipy.stats as sps
 import spapprox as spa
 
 cgf_normal = spa.norm(loc=0, scale=1)
-spa_normal = spa.SaddlePointApprox(cgf_normal)
+spa_normal = spa.UnivariateSaddlePointApprox(cgf_normal)
 
 t = np.linspace(-3, 3)
 x = cgf_normal.dK(t)
@@ -56,15 +56,18 @@ sps.norm.pdf(x)
 
 ## Installation
 
-You can install this library directly from github:
+You can install this library directly from GitHub:
 
 ```bash
 pip install git+https://github.com/mvds314/spapprox.git
 ```
 
-Optional dependencies are `numdifftools` for numerical differentiation and `fastnorm` for faster bivariate normal cdf evaluation.
+Optional dependencies are `numdifftools` (the default numerical differentiation backend), `findiff` (an alternative, faster finite difference backend, version >= 0.11), and `fastnorm` for faster bivariate normal cdf evaluation.
+Install them as extras, e.g.:
 
-````bash
+```bash
+pip install "spapprox[findiff,numdiff,fastnorm] @ git+https://github.com/mvds314/spapprox.git"
+```
 
 ## Development
 
@@ -72,16 +75,21 @@ For development purposes, clone the repo:
 
 ```bash
 git clone https://github.com/mvds314/spapprox.git
-````
+```
 
-Then navigate to the folder containing `setup.py` and run
+Then navigate to the folder containing `pyproject.toml` and run
 
 ```bash
-pip install -e .
+pip install -e ".[findiff,numdiff,fastnorm]"
 ```
 
 to install the package in edit mode.
 
 Run unittests with `pytest`.
+The full suite takes about 11 minutes; for routine iteration, skip the slow tests:
+
+```bash
+pytest -m "not slow"
+```
 
 Install the optional dependencies to test all functionality.
