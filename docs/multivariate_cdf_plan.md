@@ -140,7 +140,7 @@ A6. **Validation**:
      `P[T <= x] + P[T_1 > x_1, T_{-1} <= x_{-1}] = P[T_{-1} <= x_{-1}]`.
 
 A7. **Tests** in `tests/test_spa.py` (mark as slow where QMC makes them expensive),
-    docstrings with the formulas, a TODO.md entry, ruff, and `pytest -m "not slow"`.
+    docstrings with the formulas, a `docs/TODO.md` entry, ruff, and `pytest -m "not slow"`.
 
 ## Phase A: outcome
 
