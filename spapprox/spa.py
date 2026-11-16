@@ -526,9 +526,7 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
         lower = max(
             (np.nanmax(v) for v in (domain.g, domain.ge) if v is not None), default=-np.inf
         )
-        upper = min(
-            (np.nanmin(v) for v in (domain.l, domain.le) if v is not None), default=np.inf
-        )
+        upper = min((np.nanmin(v) for v in (domain.l, domain.le) if v is not None), default=np.inf)
         return lower, upper
 
     def infer_t_range(self, atol=1e-4, rtol=1e-4, max_iter=500):
@@ -764,6 +762,286 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
 
     def condition(self, i, x):
         raise NotImplementedError("Condition the approximation on the ith variable")
+
+    # Half-width, in conditional standard deviations of the variable of interest, of the
+    # window around the singular point of the conditional cdf in which it is interpolated.
+    # The second order terms lose accuracy closer to it than about 2e-2 for large n.
+    _conditional_singular_width = 2.5e-2
+
+    def _conditional_inputs(self, x, given, i):
+        """Validate the input of the conditional methods, return (i, J, x, given)."""
+        i = self._normalize_index(i)
+        J = [j for j in range(self.dim) if j != i]
+        if not J:
+            raise ValueError("Conditioning requires at least a two dimensional distribution")
+        x = np.asarray(x, dtype=float)
+        given = np.asarray(given, dtype=float)
+        if given.ndim == 1:
+            if len(given) != len(J):
+                raise ValueError(f"given must have {len(J)} components")
+            given = np.broadcast_to(given, (x.size, len(J)))
+        elif given.ndim == 2 and given.shape == (x.size, len(J)):
+            pass
+        else:
+            raise ValueError(f"given must have shape ({len(J)},) or ({x.size}, {len(J)})")
+        return i, J, x, given
+
+    def _conditional_denominator_saddle(self, i, J, xJ, **solver_kwargs):
+        """Saddlepoint with component i fixed at zero, solving dK_J = x_J."""
+        if len(J) == 1:
+            tJ = np.atleast_1d(self.cgf[J[0]].dK_inv(xJ[0], **solver_kwargs))
+        else:
+            tJ = np.asarray(self.cgf[J].dK_inv(xJ, **solver_kwargs))
+        tau0 = np.zeros(self.dim)
+        tau0[J] = tJ
+        return tau0
+
+    def _conditional_terms(self, xfull, i, J, tau0, **solver_kwargs):
+        r"""
+        Return :math:`(\hat w, \hat\tau_i, \hat\sigma)` with
+        :math:`\hat\sigma=\sqrt{\det K''(\hat\tau)/\det K_{JJ}''(\tau_0)}`, so that
+        :math:`\hat u=\hat\tau_i\hat\sigma`, at ``xfull``, with :math:`\tau_0` the
+        denominator saddlepoint.
+        """
+        tau = np.asarray(self.cgf.dK_inv(xfull, **solver_kwargs), dtype=float)
+        H = np.asarray(self.cgf.d2K(tau))
+        H0 = np.asarray(self.cgf.d2K(tau0))
+        w2 = 2 * (tau @ xfull - self.cgf.K(tau) - tau0 @ xfull + self.cgf.K(tau0))
+        sign, logdet = np.linalg.slogdet(H)
+        sign0, logdet0 = np.linalg.slogdet(H0[np.ix_(J, J)])
+        if not (np.isfinite(w2) and sign > 0 and sign0 > 0):
+            return np.nan, np.nan, np.nan
+        # Rounding can push w2 slightly below zero close to the singularity
+        w = np.sign(tau[i]) * np.sqrt(max(w2, 0.0))
+        return w, tau[i], np.exp((logdet - logdet0) / 2)
+
+    def _d4K_central(self, t):
+        """
+        Fourth derivative tensor of K as a finite difference of the analytic ``d3K``.
+
+        A fourth order stencil is used, as the truncation error of a three point stencil is
+        amplified close to the singularity of the conditional cdf. Close to the boundary of
+        the domain, it falls back to a three point or one-sided difference.
+        """
+        t = np.asarray(t, dtype=float)
+        T4 = np.empty((self.dim,) * 4)
+        for m in range(self.dim):
+            h = 1e-3 * max(1.0, abs(t[m]))
+            e = np.zeros(self.dim)
+            e[m] = h
+            f = {j: np.asarray(self.cgf.d3K(t + j * e)) for j in (-2, -1, 1, 2)}
+            if all(np.isfinite(v).all() for v in f.values()):
+                T4[..., m] = (8 * (f[1] - f[-1]) - (f[2] - f[-2])) / (12 * h)
+                continue
+            mid = np.asarray(self.cgf.d3K(t))
+            up = f[1] if np.isfinite(f[1]).all() else mid
+            down = f[-1] if np.isfinite(f[-1]).all() else mid
+            T4[..., m] = (up - down) / (((up is not mid) + (down is not mid)) * h)
+        return T4
+
+    def _conditional_invariants(self, t, J=None):
+        r"""
+        Return :math:`(\rho_4,\rho_{13}^2,\rho_{23}^2)` of Kolassa (1996) of the
+        cumulant generating function at ``t``, restricted to the components ``J`` if given.
+        """
+        H = np.asarray(self.cgf.d2K(t))
+        T3 = np.asarray(self.cgf.d3K(t))
+        T4 = self._d4K_central(t)
+        if J is not None:
+            H, T3, T4 = H[np.ix_(J, J)], T3[np.ix_(J, J, J)], T4[np.ix_(J, J, J, J)]
+        Hi = np.linalg.inv(H)
+        rho4 = np.einsum("ijkl,ij,kl->", T4, Hi, Hi)
+        rho13 = np.einsum("ijk,lmn,ij,kl,mn->", T3, T3, Hi, Hi, Hi)
+        rho23 = np.einsum("ijk,lmn,il,jm,kn->", T3, T3, Hi, Hi, Hi)
+        return rho4, rho13, rho23
+
+    def _conditional_second_order(self, xfull, i, J, tau0, delta=None, **solver_kwargs):
+        r"""
+        Return :math:`(\hat w, \hat z, c)`, with :math:`c` the bracket of Kolassa (1996),
+        Theorem 6.1, eq. (10), so that the survival function is
+        :math:`1-\Phi(\hat w)+\phi(\hat w)(\hat w^{-3}-\hat w^{-1}+\hat z^{-1}c)`.
+        With a lattice span ``delta``, eq. (11) is used, in which :math:`\hat z` and the last
+        two terms of :math:`c` are replaced. :math:`\hat z` carries a factor :math:`1/\delta`
+        compared to the paper, which makes the result invariant to rescaling the lattice.
+        """
+        w, tau_i, sigma = self._conditional_terms(xfull, i, J, tau0, **solver_kwargs)
+        if np.isnan(w):
+            return np.nan, np.nan, np.nan
+        tau = np.asarray(self.cgf.dK_inv(xfull, **solver_kwargs), dtype=float)
+        Hi = np.linalg.inv(np.asarray(self.cgf.d2K(tau)))
+        T3 = np.asarray(self.cgf.d3K(tau))
+        hat = np.array(self._conditional_invariants(tau))
+        # The denominator is the density of X_J, so its invariants are those of the marginal
+        tilde = np.array(self._conditional_invariants(tau0, J))
+        d4, d13, d23 = hat - tilde
+        skew = np.einsum("k,ijk,ij->", Hi[i], T3, Hi)
+        c = 1 + d4 / 8 - d13 / 8 - d23 / 12
+        if delta is None:
+            return w, tau_i * sigma, c - skew / (2 * tau_i) - Hi[i, i] / tau_i**2
+        coth = 1 / np.tanh(tau_i * delta / 2)
+        c = c - delta * skew * coth / 4 - (coth**2 / 4 - 1 / 8) * delta**2 * Hi[i, i]
+        return w, 2 * np.sinh(tau_i * delta / 2) / delta * sigma, c
+
+    def conditional_cdf(
+        self, x, given, i=0, backend="Skovgaard", delta=None, fillna=np.nan, **solver_kwargs
+    ):
+        r"""
+        Saddle point approximation of the conditional cumulative distribution function
+        :math:`P(X_i\leq x\mid X_J=x_J)`, with :math:`J` all other components, following
+        the double saddlepoint approximation of Skovgaard (1987).
+
+        There are two saddlepoints. The numerator saddlepoint :math:`\hat\tau` solves
+        :math:`K'(\hat\tau)=(x, x_J)`. The denominator saddlepoint :math:`\tau_0` solves
+        :math:`K_J'(\tau_0)=x_J` with its :math:`i`-th component equal to zero, that is, it
+        is the saddlepoint of the marginal of :math:`X_J`. Then, see [1] (32.24)-(32.26)
+        and [2] (4.12)-(4.13),
+
+        .. math::
+            P(X_i\leq x\mid X_J=x_J) \approx \Phi(\hat w)
+            + \phi(\hat w)\left(\frac{1}{\hat w} - \frac{1}{\hat u}\right),
+
+        with
+
+        .. math::
+            \hat w = \text{sign}(\hat\tau_i)\sqrt{2\left[\hat\tau^Tx - K(\hat\tau)
+            - \tau_0^Tx + K(\tau_0)\right]},\qquad
+            \hat u = \hat\tau_i\sqrt{\det K''(\hat\tau) / \det K_{JJ}''(\tau_0)}.
+
+        With ``backend="Kolassa"`` the second order approximation of Kolassa (1996),
+        Theorem 6.1, eq. (10), is used instead, which has error :math:`O(N^{-5/2})`
+        rather than :math:`O(N^{-3/2})`. In terms of the survival function, with
+        :math:`\hat z=\hat u`,
+
+        .. math::
+            1-F \approx 1-\Phi(\hat w) + \phi(\hat w)\left[\hat w^{-3} - \hat w^{-1}
+            + \hat z^{-1}\left(1 + \tfrac18(\hat\rho_4-\tilde\rho_4)
+            - \tfrac18(\hat\rho_{13}^2-\tilde\rho_{13}^2)
+            - \tfrac1{12}(\hat\rho_{23}^2-\tilde\rho_{23}^2)
+            - \frac{\hat k^{ik}\hat k_{ijk}\hat k^{ij}}{2\hat\tau_i}
+            - \frac{\hat k^{ii}}{\hat\tau_i^2}\right)\right],
+
+        where :math:`\hat\rho` are the invariants of the joint cgf at :math:`\hat\tau`,
+        :math:`\tilde\rho` those of the marginal cgf of :math:`X_J` at :math:`\tau_0`,
+        and :math:`k^{ij}` is the inverse of :math:`K''(\hat\tau)`. It needs the fourth
+        derivative of the cgf, which is computed as a finite difference of ``d3K``.
+
+        The approximation is exact for the normal distribution. At :math:`\hat\tau_i=0`
+        both :math:`\hat w` and :math:`\hat u` vanish. The singularity is removable, and
+        within ``_conditional_singular_width`` conditional standard deviations of this
+        point the approximation is replaced by a cubic interpolation.
+
+        Parameters
+        ----------
+        x : array_like
+            Values of the variable of interest.
+        given : array_like
+            Values of the conditioning variables, in increasing order of their index.
+            Either a vector, used for all values of ``x``, or an array with one row for
+            each value of ``x``.
+        i : int, optional
+            Index of the variable of interest. Default is the first.
+        backend : str, optional
+            ``"Skovgaard"`` (default, first order) or ``"Kolassa"`` (second order).
+        delta : float, optional
+            Span of the lattice of :math:`X_i`, for a discrete variable of interest. Default
+            is ``None``: continuous. Then ``x`` must lie on the lattice, and the second
+            continuity correction of [2] (4.17)-(4.18) is used: :math:`P(X_i\leq x)` is
+            approximated with the survival function of :math:`X_i\geq x+\delta`, evaluated
+            at :math:`x+\delta/2` with :math:`\hat u=2\sinh(\hat\tau_i\delta/2)\hat\sigma/\delta`.
+            For ``backend="Kolassa"`` this is eq. (11) of [4]. The conditioning variables
+            may be continuous or on a lattice; they are not corrected.
+        fillna : float, optional
+            The value to replace NaNs with.
+
+        References
+        ----------
+        [1] Broda and Paolella (2011) - Saddlepoint approximations: a review and some new
+            applications, Section 32.4.1
+        [2] Butler (2007) - Saddlepoint approximations with applications, Section 4.2.1
+        [3] Skovgaard (1987) - Saddlepoint expansions for conditional distributions
+        [4] Kolassa (1996) - Higher-order approximations to conditional distribution functions
+        """
+        if backend not in ("Skovgaard", "Kolassa"):
+            raise ValueError(f"Unknown backend {backend!r}, use 'Skovgaard' or 'Kolassa'")
+        if delta is not None and not delta > 0:
+            raise ValueError("delta must be positive")
+        i, J, x, given = self._conditional_inputs(x, given, i)
+        wrapper = PandasWrapper(x)
+        y = np.array(
+            [
+                self._conditional_cdf_at(xi, xJ, i, J, backend, delta, **solver_kwargs)
+                for xi, xJ in zip(x.ravel(), given)
+            ]
+        ).reshape(x.shape)
+        y = np.where(np.isnan(y), fillna, y)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+
+    def _conditional_cdf_at(self, xi, xJ, i, J, backend="Skovgaard", delta=None, **solver_kwargs):
+        if not (np.isfinite(xi) and np.isfinite(xJ).all()):
+            return np.nan
+        if delta is not None:
+            xi = xi + delta / 2
+        tau0 = self._conditional_denominator_saddle(i, J, xJ, **solver_kwargs)
+
+        def point(x):
+            xfull = np.empty(self.dim)
+            xfull[i], xfull[J] = x, xJ
+            if backend == "Kolassa":
+                w, z, c = self._conditional_second_order(xfull, i, J, tau0, delta, **solver_kwargs)
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    return sps.norm.cdf(w) - sps.norm.pdf(w) * (w**-3 - 1 / w + c / z)
+            w, tau_i, sigma = self._conditional_terms(xfull, i, J, tau0, **solver_kwargs)
+            u = tau_i * sigma if delta is None else 2 * np.sinh(tau_i * delta / 2) / delta * sigma
+            with np.errstate(divide="ignore", invalid="ignore"):
+                return sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
+
+        # Interpolate near the singular point x_i = K_i'(tau_0), where tau_hat_i = 0
+        center = float(self.cgf.dK(tau0)[i])
+        H0 = np.asarray(self.cgf.d2K(tau0))
+        h = self._conditional_singular_width / np.sqrt(np.linalg.inv(H0)[i, i])
+        if abs(xi - center) < h:
+            nodes = center + h * np.array([-4.0, -2.0, 2.0, 4.0])
+            coef = np.polyfit(nodes - center, [point(v) for v in nodes], deg=3)
+            return np.polyval(coef, xi - center)
+        return point(xi)
+
+    def conditional_pdf(self, x, given, i=0, fillna=np.nan, **solver_kwargs):
+        r"""
+        Saddle point approximation of the conditional probability density function of
+        :math:`X_i` given :math:`X_J=x_J`, with :math:`J` all other components. It is the
+        ratio of the joint and the marginal saddle point densities, see [1] (4.7) and
+        (4.14),
+
+        .. math::
+            f(x\mid x_J) \approx \sqrt{\frac{\det K_{JJ}''(\tau_0)}{\det K''(\hat\tau)}}
+            \,\phi(\hat w),
+
+        where :math:`\hat\tau`, :math:`\tau_0` and :math:`\hat w` are as in
+        :meth:`conditional_cdf`. The result is not normalized.
+
+        Parameters
+        ----------
+        x, given, i, fillna :
+            See :meth:`conditional_cdf`.
+
+        References
+        ----------
+        [1] Butler (2007) - Saddlepoint approximations with applications, Section 4.1
+        """
+        i, J, x, given = self._conditional_inputs(x, given, i)
+        wrapper = PandasWrapper(x)
+        y = np.empty(x.size)
+        for k, (xi, xJ) in enumerate(zip(x.ravel(), given)):
+            if not (np.isfinite(xi) and np.isfinite(xJ).all()):
+                y[k] = np.nan
+                continue
+            tau0 = self._conditional_denominator_saddle(i, J, xJ, **solver_kwargs)
+            xfull = np.empty(self.dim)
+            xfull[i], xfull[J] = xi, xJ
+            w, _, sigma = self._conditional_terms(xfull, i, J, tau0, **solver_kwargs)
+            y[k] = sps.norm.pdf(w) / sigma
+        y = np.where(np.isnan(y), fillna, y).reshape(x.shape)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
     @type_wrapper(xloc=1)
     def _spapprox_pdf(self, x, t, fillna=np.nan):
@@ -1422,9 +1700,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         if w > 0:
             retval += w * self._kl_cdf_ordered(x, t, **solver_kwargs)
         if w < 1:
-            retval += (1 - w) * self[[1, 0]]._kl_cdf_ordered(
-                x[::-1], t[::-1], **solver_kwargs
-            )
+            retval += (1 - w) * self[[1, 0]]._kl_cdf_ordered(x[::-1], t[::-1], **solver_kwargs)
         return retval
 
     def _kl_cdf_ordered(self, x, t, **solver_kwargs):

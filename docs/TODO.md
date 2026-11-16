@@ -5,7 +5,6 @@
 - Finish bivariate approximation:
   - basically this case: test_bvar_cdf_near_zero
   - are there more edge cases?
-- Conditional approximation (Skovgard approximation)
 - Multivariate approximation: cdf phase A done (`backend="Kolassa"`); phase B only if
   needed, see `docs/multivariate_cdf_plan.md`
 
@@ -905,8 +904,16 @@ First application would be bootstrapping, and the various froms it can take.
 Additional approximations would go into spa.py
 Or into a separate model, e.g., bootstrap.py
 
-- add the conditional distribution, e.g., Skovgaard (1987) / Kolassa & Li (2010) section 4
-  (marginal approximations are available as `spa[i]`, `spa[[i, j]]`)
+- conditional distribution, `X_i | X_J = x_J` (done on branch `feature/conditional-skovgaard`, see
+  `docs/conditional_cdf_plan.md`): `MultivariateSaddlePointApprox.conditional_cdf` (Skovgaard,
+  `backend="Kolassa"` for second order, `delta=` for a lattice `X_i`) and `conditional_pdf`.
+  Marginal approximations are available as `spa[i]`, `spa[[i, j]]`. Follow ups, in order:
+  - normalize `conditional_pdf` (quadrature over `x_i`), or add the second-order pdf correction
+  - make the `condition()` stub delegate to `conditional_cdf` / `conditional_pdf`, or remove it
+  - `P1`, the first continuity correction of Butler (4.15)-(4.16), for comparison with `P2`
+  - vector of interest, `P(X_I >= x_I | X_J = x_J)`: phase F, Kolassa & Li (2010) section 4.
+    Large, needs its own plan
+  - non-linear conditioning `Z = g(X, Y)`: phase G, Wang (1993). Lower priority
 - implement Dirichlet bootstrap
 - implement multivariate saddle point approximations
   - cdf for any dimension: phase A of `docs/multivariate_cdf_plan.md` is done,
@@ -916,6 +923,9 @@ Or into a separate model, e.g., bootstrap.py
     phase A turns out not to be accurate enough
   - `fit_cdf` for the multivariate case is not implemented
   - lattice variables: continuity-corrected version of Kolassa (2003) eq. (13)
+  - bivariate `"KL"` and `"Wang"` cdf return NaN, plus `invalid value in sqrt` warnings
+    (`spa.py`, `_kl_cdf_ordered`), when a saddlepoint component is at or near zero; reproduce
+    with `examples/example_Wang1990.py`, e.g. cells (x=0, y=1.0) and (x=-1.0, y=0.0)
 - implement other bootstraps
 - jackknife stuff
 - conditional distributions
