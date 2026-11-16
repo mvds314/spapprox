@@ -861,10 +861,18 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         .. math::
             \partial_{t} K(\mathbf{\tilde t_0}) = y.
 
-        We follow the approach as outlined in [4] Section 5.2.
-        Note that, we simplified notation somewhat, and that there is typo in their
-        formula for :math:`\tilde n_0` (in their notation): :math:`w_0` is not defined
-        and should probably read :math:`\tilde w_0`.
+        We follow the approach as outlined in [4] Section 5.2, with simplified notation.
+        The :math:`w_0` in their formula for :math:`\tilde n_0` (their notation), which is
+        not defined there, is :math:`\tilde w_0`, as in [3] eq. (25).
+
+        The formula is not symmetric in the two variables: above, the inner integral is
+        over :math:`y` (the second variable). As in [3] Section 5 and [4] Remark (a), the
+        order of integration is chosen per point: we integrate first over the variable for
+        which :math:`\tilde w` is smaller. That is, the formula above is used if
+        :math:`\tilde w` above is not larger than its counterpart with the roles of the
+        variables reversed (see below), and the reversed formula is used otherwise. With the
+        wrong order, the approximation error can be an order of magnitude larger, e.g.,
+        under strong dependence.
 
         There are several cases that lead to singularities.
         First, following [4], if :math:`t=0` and :math:`s\neq0`, then :math:`\tilde n` should be replaced
@@ -873,8 +881,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         .. math::
             \tilde n = \frac{\phi(\tilde x)}{6}\frac{K_{ttt}(\mathbf{s_0})}{K_{tt}(\mathbf{s_0})^{3/2}}.
 
-        Second, following [4], if :math:`s=0` and :math:`t\neq0`, then we can reverse the role of :math:`X`
-        and :math:`Y`, to reduce it to the first case. Basically, in the notation above, we swap the roles of
+        Second, following [4], if :math:`s=0` and :math:`t\neq0`, then we reverse the role of :math:`X`
+        and :math:`Y`, to reduce it to the first case. The reversed formula, which is also
+        used by the order rule above, is obtained by swapping the roles of
         :math:`s` and :math:`t`, :math:`\tilde s` and :math:`\tilde t`, :math:`x` and :math:`y`,
         :math:`\tilde x` and :math:`\tilde y`, and :math:`\mathbf{s_0}` and :math:`\mathbf{t_0}`.
         This leads to
@@ -914,7 +923,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         interpolation in that component through the nodes :math:`t_j \in \{-h_j, 0, h_j\}`.
         If both components are near zero, a tensor product of these interpolations is
         used, so that 9 nodes are evaluated. At the nodes, the formula is evaluated
-        directly, using the exact limits above for nodes on an axis. The interpolation
+        directly, using the exact limits above for nodes on an axis. If only one component
+        is near zero, all nodes integrate first over that variable, so that the
+        interpolated function is smooth and has a closed-form limit on the axis. The interpolation
         error is :math:`O(h^3)`.
 
         At the double singularity :math:`\mathbf{t}=\mathbf{0}` no closed-form limit is
@@ -950,6 +961,10 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         near = np.abs(t) < h
         if not near.any():
             return self._bivariate_formula(x, t, **solver_kwargs)
+        # Close to a single axis, integrate first over the variable whose saddlepoint
+        # component is near zero, so that every interpolation node uses the same formula
+        # and the node on the axis has a closed-form limit.
+        inner = None if near.all() else int(np.flatnonzero(near)[0])
         nodes, weights = [], []
         for tj, hj, nj in zip(t, h, near):
             if nj:
@@ -964,7 +979,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         vals = np.array(
             [
                 [
-                    self._bivariate_formula_at(np.array([a, b]), h, **solver_kwargs)
+                    self._bivariate_formula_at(np.array([a, b]), h, inner, **solver_kwargs)
                     for b in nodes[1]
                 ]
                 for a in nodes[0]
@@ -972,7 +987,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         )
         return weights[0] @ vals @ weights[1]
 
-    def _bivariate_formula_at(self, t, h, **solver_kwargs):
+    def _bivariate_formula_at(self, t, h, inner=None, **solver_kwargs):
         if np.all(t == 0):
             # No closed form for the double singularity: extrapolate the averages over
             # the neighbouring points on the axes, A(h) = F(0) + c h^2 + O(h^4).
@@ -981,76 +996,61 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
                 return np.mean([self._bivariate_formula_at(np.array(p), h) for p in pts])
 
             return (4 * axis_mean(h) - axis_mean(2 * h)) / 3
-        return self._bivariate_formula(self.cgf.dK(t), t, **solver_kwargs)
+        return self._bivariate_formula(self.cgf.dK(t), t, inner=inner, **solver_kwargs)
 
-    def _bivariate_formula(self, x, t, **solver_kwargs):
+    def _inner_w0(self, x, t, inner):
+        """
+        The quantity :math:`\\tilde w_0` of :meth:`_spapprox_cdf` when integrating first
+        over the variable with index ``inner``.
+        """
+        t_outer = t.copy()
+        t_outer[inner] = 0
+        return np.sign(t[inner]) * np.sqrt(
+            2 * (self.cgf.K(t_outer) - self.cgf.K(t) + t[inner] * x[inner])
+        )
+
+    def _bivariate_formula(self, x, t, inner=None, **solver_kwargs):
         """
         Direct evaluation of the formula documented in :meth:`_spapprox_cdf` for a
-        single point, using the exact limits when a component of ``t`` is exactly 0.
+        single point, using the exact limit when the inner component of ``t`` is 0.
+
+        ``inner`` is the index of the variable that is integrated over first. If it is
+        not given, it is chosen by the rule of [3]: the order with the smaller
+        :math:`\\tilde w_0` is used.
         """
-        # Initialize
-        t0 = t.copy()
-        t0[..., 0] = 0
-        s0 = t.copy()
-        s0[..., 1] = 0
-        if t[0] != 0:
-            # Note, slicing a component of a cgf sets the other variables to zero
-            tt = self.cgf[1].dK_inv(x.T[1], **solver_kwargs)
-            tt0 = np.vstack((np.zeros(np.shape(tt)), tt)).T.squeeze()
-            # Calculate components
-            tx = np.sign(tt) * np.sqrt(2 * ((tt0 * x).sum(axis=-1).squeeze() - self.cgf.K(tt0)))
-            tw = np.sign(t.T[1]) * np.sqrt(
-                2 * (self.cgf.K(s0) - self.cgf.K(t) + (t0 * x).sum(axis=-1).squeeze())
-            )
-            w = np.sign(t.T[0]) * np.sqrt(
-                2 * (((t - tt0) * x).sum(axis=-1).squeeze() + self.cgf.K(tt0) - self.cgf.K(t))
-            )
-            b = (tw - tx) / w
-            ty = (w - b * tx) / np.sqrt(1 + np.square(b))
-            tx = np.vstack((tx, ty)).T.squeeze()
-            rho = -b / np.sqrt(1 + np.square(b))
-            d2Kt11 = self.cgf.d2K(t)[..., 1, 1]
-            u = t.T[0] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt11)
-            tu = t.T[1] * np.sqrt(d2Kt11)
-            n = sps.norm.pdf(w) * (1 / w - 1 / u)
-            if (t != 0).all():
-                tn = sps.norm.pdf(tx.T[0]) * (1 / tw - 1 / tu)
-            else:
-                if not np.isclose(tu, 0) and not np.isclose(tw, 0):
-                    raise AssertionError("Invalid singular case")
-                d3K111s0 = self.cgf.d3K(s0)[..., 1, 1, 1]
-                d2K11s0 = self.cgf.d2K(s0)[..., 1, 1]
-                tn = sps.norm.pdf(tx.T[0]) / 6 * (d3K111s0 / d2K11s0 ** (3 / 2))
-                assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
+        if t[0] == 0:
+            # The formula is singular when the outer component is zero
+            inner = 0
+        elif t[1] == 0:
+            inner = 1
+        elif inner is None:
+            inner = 1 if self._inner_w0(x, t, 1) <= self._inner_w0(x, t, 0) else 0
+        outer = 1 - inner
+        t_outer = t.copy()
+        t_outer[inner] = 0
+        # Note, slicing a component of a cgf sets the other variables to zero
+        ti = self.cgf[inner].dK_inv(x[inner], **solver_kwargs)
+        ti0 = np.zeros(2)
+        ti0[inner] = ti
+        # Calculate components
+        x1 = np.sign(ti) * np.sqrt(2 * (ti * x[inner] - self.cgf.K(ti0)))
+        tw = self._inner_w0(x, t, inner)
+        w = np.sign(t[outer]) * np.sqrt(2 * (np.dot(t - ti0, x) + self.cgf.K(ti0) - self.cgf.K(t)))
+        b = (tw - x1) / w
+        y1 = (w - b * x1) / np.sqrt(1 + np.square(b))
+        tx = np.array([x1, y1])
+        rho = -b / np.sqrt(1 + np.square(b))
+        d2K = self.cgf.d2K(t)
+        u = t[outer] * np.sqrt(np.linalg.det(d2K) / d2K[inner, inner])
+        tu = t[inner] * np.sqrt(d2K[inner, inner])
+        n = sps.norm.pdf(w) * (1 / w - 1 / u)
+        assert np.isfinite(n), "Something is wrong"
+        if t[inner] != 0:
+            tn = sps.norm.pdf(x1) * (1 / tw - 1 / tu)
         else:
-            # Note, slicing a component of a cgf sets the other variables to zero
-            ts = self.cgf[0].dK_inv(x.T[0], **solver_kwargs)
-            ts0 = np.vstack((ts, np.zeros(np.shape(ts)))).T.squeeze()
-            # Calculate components
-            ty = np.sign(ts) * np.sqrt(2 * ((ts0 * x).sum(axis=-1).squeeze() - self.cgf.K(ts0)))
-            tw = np.sign(t.T[0]) * np.sqrt(
-                2 * (self.cgf.K(t0) - self.cgf.K(t) + (s0 * x).sum(axis=-1).squeeze())
-            )
-            w = np.sign(t.T[1]) * np.sqrt(
-                2 * (((t - ts0) * x).sum(axis=-1).squeeze() + self.cgf.K(ts0) - self.cgf.K(t))
-            )
-            b = (tw - ty) / w
-            tx = (w - b * ty) / np.sqrt(1 + np.square(b))
-            tx = np.vstack((tx, ty)).T.squeeze()
-            rho = -b / np.sqrt(1 + np.square(b))
-            d2Kt00 = self.cgf.d2K(t)[..., 0, 0]
-            u = t.T[1] * np.sqrt(np.linalg.det(self.cgf.d2K(t)) / d2Kt00)
-            tu = t.T[0] * np.sqrt(d2Kt00)
-            n = sps.norm.pdf(w) * (1 / w - 1 / u)
-            if (t != 0).all():
-                tn = sps.norm.pdf(tx.T[1]) * (1 / tw - 1 / tu)
-            else:
-                if not np.isclose(tu, 0) and not np.isclose(tw, 0):
-                    raise AssertionError("Invalid singular case")
-                d3K000t0 = self.cgf.d3K(t0)[..., 0, 0, 0]
-                d2K00t0 = self.cgf.d2K(t0)[..., 0, 0]
-                tn = sps.norm.pdf(tx.T[1]) / 6 * (d3K000t0 / d2K00t0 ** (3 / 2))
-                assert np.isfinite(n) and not np.isnan(n), "Something is wrong"
+            d3K = self.cgf.d3K(t_outer)[..., inner, inner, inner]
+            d2K_outer = self.cgf.d2K(t_outer)[..., inner, inner]
+            tn = sps.norm.pdf(x1) / 6 * (d3K / d2K_outer ** (3 / 2))
         # Put everything together
         if _has_fastnorm:
             if np.ndim(rho) == 0:

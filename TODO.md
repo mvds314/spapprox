@@ -771,7 +771,7 @@ Contract violations and silently wrong results in narrower situations.
 
 ## Needs a literature check (unresolved)
 
-### [ ] 56. _Suspected:_ bivariate cdf converges too slowly under dependence
+### [ ] 56. Bivariate cdf converges too slowly under dependence (partially fixed)
 
 - **Where:** `spapprox/spa.py:836-912`
 - **What:** even with items 17 and 18 fixed, the error for dependent pairs only
@@ -784,10 +784,46 @@ Contract violations and silently wrong results in narrower situations.
   | `(Z1, Z1+Z2)`, exact by quadrature                      | 0.043 | 0.042 | 0.029  | 0.0175 |
   | `bivariate_gamma([2, 1, 3]) * k` vs 4M-draw Monte Carlo | 0.023 | 0.016 | 0.0095 | --     |
 
-- **Next step:** all 16 Phi/phi argument pairings were tried without success;
-  likely culprits are `u_tilde`, `b` or `rho`. Re-derive against Wang (1990) /
-  Kolassa & Li (2010); Paolella (2007) section 5.2 via the linked
-  `paolella-saddlepoint` skill.
+- **Diagnosis:** the code matches Paolella (2007) eq. (5.22) and Wang (1990) eq. (25)
+  term by term (Paolella's undefined `w0` is Wang's `w_{u0}`, i.e. `w_tilde`). What was
+  missing is the order-of-integration rule of Wang (1990) section 5 / Paolella Remark
+  (a): integrate first over the variable whose `w_tilde_0` is smaller. The code always
+  integrated over the second variable first. With the rule, Wang's Table 1 (n=10,
+  bivariate gamma) is reproduced to the printed digits; without it, e.g. 0.053 instead of
+  0.125.
+- **Partially fixed:** `_bivariate_formula` picks the order per point (consistently
+  across a near-axis interpolation stencil). Max abs error for `bivariate_gamma([2, 1, 3] * k)`
+  vs exact quadrature:
+
+  | k                 | 1     | 4      | 16     | 64     | 256     |
+  | ----------------- | ----- | ------ | ------ | ------ | ------- |
+  | before            | 0.245 | 0.076  | 0.033  | 0.015  | 0.0073  |
+  | with Wang's order | 0.035 | 0.0050 | 0.0023 | 0.0013 | 0.00073 |
+
+  Regression tests: `test_bvar_cdf_wang_1990_table_1`, `test_bvar_cdf_dependent_accuracy`,
+  `test_bvar_cdf_invariant_to_relabeling`.
+- **Still open:** the error still shrinks like `n^(-1/2)` at fixed standardized points.
+  This is intrinsic to Wang's formula (Wang's own table has errors of ~0.009 at n=10;
+  Kolassa & Li (2010) note that Wang's argument is incomplete near the pole). Two more
+  findings:
+  - Wang's formula can exceed 1 in the upper-right corner, e.g. 1.0012 for
+    `bivariate_gamma([10, 10, 10])` at `x=(40, 40)`.
+  - Replacing the factor `1/w_tilde_0 - 1/u_tilde_0` in Wang's `I21` with the marginal
+    Lugannani--Rice correction `1/x_tilde - 1/(t_tilde_0 sqrt(K_tt))` is 3--20x more
+    accurate at k=1, but does not change the rate. It is not in the literature, so it was
+    not adopted.
+- **Next step:** Kolassa & Li (2010) / Li (2009, PhD thesis, ch. 3), which has relative
+  error `O(1/n)`. A prototype reaches the `1/n` rate: max errors 4.1e-3, 8.9e-4, 2.5e-4,
+  6.5e-5, 1.7e-5 for k=1..256. Two things are needed that the paper omits:
+  - The cubic term of `I^∅`, which the thesis only references to Kolassa (2003). Only
+    `w_tilde_2(w_1)` is non-quadratic, so `g_111 = 3 w2' w2''`, `g_112 = w2''`, and the
+    other cubic derivatives vanish. The Gaussian integrals follow by applying
+    `(-d/db_i - u_hat_i)` to the bivariate normal tail. Without this term the error is
+    `O(n^(-1/2))` and worse than Wang's.
+  - Applying the upper-tail formula in the orthant where both saddlepoint components are
+    positive (reflect `K(±s, ±t)`), then inclusion--exclusion with univariate
+    Lugannani--Rice marginals. Without this, `C = exp(...)` blows up when the orthant
+    probability is close to 1.
 
 ---
 

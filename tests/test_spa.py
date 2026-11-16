@@ -14,6 +14,7 @@ from spapprox import (
     # binomial,
     UnivariateCumulantGeneratingFunction,
     UnivariateSaddlePointApprox,
+    bivariate_gamma,
     chi2,
     exponential,
     gamma,
@@ -464,6 +465,64 @@ def test_bvar_cdf_near_axes_no_cancellation():
         t = np.array(t)
         expected = sps.multivariate_normal(np.zeros(2), cov).cdf(spa.cgf.dK(t))
         assert np.isclose(spa.cdf(t=t), expected, atol=1e-6)
+
+
+def _bivariate_gamma_cdf(x, a):
+    # (Z0 + Z1, Z0 + Z2) with independent Zi ~ Gamma(a[i])
+    integrand = lambda z: (
+        sps.gamma(a[0]).pdf(z) * sps.gamma(a[1]).cdf(x[0] - z) * sps.gamma(a[2]).cdf(x[1] - z)
+    )
+    return quad(integrand, 0, min(x), limit=200, epsabs=1e-12, epsrel=1e-10)[0]
+
+
+@pytest.mark.parametrize(
+    "dx,dy,expected",
+    [
+        (-1.2, 2.0, 0.00027),
+        (-1.0, 2.0, 0.0036),
+        (-0.8, 2.0, 0.022),
+        (-0.5, 2.0, 0.129),
+        (0.0, 2.0, 0.539),
+        (0.5, 2.0, 0.871),
+        (1.0, 2.0, 0.979),
+        (-1.0, 1.5, 0.0036),
+        (-0.5, 1.5, 0.128),
+        (0.0, 1.5, 0.537),
+        (0.5, 1.5, 0.869),
+        (-0.5, 1.0, 0.127),
+        (0.0, 1.0, 0.532),
+    ],
+)
+def test_bvar_cdf_wang_1990_table_1(dx, dy, expected):
+    # Saddlepoint column of Table 1 of Wang (1990): sample means of n=10 bivariate
+    # gamma variables, evaluated at deviations (dx, dy) from the mean 2
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=[10, 10, 10]))
+    x = 10 * (np.array([dx, dy]) + 2)
+    assert np.isclose(spa.cdf(x=x), expected, rtol=5e-3, atol=6e-4)
+
+
+@pytest.mark.parametrize("k,max_err", [(1, 0.04), (16, 0.003)])
+def test_bvar_cdf_dependent_accuracy(k, max_err):
+    # Wang's order-of-integration rule; without it the errors are 0.245 and 0.033
+    a = np.array([2.0, 1.0, 3.0]) * k
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=a))
+    errs = []
+    for zs, zt in itertools.product([-1.5, -0.8, -0.3, 0.4, 1.0, 1.8], [-1.5, -0.7, 0.35, 1.7]):
+        t = np.array([zs, zt]) / np.sqrt(k) / 2.2
+        if t.sum() >= 0.97:
+            continue
+        x = spa.cgf.dK(t)
+        errs.append(abs(spa.cdf(t=t) - _bivariate_gamma_cdf(x, a)))
+    assert max(errs) < max_err
+
+
+def test_bvar_cdf_invariant_to_relabeling():
+    a = np.array([2.0, 1.0, 3.0])
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=a))
+    spa_swapped = BivariateSaddlePointApprox(bivariate_gamma(a=a[[0, 2, 1]]))
+    for t in [[-0.6, 0.3], [0.4, -0.7], [0.2, 0.3], [-0.5, -0.2]]:
+        t = np.array(t)
+        assert np.isclose(spa.cdf(t=t), spa_swapped.cdf(t=t[::-1]), atol=1e-10)
 
 
 # TODO: then continue with a bootstrapping application
