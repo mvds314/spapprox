@@ -154,8 +154,10 @@ rho13sq  = k^{gij} k^{hkl} k_{gh} k_{ij} k_{kl}   i.e. k_{ijk} k_{lmn} k^{ij} k^
 rho23sq  = k_{ijk} k_{lmn} k^{il} k^{jm} k^{kn}
 ```
 
-`rho*_hat` are evaluated at `tau_hat`, `rho*_tilde` at `tau_0` (with the full `d x d`
-inverse Hessian there, not just the `J` block). `k_hat^{11}` is the `(i, i)` element of
+`rho*_hat` are evaluated at `tau_hat`, `rho*_tilde` at `tau_0`, for the **marginal** cgf of `X_J`, i.e. built from the `J` blocks
+of the Hessian and of the third and fourth derivative tensors, with the inverse of the `J` block
+(verified numerically on the bivariate gamma: using the full `d x d` quantities converges at the
+first-order rate, the `J` blocks at about `n^-3`). `k_hat^{11}` is the `(i, i)` element of
 the inverse Hessian at `tau_hat`. Pages 359-360 of the paper are the authority; the
 extracted text lost the index positions, I read them from the rendered page. Treat the
 index placement in the third and fourth terms of the bracket as the first thing to
@@ -225,7 +227,12 @@ B2. `lattice` argument, `delta` handling, and conditioning on continuous or latt
     variables.
 B3. Tests on Poisson to binomial and negative binomial to Polya.
 
-### Phase C: Kolassa (1996) second order
+### Phase C: Kolassa (1996) second order (continuous case done)
+
+Done as `conditional_cdf(..., backend="Kolassa")`. The third and fourth bracket terms use the
+inverse Hessian at `tau_hat` as written above (confirmed by fitting against the exact gamma
+conditional). `k_{ijkl}` is a central difference of `d3K` (`_d4K_central`), no `d4K` was added.
+The lattice version (eq. 11) remains open.
 
 C1. Fourth derivatives (see caveats). Decide `d4K` vs numerical contraction.
 C2. `rho4`, `rho13sq`, `rho23sq`, and the bracket, at `tau_hat` and `tau_0`.

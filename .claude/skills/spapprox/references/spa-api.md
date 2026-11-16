@@ -165,7 +165,11 @@ available as `spa[i]` / `spa[[i, j]]`; the `condition` stub still raises
 $F \approx \Phi(w) + \phi(w)(1/w - 1/u)$ (Broda & Paolella 32.24-32.26), error
 $O(n^{-1})$, exact for the normal. The numerator saddlepoint is the full one, the
 denominator one is the marginal saddlepoint of $X_J$. Near $w=u=0$ the cdf is
-cubic-interpolated; the pdf is un-normalized. Plan: `docs/conditional_cdf_plan.md`.
+cubic-interpolated; the pdf is un-normalized. `backend="Kolassa"` selects the second order
+Kolassa (1996) eq. (10), error about $n^{-3}$ in the gamma test (vs $n^{-1}$): the bracket
+uses invariants $\rho_4,\rho_{13}^2,\rho_{23}^2$ of the joint cgf at $\hat\tau$ minus those of the
+**marginal** of $X_J$ (J blocks) at $\tau_0$; $k_{ijkl}$ is a finite difference of `d3K`.
+Plan: `docs/conditional_cdf_plan.md`.
 
 `cdf(x=None, t=None, fillna=np.nan, backend="Kolassa")` works in any dimension
 (phase A of `docs/multivariate_cdf_plan.md`). `_kolassa_cdf` evaluates eq. (5) of

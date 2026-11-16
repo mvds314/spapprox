@@ -814,7 +814,59 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         w = np.sign(tau[i]) * np.sqrt(max(w2, 0.0))
         return w, tau[i], np.exp((logdet - logdet0) / 2)
 
-    def conditional_cdf(self, x, given, i=0, fillna=np.nan, **solver_kwargs):
+    def _d4K_central(self, t):
+        """Fourth derivative tensor of K as a finite difference of the analytic ``d3K``."""
+        t = np.asarray(t, dtype=float)
+        T4 = np.empty((self.dim,) * 4)
+        for m in range(self.dim):
+            e = np.zeros(self.dim)
+            e[m] = 1e-4 * max(1.0, abs(t[m]))
+            up, down, mid = (np.asarray(self.cgf.d3K(t + s * e)) for s in (1, -1, 0))
+            if not np.isfinite(up).all():
+                up = mid
+            if not np.isfinite(down).all():
+                down = mid
+            step = (up is not mid) + (down is not mid)
+            T4[..., m] = (up - down) / (step * e[m])
+        return T4
+
+    def _conditional_invariants(self, t, J=None):
+        r"""
+        Return :math:`(\rho_4,\rho_{13}^2,\rho_{23}^2)` of Kolassa (1996) of the
+        cumulant generating function at ``t``, restricted to the components ``J`` if given.
+        """
+        H = np.asarray(self.cgf.d2K(t))
+        T3 = np.asarray(self.cgf.d3K(t))
+        T4 = self._d4K_central(t)
+        if J is not None:
+            H, T3, T4 = H[np.ix_(J, J)], T3[np.ix_(J, J, J)], T4[np.ix_(J, J, J, J)]
+        Hi = np.linalg.inv(H)
+        rho4 = np.einsum("ijkl,ij,kl->", T4, Hi, Hi)
+        rho13 = np.einsum("ijk,lmn,ij,kl,mn->", T3, T3, Hi, Hi, Hi)
+        rho23 = np.einsum("ijk,lmn,il,jm,kn->", T3, T3, Hi, Hi, Hi)
+        return rho4, rho13, rho23
+
+    def _conditional_second_order(self, xfull, i, J, tau0, **solver_kwargs):
+        r"""
+        Return :math:`(\hat w, \hat z, c)`, with :math:`c` the bracket of Kolassa (1996),
+        Theorem 6.1, eq. (10), so that the survival function is
+        :math:`1-\Phi(\hat w)+\phi(\hat w)(\hat w^{-3}-\hat w^{-1}+\hat z^{-1}c)`.
+        """
+        w, tau_i, sigma = self._conditional_terms(xfull, i, J, tau0, **solver_kwargs)
+        if np.isnan(w):
+            return np.nan, np.nan, np.nan
+        tau = np.asarray(self.cgf.dK_inv(xfull, **solver_kwargs), dtype=float)
+        Hi = np.linalg.inv(np.asarray(self.cgf.d2K(tau)))
+        T3 = np.asarray(self.cgf.d3K(tau))
+        hat = np.array(self._conditional_invariants(tau))
+        # The denominator is the density of X_J, so its invariants are those of the marginal
+        tilde = np.array(self._conditional_invariants(tau0, J))
+        d4, d13, d23 = hat - tilde
+        skew = np.einsum("k,ijk,ij->", Hi[i], T3, Hi)
+        c = 1 + d4 / 8 - d13 / 8 - d23 / 12 - skew / (2 * tau_i) - Hi[i, i] / tau_i**2
+        return w, tau_i * sigma, c
+
+    def conditional_cdf(self, x, given, i=0, backend="Skovgaard", fillna=np.nan, **solver_kwargs):
         r"""
         Saddle point approximation of the conditional cumulative distribution function
         :math:`P(X_i\leq x\mid X_J=x_J)`, with :math:`J` all other components, following
@@ -837,6 +889,24 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             - \tau_0^Tx + K(\tau_0)\right]},\qquad
             \hat u = \hat\tau_i\sqrt{\det K''(\hat\tau) / \det K_{JJ}''(\tau_0)}.
 
+        With ``backend="Kolassa"`` the second order approximation of Kolassa (1996),
+        Theorem 6.1, eq. (10), is used instead, which has error :math:`O(N^{-5/2})`
+        rather than :math:`O(N^{-3/2})`. In terms of the survival function, with
+        :math:`\hat z=\hat u`,
+
+        .. math::
+            1-F \approx 1-\Phi(\hat w) + \phi(\hat w)\left[\hat w^{-3} - \hat w^{-1}
+            + \hat z^{-1}\left(1 + \tfrac18(\hat\rho_4-\tilde\rho_4)
+            - \tfrac18(\hat\rho_{13}^2-\tilde\rho_{13}^2)
+            - \tfrac1{12}(\hat\rho_{23}^2-\tilde\rho_{23}^2)
+            - \frac{\hat k^{ik}\hat k_{ijk}\hat k^{ij}}{2\hat\tau_i}
+            - \frac{\hat k^{ii}}{\hat\tau_i^2}\right)\right],
+
+        where :math:`\hat\rho` are the invariants of the joint cgf at :math:`\hat\tau`,
+        :math:`\tilde\rho` those of the marginal cgf of :math:`X_J` at :math:`\tau_0`,
+        and :math:`k^{ij}` is the inverse of :math:`K''(\hat\tau)`. It needs the fourth
+        derivative of the cgf, which is computed as a finite difference of ``d3K``.
+
         The approximation is exact for the normal distribution. At :math:`\hat\tau_i=0`
         both :math:`\hat w` and :math:`\hat u` vanish. The singularity is removable, and
         within ``_conditional_singular_width`` conditional standard deviations of this
@@ -852,6 +922,8 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             each value of ``x``.
         i : int, optional
             Index of the variable of interest. Default is the first.
+        backend : str, optional
+            ``"Skovgaard"`` (default, first order) or ``"Kolassa"`` (second order).
         fillna : float, optional
             The value to replace NaNs with.
 
@@ -861,19 +933,22 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             applications, Section 32.4.1
         [2] Butler (2007) - Saddlepoint approximations with applications, Section 4.2.1
         [3] Skovgaard (1987) - Saddlepoint expansions for conditional distributions
+        [4] Kolassa (1996) - Higher-order approximations to conditional distribution functions
         """
+        if backend not in ("Skovgaard", "Kolassa"):
+            raise ValueError(f"Unknown backend {backend!r}, use 'Skovgaard' or 'Kolassa'")
         i, J, x, given = self._conditional_inputs(x, given, i)
         wrapper = PandasWrapper(x)
         y = np.array(
             [
-                self._conditional_cdf_at(xi, xJ, i, J, **solver_kwargs)
+                self._conditional_cdf_at(xi, xJ, i, J, backend, **solver_kwargs)
                 for xi, xJ in zip(x.ravel(), given)
             ]
         ).reshape(x.shape)
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
-    def _conditional_cdf_at(self, xi, xJ, i, J, **solver_kwargs):
+    def _conditional_cdf_at(self, xi, xJ, i, J, backend="Skovgaard", **solver_kwargs):
         if not (np.isfinite(xi) and np.isfinite(xJ).all()):
             return np.nan
         tau0 = self._conditional_denominator_saddle(i, J, xJ, **solver_kwargs)
@@ -881,6 +956,10 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         def point(x):
             xfull = np.empty(self.dim)
             xfull[i], xfull[J] = x, xJ
+            if backend == "Kolassa":
+                w, z, c = self._conditional_second_order(xfull, i, J, tau0, **solver_kwargs)
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    return sps.norm.cdf(w) - sps.norm.pdf(w) * (w**-3 - 1 / w + c / z)
             w, tau_i, sigma = self._conditional_terms(xfull, i, J, tau0, **solver_kwargs)
             with np.errstate(divide="ignore", invalid="ignore"):
                 return sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / (tau_i * sigma))

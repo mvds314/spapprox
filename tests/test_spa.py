@@ -377,6 +377,50 @@ def test_conditional_bivariate_gamma_convergence():
     assert errors[1] < errors[0] / 5
 
 
+@pytest.mark.parametrize("dim", [2, 3])
+def test_conditional_kolassa_normal(dim):
+    cov = np.array([[2.0, 0.6, 0.3], [0.6, 1.0, -0.4], [0.3, -0.4, 1.5]])[:dim, :dim]
+    mu = np.arange(dim) + 1.0
+    spa = MultivariateSaddlePointApprox(multivariate_norm(loc=mu, cov=cov))
+    given = np.array([1.5, 2.8])[: dim - 1]
+    x = np.linspace(-1, 5, 9)
+    m = mu[0] + cov[0, 1:] @ np.linalg.solve(cov[1:, 1:], given - mu[1:])
+    s = np.sqrt(cov[0, 0] - cov[0, 1:] @ np.linalg.solve(cov[1:, 1:], cov[1:, 0]))
+    got = spa.conditional_cdf(x, given, backend="Kolassa")
+    assert np.allclose(got, sps.norm.cdf(x, m, s), atol=1e-6)
+
+
+def test_conditional_kolassa_bivariate_gamma():
+    # Second order is more accurate than first order and converges faster in n
+    errors = {"Skovgaard": [], "Kolassa": []}
+    for k in [1, 4]:
+        a = np.array([1, 2, 3]) * k
+        spa = BivariateSaddlePointApprox(bivariate_gamma(a=a))
+        x2 = 5.0 * k
+        cdf, _ = _gamma_conditional(a, x2)
+        x = np.array([0.7, 1.0, 1.5]) * 2 * k
+        for backend in errors:
+            got = spa.conditional_cdf(x, [x2], backend=backend)
+            errors[backend].append(np.max(np.abs(got - cdf(x))))
+    assert errors["Kolassa"][0] < errors["Skovgaard"][0] / 5
+    assert errors["Kolassa"][1] < errors["Skovgaard"][1] / 50
+    assert errors["Kolassa"][1] < errors["Kolassa"][0] / 20
+
+
+def test_conditional_kolassa_continuous_at_singularity():
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=[3, 4, 5]))
+    center = float(spa.cgf.dK(spa._conditional_denominator_saddle(0, [1], [6.0]))[0])
+    x = center + np.array([-1e-1, -2e-2, -1e-3, 0, 1e-3, 2e-2, 1e-1])
+    got = np.array(spa.conditional_cdf(x, [6.0], backend="Kolassa"))
+    assert np.all(np.isfinite(got)) and np.all(np.diff(got) > 0)
+
+
+def test_conditional_unknown_backend():
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=[1, 2, 3]))
+    with pytest.raises(ValueError):
+        spa.conditional_cdf(1.0, [2.0], backend="nope")
+
+
 def test_conditional_continuous_at_singularity():
     # tau_hat[i] = 0 at x_i = E[X_i | X_J] under the saddlepoint, where w = u = 0
     spa = BivariateSaddlePointApprox(bivariate_gamma(a=(1, 2, 3)))

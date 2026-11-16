@@ -907,7 +907,7 @@ Or into a separate model, e.g., bootstrap.py
 
 - add the conditional distribution, e.g., Skovgaard (1987) / Kolassa & Li (2010) section 4
   (phase A done on branch `feature/conditional-skovgaard`:
-  `conditional_cdf` / `conditional_pdf`; see `docs/conditional_cdf_plan.md` for B-G)
+  `conditional_cdf` (also `backend="Kolassa"`, second order) / `conditional_pdf`; see `docs/conditional_cdf_plan.md` for B-G)
   (marginal approximations are available as `spa[i]`, `spa[[i, j]]`)
 - implement Dirichlet bootstrap
 - implement multivariate saddle point approximations
