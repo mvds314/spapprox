@@ -765,7 +765,8 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
 
     # Half-width, in conditional standard deviations of the variable of interest, of the
     # window around the singular point of the conditional cdf in which it is interpolated.
-    _conditional_singular_width = 1e-2
+    # The second order terms lose accuracy closer to it than about 2e-2 for large n.
+    _conditional_singular_width = 2.5e-2
 
     def _conditional_inputs(self, x, given, i):
         """Validate the input of the conditional methods, return (i, J, x, given)."""
@@ -815,19 +816,27 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         return w, tau[i], np.exp((logdet - logdet0) / 2)
 
     def _d4K_central(self, t):
-        """Fourth derivative tensor of K as a finite difference of the analytic ``d3K``."""
+        """
+        Fourth derivative tensor of K as a finite difference of the analytic ``d3K``.
+
+        A fourth order stencil is used, as the truncation error of a three point stencil is
+        amplified close to the singularity of the conditional cdf. Close to the boundary of
+        the domain, it falls back to a three point or one-sided difference.
+        """
         t = np.asarray(t, dtype=float)
         T4 = np.empty((self.dim,) * 4)
         for m in range(self.dim):
+            h = 1e-3 * max(1.0, abs(t[m]))
             e = np.zeros(self.dim)
-            e[m] = 1e-4 * max(1.0, abs(t[m]))
-            up, down, mid = (np.asarray(self.cgf.d3K(t + s * e)) for s in (1, -1, 0))
-            if not np.isfinite(up).all():
-                up = mid
-            if not np.isfinite(down).all():
-                down = mid
-            step = (up is not mid) + (down is not mid)
-            T4[..., m] = (up - down) / (step * e[m])
+            e[m] = h
+            f = {j: np.asarray(self.cgf.d3K(t + j * e)) for j in (-2, -1, 1, 2)}
+            if all(np.isfinite(v).all() for v in f.values()):
+                T4[..., m] = (8 * (f[1] - f[-1]) - (f[2] - f[-2])) / (12 * h)
+                continue
+            mid = np.asarray(self.cgf.d3K(t))
+            up = f[1] if np.isfinite(f[1]).all() else mid
+            down = f[-1] if np.isfinite(f[-1]).all() else mid
+            T4[..., m] = (up - down) / (((up is not mid) + (down is not mid)) * h)
         return T4
 
     def _conditional_invariants(self, t, J=None):

@@ -530,6 +530,63 @@ def test_conditional_lattice_binomial():
     assert np.max(np.abs(spa.conditional_cdf(n, [s]) - sps.binom.cdf(n, s, 0.4))) > 0.05
 
 
+def _nb_pair(r1, r2, p):
+    """Cgf of (N1, N1 + N2) for independent negative binomials with common success prob p."""
+    q = 1 - p
+    c = -np.log(q)
+    A = np.array([[1.0, 1.0], [0.0, 1.0]])
+    r = np.array([r1, r2])
+
+    def parts(t):
+        s = A @ np.asarray(t, float)
+        e = q * np.exp(s)
+        z = e / (1 - e)
+        return z
+
+    K = lambda t: (
+        (r * np.log(p)).sum() - (r * np.log(1 - q * np.exp(np.asanyarray(t) @ A.T))).sum(-1)
+    )
+
+    def dK(t):
+        t = np.asanyarray(t)
+        z = q * np.exp(t @ A.T)
+        z = z / (1 - z)
+        return (r * z) @ A
+
+    def d2K(t):
+        z = parts(t)
+        return np.einsum("m,mi,mj->ij", r * z * (1 + z), A, A)
+
+    def d3K(t):
+        z = parts(t)
+        return np.einsum("m,mi,mj,mk->ijk", r * z * (1 + z) * (1 + 2 * z), A, A, A)
+
+    return MultivariateCumulantGeneratingFunction(
+        K=K,
+        dK=dK,
+        d2K=np.vectorize(d2K, signature="(2)->(2,2)"),
+        d3K=np.vectorize(d3K, signature="(2)->(2,2,2)"),
+        dim=2,
+        domain=Domain(B=A, b=np.array([c, c]), dim=2),
+    )
+
+
+def test_conditional_lattice_polya():
+    # N1 given N1 + N2 = s is beta-binomial (Polya) for negative binomials with a common p
+    errors = {"Skovgaard": [], "Kolassa": []}
+    for k in [1, 4, 16]:
+        r1, r2, s = 2.0 * k, 3.0 * k, 6 * k
+        spa = MultivariateSaddlePointApprox(_nb_pair(r1, r2, 0.4))
+        n = np.arange(1, s)
+        for backend in errors:
+            got = spa.conditional_cdf(n, [s], backend=backend, delta=1.0)
+            errors[backend].append(np.max(np.abs(got - sps.betabinom.cdf(n, s, r1, r2))))
+    assert errors["Kolassa"][0] < errors["Skovgaard"][0] / 2
+    assert errors["Skovgaard"][2] < errors["Skovgaard"][1] / 5
+    assert errors["Kolassa"][2] < 1e-6
+    assert errors["Kolassa"][2] < errors["Skovgaard"][2] / 50
+
+
 @pytest.mark.parametrize("backend", ["Skovgaard", "Kolassa"])
 def test_conditional_lattice_scale_invariant(backend):
     n = np.arange(1, 5)

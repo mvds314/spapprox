@@ -225,7 +225,10 @@ A4. Tests (see validation).
 Done as `conditional_cdf(..., delta=span)`: `P(X <= x)` is `1 - P2(X >= x + delta)`, evaluated at `x + delta/2`
 with `u = 2 sinh(tau_i delta / 2) sigma / delta`. The `1/delta` was confirmed by a rescaling test
 (`2 N1` with `delta=2` must equal `N1` with `delta=1`). `P1` was not implemented. Tested on
-Poisson to binomial; negative binomial to Polya is open.
+Poisson to binomial and negative binomial to Polya (beta-binomial). The Polya test showed that the
+singular window must not be too small for second order: at `0.01` conditional sd the error stalled at
+3.6e-5 for `n = 16`, at `0.02`-`0.03` it is 3e-7, so it is now `0.025`. `P1` is not implemented: it is
+the first continuity correction, and eq. (11) is built on `P2`.
 
 B1. `P1` and `P2` survival functions, left tail via `F(k) = 1 - P(X >= k + 1)`.
 B2. `lattice` argument, `delta` handling, and conditioning on continuous or lattice
