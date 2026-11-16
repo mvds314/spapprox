@@ -904,7 +904,8 @@ First application would be bootstrapping, and the various froms it can take.
 Additional approximations would go into spa.py
 Or into a separate model, e.g., bootstrap.py
 
-- add the conditional distribution
+- add the conditional distribution, e.g., Skovgaard (1987) / Kolassa & Li (2010) section 4
+  (marginal approximations are available as `spa[i]`, `spa[[i, j]]`)
 - implement Dirichlet bootstrap
 - implement multivariate saddle point approximations
 - implement other bootstraps

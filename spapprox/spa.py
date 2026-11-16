@@ -1,4 +1,5 @@
 import itertools
+import operator
 import warnings
 from abc import ABC, abstractmethod
 
@@ -710,8 +711,53 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         self._pdf_normalization_user = pdf_normalization
         self._pdf_normalization_cache = pdf_normalization
 
-    def __getitem__(self, i):
-        raise NotImplementedError("Return the marginal approximation")
+    def __getitem__(self, item):
+        r"""
+        Saddle point approximation of a marginal distribution.
+
+        The cumulant generating function of the marginal follows by setting the other
+        components of :math:`\mathbf{t}` to zero, see [1] Section 6.8.
+
+        Parameters
+        ----------
+        item : int, list, tuple or slice
+            An integer selects a single variable and returns a
+            :class:`UnivariateSaddlePointApprox`. A list, tuple or slice selects a
+            subvector, in the given order, and returns a
+            :class:`BivariateSaddlePointApprox` for two variables, and a
+            :class:`MultivariateSaddlePointApprox` otherwise.
+        """
+        if isinstance(item, slice):
+            idx = list(range(self.dim))[item]
+        elif isinstance(item, (list, tuple, np.ndarray)):
+            idx = [self._normalize_index(i) for i in item]
+            if len(set(idx)) != len(idx):
+                raise IndexError("Indices must be unique")
+        else:
+            idx = self._normalize_index(item)
+        key = idx if isinstance(idx, int) else tuple(idx)
+        if not hasattr(self, "_marginals_cache"):
+            self._marginals_cache = {}
+        if key not in self._marginals_cache:
+            if isinstance(idx, int):
+                spa = UnivariateSaddlePointApprox(self.cgf[idx])
+            elif len(idx) == 0:
+                raise IndexError("Select at least one variable")
+            elif len(idx) == 2:
+                spa = BivariateSaddlePointApprox(self.cgf[idx])
+            else:
+                spa = MultivariateSaddlePointApprox(self.cgf[idx])
+            self._marginals_cache[key] = spa
+        return self._marginals_cache[key]
+
+    def _normalize_index(self, i):
+        try:
+            i = operator.index(i)
+        except TypeError:
+            raise TypeError(f"Invalid index {i!r}") from None
+        if not -self.dim <= i < self.dim:
+            raise IndexError(f"Index {i} out of bounds for dimension {self.dim}")
+        return i % self.dim
 
     def condition(self, i, x):
         raise NotImplementedError("Condition the approximation on the ith variable")
@@ -1240,15 +1286,13 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         t : array_like
             Solution of the saddle point equation at ``x``.
         """
-        if not hasattr(self, "_swapped_spa"):
-            self._swapped_spa = BivariateSaddlePointApprox(self.cgf[[1, 0]])
         z2 = np.square(t) * np.diag(self.cgf.d2K0)
         w = z2[1] / z2.sum() if z2.sum() > 0 else 0.5
         retval = 0.0
         if w > 0:
             retval += w * self._kl_cdf_ordered(x, t, **solver_kwargs)
         if w < 1:
-            retval += (1 - w) * self._swapped_spa._kl_cdf_ordered(
+            retval += (1 - w) * self[[1, 0]]._kl_cdf_ordered(
                 x[::-1], t[::-1], **solver_kwargs
             )
         return retval
@@ -1260,9 +1304,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         h = self._cdf_singular_width / np.sqrt(np.diag(self.cgf.d2K0))
         sg = np.where(t < 0, -1.0, 1.0)
         tm = [self.cgf[i].dK_inv(x[i], **solver_kwargs) for i in range(2)]
-        if not hasattr(self, "_marginal_spas"):
-            self._marginal_spas = [UnivariateSaddlePointApprox(self.cgf[i]) for i in range(2)]
-        F = [self._marginal_spas[i].cdf(x=x[i], t=tm[i], **solver_kwargs) for i in range(2)]
+        F = [self[i].cdf(x=x[i], t=tm[i], **solver_kwargs) for i in range(2)]
         near = np.abs(t) < h
         if not near.any():
             J = self._kl_tail(x, t, sg, tm[1], h[1])

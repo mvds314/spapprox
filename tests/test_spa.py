@@ -565,6 +565,61 @@ def test_bvar_cdf_invalid_backend():
         spa.cdf(t=np.array([0.1, 0.2]), backend="foo")
 
 
+def test_marginal_bivariate_gamma():
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=[2, 1, 3]))
+    for i, shape in [(0, 3), (1, 5), (-1, 5), (np.int64(0), 3)]:
+        marginal = spa[i]
+        assert isinstance(marginal, UnivariateSaddlePointApprox)
+        direct = UnivariateSaddlePointApprox(spa.cgf[int(i)])
+        x = np.array([0.5, 2.0, 4.0, 9.0])
+        assert np.allclose(marginal.cdf(x=x), direct.cdf(x=x))
+        assert np.allclose(marginal.pdf(x=x), direct.pdf(x=x))
+        assert np.allclose(marginal.cdf(x=x), sps.gamma(shape).cdf(x), atol=5e-3)
+        assert np.allclose(marginal.pdf(x=x), sps.gamma(shape).pdf(x), rtol=2e-2)
+
+
+def test_marginal_normal():
+    mean = np.array([0.5, -1.0, 2.0])
+    cov = np.array([[2.0, 0.5, 0.3], [0.5, 1.0, -0.4], [0.3, -0.4, 3.0]])
+    spa = MultivariateSaddlePointApprox(multivariate_norm(loc=mean, cov=cov))
+    for i in range(3):
+        x = mean[i] + np.array([-2.0, -0.3, 0.7, 2.5])
+        ref = sps.norm(mean[i], np.sqrt(cov[i, i]))
+        assert np.allclose(spa[i].cdf(x=x), ref.cdf(x), atol=1e-8)
+        assert np.allclose(spa[i].pdf(x=x), ref.pdf(x), atol=1e-8)
+    idx = [2, 0]
+    sub = spa[idx]
+    assert isinstance(sub, BivariateSaddlePointApprox)
+    ref = sps.multivariate_normal(mean[idx], cov[np.ix_(idx, idx)])
+    for x in [[1.0, 0.0], [3.5, -0.5], [2.0, 1.5]]:
+        x = np.array(x)
+        assert np.isclose(sub.cdf(x=x), ref.cdf(x), atol=1e-6)
+    assert isinstance(spa[[1]], MultivariateSaddlePointApprox)
+    assert not isinstance(spa[[1]], BivariateSaddlePointApprox)
+    assert spa[[1]].dim == 1
+    assert spa[0:3].dim == 3
+    assert isinstance(spa[(0, 1)], BivariateSaddlePointApprox)
+
+
+def test_marginal_indexing_and_cache():
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=[2, 1, 3]))
+    assert spa[0] is spa[0]
+    assert spa[1] is spa[-1]
+    assert spa[[1, 0]] is spa[(1, 0)]
+    first = spa[0]
+    spa.clear_cache()
+    assert spa[0] is not first
+    for item in [2, -3, [0, 2]]:
+        with pytest.raises(IndexError):
+            spa[item]
+    with pytest.raises(IndexError):
+        spa[[0, 0]]
+    with pytest.raises(IndexError):
+        spa[[]]
+    with pytest.raises(TypeError):
+        spa[0.5]
+
+
 # TODO: then continue with a bootstrapping application
 
 # TODO: then go to other applications, esaddle?, the empirical saddlepoint approximation
