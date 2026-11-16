@@ -722,8 +722,10 @@ Contract violations and silently wrong results in narrower situations.
 - **Repro:** `M(K=lambda t: np.atleast_1d(np.sum(t**2) / 2), dim=2, loc=[1, 2]).K([1, 1])`
   -> `ValueError: shapes (2,1) and (2,) not aligned`.
 - **Fix:** `val += np.dot(t, loc)`. Arguably user error; decide on the contract.
-- **Fixed:** Contract: a shape `(1,)` return for a single point is accepted; the `loc` term is
-  now `np.sum(loc * t)`. Regression test: `test_multivariate_K_returning_shape_one` in
+- **Fixed:** Contract: a shape `(1,)` return for a single point is accepted and treated as
+  a scalar, i.e., `K` squeezes it and the `loc` term is now `np.sum(loc * t)`. Derivatives,
+  `dK_inv`, `ldot`, marginals and the pdf were checked to match a scalar-returning `K` on
+  both backends. Regression test: `test_multivariate_K_returning_shape_one` in
   `tests/test_mvar_cgfs.py`.
 
 ### [x] 55. README and config drift
@@ -735,6 +737,18 @@ Contract violations and silently wrong results in narrower situations.
 - `pyproject.toml:14`: ruff comment claims "bugbear, isort", but only `E/F/W`
   are selected.
 - **Fixed:** All four points fixed.
+
+### [x] 57. Multivariate CGFs handle wrongly shaped points inconsistently
+
+- **Where:** `spapprox/cgf_base.py`, `MultivariateCumulantGeneratingFunction.K`, `dK`,
+  `d2K`, `d3K`, `dK_inv`
+- **What:** a point is a vector of length `dim`, also for `dim=1`, but this was not
+  enforced. For `dim=1`, a `(3,)` input made `K` return `[14, 14, 14]` (treated as one
+  3-vector), `dK` treat it as 3 points, and `d2K` crash. A scalar `x` in `dK_inv` crashed
+  (`dim=1`) or raised an `AssertionError` (`dim=2`).
+- **Fixed:** `_validate_points` broadcasts scalars to a point and raises a `ValueError`
+  for any other shape whose last axis does not match the dimension. Regression test:
+  `test_multivariate_point_shapes` in `tests/test_mvar_cgfs.py`.
 
 ---
 

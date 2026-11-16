@@ -1579,13 +1579,30 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     def stack(self, other):
         return self.from_cgfs(self, other)
 
+    def _validate_points(self, t, scale=None, name="t"):
+        """
+        Validate that ``t`` is a point, i.e., a vector, or a list of points, and return it.
+
+        A point should have the dimension of the (scaled) random vector, which is also the
+        case when the dimension is one. As a convenience, a scalar is broadcast to a point.
+        """
+        scale = self.scale if scale is None else np.asanyarray(scale)
+        n = scale.shape[0] if scale.ndim == 2 else self.domain.dim
+        if t.ndim == 0:
+            return np.full(n, t)
+        if t.ndim > 2 or t.shape[-1] != n:
+            raise ValueError(
+                f"{name} should be a scalar, a vector of length {n}, or a list of such vectors, "
+                f"got shape {t.shape}"
+            )
+        return t
+
     @type_wrapper(xloc=1)
     def K(self, t, fillna=np.nan, loc=None, scale=None):
         # Initialize
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
-        if t.ndim == 0:
-            t = np.full(self.dim, t)
+        t = self._validate_points(t, scale=scale)
         st = self._scale_t(t, scale=scale)
         cond = np.squeeze(self.domain.is_in_domain(st))
         st = np.where(cond, st.T, 0).T  # prevent outside domain evaluations
@@ -1596,8 +1613,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             if np.isscalar(val):
                 val += np.sum(loc * t)
             elif pd.api.types.is_array_like(val) and val.ndim == 1 and t.ndim == 1:
-                # Single evaluation point, K returned shape (1,)
-                val = val + np.sum(loc * t)
+                # Single evaluation point, K returned shape (1,): return a scalar
+                val = np.squeeze(val) + np.sum(loc * t)
             elif pd.api.types.is_array_like(val) and val.ndim == 1:
                 val += np.sum((loc * t).T, axis=0)
             elif isinstance(val, np.ndarray) and val.ndim == 0:
@@ -1623,8 +1640,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         [1] Ganesh, O'Connell (2004) - Big Quesues in Probability and Statistics
         """
         # Initialize
-        if t.ndim == 0:
-            t = np.full(self.dim, t)
+        t = self._validate_points(t, scale=scale)
         if self._dK is None:
             if self._numdiff_backend == "numdifftools":
                 if not has_numdifftools:
@@ -1714,9 +1730,8 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         :math:`A \nabla_{t_U} K_U(A^T t_x) = x - b` numerically
         """
         # Handle vectorized evaluation
-        if x.ndim > 2:
-            raise ValueError("Invalid shape")
-        elif t0 is not None and t0.ndim > 2:
+        x = self._validate_points(x, scale=scale, name="x")
+        if t0 is not None and t0.ndim > 2:
             raise ValueError("Invalid shape")
         elif x.ndim == 2 and (t0 is None or t0.ndim == 1):
             return np.asanyarray(
@@ -1820,8 +1835,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         This is the Hessian, i.e., the matrix with second order partial derivatives.
         """
         # Initialize
-        if t.ndim == 0:
-            t = np.full(self.dim, t)
+        t = self._validate_points(t, scale=scale)
         if self._d2K is None:
             if self._numdiff_backend == "numdifftools":
                 if not has_numdifftools:
@@ -1892,8 +1906,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         See Kolassa 2006, Chapter 6 for some insights
         """
         # Initialize
-        if t.ndim == 0:
-            t = np.full(self.dim, t)
+        t = self._validate_points(t, scale=scale)
         if self._d3K is None:
             # TODO: implement also with numdifftools backend?
             self._d3K = Tressian(lambda tt: self.K(tt, loc=0, scale=1), self.domain.dim)

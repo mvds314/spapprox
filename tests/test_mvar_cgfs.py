@@ -12,6 +12,7 @@ from statsmodels.stats.moment_helpers import cov2corr
 from spapprox import (
     Domain,
     MultivariateCumulantGeneratingFunction,
+    MultivariateSaddlePointApprox,
     UnivariateCumulantGeneratingFunction,
     bivariate_gamma,
     exponential,
@@ -1203,8 +1204,53 @@ def test_multivariate_list_loc():
         cgf.loc = [1.0, 2.0, 3.0]
 
 
-def test_multivariate_K_returning_shape_one():
+@pytest.mark.parametrize(
+    "backend",
+    [
+        "numdifftools",
+        pytest.param("findiff", marks=pytest.mark.skipif(not has_findiff, reason="No findiff")),
+    ],
+)
+def test_multivariate_K_returning_shape_one(backend):
+    # A K returning shape (1,) for a single point should behave as one returning a scalar
+    kwargs = dict(dim=2, loc=[1, 2], numdiff_backend=backend)
     cgf = MultivariateCumulantGeneratingFunction(
-        K=lambda t: np.atleast_1d(np.sum(np.square(t)) / 2), dim=2, loc=[1, 2]
+        K=lambda t: np.atleast_1d(np.sum(np.square(t), axis=-1) / 2), **kwargs
     )
-    assert np.allclose(cgf.K([1, 1]), 4)
+    ref = MultivariateCumulantGeneratingFunction(
+        K=lambda t: np.sum(np.square(t), axis=-1) / 2, **kwargs
+    )
+    t = np.array([1.0, 1.0])
+    ts = np.array([[1.0, 1.0], [0.0, 0.5]])
+    assert isinstance(cgf.K(t), float) and np.isclose(cgf.K(t), 4)
+    assert np.allclose(cgf.K(ts), ref.K(ts))
+    assert isinstance(cgf.ldot(np.array([1.0, 1.0])).K(1.0), float)
+    assert isinstance(cgf[0].K(1.0), float)
+    for f in ["dK", "d2K"]:
+        assert np.allclose(getattr(cgf, f)(t), getattr(ref, f)(t))
+    assert np.allclose(cgf.dK_inv([2.0, 3.0]), [1, 1])
+    approx, ref_approx = MultivariateSaddlePointApprox(cgf), MultivariateSaddlePointApprox(ref)
+    pdf = approx.pdf(t=[0.5, 0.5], normalize_pdf=False)
+    assert isinstance(pdf, float)
+    assert np.isclose(pdf, ref_approx.pdf(t=[0.5, 0.5], normalize_pdf=False))
+
+
+@pytest.mark.parametrize("dim", [1, 2])
+def test_multivariate_point_shapes(dim):
+    # A point is a vector of length dim, also when dim is 1; a scalar is broadcast to a point
+    cgf = multivariate_norm(loc=0, scale=np.sqrt(2), dim=dim)
+    point, points = np.full(dim, 0.5), np.full((3, dim), 0.5)
+    for t in [0.5, point]:
+        assert np.shape(cgf.K(t)) == ()
+        assert np.shape(cgf.dK(t)) == (dim,)
+        assert np.shape(cgf.d2K(t)) == (dim, dim)
+        assert np.shape(cgf.dK_inv(t)) == (dim,)
+    assert np.allclose(cgf.dK_inv(1.0), cgf.dK_inv(np.ones(dim)))
+    assert np.shape(cgf.K(points)) == (3,)
+    assert np.shape(cgf.dK(points)) == (3, dim)
+    assert np.shape(cgf.d2K(points)) == (3, dim, dim)
+    assert np.shape(cgf.dK_inv(points)) == (3, dim)
+    for bad in [np.full(dim + 2, 0.5), np.full((3, dim + 2), 0.5), np.zeros((2, 2, dim))]:
+        for f in ["K", "dK", "d2K", "dK_inv"]:
+            with pytest.raises(ValueError, match="vector of length"):
+                getattr(cgf, f)(bad)
