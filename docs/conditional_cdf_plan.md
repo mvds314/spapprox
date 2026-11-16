@@ -17,7 +17,7 @@ approximations (`spa[i]`, `spa[[i, j]]`) and the multivariate machinery in `spa.
 | Paolella (2007), Intermediate Probability, sections 5.2-5.3 (eq. 5.18) | Same formula as Broda & Paolella | Cross-check only (read via the literature skill, not the book) |
 | Kolassa & Li (2010), Bernoulli 16(4), section 4, eqs. (4.1)-(4.8) | Conditional tail `P(T_{1..d0} >= t | T_{-} = t_-)` for a **vector** of interest (`d0 >= 1`), relative error `O(1/n)`, continuous and lattice, via the same nested signed roots as the unconditional case | Phase F |
 | Wang (1990), J. Appl. Prob. 27, 586-597 | Bivariate cdf only (basis of `"Wang"` backend); mentions the conditional case only as a pointer to Skovgaard | No conditional content |
-| Broda & Paolella (2011), section 32.3 and 32.6 | Partial expectation `G(x) = ∫ y f(y) dy` and expected shortfall of one variable (Martin 2006): `mu * [Phi(w) + phi(w) * (x/mu ... )]`, eq. (32.19) | Conditional *expectation* given an event on the same variable, not conditioning on another variable |
+| Broda & Paolella (2011), section 32.3 and 32.6 | Partial expectation `G(x) = ∫ y f(y) dy` and expected shortfall of one variable (Martin 2006), eq. (32.19), with `w_hat`, `u_hat` as in the univariate LR | Conditional *expectation* given an event on the same variable, not conditioning on another variable |
 | DiCiccio, Martin & Young (1993), Biometrika 80, 781-790 | Laplace-based marginal density then a tail formula; nonlinear statistics, ancillary conditioning | Not planned, see phase E |
 | Gatto & Jammalamadaka (1999), JASA 94, 533-541 | Conditional saddlepoint for testing problems | Not planned, see phase E |
 
@@ -244,7 +244,7 @@ conditioning variables substituted. The `d0 = 1` case should reproduce phase A a
 order. This inherits the difficulty of the unconditional Kolassa & Li (2010) method
 (see `multivariate_cdf_plan.md`, phase B), so only do it if the vector case is needed.
 Their Table 3 (three iid exponentials, `Y = (X_2, X_3, X_1 + X_2 + X_3)`, `n = 10`; exact values
-from Wang's unpublished report [15]) is a regression target. Typo alert: eq. (4.9) text
+from Wang's unpublished report [15]) is a regression target. Typo alert: the summary after Lemma 4.1
 writes `T_{-d0} > t_{-d0}` where the equality is meant.
 
 ### Conditioning on inequalities (no source found)
