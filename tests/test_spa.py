@@ -278,7 +278,6 @@ def test_mvar_spa(cgf, dist, ts, dim):
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 13), 2)),
             2,
             id="Bivariate normal correlated",
-            marks=pytest.mark.tofix,
         ),
         # TODO: maybe add more tests later
         # TODO: maybe look for book examples
