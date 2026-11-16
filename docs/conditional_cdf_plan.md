@@ -16,6 +16,7 @@ approximations (`spa[i]`, `spa[[i, j]]`) and the multivariate machinery in `spa.
 | Kolassa (1996), Ann. Statist. 24(1), 353-364, Theorem 6.1, eqs. (2), (3), (10), (11) | Second-order terms, error `O(N^-5/2)` instead of `O(N^-3/2)`, continuous and lattice | Phase C |
 | Paolella (2007), Intermediate Probability, sections 5.2-5.3 (eq. 5.18) | Same formula as Broda & Paolella | Cross-check only (read via the literature skill, not the book) |
 | Kolassa & Li (2010), Bernoulli 16(4), section 4, eqs. (4.1)-(4.8) | Conditional tail `P(T_{1..d0} >= t | T_{-} = t_-)` for a **vector** of interest (`d0 >= 1`), relative error `O(1/n)`, continuous and lattice, via the same nested signed roots as the unconditional case | Phase F |
+| Wang (1993), J. Appl. Prob. 30, 397-404, Theorems 1-2, eqs. (3)-(9) | Conditional cdf and density of `T = X_bar` given `Z = g(X_bar, Y_bar) = z` for **non-linear** `g`, relative error `O(1/n)`; contains Skovgaard as the linear case; p-dim generalization stated | Phase G |
 | Wang (1990), J. Appl. Prob. 27, 586-597 | Bivariate cdf only (basis of `"Wang"` backend); mentions the conditional case only as a pointer to Skovgaard | No conditional content |
 | Broda & Paolella (2011), section 32.3 and 32.6 | Partial expectation `G(x) = ∫ y f(y) dy` and expected shortfall of one variable (Martin 2006), eq. (32.19), with `w_hat`, `u_hat` as in the univariate LR | Conditional *expectation* given an event on the same variable, not conditioning on another variable |
 | DiCiccio, Martin & Young (1993), Biometrika 80, 781-790 | Laplace-based marginal density then a tail formula; nonlinear statistics, ancillary conditioning | Not planned, see phase E |
@@ -263,9 +264,43 @@ backends and reflection) and the denominator from `spa[J].cdf`. Intervals are di
 Accuracy is that of the two orthant approximations, to be checked against exact
 conditionals (e.g. bivariate gamma by quadrature) before documenting it.
 
+### Phase G: non-linear conditioning (Wang 1993)
+
+Condition on `Z = g(X, Y) = z` instead of a component. Bivariate statement (the paper says
+the `p`-dim case follows the same way with `Y` and `Z` of dimension `p - 1`, `D` the
+`p x p` Hessian determinant). Write `K` for the joint cgf (`n` absorbed, so drop `n`);
+the transform `(X, Y) = (T, q(T, Z))` is one-to-one with inverse `q`.
+
+```
+L(t)       = K(u(t), v(t)) - u(t) t - v(t) q(t, z)      with (u, v) solving dK = (t, q(t, z))
+t_1        : L'(t_1) = 0,  L''(t_1) < 0                 (one extra 1-D solve, "numerator" = joint saddlepoint at (t, q))
+a_0        = sgn(t_0 - t_1) * sqrt(2 [L(t_1) - L(t_0)])
+b_0        = -L'(t_0) * |J_1 / J_0| * sqrt( D(u_0, v_0) / (-L''(t_1) D(u_1, v_1)) )
+H(t_0 | z) ~ Phi(a_0) + phi(a_0) * (1/a_0 - 1/b_0)                      (eq. (8))
+h(t | z)   ~ sqrt( -L''(t_1) D(u_1, v_1) / (2 pi D(u, v)) ) * |J/J_1| * exp(L(t) - L(t_1))   (eq. (9))
+L'(t)      = -u - v q_t(t, z)
+L''(t)     = [ -K_vv + 2 q_t K_uv - q_t^2 K_uu ] / D - v q_tt          (all at (u(t), v(t)))
+J          = q_z(t, z) = 1 / g_y
+```
+
+(`t_0` is the evaluation point; `t_1` the maximizer of `L`; `u_0,v_0` and `u_1,v_1` the
+saddlepoints at `t_0` and `t_1`.) Read `b_0` from p. 400 of the paper, my transcription of the
+garbled text could still contain typos; the page is the authority.
+
+- **Special case**: `g` linear gives Skovgaard; for the normal and `g = s^2` it is exact
+  (Wang, Example 1).
+- **Cost**: each point needs a 1-D maximization over `t`, each step solving a joint saddlepoint
+  at `(t, q(t, z))`, plus second derivatives of `q` for `L''`.
+  Accuracy is `O(1/n)`; Wang suggests renormalizing the density numerically.
+- **Needs from the user**: `q` with its `t`/`z` derivatives (or a numerical inverse of `g`).
+- **Uses**: conditional bootstrap, e.g. the mean given the empirical second moment, via the same
+  construction as Davison & Hinkley (1988) and Wang's example 1.
+
+Only worth doing once the linear case works; reuses `dK_inv` and the Hessian code.
+
 ### Phase E: not planned (decide later)
 
-- DiCiccio, Martin & Young (1993): different principle (Laplace and Phillips-type
+- DiCiccio, Martin & Young (1993): different principle (non-linear conditioning is Wang 1993, phase G) (Laplace and Phillips-type
   marginal density), covers nonlinear statistics and conditioning on ancillaries.
 - Gatto & Jammalamadaka (1999): conditional saddlepoint for testing; probably a
   special case of the lattice formula.
