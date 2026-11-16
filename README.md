@@ -86,5 +86,10 @@ pip install -e ".[findiff,numdiff,fastnorm]"
 to install the package in edit mode.
 
 Run unittests with `pytest`.
+The full suite takes about 11 minutes; for routine iteration, skip the slow tests:
+
+```bash
+pytest -m "not slow"
+```
 
 Install the optional dependencies to test all functionality.
