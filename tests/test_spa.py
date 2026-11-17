@@ -10,12 +10,15 @@ from scipy.integrate import quad
 
 from spapprox import (
     BivariateSaddlePointApprox,
+    EstimatingEquationSaddlePointApprox,
     MultivariateCumulantGeneratingFunction,
     MultivariateSaddlePointApprox,
     # poisson,
     # binomial,
     UnivariateCumulantGeneratingFunction,
     UnivariateSaddlePointApprox,
+    UnivariateSaddlePointApproxMean,
+    binomial,
     bivariate_gamma,
     chi2,
     exponential,
@@ -23,8 +26,9 @@ from spapprox import (
     laplace,
     multivariate_norm,
     norm,
+    poisson,
+    univariate_empirical,
 )
-from spapprox.cgfs import binomial, poisson
 from spapprox.domain import Domain
 from spapprox.mvn import _mvn_logtail, _mvn_tail_derivatives
 from spapprox.spa import _bvn_tail_derivatives
@@ -1323,3 +1327,70 @@ def test_mvar_cdf_vectorized_and_invalid_backend():
         spa.cdf(x=xs[0], backend="KL")
     with pytest.raises(ValueError):
         spa.cdf(x=xs[0, :2])
+
+
+# Booth and Butler (1990), Tables 3 and 4
+_BB_U = [155, 68, 28, 25, 190, 82, 92, 196, 164, 68, 82, 36, 195, 92, 185, 61, 62, 71, 207, 185]
+_BB_U = np.array(_BB_U + [475, 155, 29, 96, 699.0])
+_BB_V = [1546, 505, 280, 410, 1450, 517, 738, 2225, 1660, 505, 680, 145, 224, 733, 1957, 287]
+_BB_V = np.array(_BB_V + [473, 473, 1260, 1958, 4375, 1499, 245, 828, 6361.0])
+_BB_X = np.array([9.6, 10.4, 13.0, 15.0, 16.6, 17.2, 17.3, 21.8, 24.0, 33.8])
+
+
+def test_estimating_equation_iid_mean():
+    # S(tau) = sum_i (X_i - tau) has root the sample mean
+    n, cgf = 5, gamma(a=2)
+    total = MultivariateCumulantGeneratingFunction.from_univariate(*[cgf] * n).ldot(np.ones(n))
+    ee = EstimatingEquationSaddlePointApprox(lambda tau: total - n * tau)
+    ref = UnivariateSaddlePointApproxMean(cgf, n)
+    tau = np.array([1.0, 1.7, 2.0, 2.5, 3.5])
+    assert np.allclose(ee.cdf(tau), ref.cdf(x=tau), atol=1e-8)
+    assert np.allclose(ee.pdf(tau, normalize_pdf=False), ref.pdf(x=tau, normalize_pdf=False))
+    with pytest.raises(ValueError):
+        ee.pdf(2.0)
+
+
+def test_estimating_equation_cut():
+    # Poisson weights given their sum: the double saddle point approximation equals the
+    # single one of the multinomial bootstrap, as T_1 induces a cut, Booth and Butler (1990)
+    n = len(_BB_X)
+    ee = EstimatingEquationSaddlePointApprox.from_resampling(
+        lambda x, t: x - t, _BB_X, poisson(1), given=n
+    )
+    ref = UnivariateSaddlePointApproxMean(univariate_empirical(_BB_X), n)
+    tau = np.array([14.0, 16.0, 17.88, 20.0, 24.0])
+    assert np.allclose(ee.cdf(tau), ref.cdf(x=tau), atol=1e-6)
+    assert np.allclose(
+        ee.pdf(tau, normalize_pdf=False), ref.pdf(x=tau, normalize_pdf=False), rtol=1e-4
+    )
+
+
+@pytest.mark.parametrize("decreasing", [True, False])
+def test_estimating_equation_jackknife(decreasing):
+    # Delete-10 jackknife of a ratio of means, saddle point column of Table 3
+    sign = 1 if decreasing else -1
+    ee = EstimatingEquationSaddlePointApprox.from_resampling(
+        lambda x, t: sign * (x[:, 1] - t * x[:, 0]),
+        np.c_[_BB_U, _BB_V],
+        binomial(1, 0.5),
+        given=15,
+        decreasing=decreasing,
+    )
+    tau = [7.0, 7.6, 8.0, 8.4, 9.0, 9.2]
+    expected = [0.0015, 0.0303, 0.1550, 0.4476, 0.8833, 0.9610]
+    assert np.allclose(ee.cdf(tau), expected, atol=3e-4)
+
+
+def test_estimating_equation_dirichlet():
+    # Dirichlet bootstrap of the mean, saddle point column of Table 4, and the exact mean and
+    # variance of sum_i D_i x_i
+    x, n = _BB_X, len(_BB_X)
+    ee = EstimatingEquationSaddlePointApprox.from_resampling(
+        lambda x, t: x - t, x, exponential(), given=n, bracket=(x.min(), x.max())
+    )
+    ee.fit_cdf(num=60)
+    q = ee.ppf([0.01, 0.05, 0.95, 0.99]) - x.mean()
+    assert np.allclose(q, [-4.07, -3.04, 3.72, 5.73], atol=0.015)
+    # The mean is off by about 0.01, a saddle point error of 0.6% of the standard deviation
+    assert np.isclose(ee.mean(), x.mean(), atol=0.02)
+    assert np.isclose(ee.var(), x.var() / (n + 1), rtol=0.02)

@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import scipy.optimize as spo
 import scipy.stats as sps
-from scipy.integrate import nquad, quad
+from scipy.integrate import nquad, quad, trapezoid
 from scipy.interpolate import RegularGridInterpolator
 from statsmodels.tools.validation import PandasWrapper
 
@@ -2198,3 +2198,317 @@ class _ConditionalBivariateApprox(BivariateSaddlePointApprox):
         w = np.sign(tt) * np.sqrt(2 * (tt * self.cgf.dK(t0)[1] - self.cgf.K(t0)))
         u = self._rho(tt, 1) * np.sqrt(self.cgf.d2K(t0)[1, 1]) / self.profile.r(t0)
         return 1 / u - 1 / w
+
+
+class EstimatingEquationSaddlePointApprox:
+    r"""
+    Saddle point approximation of the distribution of the root :math:`\hat\tau` of an
+    estimating equation :math:`S(\tau)=0`, where :math:`S(\tau)` is a random function of the
+    scalar parameter :math:`\tau`, possibly conditional on a second statistic :math:`T_1=t_1`.
+
+    If :math:`S` is decreasing in :math:`\tau`, then :math:`\hat\tau\leq\tau` if and only if
+    :math:`S(\tau)\leq 0`, so that, see [1] and [2] Section 4,
+
+    .. math::
+        P(\hat\tau\leq\tau) = P(S(\tau)\leq 0 \mid T_1=t_1),
+
+    which is approximated, for each :math:`\tau`, with the Lugannani-Rice approximation of
+    :math:`S(\tau)`, or with the Skovgaard (1987) double saddle point approximation if there
+    is conditioning. If :math:`S` is increasing, the survival function is used instead.
+
+    The density follows from the density of :math:`S(\tau)` at zero, times the tilted
+    expectation of the Jacobian, see [3] and [4],
+
+    .. math::
+        f(\tau) \approx \left|\mathbb{E}_{\hat s}\left[\partial_\tau S(\tau)\right]\right|
+        f_{S(\tau)\mid T_1}(0\mid t_1),\qquad
+        \mathbb{E}_{\hat s}\left[\partial_\tau S(\tau)\right]
+        = \frac{\partial_\tau K(\hat s;\tau)}{\hat s_S},
+
+    where :math:`K(\cdot;\tau)` is the cgf of :math:`S(\tau)`, or of :math:`(T_1,S(\tau))`,
+    :math:`\hat s` its saddle point at :math:`S=0` (and :math:`T_1=t_1`), and :math:`\hat s_S`
+    the component of :math:`\hat s` belonging to :math:`S`.
+
+    The most common case is a weighted estimating equation
+    :math:`S(\tau)=\sum_i\psi(x_i;\tau)W_i` with i.i.d. random weights :math:`W_i`, see
+    :meth:`from_resampling`. Then the choice of the weights and of the conditioning gives the
+    resampling scheme, see [2]:
+
+    =========================  =====================  ======================
+    Resampling scheme          Weights :math:`W_i`    Conditioning
+    =========================  =====================  ======================
+    multinomial bootstrap      Poisson(1)             :math:`\sum W_i = n`
+    Dirichlet bootstrap        exponential(1)         :math:`\sum W_i = n`
+    delete-:math:`m` jackknife Bernoulli(1/2)         :math:`\sum W_i = n-m`
+    =========================  =====================  ======================
+
+    The sample mean is the special case :math:`\psi(x;\tau)=x-\tau`.
+
+    Parameters
+    ----------
+    cgf : callable
+        Function of :math:`\tau` returning the cgf of :math:`S(\tau)`, a
+        :class:`UnivariateCumulantGeneratingFunction`, or, if ``given`` is supplied, the
+        bivariate cgf of :math:`(T_1, S(\tau))`, in that order.
+    given : float, optional
+        The value :math:`t_1` of the conditioning statistic :math:`T_1`.
+    decreasing : bool, optional
+        Whether :math:`S(\tau)` is decreasing in :math:`\tau`. Default is ``True``.
+    bracket : tuple of float, optional
+        Interval of :math:`\tau` containing (almost all of) the distribution. Needed for
+        :meth:`ppf`, :meth:`mean` and :meth:`var`.
+
+    References
+    ----------
+    [1] Daniels (1983) - Saddlepoint approximations for estimating equations
+    [2] Booth and Butler (1990) - Randomization distributions and saddlepoint
+        approximations in generalized linear models
+    [3] Spady (1991) - Saddlepoint approximations for regression models
+    [4] Davison and Hinkley (1997) - Bootstrap methods and their application, Section 9.5
+    """
+
+    def __init__(self, cgf, given=None, decreasing=True, bracket=None):
+        if not callable(cgf):
+            raise TypeError("cgf must be a callable returning a cgf for each tau")
+        if bracket is not None:
+            bracket = (float(bracket[0]), float(bracket[1]))
+            if not bracket[0] < bracket[1]:
+                raise ValueError("bracket must be an increasing pair")
+        self.cgf = cgf
+        self.given = None if given is None else float(given)
+        self.decreasing = bool(decreasing)
+        self.bracket = bracket
+
+    @classmethod
+    def from_resampling(cls, psi, x, weights, given=None, **kwargs):
+        r"""
+        Approximation for the weighted estimating equation
+        :math:`S(\tau)=\sum_i\psi(x_i;\tau)W_i` with i.i.d. weights :math:`W_i`, optionally
+        conditional on :math:`\sum_i W_i=` ``given``.
+
+        The cgf of :math:`(\sum_i W_i, S(\tau))` is built from the existing algebra:
+        the weights are stacked with
+        :meth:`MultivariateCumulantGeneratingFunction.from_univariate`, and mapped with
+        :meth:`MultivariateCumulantGeneratingFunction.ldot`.
+
+        Parameters
+        ----------
+        psi : callable
+            ``psi(x, tau)`` returns the vector :math:`(\psi(x_i;\tau))_i` of length
+            ``len(x)``.
+        x : array_like
+            The observations, one per row.
+        weights : UnivariateCumulantGeneratingFunction
+            The cgf of the weights, e.g., ``poisson(1)``, ``exponential()`` or
+            ``binomial(1, 0.5)``.
+        given : float, optional
+            The value of :math:`\sum_i W_i` to condition on.
+        **kwargs :
+            Passed on to the constructor.
+        """
+        if not isinstance(weights, UnivariateCumulantGeneratingFunction):
+            raise TypeError("weights must be a UnivariateCumulantGeneratingFunction")
+        x = np.asanyarray(x, dtype=float)
+        n = len(x)
+        W = MultivariateCumulantGeneratingFunction.from_univariate(*[weights] * n)
+
+        def cgf(tau):
+            z = np.asarray(psi(x, tau), dtype=float)
+            if z.shape != (n,):
+                raise ValueError(f"psi must return a vector of length {n}")
+            return W.ldot(z if given is None else np.vstack([np.ones(n), z]))
+
+        return cls(cgf, given=given, **kwargs)
+
+    def _spa(self, c):
+        if self.given is None:
+            if not isinstance(c, UnivariateCumulantGeneratingFunction):
+                raise TypeError("Without given, cgf(tau) must be univariate")
+            return UnivariateSaddlePointApprox(c)
+        if not (isinstance(c, MultivariateCumulantGeneratingFunction) and c.dim == 2):
+            raise TypeError("With given, cgf(tau) must be bivariate: (T_1, S(tau))")
+        return BivariateSaddlePointApprox(c)
+
+    def _cdf_at(self, tau, **solver_kwargs):
+        if not np.isfinite(tau):
+            return np.nan
+        spa = self._spa(self.cgf(tau))
+        if self.given is None:
+            p = spa.cdf(x=0.0, **solver_kwargs)
+        else:
+            p = spa.conditional_cdf(x=0.0, given=[self.given], i=1, **solver_kwargs)
+        return p if self.decreasing else 1 - p
+
+    def cdf(self, tau, fillna=np.nan, **solver_kwargs):
+        r"""
+        Saddle point approximation of :math:`P(\hat\tau\leq\tau)`.
+
+        Parameters
+        ----------
+        tau : array_like
+            Values of the parameter.
+        fillna : float, optional
+            The value to replace NaNs with.
+        """
+        tau = np.asarray(tau, dtype=float)
+        wrapper = PandasWrapper(tau)
+        y = np.array([self._cdf_at(t, **solver_kwargs) for t in tau.ravel()]).reshape(tau.shape)
+        y = np.where(np.isnan(y), fillna, y)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+
+    def _tilted_jacobian(self, tau, c, s):
+        r"""
+        :math:`\mathbb{E}_{s}[\partial_\tau S(\tau)]=\partial_\tau K(s;\tau)/s_S`, by central
+        differences in :math:`\tau`. The ratio is a smooth function of :math:`s_S`, and close
+        to :math:`s_S=0` it is interpolated linearly to avoid the cancellation.
+        """
+        s = np.atleast_1d(np.asarray(s, dtype=float))
+        h = 1e-4 * max(1.0, abs(tau))
+        cp, cm = self.cgf(tau + h), self.cgf(tau - h)
+
+        def arg(sS):
+            ss = s.copy()
+            ss[-1] = sS
+            return ss if self.given is not None else ss[0]
+
+        def g(sS):
+            return (cp.K(arg(sS)) - cm.K(arg(sS))) / (2 * h * sS)
+
+        eps = 1e-3 / np.sqrt(np.atleast_2d(c.d2K(arg(s[-1])))[-1, -1])
+        if abs(s[-1]) > eps:
+            return g(s[-1])
+        gm, gp = g(-eps), g(eps)
+        return gm + (s[-1] + eps) / (2 * eps) * (gp - gm)
+
+    def _pdf_at(self, tau, **solver_kwargs):
+        if not np.isfinite(tau):
+            return np.nan
+        c = self.cgf(tau)
+        spa = self._spa(c)
+        if self.given is None:
+            s = c.dK_inv(0.0, **solver_kwargs)
+            density = spa.pdf(t=s, normalize_pdf=False)
+        else:
+            s = c.dK_inv(np.array([self.given, 0.0]), **solver_kwargs)
+            density = spa.conditional_pdf(0.0, given=[self.given], i=1, **solver_kwargs)
+        return abs(self._tilted_jacobian(tau, c, s)) * density
+
+    def pdf(self, tau, normalize_pdf=True, fillna=np.nan, **solver_kwargs):
+        r"""
+        Saddle point approximation of the density of :math:`\hat\tau`.
+
+        Parameters
+        ----------
+        tau : array_like
+            Values of the parameter.
+        normalize_pdf : bool, optional
+            Whether to normalize the density to integrate to one over ``bracket``, with the
+            trapezoidal rule on ``_pdf_normalization_num`` points. Default is ``True``, which
+            requires a ``bracket``.
+        fillna : float, optional
+            The value to replace NaNs with.
+        """
+        tau = np.asarray(tau, dtype=float)
+        wrapper = PandasWrapper(tau)
+        y = np.array([self._pdf_at(t, **solver_kwargs) for t in tau.ravel()]).reshape(tau.shape)
+        if normalize_pdf:
+            y = y / self._pdf_normalization
+        y = np.where(np.isnan(y), fillna, y)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+
+    _pdf_normalization_num = 101
+
+    @property
+    def _pdf_normalization(self):
+        if not hasattr(self, "_pdf_normalization_cache"):
+            if self.bracket is None:
+                raise ValueError("Normalizing the pdf requires a bracket, or normalize_pdf=False")
+            tau = np.linspace(*self.bracket, self._pdf_normalization_num)
+            y = np.array([self._pdf_at(t) for t in tau])
+            self._pdf_normalization_cache = trapezoid(np.nan_to_num(y), tau)
+        return self._pdf_normalization_cache
+
+    def clear_cache(self):
+        """
+        Clear the tabulated cdf and the pdf normalization.
+        """
+        for attr in [k for k in vars(self) if k.endswith("_cache")]:
+            delattr(self, attr)
+
+    def fit_cdf(self, bracket=None, num=100):
+        r"""
+        Tabulate the cdf on ``num`` equidistant points of ``bracket``, to speed up
+        :meth:`ppf`, :meth:`mean` and :meth:`var`. Where the approximation is not defined,
+        typically close to the boundary of the support, the cdf is set to 0 to the left and
+        to 1 to the right of the defined values. The result is made monotone, outward from the
+        median.
+        """
+        bracket = self.bracket if bracket is None else bracket
+        if bracket is None:
+            raise ValueError("Supply a bracket of tau values")
+        tau = np.linspace(float(bracket[0]), float(bracket[1]), num)
+        F = np.asarray(self.cdf(tau), dtype=float)
+        ok = np.isfinite(F)
+        if ok.sum() < 2:
+            raise ValueError("The cdf could not be evaluated on the bracket")
+        F = np.clip(np.interp(tau, tau[ok], F[ok], left=0.0, right=1.0), 0.0, 1.0)
+        # Make monotone outward from the median, which discards spurious values close to the
+        # boundary of the support, where the saddle point diverges
+        k = np.argmin(np.abs(F - 0.5))
+        F[: k + 1] = np.minimum.accumulate(F[: k + 1][::-1])[::-1]
+        F[k:] = np.maximum.accumulate(F[k:])
+        self._cdf_tau_cache, self._cdf_cache = tau, F
+        return self
+
+    def _fitted(self):
+        if not hasattr(self, "_cdf_cache"):
+            self.fit_cdf()
+        return self._cdf_tau_cache, self._cdf_cache
+
+    def ppf(self, q, fillna=np.nan):
+        r"""
+        Inverse of :meth:`cdf`. The tabulated cdf, see :meth:`fit_cdf`, is interpolated, and
+        the result refined with Brent's method.
+
+        Parameters
+        ----------
+        q : array_like
+            Probabilities.
+        fillna : float, optional
+            The value to replace NaNs with.
+        """
+        q = np.asarray(q, dtype=float)
+        if np.any((q < 0) | (q > 1)):
+            raise ValueError("q must lie in [0, 1]")
+        wrapper = PandasWrapper(q)
+        tau, F = self._fitted()
+        y = np.empty(q.size)
+        for k, qq in enumerate(q.ravel()):
+            j = np.clip(np.searchsorted(F, qq), 1, len(tau) - 1)
+            a, b = tau[j - 1], tau[j]
+            fa, fb = self._cdf_at(a) - qq, self._cdf_at(b) - qq
+            if np.isfinite(fa) and np.isfinite(fb) and fa * fb < 0:
+                y[k] = spo.brentq(lambda t: self._cdf_at(t) - qq, a, b, xtol=1e-8)
+            elif F[j] > F[j - 1]:
+                y[k] = a + (qq - F[j - 1]) / (F[j] - F[j - 1]) * (b - a)
+            else:
+                y[k] = np.nan
+        y = np.where(np.isnan(y), fillna, y).reshape(q.shape)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+
+    def _moment(self, k):
+        # E tau^k = b^k - int_a^b k tau^(k-1) F(tau) dtau, with F(a) = 0 and F(b) = 1
+        tau, F = self._fitted()
+        return tau[-1] ** k - trapezoid(k * tau ** (k - 1) * F, tau)
+
+    def mean(self):
+        r"""
+        Mean of :math:`\hat\tau`, from the tabulated cdf, see :meth:`fit_cdf`.
+        """
+        return self._moment(1)
+
+    def var(self):
+        r"""
+        Variance of :math:`\hat\tau`, from the tabulated cdf, see :meth:`fit_cdf`.
+        """
+        return self._moment(2) - self._moment(1) ** 2

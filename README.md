@@ -28,6 +28,7 @@ Altogether, applications include:
 - Approximating the distribution of the sum of random variables
 - Approximating the distribution of the mean of random variables
 - Bootstrapping the transform domain: approximating the (bootstrap) distribution of the mean (or some other statistic) on some sample without actually bootstrapping.
+- Resampling distributions of estimating equations: multinomial and Dirichlet bootstrap, delete-m jackknife, and permutation tests (Booth and Butler, 1990).
 
 To be implemented are:
 
@@ -71,6 +72,22 @@ spa_mvn = spa.MultivariateSaddlePointApprox(cgf)
 spa_mvn.conditional_cdf([-1, 0, 1], given=[0.3], i=0)
 spa_mvn.conditional_pdf([-1, 0, 1], given=[0.3], i=0)
 ```
+
+## Estimating equations and resampling
+
+The root $\hat\tau$ of a randomly weighted estimating equation $\sum_i \psi(x_i;\tau) W_i = 0$, optionally conditional on $\sum_i W_i$, is approximated with `EstimatingEquationSaddlePointApprox` (Daniels, 1983; Booth and Butler, 1990).
+The weights select the resampling scheme: Poisson weights given their sum $n$ give the multinomial bootstrap, exponential weights the Dirichlet bootstrap, and Bernoulli weights given $n-m$ the delete-$m$ jackknife.
+
+```python
+x = np.array([9.6, 10.4, 13.0, 15.0, 16.6, 17.2, 17.3, 21.8, 24.0, 33.8])
+ee = spa.EstimatingEquationSaddlePointApprox.from_resampling(
+    lambda x, tau: x - tau, x, spa.exponential(), given=len(x), bracket=(x.min(), x.max())
+)
+ee.cdf([15, 18, 21])
+ee.ppf([0.05, 0.95])
+```
+
+See the `examples/example_bootstrap_*.py`, `example_permutation_*.py` and `example_jackknife_*.py` scripts.
 
 ## Installation
 

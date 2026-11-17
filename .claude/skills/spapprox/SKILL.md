@@ -53,7 +53,7 @@ Dependencies run strictly one way:
 `util / diff / domain -> cgf_base -> cgfs -> spa` (and `mvn -> spa`). Nothing in `diff.py` or
 `domain.py` knows about CGFs; keep it that way when adding code.
 
-Public API (`spapprox/__init__.py`): the two CGF classes, `Domain`, the four
+Public API (`spapprox/__init__.py`): the two CGF classes, `Domain`, the five
 approximation classes, `Timer`, and the distribution factories `norm`,
 `multivariate_norm`, `exponential`, `gamma`, `bivariate_gamma`, `chi2`,
 `laplace`, `poisson`, `binomial`, `univariate_empirical`,
@@ -187,6 +187,11 @@ mean *without bootstrapping* -- see `examples/example_nonparametric_bootstrap.py
   `NotImplementedError`.
 - `BivariateSaddlePointApprox(cgf)` -- adds the bivariate cdf backends `"KL"`
   (default) and `"Wang"`, and inherits `"Kolassa"`.
+- `EstimatingEquationSaddlePointApprox(cgf_fn, given=None)` -- root of an estimating
+  equation `S(tau) = 0`; `cgf_fn(tau)` returns the cgf of `S(tau)` (or of `(T1, S(tau))`
+  when conditioning on `T1 = given`). `from_resampling(psi, x, weights, given)` builds it
+  for `sum_i psi(x_i; tau) W_i`: the bootstraps, the jackknife (Booth and Butler, 1990).
+  Not a `SaddlePointApprox` subclass, since it holds a family of cgfs.
 
 `cdf` has two interchangeable backends selected by `backend=`: `"LR"`
 (Lugannani-Rice, the default) and `"BN"` (Barndorff-Nielsen). Both are singular

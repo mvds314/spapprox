@@ -8,7 +8,7 @@
 - Multivariate approximation: cdf phase A done (`backend="Kolassa"`); phase B only if
   needed, see `docs/multivariate_cdf_plan.md`
 
-- Work on bootstrap distributions (see Booth and Butler)
+- Bootstrap distributions (Booth and Butler): done, see `docs/estimating_equations_plan.md`
 
 # Bug backlog
 
@@ -922,7 +922,15 @@ Or into a separate model, e.g., bootstrap.py
     For independent components the missing term is `phi(w1) phi(w2) f1 f2`, with
     `f_j = 1/u_j - 1/w_j`. Consider adding it
   - non-linear conditioning `Z = g(X, Y)`: phase G, Wang (1993). Lower priority
-- implement Dirichlet bootstrap
+- resampling distributions, Booth and Butler (1990): done with
+  `EstimatingEquationSaddlePointApprox` (scalar estimating equations, multinomial and Dirichlet
+  bootstrap, delete-m jackknife) plus examples for the permutation tests using the existing
+  algebra, see `docs/estimating_equations_plan.md`. Follow ups:
+  - vector-valued estimating equations (several parameters), e.g. Jensen & Wood / Strawderman
+  - continuity correction for the permutation and jackknife distributions (lattice PR)
+  - the analgesia data of Booth and Butler (1990), Table 1 (b), do not reproduce the published
+    exact significance level (0.012; we get 0.044 one-sided); find Robinson (1982), Lehmann
+    (1975) p. 92 to check the data
 - implement multivariate saddle point approximations
   - cdf for any dimension: phase A of `docs/multivariate_cdf_plan.md` is done,
     `MultivariateSaddlePointApprox.cdf(backend="Kolassa")` (Kolassa 2003). Error
@@ -935,7 +943,6 @@ Or into a separate model, e.g., bootstrap.py
     (`spa.py`, `_kl_cdf_ordered`), when a saddlepoint component is at or near zero; reproduce
     with `examples/example_Wang1990.py`, e.g. cells (x=0, y=1.0) and (x=-1.0, y=0.0)
 - implement other bootstraps
-- jackknife stuff
 - conditional distributions
 - approximation for discrete distributions (lattice variables). Open items:
   - [x] univariate cdf continuity correction (Daniels, 1987; Butler ch. 1.2.3):
@@ -947,7 +954,8 @@ Or into a separate model, e.g., bootstrap.py
   - conditional cdf for a vector of interest `P(X_I >= x_I | X_J = x_J)`, continuous and
     lattice: phase F above (Kolassa & Li, 2010, section 4). Done for two variables of
     interest, `conditional_cdf(i=[a, b], delta=...)`; open for three or more
-- bootstrap for estimating equations (Kuonen, 1998, particularly bootstrap for robust estimators)
+- bootstrap for robust estimators (Kuonen, 1998): `EstimatingEquationSaddlePointApprox` with
+  Poisson weights covers monotone M-estimators, add an example
 - quadratic forms (Kuonen 2001)
 - mixture models
 
