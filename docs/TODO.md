@@ -963,7 +963,8 @@ Or into a separate model, e.g., bootstrap.py
     lattice: phase F above (Kolassa & Li, 2010, section 4). Done for two variables of
     interest, `conditional_cdf(i=[a, b], delta=...)`; open for three or more
 - bootstrap for robust estimators (Kuonen, 1998): `EstimatingEquationSaddlePointApprox` with
-  Poisson weights covers monotone M-estimators, add an example
+  Poisson weights covers monotone M-estimators. Done: Huber location estimate in
+  `examples/example_bootstrap_robust_estimator.py`
 - quadratic forms (Kuonen 2001)
 - mixture models
 
