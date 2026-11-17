@@ -19,6 +19,7 @@ from .cgfs import (  # noqa: F401
 from .domain import Domain  # noqa: F401
 from .spa import (  # noqa: F401
     BivariateSaddlePointApprox,
+    EstimatingEquationSaddlePointApprox,
     MultivariateSaddlePointApprox,
     UnivariateSaddlePointApprox,
     UnivariateSaddlePointApproxMean,
