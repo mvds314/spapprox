@@ -91,6 +91,15 @@ Note the implementations compute the singular expression anyway (inside
 `np.errstate(divide="ignore", invalid="ignore")`) and discard it -- vectorized
 masking rather than branching.
 
+**Lattice (`delta=span`):** `cdf(x, delta=...)` and `pdf(x, delta=...)` handle a discrete
+variable; `x` must lie on the lattice. The cdf is the second continuity correction of Daniels
+(1987) / Butler 1.2.3: $P(X\leq x)$ is evaluated at $x+\delta/2$ (so the saddlepoint solves
+$K'(t)=x+\delta/2$; with `t=` given, it must solve there), with
+$u = 2\sinh(t\delta/2)\sqrt{K''(t)}/\delta$; $w$ is unchanged. The $t=0$ limit is the same
+as the continuous one, so the near-zero interpolation is reused. The pmf is
+$P(X=x)\approx\delta f(x)$, not normalized by default (`normalize_pdf=None` means `True`
+only for a continuous variable; integrating the density is a poor lattice normalization). `poisson(3)` at $x=3$: 0.646 vs exact 0.647.
+
 ## `ppf`
 
 ```python
@@ -174,6 +183,20 @@ uses invariants $\rho_4,\rho_{13}^2,\rho_{23}^2$ of the joint cgf at $\hat\tau$ 
 `delta=span` handles a lattice $X_i$ (second continuity correction, Kolassa eq. (11) for the
 second order; $\hat u$ carries $1/\delta$ for scale invariance); `x` must lie on the lattice.
 Plan: `docs/conditional_cdf_plan.md`.
+
+`conditional_cdf(x, given, i=[a, b])` gives the lower orthant
+$P(X_a\le x_a, X_b\le x_b \mid X_J=x_J)$, Kolassa & Li (2010) Sec. 4 (`x` of shape `(2,)` or
+`(n, 2)`, only `backend="KL"`, `delta` scalar or per component; more than two variables of
+interest raise `NotImplementedError`). `_ConditionalProfile` builds the profile pseudo-cgf
+$M(\tau_I)=\min_{\tau_J}[K-\tau_J x_J]$ (inner Newton solve, continuation from $\tau_I=0$ if a
+warm start is infeasible; $M''$ Schur complement, $M'''=K'''[V,V,V]$) and the weight
+$r=\sqrt{\det K_{JJ}(\tau_0)/\det K_{JJ}}$. `_ConditionalBivariateApprox` runs the bivariate KL
+code on $M$ through the hooks `_kl_marginal_cdf` (scalar Skovgaard conditionals),
+`_kl_first_factor` ($r(\hat\tau_1,0)$) and `_kl_marginal_factor` ($r(0,\tilde\tau_2)$), plus
+$\rho(\tau)=2\sinh(\tau\delta/2)/\delta$ for a lattice. Reproduces the paper's Table 3 to about
+3 digits. Like the unconditional KL (which drops the $I^{\{1,2\}}$ term), its relative error
+does not vanish at a fixed large deviation point as $n\to\infty$.
+Plan: `docs/conditional_vector_plan.md`.
 
 `cdf(x=None, t=None, fillna=np.nan, backend="Kolassa")` works in any dimension
 (phase A of `docs/multivariate_cdf_plan.md`). `_kolassa_cdf` evaluates eq. (5) of

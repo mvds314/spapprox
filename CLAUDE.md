@@ -33,7 +33,8 @@ git branch -d feature/<topic> && git push origin --delete feature/<topic>
 ```
 
 Wait for the CI check to pass before merging. The version in `pyproject.toml` is
-CalVer (`YY.MM.N`); bump it in the PR for a user-visible change. Larger features get a
+CalVer (`YY.MM.N`); every PR into `main` must bump it (`N+1` within a month, `YY.MM.1` for a
+new month), enforced by the `version-bump` CI check. Larger features get a
 written plan in `docs/` first, and follow-ups are listed in `docs/TODO.md`.
 
 ## Setup

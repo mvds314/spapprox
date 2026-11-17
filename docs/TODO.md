@@ -869,8 +869,8 @@ Contract violations and silently wrong results in narrower situations.
 - Several items share a root cause; fix them together:
   - domain/scale units: 10, 14, 21, 22 (and 26 for `intersect`);
   - in-place mutation: 2, 11.
-- Lattice cdf is not continuity-corrected (`poisson(3)` at `x=3`: 0.538 vs exact
-  0.647); already a known TODO in the code, not listed as a bug.
+- The univariate lattice cdf is continuity-corrected with `cdf(..., delta=span)`
+  (`poisson(3)` at `x=3`: 0.646 vs exact 0.647; without `delta` 0.538).
 - Suggested first batch (unambiguous one-liners, high impact): items 9, 3, 8, 6,
   7, 19, 1, 17, 18. Then the hangs (24) and the near-zero cdf guard (23).
 
@@ -911,8 +911,16 @@ Or into a separate model, e.g., bootstrap.py
   - normalize `conditional_pdf` (quadrature over `x_i`), or add the second-order pdf correction
   - make the `condition()` stub delegate to `conditional_cdf` / `conditional_pdf`, or remove it
   - `P1`, the first continuity correction of Butler (4.15)-(4.16), for comparison with `P2`
-  - vector of interest, `P(X_I >= x_I | X_J = x_J)`: phase F, Kolassa & Li (2010) section 4.
-    Large, needs its own plan
+  - vector of interest, `P(X_I >= x_I | X_J = x_J)`: phase F, Kolassa & Li (2010) section 4,
+    see `docs/conditional_vector_plan.md`. F1, two variables of interest, is done:
+    `conditional_cdf(x, given, i=[a, b], delta=...)`, continuous and lattice. Open: F2,
+    three or more variables of interest
+  - the bivariate `"KL"` cdf, also conditional, drops the `I^{1,2}` term of Kolassa & Li
+    (2010). Its relative error therefore does not vanish at a fixed large deviation point:
+    for two independent gamma(n) means at (1.3, 1.25) it is -2.4%, -1.2%, -0.85% for
+    n = 10, 40, 160, where the product of the Lugannani-Rice marginals converges at 1/n.
+    For independent components the missing term is `phi(w1) phi(w2) f1 f2`, with
+    `f_j = 1/u_j - 1/w_j`. Consider adding it
   - non-linear conditioning `Z = g(X, Y)`: phase G, Wang (1993). Lower priority
 - resampling distributions, Booth and Butler (1990): done with
   `EstimatingEquationSaddlePointApprox` (scalar estimating equations, multinomial and Dirichlet
@@ -936,7 +944,16 @@ Or into a separate model, e.g., bootstrap.py
     with `examples/example_Wang1990.py`, e.g. cells (x=0, y=1.0) and (x=-1.0, y=0.0)
 - implement other bootstraps
 - conditional distributions
-- approximation for discrete distributions
+- approximation for discrete distributions (lattice variables). Open items:
+  - [x] univariate cdf continuity correction (Daniels, 1987; Butler ch. 1.2.3):
+    `cdf(..., delta=span)`, LR and BN. `infer_t_range` still excludes lattice tails
+  - [x] univariate lattice pmf: `pdf(..., delta=span)` returns `delta * f(x)`, not
+    normalized by default (integrating the density is a poor normalization for a lattice,
+    e.g. 41% relative error for `poisson(0.5)` vs 8% unnormalized). Possible refinement:
+    normalize by summing over the lattice, and Daniels' second-order terms
+  - conditional cdf for a vector of interest `P(X_I >= x_I | X_J = x_J)`, continuous and
+    lattice: phase F above (Kolassa & Li, 2010, section 4). Done for two variables of
+    interest, `conditional_cdf(i=[a, b], delta=...)`; open for three or more
 - bootstrap for robust estimators (Kuonen, 1998): `EstimatingEquationSaddlePointApprox` with
   Poisson weights covers monotone M-estimators, add an example
 - quadratic forms (Kuonen 2001)
