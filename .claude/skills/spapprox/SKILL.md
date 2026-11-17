@@ -183,8 +183,8 @@ mean *without bootstrapping* -- see `examples/example_nonparametric_bootstrap.py
   subclass wiring in `univariate_sample_mean`.
 - `MultivariateSaddlePointApprox(cgf)` -- `pdf`, marginals (`spa[i]`,
   `spa[[i, j]]`), and `cdf(backend="Kolassa")` for any dimension (Kolassa
-  (2003), built on the normal orthant helpers in `mvn.py`); `condition` raises
-  `NotImplementedError`.
+  (2003), built on the normal orthant helpers in `mvn.py`), and `conditional_cdf` /
+  `conditional_pdf` for `X_i | X_J = x_J`.
 - `BivariateSaddlePointApprox(cgf)` -- adds the bivariate cdf backends `"KL"`
   (default) and `"Wang"`, and inherits `"Kolassa"`.
 - `EstimatingEquationSaddlePointApprox(cgf_fn, given=None)` -- root of an estimating
@@ -282,6 +282,6 @@ tolerance.
   deprecated `FinDiff` API. Do not treat them as behavioral references, and note
   they need `matplotlib`, which is not a declared dependency.
 - **Multivariate support is incomplete by design, not by accident.** Some
-  methods raise `NotImplementedError` (conditional approximations, `fit_cdf`). The
+  methods raise `NotImplementedError` (`fit_cdf`, conditioning on three or more variables of interest). The
   plan for the multivariate cdf is in `docs/multivariate_cdf_plan.md`. The README lists conditional distributions and quotients of
   random variables as future work.

@@ -868,9 +868,6 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             raise IndexError(f"Index {i} out of bounds for dimension {self.dim}")
         return i % self.dim
 
-    def condition(self, i, x):
-        raise NotImplementedError("Condition the approximation on the ith variable")
-
     # Half-width, in conditional standard deviations of the variable of interest, of the
     # window around the singular point of the conditional cdf in which it is interpolated.
     # The second order terms lose accuracy closer to it than about 2e-2 for large n.
@@ -912,6 +909,10 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         denominator saddlepoint.
         """
         tau = np.asarray(self.cgf.dK_inv(xfull, **solver_kwargs), dtype=float)
+        return self._conditional_terms_at(tau, xfull, i, J, tau0)
+
+    def _conditional_terms_at(self, tau, xfull, i, J, tau0):
+        """:meth:`_conditional_terms` with the joint saddlepoint ``tau`` at ``xfull`` given."""
         H = np.asarray(self.cgf.d2K(tau))
         H0 = np.asarray(self.cgf.d2K(tau0))
         w2 = 2 * (tau @ xfull - self.cgf.K(tau) - tau0 @ xfull + self.cgf.K(tau0))
@@ -1198,7 +1199,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             return np.polyval(coef, xi - center)
         return point(xi)
 
-    def conditional_pdf(self, x, given, i=0, fillna=np.nan, **solver_kwargs):
+    def conditional_pdf(self, x, given, i=0, normalize_pdf=True, fillna=np.nan, **solver_kwargs):
         r"""
         Saddle point approximation of the conditional probability density function of
         :math:`X_i` given :math:`X_J=x_J`, with :math:`J` all other components. It is the
@@ -1210,12 +1211,25 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             \,\phi(\hat w),
 
         where :math:`\hat\tau`, :math:`\tau_0` and :math:`\hat w` are as in
-        :meth:`conditional_cdf`. The result is not normalized.
+        :meth:`conditional_cdf`.
+
+        By default, the approximation is normalized to integrate to one over :math:`x`, which
+        usually makes it more accurate, see [1] Section 4.1. The integral is computed for
+        every distinct :math:`x_J` and cached. It is computed in terms of
+        :math:`\tau_i`: for fixed :math:`x_J`, the joint saddlepoint is
+        :math:`(\tau_i, \tilde\tau_J(\tau_i))`, with :math:`\tilde\tau_J` the profile of
+        :class:`_ConditionalProfile`, at :math:`x=K_i'(\tau_i,\tilde\tau_J(\tau_i))`, and
+        :math:`dx/d\tau_i` is the Schur complement
+        :math:`K_{ii}''-K_{iJ}''K_{JJ}''^{-1}K_{Ji}''`, so that no saddle point equations
+        have to be solved.
 
         Parameters
         ----------
         x, given, i, fillna :
             See :meth:`conditional_cdf`.
+        normalize_pdf : bool, optional
+            Whether to normalize the density for every value of :math:`x_J`. Default is
+            ``True``.
 
         References
         ----------
@@ -1233,8 +1247,67 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             xfull[i], xfull[J] = xi, xJ
             w, _, sigma = self._conditional_terms(xfull, i, J, tau0, **solver_kwargs)
             y[k] = sps.norm.pdf(w) / sigma
+            if normalize_pdf and np.isfinite(y[k]):
+                y[k] /= self._conditional_pdf_normalization(i, J, xJ, tau0)
         y = np.where(np.isnan(y), fillna, y).reshape(x.shape)
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+
+    def _conditional_pdf_normalization(self, i, J, xJ, tau0, max_steps=60):
+        r"""
+        Integral over :math:`x` of the unnormalized :meth:`conditional_pdf` at ``xJ``, see
+        there. The integral is split at points :math:`\tau_i` stepping away from zero, in
+        units of the conditional standard deviation of the saddle point, first linearly and
+        then geometrically, until the integrand is negligible or the boundary of the domain is
+        reached, which is then located by bisection.
+        """
+        key = (i, tuple(np.asarray(xJ, dtype=float)))
+        if not hasattr(self, "_conditional_pdf_normalization_cache"):
+            self._conditional_pdf_normalization_cache = {}
+        if key in self._conditional_pdf_normalization_cache:
+            return self._conditional_pdf_normalization_cache[key]
+        profile = _ConditionalProfile(self.cgf, [i], J, xJ, tau0)
+
+        def integrand(ti):
+            tau = profile.saddle([ti])
+            if np.isnan(tau).any():
+                return np.nan
+            xfull = np.asarray(self.cgf.dK(tau), dtype=float)
+            w, _, sigma = self._conditional_terms_at(tau, xfull, i, J, tau0)
+            H = np.asarray(self.cgf.d2K(tau))
+            schur = H[i, i] - H[i, J] @ np.linalg.solve(H[np.ix_(J, J)], H[J, i])
+            val = sps.norm.pdf(w) / sigma * schur
+            return val if np.isfinite(val) else np.nan
+
+        H0 = np.asarray(self.cgf.d2K(tau0))
+        v0 = H0[i, i] - H0[i, J] @ np.linalg.solve(H0[np.ix_(J, J)], H0[J, i])
+        step = 1 / np.sqrt(v0)
+        # Unit steps cover the bulk, geometric ones the tails, which decay slowly in tau_i
+        # when the support of X_i is bounded
+        offsets = np.concatenate([np.arange(1, 9), 8 * 2.0 ** np.arange(1, max_steps - 7)])
+        peak = integrand(0.0)
+        val = 0.0
+        for sign in (-1, 1):
+            inside = 0.0
+            for k in offsets:
+                outside = sign * k * step
+                f = integrand(outside)
+                if np.isnan(f):
+                    # Locate the boundary of the domain of the profile
+                    a, b = inside, outside
+                    for _ in range(40):
+                        mid = (a + b) / 2
+                        if np.isnan(integrand(mid)):
+                            b = mid
+                        else:
+                            a = mid
+                    outside, f = a, 0.0
+                lo, hi = sorted([inside, outside])
+                val += quad(lambda ti: np.nan_to_num(integrand(ti)), lo, hi, limit=200)[0]
+                inside = outside
+                if f < 1e-14 * peak:
+                    break
+        self._conditional_pdf_normalization_cache[key] = val
+        return val
 
     @type_wrapper(xloc=1)
     def _spapprox_pdf(self, x, t, fillna=np.nan):
@@ -2495,7 +2568,9 @@ class EstimatingEquationSaddlePointApprox:
             density = spa.pdf(t=s, normalize_pdf=False)
         else:
             s = c.dK_inv(np.array([self.given, 0.0]), **solver_kwargs)
-            density = spa.conditional_pdf(0.0, given=[self.given], i=1, **solver_kwargs)
+            density = spa.conditional_pdf(
+                0.0, given=[self.given], i=1, normalize_pdf=False, **solver_kwargs
+            )
         return abs(self._tilted_jacobian(tau, c, s)) * density
 
     def pdf(self, tau, normalize_pdf=True, fillna=np.nan, **solver_kwargs):

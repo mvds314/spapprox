@@ -371,6 +371,19 @@ def test_conditional_bivariate_gamma(a):
     assert np.allclose(got, pdf(x), rtol=0.1, atol=1e-3)
 
 
+@pytest.mark.parametrize("a,x2", [((3, 2, 4), 5.0), ((0.5, 0.5, 1), 1.0)])
+def test_conditional_pdf_normalized(a, x2):
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=a))
+    pdf = lambda x: spa.conditional_pdf(x, [x2], i=0, fillna=0)  # noqa: E731
+    assert np.isclose(quad(pdf, 0, x2)[0] + quad(pdf, x2, np.inf)[0], 1, atol=1e-6)
+    if a == (3, 2, 4):
+        # The unnormalized approximation integrates to 0.977, normalizing halves the error
+        x = np.linspace(0.5, 12, 24)
+        exact = _gamma_conditional(a, x2)[1](x)
+        unnormalized = spa.conditional_pdf(x, [x2], i=0, normalize_pdf=False)
+        assert np.abs(pdf(x) - exact).max() < 0.6 * np.abs(unnormalized - exact).max()
+
+
 def test_conditional_bivariate_gamma_convergence():
     # The relative error is O(1/n) for the sum of n iid vectors, here a -> k * a
     errors = []

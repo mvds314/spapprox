@@ -70,7 +70,7 @@ $P(X_a \leq x_a, X_b \leq x_b \mid X_J = x_J)$, following Kolassa and Li (2010).
 cgf = spa.multivariate_norm(loc=[0, 0], cov=[[1, 0.5], [0.5, 1]])
 spa_mvn = spa.MultivariateSaddlePointApprox(cgf)
 spa_mvn.conditional_cdf([-1, 0, 1], given=[0.3], i=0)
-spa_mvn.conditional_pdf([-1, 0, 1], given=[0.3], i=0)
+spa_mvn.conditional_pdf([-1, 0, 1], given=[0.3], i=0)  # normalized, normalize_pdf=False to skip
 ```
 
 ## Estimating equations and resampling

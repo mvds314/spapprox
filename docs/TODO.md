@@ -911,8 +911,9 @@ Or into a separate model, e.g., bootstrap.py
   `docs/conditional_cdf_plan.md`): `MultivariateSaddlePointApprox.conditional_cdf` (Skovgaard,
   `backend="Kolassa"` for second order, `delta=` for a lattice `X_i`) and `conditional_pdf`.
   Marginal approximations are available as `spa[i]`, `spa[[i, j]]`. Follow ups, in order:
-  - normalize `conditional_pdf` (quadrature over `x_i`), or add the second-order pdf correction
-  - make the `condition()` stub delegate to `conditional_cdf` / `conditional_pdf`, or remove it
+  - [x] normalize `conditional_pdf`: `normalize_pdf=True` by default, quadrature in `tau_i`
+    along the profile saddle path. The second-order pdf correction is still open
+  - [x] the `condition()` stub was removed, use `conditional_cdf` / `conditional_pdf`
   - `P1`, the first continuity correction of Butler (4.15)-(4.16), for comparison with `P2`
   - vector of interest, `P(X_I >= x_I | X_J = x_J)`: phase F, Kolassa & Li (2010) section 4,
     see `docs/conditional_vector_plan.md`. F1, two variables of interest, is done:
