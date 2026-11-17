@@ -20,6 +20,7 @@ from .domain import Domain  # noqa: F401
 from .spa import (  # noqa: F401
     BivariateSaddlePointApprox,
     EstimatingEquationSaddlePointApprox,
+    MultivariateEstimatingEquationSaddlePointApprox,
     MultivariateSaddlePointApprox,
     UnivariateSaddlePointApprox,
     UnivariateSaddlePointApproxMean,

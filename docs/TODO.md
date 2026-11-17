@@ -930,7 +930,10 @@ Or into a separate model, e.g., bootstrap.py
   `EstimatingEquationSaddlePointApprox` (scalar estimating equations, multinomial and Dirichlet
   bootstrap, delete-m jackknife) plus examples for the permutation tests using the existing
   algebra, see `docs/estimating_equations_plan.md`. Follow ups:
-  - vector-valued estimating equations (several parameters), e.g. Jensen & Wood / Strawderman
+  - [x] vector-valued estimating equations (several parameters):
+    `MultivariateEstimatingEquationSaddlePointApprox`, see
+    `docs/vector_estimating_equations_plan.md` and `examples/example_bootstrap_regression.py`.
+    Follow up: marginal tail approximations (Jensen & Wood) instead of the tabulated grid
   - [x] continuity correction for the permutation and jackknife distributions:
     `EstimatingEquationSaddlePointApprox(..., delta=span)`, for a lattice `S(tau)`, e.g. a
     mean of integer data, see `examples/example_bootstrap_lattice.py`; Wilcoxon rank sum test

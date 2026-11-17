@@ -12,6 +12,7 @@ from spapprox import (
     BivariateSaddlePointApprox,
     EstimatingEquationSaddlePointApprox,
     MultivariateCumulantGeneratingFunction,
+    MultivariateEstimatingEquationSaddlePointApprox,
     MultivariateSaddlePointApprox,
     # poisson,
     # binomial,
@@ -1477,3 +1478,81 @@ def test_estimating_equation_lattice_bootstrap(decreasing):
         ee.pdf(2.0)
     with pytest.raises(ValueError):
         EstimatingEquationSaddlePointApprox(ee.cgf, given=n, delta=1.0)
+
+
+@pytest.mark.parametrize(
+    "weights,given", [(poisson(1), 15), (exponential(), 15), (exponential(), None)]
+)
+def test_vector_estimating_equation_scalar_case(weights, given):
+    # With p=1 the vector class reduces to the scalar estimating equation density
+    x = np.array([49, -67, 8, 16, 6, 23, 28, 41, 14, 29, 56, 24, 75, 60, -48.0])
+    s = 1.4826 * np.median(np.abs(x - np.median(x)))
+
+    def psi(x, t):
+        return np.clip((x - t) / s, -1.345, 1.345)
+
+    scalar = EstimatingEquationSaddlePointApprox.from_resampling(psi, x, weights, given=given)
+    vector = MultivariateEstimatingEquationSaddlePointApprox(
+        lambda x, t: psi(x, t[0])[:, None], x, weights, given=given
+    )
+    tau = np.array([5.0, 15, 26, 35, 45])
+    expected = np.asarray(scalar.pdf(tau, normalize_pdf=False))
+    assert np.allclose(vector.pdf(tau[:, None], normalize_pdf=False), expected, rtol=1e-6)
+
+
+def test_vector_estimating_equation_mean_cut():
+    # Multinomial bootstrap of a vector mean: by the cut, the density equals the saddlepoint
+    # density of the mean of n draws from the empirical distribution
+    rng = np.random.default_rng(1)
+    X = rng.gamma(2, size=(12, 2)) @ np.array([[1, 0.5], [0, 1]])
+    n = len(X)
+    ee = MultivariateEstimatingEquationSaddlePointApprox(
+        lambda x, t: x - t,
+        X,
+        poisson(1),
+        given=n,
+        dpsi=lambda x, t: np.broadcast_to(-np.eye(2), (len(x), 2, 2)),
+    )
+
+    def probs(t):
+        e = np.exp(X @ t / n)
+        return e / e.sum()
+
+    def d2K(t):
+        p = probs(t)
+        m = p @ X
+        return ((X * p[:, None]).T @ X - np.outer(m, m)) / n
+
+    cgf = MultivariateCumulantGeneratingFunction(
+        K=lambda t: n * np.log(np.mean(np.exp(X @ np.asarray(t) / n), axis=-1)),
+        dK=lambda t: probs(t) @ X,
+        d2K=d2K,
+        dim=2,
+    )
+    ref = MultivariateSaddlePointApprox(cgf)
+    for d in [(0, 0), (0.3, -0.2), (-0.4, 0.5)]:
+        tau = X.mean(axis=0) + np.array(d)
+        expected = ref.pdf(t=cgf.dK_inv(tau), normalize_pdf=False)
+        assert np.isclose(ee.pdf(tau, normalize_pdf=False), expected, rtol=1e-6)
+
+
+@pytest.mark.slow
+def test_vector_estimating_equation_regression_dirichlet():
+    # Bayesian bootstrap of a least squares line: marginal quantiles against Monte Carlo
+    rng = np.random.default_rng(7)
+    n = 15
+    xs = rng.uniform(0, 10, n)
+    ys = 2 + 0.5 * xs + rng.normal(size=n)
+    Z = np.column_stack([np.ones(n), xs])
+    data = np.column_stack([Z, ys])
+    ee = MultivariateEstimatingEquationSaddlePointApprox(
+        lambda d, t: d[:, :2] * (d[:, 2] - d[:, :2] @ t)[:, None], data, exponential()
+    )
+    W = rng.exponential(size=(20000, n))
+    est = np.array([np.linalg.solve((Z * w[:, None]).T @ Z, (Z * w[:, None]).T @ ys) for w in W])
+    m, sd = est.mean(axis=0), est.std(axis=0)
+    ee.fit_pdf(bracket=np.column_stack([m - 5 * sd, m + 5 * sd]), num=41)
+    q = np.array([0.1, 0.5, 0.9])
+    for i in range(2):
+        assert np.allclose(ee.marginal_ppf(i, q), np.quantile(est[:, i], q), atol=0.03)
+    assert np.allclose(ee.mean(), est.mean(axis=0), atol=0.02)
