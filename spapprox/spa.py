@@ -194,8 +194,17 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             )
         return np.where(np.isnan(retval), fillna, retval)
 
+    def _lattice_u(self, t, delta=None):
+        r"""
+        :math:`u = t\sqrt{K''(t)}`, or for a lattice with span ``delta`` the Daniels (1987)
+        version :math:`2\sinh(t\delta/2)\sqrt{K''(t)}/\delta`.
+        """
+        if delta is None:
+            return t * np.sqrt(self.cgf.d2K(t))
+        return 2 * np.sinh(t * delta / 2) / delta * np.sqrt(self.cgf.d2K(t))
+
     @type_wrapper(xloc=1)
-    def _spapprox_cdf_LR(self, x, t, fillna=np.nan):
+    def _spapprox_cdf_LR(self, x, t, fillna=np.nan, delta=None):
         r"""
         Lugannani-Rice saddle point approximation of the cumulative distribution as given by
 
@@ -225,18 +234,21 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
         """
         rho3 = self.cgf.d3K0 / np.power(self.cgf.d2K0, 3 / 2)
         retval = self._interpolate_cdf_near_zero(
-            self._lugannani_rice, x, t, 1 / 2 + rho3 / 6 / np.sqrt(2 * np.pi)
+            lambda x, t: self._lugannani_rice(x, t, delta),
+            x,
+            t,
+            1 / 2 + rho3 / 6 / np.sqrt(2 * np.pi),
         )
         return np.where(np.isnan(retval), fillna, retval)
 
-    def _lugannani_rice(self, x, t):
+    def _lugannani_rice(self, x, t, delta=None):
         with np.errstate(divide="ignore", invalid="ignore"):
             w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
-            u = t * np.sqrt(self.cgf.d2K(t))
+            u = self._lattice_u(t, delta)
             return sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
 
     @type_wrapper(xloc=1)
-    def _spapprox_cdf_BN(self, x, t, fillna=np.nan):
+    def _spapprox_cdf_BN(self, x, t, fillna=np.nan, delta=None):
         r"""
         This is an alternative implementation of the Lugannani-Rice saddle point
         approximation of the cumulative distribution.
@@ -258,14 +270,14 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
         """
         rho3 = self.cgf.d3K0 / np.power(self.cgf.d2K0, 3 / 2)
         retval = self._interpolate_cdf_near_zero(
-            self._barndorff_nielsen, x, t, sps.norm.cdf(rho3 / 6)
+            lambda x, t: self._barndorff_nielsen(x, t, delta), x, t, sps.norm.cdf(rho3 / 6)
         )
         return np.where(np.isnan(retval), fillna, retval)
 
-    def _barndorff_nielsen(self, x, t):
+    def _barndorff_nielsen(self, x, t, delta=None):
         with np.errstate(divide="ignore", invalid="ignore"):
             w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
-            u = t * np.sqrt(self.cgf.d2K(t))
+            u = self._lattice_u(t, delta)
             return sps.norm.cdf(w + np.log(u / w) / w)
 
     def _interpolate_cdf_near_zero(self, formula, x, t, limit):
@@ -319,7 +331,31 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             self._pdf_normalization_cache = val
         return self._pdf_normalization_cache
 
-    def cdf(self, x=None, t=None, fillna=np.nan, backend="LR", **solver_kwargs):
+    def pdf(self, x=None, t=None, normalize_pdf=None, fillna=np.nan, delta=None, **solver_kwargs):
+        r"""
+        Saddle point approximation of the probability density function, see
+        :meth:`SaddlePointApprox.pdf`.
+
+        Parameters
+        ----------
+        normalize_pdf : bool, optional
+            Whether to normalize the density by integrating it. Default is ``None``: ``True``
+            for a continuous variable, ``False`` if ``delta`` is given, as the integral of the
+            density is a poor normalization for a lattice variable.
+        delta : float, optional
+            Span of the lattice, for a discrete random variable. Default is ``None``:
+            continuous. Otherwise, the probability mass function :math:`P(X=x)\approx
+            \delta f(x)` is returned, for ``x`` on the lattice. This is the saddle point
+            approximation of Daniels (1983, 1987).
+        """
+        if delta is not None and not delta > 0:
+            raise ValueError("delta must be positive")
+        if normalize_pdf is None:
+            normalize_pdf = delta is None
+        y = super().pdf(x=x, t=t, normalize_pdf=normalize_pdf, fillna=fillna, **solver_kwargs)
+        return y if delta is None else y * delta
+
+    def cdf(self, x=None, t=None, fillna=np.nan, backend="LR", delta=None, **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function.
 
@@ -372,17 +408,34 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
         backend : str, optional
             The backend to use for the computation. Either 'LR' for Lugannani-Rice approximation
             or 'BN' for Barndorff-Nielsen approximation. Default is 'LR'.
+        delta : float, optional
+            Span of the lattice, for a discrete random variable. Default is ``None``:
+            continuous. Otherwise ``x`` must lie on the lattice and the second continuity
+            correction of Daniels (1987), see Butler (2007), Section 1.2.3, is used:
+            :math:`P(X\leq x)` is approximated at :math:`x+\delta/2`, using
+            :math:`u = 2\sinh(t\delta/2)\sqrt{K''(t)}/\delta`. If only ``t`` is
+            given, it must solve the saddle point equation at :math:`x+\delta/2`.
         """
         assert x is not None or t is not None
+        if delta is not None and not delta > 0:
+            raise ValueError("delta must be positive")
         if x is None:
             x = self.cgf.dK(t)
-        elif t is None:
-            t = self._dK_inv(x, **solver_kwargs)
-        wrapper = PandasWrapper(x)
+            wrapper = PandasWrapper(x)
+        else:
+            wrapper = PandasWrapper(x)
+            if delta is not None:
+                x = np.asanyarray(x) + delta / 2
+            if t is None:
+                t = self._dK_inv(x, **solver_kwargs)
         if backend == "LR":
-            y = np.asanyarray(self._spapprox_cdf_LR(np.asanyarray(x), np.asanyarray(t)))
+            y = np.asanyarray(
+                self._spapprox_cdf_LR(np.asanyarray(x), np.asanyarray(t), delta=delta)
+            )
         elif backend == "BN":
-            y = np.asanyarray(self._spapprox_cdf_BN(np.asanyarray(x), np.asanyarray(t)))
+            y = np.asanyarray(
+                self._spapprox_cdf_BN(np.asanyarray(x), np.asanyarray(t), delta=delta)
+            )
         else:
             raise ValueError("backend must be either 'LR' or 'BN'")
         y = np.where(np.isnan(y), fillna, y)

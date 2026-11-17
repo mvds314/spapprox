@@ -89,6 +89,15 @@ Note the implementations compute the singular expression anyway (inside
 `np.errstate(divide="ignore", invalid="ignore")`) and discard it -- vectorized
 masking rather than branching.
 
+**Lattice (`delta=span`):** `cdf(x, delta=...)` and `pdf(x, delta=...)` handle a discrete
+variable; `x` must lie on the lattice. The cdf is the second continuity correction of Daniels
+(1987) / Butler 1.2.3: $P(X\leq x)$ is evaluated at $x+\delta/2$ (so the saddlepoint solves
+$K'(t)=x+\delta/2$; with `t=` given, it must solve there), with
+$u = 2\sinh(t\delta/2)\sqrt{K''(t)}/\delta$; $w$ is unchanged. The $t=0$ limit is the same
+as the continuous one, so the near-zero interpolation is reused. The pmf is
+$P(X=x)\approx\delta f(x)$, not normalized by default (`normalize_pdf=None` means `True`
+only for a continuous variable; integrating the density is a poor lattice normalization). `poisson(3)` at $x=3$: 0.646 vs exact 0.647.
+
 ## `ppf`
 
 ```python

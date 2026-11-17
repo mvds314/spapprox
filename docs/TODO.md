@@ -869,8 +869,8 @@ Contract violations and silently wrong results in narrower situations.
 - Several items share a root cause; fix them together:
   - domain/scale units: 10, 14, 21, 22 (and 26 for `intersect`);
   - in-place mutation: 2, 11.
-- Lattice cdf is not continuity-corrected (`poisson(3)` at `x=3`: 0.538 vs exact
-  0.647); already a known TODO in the code, not listed as a bug.
+- The univariate lattice cdf is continuity-corrected with `cdf(..., delta=span)`
+  (`poisson(3)` at `x=3`: 0.646 vs exact 0.647; without `delta` 0.538).
 - Suggested first batch (unambiguous one-liners, high impact): items 9, 3, 8, 6,
   7, 19, 1, 17, 18. Then the hangs (24) and the near-zero cdf guard (23).
 
@@ -938,12 +938,12 @@ Or into a separate model, e.g., bootstrap.py
 - jackknife stuff
 - conditional distributions
 - approximation for discrete distributions (lattice variables). Open items:
-  - univariate `SaddlePointApprox` cdf: add the continuity correction (Daniels, 1987;
-    Butler ch. 1.2.3). Currently `poisson(3)` at `x=3` gives 0.538 vs exact 0.647. Also
-    lets `infer_t_range` handle lattice tails, which are now excluded
-  - univariate lattice pmf: Daniels' lattice form (divide the pdf by `1 - exp(-s)`) or a
-    continuity correction; see `docs/TODO_R.md` (nbconv). Decide on the API, e.g. a
-    `delta` argument as in `conditional_cdf`
+  - [x] univariate cdf continuity correction (Daniels, 1987; Butler ch. 1.2.3):
+    `cdf(..., delta=span)`, LR and BN. `infer_t_range` still excludes lattice tails
+  - [x] univariate lattice pmf: `pdf(..., delta=span)` returns `delta * f(x)`, not
+    normalized by default (integrating the density is a poor normalization for a lattice,
+    e.g. 41% relative error for `poisson(0.5)` vs 8% unnormalized). Possible refinement:
+    normalize by summing over the lattice, and Daniels' second-order terms
   - conditional cdf for a vector of interest `P(X_I >= x_I | X_J = x_J)`, continuous and
     lattice: phase F above (Kolassa & Li, 2010, section 4). Done for two variables of
     interest, `conditional_cdf(i=[a, b], delta=...)`; open for three or more

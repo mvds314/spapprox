@@ -1,4 +1,5 @@
 import itertools
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -23,6 +24,7 @@ from spapprox import (
     multivariate_norm,
     norm,
 )
+from spapprox.cgfs import binomial, poisson
 from spapprox.domain import Domain
 from spapprox.mvn import _mvn_logtail, _mvn_tail_derivatives
 from spapprox.spa import _bvn_tail_derivatives
@@ -485,6 +487,56 @@ def test_conditional_unknown_backend():
         spa.conditional_cdf(1.0, [2.0], backend="nope")
     with pytest.raises(ValueError):
         spa.conditional_cdf(1.0, [2.0], delta=0)
+
+
+@pytest.mark.parametrize("backend", ["LR", "BN"])
+@pytest.mark.parametrize(
+    "cgf, dist, x",
+    [
+        (lambda: poisson(3), sps.poisson(3), np.arange(0, 12)),
+        (lambda: binomial(20, 0.3), sps.binom(20, 0.3), np.arange(0, 15)),
+    ],
+)
+def test_univariate_lattice_cdf(cgf, dist, x, backend):
+    spa = UnivariateSaddlePointApprox(cgf())
+    got = spa.cdf(x, delta=1, backend=backend)
+    assert np.max(np.abs(got - dist.cdf(x))) < 3e-3
+    # the continuity correction is a clear improvement over the continuous formula
+    plain = spa.cdf(x[1:], backend=backend)
+    assert np.max(np.abs(got[1:] - dist.cdf(x[1:]))) < np.max(np.abs(plain - dist.cdf(x[1:])))
+
+
+def test_univariate_lattice_cdf_scale_and_t():
+    spa = UnivariateSaddlePointApprox(poisson(3))
+    x = np.arange(1, 8)
+    got = spa.cdf(x, delta=1)
+    # a lattice with span 2 gives the same probabilities
+    spa2 = UnivariateSaddlePointApprox(2 * poisson(3))
+    np.testing.assert_allclose(spa2.cdf(2 * x, delta=2), got, atol=1e-10)
+    # t solves the saddle point equation at x + delta / 2
+    np.testing.assert_allclose(spa.cdf(t=spa.cgf.dK_inv(x + 0.5), delta=1), got)
+    # continuous near the point where the saddle point is zero
+    eps = 1e-3
+    near = spa.cdf(np.array([2.5 - eps, 2.5, 2.5 + eps]), delta=1)
+    assert np.max(np.abs(np.diff(near))) < 1e-3
+    with pytest.raises(ValueError):
+        spa.cdf(x, delta=0)
+
+
+@pytest.mark.parametrize("lam", [3, 0.5])
+def test_univariate_lattice_pmf(lam):
+    spa = UnivariateSaddlePointApprox(poisson(lam))
+    x = np.arange(1, 12)
+    pmf = sps.poisson(lam).pmf(x)
+    # not normalized by default: integrating the density is a poor normalization for a lattice
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        got = spa.pdf(x, delta=1)
+    np.testing.assert_allclose(got, spa.pdf(x, delta=1, normalize_pdf=False))
+    assert np.max(np.abs(got / pmf - 1)) < 0.09
+    np.testing.assert_allclose(spa.pdf(x, delta=2), 2 * got)
+    with pytest.raises(ValueError):
+        spa.pdf(x, delta=-1)
 
 
 def _poisson_sum(lams, A):
