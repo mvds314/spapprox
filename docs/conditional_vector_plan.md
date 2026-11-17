@@ -1,6 +1,6 @@
 # Plan: conditional tail of a vector of interest (Kolassa & Li 2010, section 4)
 
-Status: not started. Parent: phase F of `docs/conditional_cdf_plan.md`.
+Status: F1 (two variables of interest) done, see `conditional_cdf(i=[a, b])`; F2 open. Parent: phase F of `docs/conditional_cdf_plan.md`.
 
 Goal: `MultivariateSaddlePointApprox.conditional_cdf`-style approximation of
 
