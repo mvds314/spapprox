@@ -945,7 +945,8 @@ Or into a separate model, e.g., bootstrap.py
     continuity correction; see `docs/TODO_R.md` (nbconv). Decide on the API, e.g. a
     `delta` argument as in `conditional_cdf`
   - conditional cdf for a vector of interest `P(X_I >= x_I | X_J = x_J)`, continuous and
-    lattice: phase F above (Kolassa & Li, 2010, section 4)
+    lattice: phase F above (Kolassa & Li, 2010, section 4). Done for two variables of
+    interest, `conditional_cdf(i=[a, b], delta=...)`; open for three or more
 - bootstrap for estimating equations (Kuonen, 1998, particularly bootstrap for robust estimators)
 - quadratic forms (Kuonen 2001)
 - mixture models
