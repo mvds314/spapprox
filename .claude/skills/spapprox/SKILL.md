@@ -192,6 +192,9 @@ mean *without bootstrapping* -- see `examples/example_nonparametric_bootstrap.py
   when conditioning on `T1 = given`). `from_resampling(psi, x, weights, given)` builds it
   for `sum_i psi(x_i; tau) W_i`: the bootstraps, the jackknife (Booth and Butler, 1990).
   Not a `SaddlePointApprox` subclass, since it holds a family of cgfs.
+- `MultivariateEstimatingEquationSaddlePointApprox(psi, x, weights, given=None)` --
+  vector `tau`, weighted structure only: joint pdf, `fit_pdf` grid, marginal
+  pdf/cdf/ppf, `mean`, `cov`.
 
 `cdf` has two interchangeable backends selected by `backend=`: `"LR"`
 (Lugannani-Rice, the default) and `"BN"` (Barndorff-Nielsen). Both are singular

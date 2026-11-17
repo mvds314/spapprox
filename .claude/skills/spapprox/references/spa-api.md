@@ -8,6 +8,7 @@ SaddlePointApprox (ABC)
     `-- BivariateSaddlePointApprox
 
 EstimatingEquationSaddlePointApprox   (standalone, wraps the above per tau)
+MultivariateEstimatingEquationSaddlePointApprox   (standalone, vector tau)
 ```
 
 ## Contents
@@ -260,3 +261,23 @@ univariate LR cdf, or `conditional_cdf(0, given, i=1)`, at each $\tau$.
   discrete, so `pdf` raises `ValueError`.
 - Each $\tau$ builds a new cgf and solves a saddle point equation: about 0.07 s per
   conditional cdf point for $n=25$.
+
+### Vector-valued estimating equations
+
+`MultivariateEstimatingEquationSaddlePointApprox(psi, x, weights, given=None, dpsi=None,
+bracket=None)` approximates the density of the root $\hat\tau\in\mathbb{R}^p$ of
+$\sum_i \psi(x_i;\tau) W_i = 0$, with `psi(x, tau)` returning shape `(n, p)` and `dpsi`
+shape `(n, p, p)` (central differences by default). Unlike the scalar class it needs the
+weighted structure, since the scalar Jacobian trick $\partial_\tau K/\hat s_S$ has no matrix
+analogue:
+
+$$f(\tau) \approx \Big|\det \textstyle\sum_i K_W'(a_i)\,\partial\psi_i/\partial\tau^\top\Big|
+\, f_{T,S}(t, 0) / f_T(t), \qquad a_i = s_T + s_S^\top \psi_i .$$
+
+- The joint saddlepoint is solved directly (damped Newton, vectorized weight cgf, warm
+  start from the previous point); no cgf objects are built per point, about 3-7 ms per point.
+  NaN where it fails, e.g. outside the convex hull.
+- `fit_pdf(bracket, num)` tabulates on a `num**p` tensor grid; normalization, `marginal_pdf`,
+  `marginal_cdf`, `marginal_ppf`, `mean` and `cov` use the table.
+- Checks (tested): `p=1` equals the scalar class's unnormalized pdf; the vector mean under
+  Poisson weights given $n$ equals the multivariate empirical-mean density (the cut).

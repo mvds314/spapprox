@@ -2694,3 +2694,342 @@ class EstimatingEquationSaddlePointApprox:
         Variance of :math:`\hat\tau`, from the tabulated cdf, see :meth:`fit_cdf`.
         """
         return self._moment(2) - self._moment(1) ** 2
+
+
+class MultivariateEstimatingEquationSaddlePointApprox:
+    r"""
+    Saddle point approximation of the density of the root :math:`\hat\tau\in\mathbb{R}^p` of a
+    weighted estimating equation
+
+    .. math::
+        S(\tau)=\sum_{i=1}^n\psi(x_i;\tau)W_i=0,
+
+    with :math:`\psi(x_i;\tau)\in\mathbb{R}^p` and i.i.d. random weights :math:`W_i`, possibly
+    conditional on :math:`T=\sum_i W_i=t`. This is the vector version of
+    :class:`EstimatingEquationSaddlePointApprox`, see there for the resampling schemes that
+    follow from the choice of the weights.
+
+    The density is, see [1], [2] and [3] Section 9.5.2,
+
+    .. math::
+        f(\tau) \approx \left|\det\mathbb{E}_{\hat s}\left[\frac{\partial S(\tau)}
+        {\partial\tau^T}\right]\right| f_{S(\tau)\mid T}(0\mid t),
+
+    where the expectation is under the exponential tilt :math:`\hat s` at which the mean of
+    :math:`(T,S(\tau))` is :math:`(t,0)`. With :math:`a_i=\hat s_T+\hat s_S^T\psi(x_i;\tau)`
+    and :math:`K_W` the cumulant generating function of the weights, the tilted weights are
+    independent with means :math:`K_W'(a_i)`, so that
+
+    .. math::
+        \mathbb{E}_{\hat s}\left[\frac{\partial S(\tau)}{\partial\tau^T}\right]
+        = \sum_i K_W'(a_i)\frac{\partial\psi(x_i;\tau)}{\partial\tau^T}.
+
+    The density of :math:`S(\tau)` at zero, given :math:`T=t`, is the ratio of the saddle point
+    densities of :math:`(T,S(\tau))` at :math:`(t, 0)`, whose cumulant generating function is
+    :math:`K(s;\tau)=\sum_i K_W(s_T+s_S^T\psi(x_i;\tau))`, and of :math:`T`, whose cumulant
+    generating function is :math:`nK_W`. Without conditioning, :math:`s_T` is dropped and the
+    density of :math:`S(\tau)` at zero is used. The saddle point equations are solved by damped
+    Newton iterations, with the analytic derivatives of :math:`K_W`.
+
+    For :math:`p=1` this reproduces the density of :class:`EstimatingEquationSaddlePointApprox`.
+    That class uses that the tilted Jacobian equals :math:`\partial_\tau K(\hat s;\tau)/\hat s_S`,
+    which has no matrix analogue. Therefore, this class requires the weighted structure.
+
+    Parameters
+    ----------
+    psi : callable
+        ``psi(x, tau)`` returns the array :math:`(\psi(x_i;\tau))_i` of shape ``(n, p)``.
+    x : array_like
+        The observations, one per row.
+    weights : UnivariateCumulantGeneratingFunction
+        The cgf of the weights, e.g., ``poisson(1)`` or ``exponential()``.
+    given : float, optional
+        The value of :math:`\sum_i W_i` to condition on.
+    dpsi : callable, optional
+        ``dpsi(x, tau)`` returns the derivatives :math:`\partial\psi(x_i;\tau)/\partial\tau^T`
+        as an array of shape ``(n, p, p)``. By default, central differences of ``psi``.
+    bracket : sequence of pairs, optional
+        For each component of :math:`\tau`, an interval containing (almost all of) the
+        distribution. Needed for the normalization and :meth:`fit_pdf`.
+
+    References
+    ----------
+    [1] Skovgaard (1990) - On the density of minimum contrast estimators
+    [2] Strawderman, Casella and Wells (1996) - Practical small-sample asymptotics for
+        regression problems
+    [3] Davison and Hinkley (1997) - Bootstrap methods and their application
+    """
+
+    def __init__(self, psi, x, weights, given=None, dpsi=None, bracket=None):
+        if not isinstance(weights, UnivariateCumulantGeneratingFunction):
+            raise TypeError("weights must be a UnivariateCumulantGeneratingFunction")
+        if not callable(psi):
+            raise TypeError("psi must be callable")
+        self.psi = psi
+        self.dpsi = dpsi
+        self.x = np.asanyarray(x, dtype=float)
+        self.n = len(self.x)
+        self.weights = weights
+        self.given = None if given is None else float(given)
+        self.bracket = None
+        if bracket is not None:
+            bracket = np.asarray(bracket, dtype=float)
+            if (
+                bracket.ndim != 2
+                or bracket.shape[1] != 2
+                or np.any(bracket[:, 0] >= bracket[:, 1])
+            ):
+                raise ValueError("bracket must be a sequence of increasing (lo, hi) pairs")
+            self.bracket = bracket
+
+    def _psi(self, tau):
+        z = np.asarray(self.psi(self.x, tau), dtype=float)
+        if z.shape != (self.n, len(tau)):
+            raise ValueError(f"psi must return an array of shape ({self.n}, {len(tau)})")
+        return z
+
+    def _dpsi(self, tau):
+        p = len(tau)
+        if self.dpsi is not None:
+            d = np.asarray(self.dpsi(self.x, tau), dtype=float)
+            if d.shape != (self.n, p, p):
+                raise ValueError(f"dpsi must return an array of shape ({self.n}, {p}, {p})")
+            return d
+        d = np.empty((self.n, p, p))
+        for j in range(p):
+            h = 1e-5 * max(1.0, abs(tau[j]))
+            e = np.zeros(p)
+            e[j] = h
+            d[:, :, j] = (self._psi(tau + e) - self._psi(tau - e)) / (2 * h)
+        return d
+
+    def _design(self, z):
+        """The vectors :math:`(1,\\psi_i)`, or :math:`\\psi_i` without conditioning, and the
+        target of the saddle point equation."""
+        if self.given is None:
+            return z, np.zeros(z.shape[1])
+        A = np.hstack([np.ones((self.n, 1)), z])
+        target = np.zeros(A.shape[1])
+        target[0] = self.given
+        return A, target
+
+    def _start(self, dim):
+        s = np.zeros(dim)
+        if self.given is not None:
+            s[0] = self._marginal_saddle
+        return s
+
+    @property
+    def _marginal_saddle(self):
+        """Saddle point of :math:`T=\\sum_i W_i` at ``given``."""
+        if not hasattr(self, "_marginal_saddle_cache"):
+            self._marginal_saddle_cache = float(self.weights.dK_inv(self.given / self.n))
+        return self._marginal_saddle_cache
+
+    def _solve(self, A, target, s, max_iter=100):
+        r"""
+        Minimize :math:`\sum_i K_W(A_i s)-s\cdot\text{target}` by Newton iterations with
+        backtracking, starting from ``s``. Returns NaN if there is no minimum, i.e., if the
+        target is not in the interior of the convex hull of the support, and also once the
+        objective has decreased so much that the density underflows.
+        """
+        Kw = self.weights
+
+        def objective(s):
+            return np.sum(Kw.K(A @ s)) - s @ target
+
+        obj = objective(s)
+        if not np.isfinite(obj):
+            return np.full_like(s, np.nan)
+        floor = obj - 750
+        for _ in range(max_iter):
+            a = A @ s
+            g = A.T @ Kw.dK(a) - target
+            H = (A * Kw.d2K(a)[:, None]).T @ A
+            try:
+                step = np.linalg.solve(H, g)
+            except np.linalg.LinAlgError:
+                break
+            decrement = g @ step
+            if not np.isfinite(decrement):
+                break
+            if decrement < 1e-20:
+                return s
+            lam = 1.0
+            for _ in range(50):
+                s_new = s - lam * step
+                obj_new = objective(s_new)
+                if np.isfinite(obj_new) and obj_new <= obj - 1e-4 * lam * decrement:
+                    break
+                lam /= 2
+            else:
+                break
+            s, obj = s_new, obj_new
+            if obj < floor:
+                break
+        return np.full_like(s, np.nan)
+
+    def _pdf_at(self, tau):
+        tau = np.asarray(tau, dtype=float)
+        if not np.all(np.isfinite(tau)):
+            return np.nan
+        z = self._psi(tau)
+        A, target = self._design(z)
+        s = getattr(self, "_last_s", None)
+        if s is None or len(s) != A.shape[1]:
+            s = self._start(A.shape[1])
+        s = self._solve(A, target, s)
+        if np.isnan(s).any() and hasattr(self, "_last_s"):
+            s = self._solve(A, target, self._start(A.shape[1]))
+        if np.isnan(s).any():
+            return np.nan
+        self._last_s = s
+        Kw = self.weights
+        a = A @ s
+        H = (A * Kw.d2K(a)[:, None]).T @ A
+        sign, logdet = np.linalg.slogdet(H)
+        if sign <= 0:
+            return np.nan
+        logf = np.sum(Kw.K(a)) - s @ target - (len(s) * np.log(2 * np.pi) + logdet) / 2
+        if self.given is not None:
+            u = self._marginal_saddle
+            logf -= self.n * Kw.K(u) - u * self.given
+            logf += np.log(2 * np.pi * self.n * Kw.d2K(u)) / 2
+        J = np.einsum("i,ijk->jk", Kw.dK(a), self._dpsi(tau))
+        return abs(np.linalg.det(J)) * np.exp(logf)
+
+    def pdf(self, tau, normalize_pdf=True, fillna=np.nan):
+        r"""
+        Saddle point approximation of the density of :math:`\hat\tau`.
+
+        Parameters
+        ----------
+        tau : array_like
+            Values of the parameter, of shape ``(..., p)``.
+        normalize_pdf : bool, optional
+            Whether to normalize the density to integrate to one over ``bracket``, with the
+            trapezoidal rule on the grid of :meth:`fit_pdf`. Default is ``True``, which
+            requires a ``bracket``.
+        fillna : float, optional
+            The value to replace NaNs with.
+        """
+        tau = np.asarray(tau, dtype=float)
+        if tau.ndim == 0:
+            raise ValueError("tau must have shape (..., p)")
+        pts = tau.reshape(-1, tau.shape[-1])
+        y = np.array([self._pdf_at(t) for t in pts]).reshape(tau.shape[:-1])
+        if normalize_pdf:
+            y = y / self._pdf_normalization
+        y = np.where(np.isnan(y), fillna, y)
+        return float(y) if y.ndim == 0 else y
+
+    def fit_pdf(self, bracket=None, num=41):
+        r"""
+        Tabulate the unnormalized density on a tensor grid of ``num`` equidistant points per
+        component of ``bracket``, i.e., on ``num**p`` points. The table is used for the
+        normalization of :meth:`pdf`, and for :meth:`marginal_pdf`, :meth:`marginal_cdf`,
+        :meth:`marginal_ppf`, :meth:`mean` and :meth:`cov`. Where the approximation is not
+        defined, typically outside the support, the density is set to zero.
+        """
+        bracket = self.bracket if bracket is None else np.asarray(bracket, dtype=float)
+        if bracket is None:
+            raise ValueError("Supply a bracket of tau values")
+        axes = [np.linspace(lo, hi, num) for lo, hi in bracket]
+        grid = np.stack(np.meshgrid(*axes, indexing="ij"), axis=-1)
+        f = np.nan_to_num(self.pdf(grid, normalize_pdf=False))
+        total = f
+        for ax in reversed(axes):
+            total = trapezoid(total, ax, axis=-1)
+        if not total > 0:
+            raise ValueError("The density could not be evaluated on the bracket")
+        self._grid_axes_cache, self._grid_pdf_cache = axes, f
+        self._pdf_normalization_cache = float(total)
+        return self
+
+    def _fitted(self):
+        if not hasattr(self, "_grid_pdf_cache"):
+            if self.bracket is None:
+                raise ValueError("Normalizing the pdf requires a bracket, or normalize_pdf=False")
+            self.fit_pdf()
+        return self._grid_axes_cache, self._grid_pdf_cache / self._pdf_normalization_cache
+
+    @property
+    def _pdf_normalization(self):
+        if not hasattr(self, "_pdf_normalization_cache"):
+            self._fitted()
+        return self._pdf_normalization_cache
+
+    def _marginal(self, j):
+        axes, f = self._fitted()
+        j = operator.index(j) % len(axes)
+        for k in reversed(range(len(axes))):
+            if k != j:
+                f = trapezoid(f, axes[k], axis=k)
+        return axes[j], f
+
+    def marginal_pdf(self, j, tau_j):
+        r"""
+        Density of the component :math:`\hat\tau_j`, by integrating the tabulated density over
+        the other components, see :meth:`fit_pdf`, and interpolating linearly.
+        """
+        ax, f = self._marginal(j)
+        return np.interp(tau_j, ax, f, left=0.0, right=0.0)
+
+    def marginal_cdf(self, j, tau_j):
+        r"""
+        Cumulative distribution function of the component :math:`\hat\tau_j`, from
+        :meth:`marginal_pdf` integrated with the trapezoidal rule.
+        """
+        ax, f = self._marginal(j)
+        F = np.concatenate([[0.0], np.cumsum((f[1:] + f[:-1]) / 2 * np.diff(ax))])
+        return np.interp(tau_j, ax, F / F[-1], left=0.0, right=1.0)
+
+    def marginal_ppf(self, j, q):
+        r"""
+        Inverse of :meth:`marginal_cdf`.
+        """
+        q = np.asarray(q, dtype=float)
+        if np.any((q < 0) | (q > 1)):
+            raise ValueError("q must lie in [0, 1]")
+        ax, _ = self._marginal(j)
+        F = self.marginal_cdf(j, ax)
+        # Restrict to the strictly increasing part, so that the inverse is well defined
+        keep = np.concatenate([[True], np.diff(F) > 0])
+        return np.interp(q, F[keep], ax[keep])
+
+    def mean(self):
+        r"""
+        Mean of :math:`\hat\tau`, from the tabulated density, see :meth:`fit_pdf`.
+        """
+        return np.array([trapezoid(ax * f, ax) for ax, f in map(self._marginal, range(self.p))])
+
+    def cov(self):
+        r"""
+        Covariance matrix of :math:`\hat\tau`, from the tabulated density, see :meth:`fit_pdf`.
+        """
+        axes, f = self._fitted()
+        grid = np.stack(np.meshgrid(*axes, indexing="ij"), axis=-1)
+        mu = self.mean()
+        d = grid - mu
+        integrand = d[..., :, None] * d[..., None, :] * f[..., None, None]
+        for k in reversed(range(len(axes))):
+            integrand = trapezoid(integrand, axes[k], axis=k)
+        return integrand
+
+    @property
+    def p(self):
+        """Dimension of :math:`\\tau`, known once the density is tabulated or a bracket given."""
+        if hasattr(self, "_grid_axes_cache"):
+            return len(self._grid_axes_cache)
+        if self.bracket is not None:
+            return len(self.bracket)
+        raise ValueError("Unknown dimension: supply a bracket or call fit_pdf")
+
+    def clear_cache(self):
+        """
+        Clear the tabulated density and the cached saddle points.
+        """
+        for attr in [k for k in vars(self) if k.endswith("_cache")]:
+            delattr(self, attr)
+        if hasattr(self, "_last_s"):
+            del self._last_s

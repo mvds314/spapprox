@@ -53,7 +53,8 @@ cut theorem of the paper).
 
 ## Not done
 
-- Vector-valued estimating equations.
+- Vector-valued estimating equations: done separately, see
+  `docs/vector_estimating_equations_plan.md`.
 
 ## Continuity correction (follow-up)
 
