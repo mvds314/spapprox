@@ -623,6 +623,100 @@ def test_conditional_input_shapes():
         spa.conditional_cdf(xs, [0.0, 1.0], i=0)
 
 
+@pytest.mark.parametrize("dim", [3, 4])
+def test_conditional_vector_normal(dim):
+    # The conditional distribution of two components of a normal vector is exact
+    rng = np.random.default_rng(dim)
+    L = rng.normal(size=(dim, dim))
+    cov = L @ L.T + dim * np.eye(dim)
+    loc = rng.normal(size=dim)
+    spa = MultivariateSaddlePointApprox(multivariate_norm(loc=loc, cov=cov))
+    I, J = [2, 0], [j for j in range(dim) if j not in (0, 2)]  # noqa: E741
+    xJ = loc[J] + 0.5
+    B = cov[np.ix_(I, J)] @ np.linalg.inv(cov[np.ix_(J, J)])
+    ref = sps.multivariate_normal(
+        loc[I] + B @ (xJ - loc[J]), cov[np.ix_(I, I)] - B @ cov[np.ix_(J, I)]
+    )
+    x = ref.mean + np.array([[0.5, -0.7], [1.5, 2.0], [-2.0, -1.0], [0.0, 0.0]])
+    assert np.allclose(spa.conditional_cdf(x, xJ, i=I), ref.cdf(x), atol=1e-6)
+    # The order of the variables of interest does not matter
+    assert np.allclose(spa.conditional_cdf(x[:, ::-1], xJ, i=I[::-1]), ref.cdf(x), atol=1e-6)
+
+
+def _dirichlet_spa(n):
+    """Means of (X2, X3, X1 + X2 + X3) for X_k iid gamma(n), Kolassa and Li (2010), Table 3."""
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(
+        *[gamma(a=n, scale=1 / n) for _ in range(3)]
+    )
+    return MultivariateSaddlePointApprox(cgf.ldot([[0, 1, 0], [0, 0, 1], [1, 1, 1]]))
+
+
+@pytest.mark.parametrize(
+    "y, paper, exact",
+    [
+        # Point, approximation of [Kolassa and Li (2010), Table 3], exact value
+        ((2.5, 2.5, 7.0), 6.25e-2, 6.3187e-2),
+        ((3.0, 3.0, 7.0), 3.02e-4, 3.4577e-4),
+        ((2.5, 3.0, 6.5), 5.25e-4, 6.0910e-4),
+        ((3.0, 3.0, 6.5), 9.63e-7, 1.0981e-6),
+        # Omitted in the paper as w_1 = 0, resp. tilde tau_2(0) = w_2 = 0
+        ((2.0, 3.0, 7.0), None, 4.7381e-2),
+        ((2.0, 2.5, 7.0), None, 1.9430e-1),
+    ],
+)
+def test_conditional_vector_dirichlet(y, paper, exact):
+    # P(Y1 >= y1, Y2 >= y2 | Y3 = y3), with (Y1, Y2) / Y3 Dirichlet distributed
+    spa = _dirichlet_spa(10)
+    x, given = np.array(y[:2]) / y[2] * 3, [3.0]
+    F = spa.conditional_cdf(x, given, i=[0, 1])
+    F1 = spa[[0, 2]].conditional_cdf(x[0], given)
+    F2 = spa[[1, 2]].conditional_cdf(x[1], given)
+    sf = 1 - F1 - F2 + F
+    if paper is not None:
+        assert sf == pytest.approx(paper, rel=0.025)
+    assert sf == pytest.approx(exact, rel=0.15)
+
+
+def test_conditional_vector_continuous_at_singularity():
+    # w_1 = 0 at x = (6 / 7, 15 / 14), where the formulas are interpolated
+    spa = _dirichlet_spa(10)
+    xs = 6 / 7 + np.array([-1e-2, -1e-3, 0.0, 1e-3, 1e-2])
+    F = spa.conditional_cdf(np.column_stack([xs, np.full(5, 15 / 14)]), [3.0], i=[0, 1])
+    assert np.all(np.diff(F) > 0)
+    assert np.allclose(np.diff(F, 2)[1:-1], 0, atol=1e-5)
+
+
+def test_conditional_vector_lattice_multinomial():
+    # (N1, N2) given N1 + N2 + N3 = s is multinomial
+    lams, s = np.array([2.0, 3.0, 4.0]), 12
+    spa = MultivariateSaddlePointApprox(_poisson_sum(lams, [[1, 0, 1], [0, 1, 1], [0, 0, 1]]))
+    x = np.array([[1, 2], [2, 3], [3, 4], [4, 2]], dtype=float)
+    pmf = lambda a, b: sps.multinomial.pmf([a, b, s - a - b], s, lams / lams.sum())
+    exact = [sum(pmf(a, b) for a in range(u + 1) for b in range(v + 1)) for u, v in x.astype(int)]
+    assert np.allclose(spa.conditional_cdf(x, [s], i=[0, 1], delta=1), exact, rtol=1e-2)
+    # Without the lattice correction the approximation is bad
+    assert not np.allclose(spa.conditional_cdf(x, [s], i=[0, 1]), exact, rtol=0.2)
+
+
+def test_conditional_vector_input_validation():
+    spa = _dirichlet_spa(10)
+    x = np.array([0.9, 1.1])
+    # A single variable of interest given as a list falls back to the scalar case
+    assert spa.conditional_cdf([0.9], [1.1, 3.0], i=[0]) == pytest.approx(
+        spa.conditional_cdf(0.9, [1.1, 3.0], i=0)
+    )
+    with pytest.raises(NotImplementedError):
+        spa.conditional_cdf([0.5, 0.5, 0.5], [], i=[0, 1, 2])
+    with pytest.raises(ValueError):
+        spa.conditional_cdf(x, [3.0], i=[0, 0])
+    with pytest.raises(ValueError):
+        spa.conditional_cdf(x, [3.0], i=[0, 1], backend="Kolassa")
+    with pytest.raises(ValueError):
+        spa.conditional_cdf(x, [3.0], i=[0, 1], delta=[1.0, -1.0])
+    with pytest.raises(ValueError):
+        spa.conditional_cdf(x, [3.0, 1.0], i=[0, 1])
+
+
 def test_ppf_with_t0():
     spa = UnivariateSaddlePointApprox(norm())
     q = np.array([0.2, 0.7])

@@ -911,8 +911,16 @@ Or into a separate model, e.g., bootstrap.py
   - normalize `conditional_pdf` (quadrature over `x_i`), or add the second-order pdf correction
   - make the `condition()` stub delegate to `conditional_cdf` / `conditional_pdf`, or remove it
   - `P1`, the first continuity correction of Butler (4.15)-(4.16), for comparison with `P2`
-  - vector of interest, `P(X_I >= x_I | X_J = x_J)`: phase F, Kolassa & Li (2010) section 4.
-    Large, needs its own plan
+  - vector of interest, `P(X_I >= x_I | X_J = x_J)`: phase F, Kolassa & Li (2010) section 4,
+    see `docs/conditional_vector_plan.md`. F1, two variables of interest, is done:
+    `conditional_cdf(x, given, i=[a, b], delta=...)`, continuous and lattice. Open: F2,
+    three or more variables of interest
+  - the bivariate `"KL"` cdf, also conditional, drops the `I^{1,2}` term of Kolassa & Li
+    (2010). Its relative error therefore does not vanish at a fixed large deviation point:
+    for two independent gamma(n) means at (1.3, 1.25) it is -2.4%, -1.2%, -0.85% for
+    n = 10, 40, 160, where the product of the Lugannani-Rice marginals converges at 1/n.
+    For independent components the missing term is `phi(w1) phi(w2) f1 f2`, with
+    `f_j = 1/u_j - 1/w_j`. Consider adding it
   - non-linear conditioning `Z = g(X, Y)`: phase G, Wang (1993). Lower priority
 - implement Dirichlet bootstrap
 - implement multivariate saddle point approximations

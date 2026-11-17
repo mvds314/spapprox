@@ -60,6 +60,8 @@ For a random vector, the distribution of one component given the others,
 $P(X_i \leq x \mid X_J = x_J)$, is approximated with the double saddle point approximation of Skovgaard (1987),
 or the second order version of Kolassa (1996) with `backend="Kolassa"`.
 Use `delta=1` for a discrete variable of interest.
+For two variables of interest, pass `i=[a, b]` to get
+$P(X_a \leq x_a, X_b \leq x_b \mid X_J = x_J)$, following Kolassa and Li (2010).
 
 ```python
 cgf = spa.multivariate_norm(loc=[0, 0], cov=[[1, 0.5], [0.5, 1]])
