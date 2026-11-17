@@ -779,6 +779,30 @@ def test_ppf_with_t0():
     assert np.allclose(spa.ppf(q, t0=np.zeros(2)), sps.norm.ppf(q), atol=1e-4)
 
 
+@pytest.mark.parametrize(
+    "cgf, support",
+    [
+        (norm(), (-np.inf, np.inf)),
+        (laplace(), (-np.inf, np.inf)),
+        (gamma(a=2, scale=3), (0, np.inf)),
+        (exponential(scale=2) + 1, (1, np.inf)),
+        (-2 * gamma(a=2), (-np.inf, 0)),
+        (poisson(3), (0, np.inf)),
+        (binomial(5, 0.3), (0, 5)),
+        (univariate_empirical(np.array([1.0, 2.0, 5.0])), (1, 5)),
+    ],
+)
+def test_ppf_at_zero_and_one_returns_support(cgf, support):
+    spa = UnivariateSaddlePointApprox(cgf)
+    assert spa.support() == support
+    assert spa.ppf(0.0) == support[0] and spa.ppf(1.0) == support[1]
+    q = spa.ppf(np.array([1.0, 0.5, 0.0]))
+    assert q[0] == support[1] and q[2] == support[0]
+    assert np.isclose(q[1], spa.ppf(0.5))
+    spa.fit_ppf()
+    assert np.array_equal(spa.ppf(np.array([0.0, 1.0])), support)
+
+
 def test_fit_ppf_after_fit_saddle_point_eqn():
     qs = np.array([0.025, 0.3, 0.5, 0.975])
     spa = UnivariateSaddlePointApprox(norm())

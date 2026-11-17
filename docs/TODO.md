@@ -698,11 +698,14 @@ Contract violations and silently wrong results in narrower situations.
 - **Fix:** logsumexp / max-shifted softmax.
 - **Fixed:** Regression test: `test_univariate_empirical_no_overflow` in `tests/test_cgfs.py`.
 
-### [ ] 52. `ppf(0)` / `ppf(1)` return arbitrary finite values
+### [x] 52. `ppf(0)` / `ppf(1)` return arbitrary finite values
 
 - **Where:** `spapprox/spa.py:315`, `361-380`
 - **Repro:** `norm()`: `ppf(0.)` -> -64, `ppf(1.)` -> 16.
 - **Fix:** return the support bounds (e.g. `-inf`/`inf`).
+- **Fixed:** `ppf(0)` and `ppf(1)` return `support()`, the limits of `K'(t)` at the bounds of
+  the domain of `K`, found by stepping `t` geometrically towards each bound (Aitken
+  extrapolated), e.g. `(0, inf)` for `gamma`, `(min(x), max(x))` for `univariate_empirical`.
 
 ### [x] 53. pdf normalization over a truncated `t` range biases exact cases
 

@@ -112,6 +112,10 @@ numerically with the same method cascade used by `cgf.dK_inv` -- `newton`,
 `secant`, then bracketing methods -- locating a bracket by walking `+/-0.9**i` and
 widening with Fibonacci scalings `1 - 1/fib(i)`.
 
+`q == 0` and `q == 1` short-circuit to `support()`: the limits of $K'(t)$ at the
+bounds of the domain of $K$, found by stepping $t$ geometrically towards each bound
+and Aitken-extrapolating; divergence gives `-inf`/`inf`. Cached in `_support_cache`.
+
 ## Normalization
 
 The saddle point density does not integrate to one, so `pdf` divides by

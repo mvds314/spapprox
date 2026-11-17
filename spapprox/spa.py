@@ -457,8 +457,22 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             The values at which to evaluate the inverse cumulative distribution function.
         fillna : float, optional
             The value to replace NaNs with.
+
+        Notes
+        -----
+        For ``q`` equal to 0 or 1, the lower or upper bound of the support is returned, see
+        :meth:`support`.
         """
         assert np.all((0 <= np.asanyarray(q)) & (np.asanyarray(q) <= 1))
+        edge = (q == 0) | (q == 1)
+        if np.any(edge):
+            lower, upper = self.support()
+            out = np.where(q == 0, lower, upper).astype(float)
+            if not np.all(edge):
+                if t0 is not None and np.ndim(t0) > 0:
+                    t0 = np.asanyarray(t0)[~edge]
+                out[~edge] = self.ppf(q[~edge], fillna=fillna, t0=t0, ttol=ttol, **kwargs)
+            return out
         if hasattr(self, "_cdf_cache") and hasattr(self, "_ppf_t_cache"):
             t = np.interp(q, self._cdf_cache, self._ppf_t_cache)
         else:
@@ -570,6 +584,46 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
                         [self.ppf(qq, t0=None if t0 is None else t0[i]) for i, qq in enumerate(q)]
                     )
         return self.cgf.dK(t)
+
+    def support(self):
+        r"""
+        Lower and upper bound of the support of the random variable, possibly infinite.
+
+        The support is the closure of the range of :math:`K'`, so its bounds are the limits of
+        :math:`K'(t)` as :math:`t` tends to the bounds of the domain of :math:`K`. They are
+        approximated by stepping :math:`t` geometrically towards each bound: if :math:`K'(t)`
+        converges, its limit is returned, otherwise an infinite bound.
+
+        Returns
+        -------
+        tuple of float
+        """
+        if not hasattr(self, "_support_cache"):
+            self._support_cache = tuple(
+                self._support_bound(b, s) for b, s in zip(self._t_domain_bounds(), (-1, 1))
+            )
+        return self._support_cache
+
+    def _support_bound(self, t_bound, sign, max_iter=60, rtol=1e-10):
+        k = np.arange(max_iter)
+        if np.isinf(t_bound):
+            ts = sign * 2.0**k
+        else:
+            ts = t_bound * (1 - 2.0 ** (-k))
+        # Near a finite bound, t no longer moves in floating point
+        ts = ts[: np.argmax(np.diff(ts) == 0) + 1] if np.any(np.diff(ts) == 0) else ts
+        with np.errstate(all="ignore"):
+            xs = np.asarray(self.cgf.dK(ts), dtype=float)
+            sd = float(np.sqrt(self.cgf.d2K0))
+        xs = xs[: np.argmax(np.isnan(xs))] if np.any(np.isnan(xs)) else xs
+        if len(xs) < 3 or np.isinf(xs[-1]):
+            return sign * np.inf
+        d1, d2 = xs[-1] - xs[-2], xs[-2] - xs[-3]
+        if np.abs(d1) > rtol * max(sd, np.abs(xs[-1])):
+            return sign * np.inf
+        # Aitken extrapolation of the (typically geometric) convergence
+        limit = xs[-1] - d1**2 / (d1 - d2) if d1 != d2 else xs[-1]
+        return 0.0 if np.abs(limit) <= rtol * sd else float(limit)
 
     def _t_domain_bounds(self):
         """
