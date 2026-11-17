@@ -1418,3 +1418,34 @@ def test_estimating_equation_dirichlet():
     # The mean is off by about 0.01, a saddle point error of 0.6% of the standard deviation
     assert np.isclose(ee.mean(), x.mean(), atol=0.02)
     assert np.isclose(ee.var(), x.var() / (n + 1), rtol=0.02)
+
+
+@pytest.mark.parametrize("decreasing", [True, False])
+def test_estimating_equation_lattice_bootstrap(decreasing):
+    # Multinomial bootstrap of a mean of integer data: by the cut, the lattice corrected cdf
+    # equals that of the sum of n draws from the empirical distribution, and the exact
+    # distribution is the n-fold convolution of the empirical distribution
+    x = np.array([0, 1, 1, 2, 2, 3, 3, 4, 6, 9.0])
+    n, sign = len(x), 1 if decreasing else -1
+    ee = EstimatingEquationSaddlePointApprox.from_resampling(
+        lambda x, t: sign * (x - t), x, poisson(1), given=n, decreasing=decreasing, delta=1.0
+    )
+    tau = np.array([1.5, 2.0, 2.6, 4.0])
+    k = np.floor(n * tau + 1e-9)
+    cut = UnivariateSaddlePointApprox(
+        sum([univariate_empirical(x)] * (n - 1), univariate_empirical(x))
+    )
+    assert np.allclose(ee.cdf(tau), cut.cdf(x=k, delta=1.0), atol=1e-8)
+    p = np.array([1.0])
+    for _ in range(n):
+        p = np.convolve(p, np.bincount(x.astype(int)) / n)
+    exact = np.cumsum(p)[k.astype(int)]
+    assert np.allclose(ee.cdf(tau), exact, atol=1e-3)
+    continuous = EstimatingEquationSaddlePointApprox.from_resampling(
+        lambda x, t: x - t, x, poisson(1), given=n
+    )
+    assert np.max(np.abs(continuous.cdf(tau) - exact)) > 0.01
+    with pytest.raises(ValueError):
+        ee.pdf(2.0)
+    with pytest.raises(ValueError):
+        EstimatingEquationSaddlePointApprox(ee.cgf, given=n, delta=1.0)

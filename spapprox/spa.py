@@ -2311,6 +2311,18 @@ class EstimatingEquationSaddlePointApprox:
     bracket : tuple of float, optional
         Interval of :math:`\tau` containing (almost all of) the distribution. Needed for
         :meth:`ppf`, :meth:`mean` and :meth:`var`.
+    delta : float, optional
+        Span of the lattice of :math:`S(\tau)`, given :math:`T_1=t_1`, for a discrete
+        :math:`S(\tau)`, e.g., a mean of integer data under the multinomial bootstrap or the
+        jackknife. Then the lattice-corrected cdf is used, see
+        :meth:`UnivariateSaddlePointApprox.cdf` and
+        :meth:`MultivariateSaddlePointApprox.conditional_cdf`: for decreasing :math:`S`,
+        :math:`P(S(\tau)\leq s^-)` with :math:`s^-` the largest lattice point
+        :math:`\leq 0`, for increasing :math:`S`, :math:`1-P(S(\tau)\leq s^{--})` with
+        :math:`s^{--}` the largest lattice point :math:`<0`. Default is ``None``: continuous.
+    lattice_point : callable, optional
+        Function of :math:`\tau` returning a point of the lattice of :math:`S(\tau)`.
+        Required with ``delta``; set by :meth:`from_resampling`.
 
     References
     ----------
@@ -2321,17 +2333,26 @@ class EstimatingEquationSaddlePointApprox:
     [4] Davison and Hinkley (1997) - Bootstrap methods and their application, Section 9.5
     """
 
-    def __init__(self, cgf, given=None, decreasing=True, bracket=None):
+    def __init__(
+        self, cgf, given=None, decreasing=True, bracket=None, delta=None, lattice_point=None
+    ):
         if not callable(cgf):
             raise TypeError("cgf must be a callable returning a cgf for each tau")
         if bracket is not None:
             bracket = (float(bracket[0]), float(bracket[1]))
             if not bracket[0] < bracket[1]:
                 raise ValueError("bracket must be an increasing pair")
+        if delta is not None:
+            if not delta > 0:
+                raise ValueError("delta must be positive")
+            if not callable(lattice_point):
+                raise ValueError("delta requires a callable lattice_point")
         self.cgf = cgf
         self.given = None if given is None else float(given)
         self.decreasing = bool(decreasing)
         self.bracket = bracket
+        self.delta = None if delta is None else float(delta)
+        self.lattice_point = lattice_point
 
     @classmethod
     def from_resampling(cls, psi, x, weights, given=None, **kwargs):
@@ -2358,7 +2379,11 @@ class EstimatingEquationSaddlePointApprox:
         given : float, optional
             The value of :math:`\sum_i W_i` to condition on.
         **kwargs :
-            Passed on to the constructor.
+            Passed on to the constructor. With ``delta``, the weights must be integer valued
+            and all :math:`\psi(x_i;\tau)` equal modulo ``delta`` (and multiples of ``delta``
+            without ``given``), e.g., :math:`\psi(x;\tau)=x-\tau` with integer data and
+            ``delta=1``. Then ``lattice_point`` defaults to ``given`` times
+            :math:`\psi(x_1;\tau)`.
         """
         if not isinstance(weights, UnivariateCumulantGeneratingFunction):
             raise TypeError("weights must be a UnivariateCumulantGeneratingFunction")
@@ -2372,6 +2397,10 @@ class EstimatingEquationSaddlePointApprox:
                 raise ValueError(f"psi must return a vector of length {n}")
             return W.ldot(z if given is None else np.vstack([np.ones(n), z]))
 
+        if kwargs.get("delta") is not None and kwargs.get("lattice_point") is None:
+            kwargs["lattice_point"] = lambda tau: (
+                (0.0 if given is None else given) * float(np.asarray(psi(x, tau), dtype=float)[0])
+            )
         return cls(cgf, given=given, **kwargs)
 
     def _spa(self, c):
@@ -2387,10 +2416,21 @@ class EstimatingEquationSaddlePointApprox:
         if not np.isfinite(tau):
             return np.nan
         spa = self._spa(self.cgf(tau))
-        if self.given is None:
-            p = spa.cdf(x=0.0, **solver_kwargs)
+        if self.delta is None:
+            x, kw = 0.0, {}
         else:
-            p = spa.conditional_cdf(x=0.0, given=[self.given], i=1, **solver_kwargs)
+            # Largest lattice point <= 0 (decreasing), or < 0 (increasing), with a tolerance
+            r, tol = float(self.lattice_point(tau)), 1e-9
+            k = (
+                np.floor(-r / self.delta + tol)
+                if self.decreasing
+                else np.ceil(-r / self.delta - tol) - 1
+            )
+            x, kw = r + k * self.delta, {"delta": self.delta}
+        if self.given is None:
+            p = spa.cdf(x=x, **kw, **solver_kwargs)
+        else:
+            p = spa.conditional_cdf(x=x, given=[self.given], i=1, **kw, **solver_kwargs)
         return p if self.decreasing else 1 - p
 
     def cdf(self, tau, fillna=np.nan, **solver_kwargs):
@@ -2463,6 +2503,8 @@ class EstimatingEquationSaddlePointApprox:
             The value to replace NaNs with.
         """
         tau = np.asarray(tau, dtype=float)
+        if self.delta is not None:
+            raise ValueError("For a lattice, the estimator is discrete: use cdf instead of pdf")
         wrapper = PandasWrapper(tau)
         y = np.array([self._pdf_at(t, **solver_kwargs) for t in tau.ravel()]).reshape(tau.shape)
         if normalize_pdf:

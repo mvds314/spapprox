@@ -930,7 +930,12 @@ Or into a separate model, e.g., bootstrap.py
   bootstrap, delete-m jackknife) plus examples for the permutation tests using the existing
   algebra, see `docs/estimating_equations_plan.md`. Follow ups:
   - vector-valued estimating equations (several parameters), e.g. Jensen & Wood / Strawderman
-  - continuity correction for the permutation and jackknife distributions (lattice PR)
+  - [x] continuity correction for the permutation and jackknife distributions:
+    `EstimatingEquationSaddlePointApprox(..., delta=span)`, for a lattice `S(tau)`, e.g. a
+    mean of integer data, see `examples/example_bootstrap_lattice.py`; Wilcoxon rank sum test
+    in `examples/example_permutation_two_sample.py`. The paper calls the correction for its
+    Table 1 negligible, but for the pain relief data it moves the one-sided level from 0.0486
+    to 0.0502 (exact 0.0507)
   - the analgesia data of Booth and Butler (1990), Table 1 (b), do not reproduce the published
     exact significance level (0.012; we get 0.044 one-sided); find Robinson (1982), Lehmann
     (1975) p. 92 to check the data

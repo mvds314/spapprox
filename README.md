@@ -87,6 +87,8 @@ ee.cdf([15, 18, 21])
 ee.ppf([0.05, 0.95])
 ```
 
+For a discrete $S(\tau)$, e.g., a mean of integer data under the multinomial bootstrap or the jackknife, pass `delta=1` to `from_resampling` for the continuity-corrected cdf.
+
 See the `examples/example_bootstrap_*.py`, `example_permutation_*.py` and `example_jackknife_*.py` scripts.
 
 ## Installation
