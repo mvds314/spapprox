@@ -53,4 +53,11 @@ cut theorem of the paper).
 ## Not done
 
 - Vector-valued estimating equations.
-- Continuity corrections for the discrete permutation and jackknife distributions (lattice PR).
+
+## Continuity correction (follow-up)
+
+`delta=span` (with a `lattice_point(tau)` callable, set by `from_resampling`) applies the lattice
+corrected (conditional) cdf at the largest lattice point of `S(tau)` that is `<= 0` (decreasing
+`S`) or `< 0` (increasing `S`). For the multinomial bootstrap of an integer mean it equals, by
+the cut, the lattice corrected cdf of the sum of `n` empirical draws, within about 1e-3 of the
+exact convolution, see `examples/example_bootstrap_lattice.py`.

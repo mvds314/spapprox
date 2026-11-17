@@ -13,6 +13,12 @@ Confidence intervals for a shift Delta (A ~ B + Delta) follow by test inversion:
 the interval if the permutation test of A - Delta against B does not reject at level 2.5% in
 either direction.
 
+The data lie on a lattice of span 0.1. The paper calls the continuity correction negligible
+(less than 1e-4), but for the pain relief data it moves the one-sided significance level from
+0.0486 to 0.0502, closer to the exact 0.0507: the atom at the observed sum is about 0.003. The
+correction matters even more for rank statistics, such as the Wilcoxon rank sum test at the
+end, on a lattice of span 1.
+
 Note: our exact significance level for the analgesia data (0.044 one-sided) does not match
 the 0.012 of the paper (reproduced from Robinson, 1982), probably due to a transcription
 error in the data; the pain relief data do match.
@@ -39,14 +45,21 @@ data = {
 }
 
 
-def saddle_point(A, B):
-    """Return P(T2 >= sum(A)) and P(T2 <= sum(A)) under the permutation distribution."""
+def saddle_point(A, B, delta=None):
+    """
+    Return P(T2 >= sum(A)) and P(T2 <= sum(A)) under the permutation distribution, continuity
+    corrected for a lattice of span delta if given.
+    """
     z = np.r_[A, B]
     n = len(z)
     Y = spa.MultivariateCumulantGeneratingFunction.from_univariate(*[spa.binomial(1, 0.5)] * n)
     approx = spa.BivariateSaddlePointApprox(Y.ldot(np.vstack([np.ones(n), z])))
-    F = approx.conditional_cdf(x=np.sum(A), given=[len(A)], i=1)
-    return 1 - F, F
+    obs = np.sum(A)
+    if delta is None:
+        F = approx.conditional_cdf(x=obs, given=[len(A)], i=1)
+        return 1 - F, F
+    F = approx.conditional_cdf(x=[obs - delta, obs], given=[len(A)], i=1, delta=delta)
+    return 1 - F[0], F[1]
 
 
 def exact(A, B):
@@ -86,3 +99,15 @@ for name, (A, B, paper) in data.items():
     )
     (pe0, pe1), (ps0, ps1) = paper["ci"]
     print(f"  paper (Table 1): exact ({pe0:.2f}, {pe1:.2f}), saddle point ({ps0:.2f}, {ps1:.2f})")
+
+A, B, _ = data["pain relief"]
+print("\npain relief, one-sided significance level, continuity correction for span 0.1:")
+print(f"  exact {exact(A, B)[0]:.5f}")
+print(f"  saddle point {saddle_point(A, B)[0]:.5f}, lattice {saddle_point(A, B, 0.1)[0]:.5f}")
+
+# Wilcoxon rank sum test: the permutation test applied to the ranks, a lattice of span 1
+ranks = np.argsort(np.argsort(np.r_[A, B])) + 1.0
+RA, RB = ranks[: len(A)], ranks[len(A) :]
+print(f"\nWilcoxon rank sum test, pain relief data, rank sum {RA.sum():.0f}:")
+print(f"  one-sided significance level: exact {exact(RA, RB)[0]:.5f}")
+print(f"  saddle point {saddle_point(RA, RB)[0]:.5f}, lattice {saddle_point(RA, RB, 1.0)[0]:.5f}")
