@@ -947,9 +947,11 @@ Or into a separate model, e.g., bootstrap.py
     phase A turns out not to be accurate enough
   - `fit_cdf` for the multivariate case is not implemented
   - lattice variables: continuity-corrected version of Kolassa (2003) eq. (13)
-  - bivariate `"KL"` and `"Wang"` cdf return NaN, plus `invalid value in sqrt` warnings
-    (`spa.py`, `_kl_cdf_ordered`), when a saddlepoint component is at or near zero; reproduce
-    with `examples/example_Wang1990.py`, e.g. cells (x=0, y=1.0) and (x=-1.0, y=0.0)
+  - [x] bivariate `"KL"` and `"Wang"` cdf returned NaN, plus `invalid value in sqrt` warnings,
+    in `examples/example_Wang1990.py`, e.g. cells (x=0, y=1.0) and (x=-1.0, y=0.0). Cause: `x`
+    at a marginal mean up to roundoff, so the *marginal* saddlepoint is ~1e-15 and
+    `2 (t x - K(t))` came out slightly negative. Fixed by clipping these arguments at zero
+    (`_signed_root`); regression test `test_bvar_cdf_at_marginal_mean_from_t`
 - implement other bootstraps
 - conditional distributions
 - approximation for discrete distributions (lattice variables). Open items:

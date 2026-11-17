@@ -985,6 +985,21 @@ def test_bvar_cdf_kl_continuous_near_singularities():
     assert np.allclose(vals, vals[1], atol=1e-6)
 
 
+@pytest.mark.parametrize("backend", ["KL", "Wang"])
+@pytest.mark.parametrize("pt", [[0.0, 1.0], [-1.0, 0.0]])
+def test_bvar_cdf_at_marginal_mean_from_t(backend, pt):
+    # x = K'(t) is at the marginal mean up to roundoff, so the marginal saddlepoint is ~1e-15
+    # and 2 (t x - K(t)) can be slightly negative; this used to give nan
+    n = 10
+    cgf = bivariate_gamma(a=[n, n, n], loc=-2 * n) / n
+    spa = BivariateSaddlePointApprox(cgf)
+    t = cgf.dK_inv(np.array(pt))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        val = spa.cdf(t=t, backend=backend)
+    assert np.isclose(val, spa.cdf(x=np.array(pt), backend=backend), atol=1e-8)
+
+
 def _bivariate_gamma_cdf(x, a):
     # (Z0 + Z1, Z0 + Z2) with independent Zi ~ Gamma(a[i])
     integrand = lambda z: (

@@ -1724,8 +1724,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         """
         t_outer = t.copy()
         t_outer[inner] = 0
-        return np.sign(t[inner]) * np.sqrt(
-            2 * (self.cgf.K(t_outer) - self.cgf.K(t) + t[inner] * x[inner])
+        return _signed_root(
+            np.sign(t[inner]), 2 * (self.cgf.K(t_outer) - self.cgf.K(t) + t[inner] * x[inner])
         )
 
     def _bivariate_formula(self, x, t, inner=None, **solver_kwargs):
@@ -1752,9 +1752,11 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         ti0 = np.zeros(2)
         ti0[inner] = ti
         # Calculate components
-        x1 = np.sign(ti) * np.sqrt(2 * (ti * x[inner] - self.cgf.K(ti0)))
+        x1 = _signed_root(np.sign(ti), 2 * (ti * x[inner] - self.cgf.K(ti0)))
         tw = self._inner_w0(x, t, inner)
-        w = np.sign(t[outer]) * np.sqrt(2 * (np.dot(t - ti0, x) + self.cgf.K(ti0) - self.cgf.K(t)))
+        w = _signed_root(
+            np.sign(t[outer]), 2 * (np.dot(t - ti0, x) + self.cgf.K(ti0) - self.cgf.K(t))
+        )
         b = (tw - x1) / w
         y1 = (w - b * x1) / np.sqrt(1 + np.square(b))
         tx = np.array([x1, y1])
@@ -1956,7 +1958,7 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         :math:`I^{\{2\}}` in :meth:`_kl_cdf`, in the original (unreflected) coordinates.
         """
         t0 = np.array([0.0, tt])
-        w = np.sign(tt) * np.sqrt(2 * (tt * self.cgf.dK(t0)[1] - self.cgf.K(t0)))
+        w = _signed_root(np.sign(tt), 2 * (tt * self.cgf.dK(t0)[1] - self.cgf.K(t0)))
         return 1 / (tt * np.sqrt(self.cgf.d2K(t0)[1, 1])) - 1 / w
 
     def _kl_tail(self, x, t, sg, tt, h2):
@@ -1991,9 +1993,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         t02 = np.array([0.0, tt])
         Lh = np.dot(t, x) - K(t)
         m2 = tt * x[1] - K(t02)
-        w2h = sg[1] * np.sign(tt) * np.sqrt(2 * m2)
-        w1h = np.sign(ts[0]) * np.sqrt(2 * (Lh - m2))
-        w2c = w2h - np.sign(ts[1]) * np.sqrt(2 * (Lh - t[0] * x[0] + K(t10)))
+        w2h = _signed_root(sg[1] * np.sign(tt), 2 * m2)
+        w1h = _signed_root(np.sign(ts[0]), 2 * (Lh - m2))
+        w2c = w2h - _signed_root(np.sign(ts[1]), 2 * (Lh - t[0] * x[0] + K(t10)))
         # Derivatives of the reflected cumulant generating function
         k2 = d2K(t) * np.outer(sg, sg)
         k3 = d3K(t) * np.einsum("i,j,k->ijk", sg, sg, sg)
@@ -2032,6 +2034,15 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
     def _dK_inv(self, x, **solver_kwargs):
         # TODO: implement multivariate interpolation with radial basis functions or something like that
         return super()._dK_inv(x, **solver_kwargs)
+
+
+def _signed_root(sign, arg):
+    r"""
+    :math:`\text{sign}\cdot\sqrt{\text{arg}}` for an ``arg`` that is nonnegative in exact
+    arithmetic, such as :math:`2(tx - K(t))`, but can be slightly negative due to roundoff when
+    :math:`t` is close to zero.
+    """
+    return sign * np.sqrt(np.maximum(arg, 0))
 
 
 def _vectorize_points(f, shape=()):
@@ -2249,7 +2260,7 @@ class _ConditionalBivariateApprox(BivariateSaddlePointApprox):
 
     def _kl_marginal_factor(self, tt):
         t0 = np.array([0.0, tt])
-        w = np.sign(tt) * np.sqrt(2 * (tt * self.cgf.dK(t0)[1] - self.cgf.K(t0)))
+        w = _signed_root(np.sign(tt), 2 * (tt * self.cgf.dK(t0)[1] - self.cgf.K(t0)))
         u = self._rho(tt, 1) * np.sqrt(self.cgf.d2K(t0)[1, 1]) / self.profile.r(t0)
         return 1 / u - 1 / w
 
