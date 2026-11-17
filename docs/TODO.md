@@ -8,7 +8,7 @@
 - Multivariate approximation: cdf phase A done (`backend="Kolassa"`); phase B only if
   needed, see `docs/multivariate_cdf_plan.md`
 
-- Work on bootstrap distributions (see Booth and Butler)
+- Bootstrap distributions (Booth and Butler): done, see `docs/estimating_equations_plan.md`
 
 # Bug backlog
 
@@ -914,7 +914,15 @@ Or into a separate model, e.g., bootstrap.py
   - vector of interest, `P(X_I >= x_I | X_J = x_J)`: phase F, Kolassa & Li (2010) section 4.
     Large, needs its own plan
   - non-linear conditioning `Z = g(X, Y)`: phase G, Wang (1993). Lower priority
-- implement Dirichlet bootstrap
+- resampling distributions, Booth and Butler (1990): done with
+  `EstimatingEquationSaddlePointApprox` (scalar estimating equations, multinomial and Dirichlet
+  bootstrap, delete-m jackknife) plus examples for the permutation tests using the existing
+  algebra, see `docs/estimating_equations_plan.md`. Follow ups:
+  - vector-valued estimating equations (several parameters), e.g. Jensen & Wood / Strawderman
+  - continuity correction for the permutation and jackknife distributions (lattice PR)
+  - the analgesia data of Booth and Butler (1990), Table 1 (b), do not reproduce the published
+    exact significance level (0.012; we get 0.044 one-sided); find Robinson (1982), Lehmann
+    (1975) p. 92 to check the data
 - implement multivariate saddle point approximations
   - cdf for any dimension: phase A of `docs/multivariate_cdf_plan.md` is done,
     `MultivariateSaddlePointApprox.cdf(backend="Kolassa")` (Kolassa 2003). Error
@@ -927,10 +935,10 @@ Or into a separate model, e.g., bootstrap.py
     (`spa.py`, `_kl_cdf_ordered`), when a saddlepoint component is at or near zero; reproduce
     with `examples/example_Wang1990.py`, e.g. cells (x=0, y=1.0) and (x=-1.0, y=0.0)
 - implement other bootstraps
-- jackknife stuff
 - conditional distributions
 - approximation for discrete distributions
-- bootstrap for estimating equations (Kuonen, 1998, particularly bootstrap for robust estimators)
+- bootstrap for robust estimators (Kuonen, 1998): `EstimatingEquationSaddlePointApprox` with
+  Poisson weights covers monotone M-estimators, add an example
 - quadratic forms (Kuonen 2001)
 - mixture models
 

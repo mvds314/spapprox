@@ -6,6 +6,8 @@ SaddlePointApprox (ABC)
 |   `-- UnivariateSaddlePointApproxMean
 `-- MultivariateSaddlePointApprox
     `-- BivariateSaddlePointApprox
+
+EstimatingEquationSaddlePointApprox   (standalone, wraps the above per tau)
 ```
 
 ## Contents
@@ -198,3 +200,29 @@ $\Phi_2(\tilde{\mathbf{x}}, \rho)$ plus correction terms, and optionally uses th
 `fastnorm` package (probed as `_has_fastnorm`) for the bivariate normal
 evaluation. The $\mathbf{t} \approx 0$ singularity is handled by averaging
 evaluations at $\pm 10^{-7}$ rather than by a closed-form limit.
+
+## Estimating equations
+
+`EstimatingEquationSaddlePointApprox(cgf, given=None, decreasing=True, bracket=None)`
+approximates the distribution of the root $\hat\tau$ of $S(\tau)=0$. `cgf` is a
+*callable* $\tau \mapsto$ cgf of $S(\tau)$ (univariate), or of $(T_1, S(\tau))$
+(bivariate, $S$ last) when `given` $=t_1$ is set. For decreasing $S$,
+$P(\hat\tau \le \tau) = P(S(\tau) \le 0 \mid T_1 = t_1)$, so `cdf` evaluates the
+univariate LR cdf, or `conditional_cdf(0, given, i=1)`, at each $\tau$.
+
+- `from_resampling(psi, x, weights, given)` builds `cgf` with the existing algebra:
+  `from_univariate(*[weights] * n).ldot([1; psi(x, tau)])`. Poisson weights given $n$ =
+  multinomial bootstrap (a cut: equals `UnivariateSaddlePointApproxMean` on
+  `univariate_empirical`, tested), exponential given $n$ = Dirichlet bootstrap,
+  Bernoulli(1/2) given $n-m$ = delete-$m$ jackknife.
+- `pdf` = $|\mathbb{E}_{\hat s}[\partial_\tau S]| \cdot f_{S}(0)$ (Daniels 1983), with the
+  tilted Jacobian computed generically as $\partial_\tau K(\hat s;\tau)/\hat s_S$ by
+  central differences in $\tau$, interpolated linearly around $\hat s_S = 0$. Normalized
+  by default over `bracket` (trapezoid, `_pdf_normalization_num` points): unnormalized it
+  is about 10% too high for the jackknife example.
+- `fit_cdf(bracket, num)` tabulates the cdf; `ppf` (interpolate + `brentq`), `mean` and
+  `var` (integrals of the tabulated cdf) use it. NaNs near the support boundary are filled
+  with 0/1, and the table is made monotone outward from the median, because the cdf can
+  return spurious values right at the boundary.
+- Each $\tau$ builds a new cgf and solves a saddle point equation: about 0.07 s per
+  conditional cdf point for $n=25$.
