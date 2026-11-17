@@ -937,7 +937,15 @@ Or into a separate model, e.g., bootstrap.py
 - implement other bootstraps
 - jackknife stuff
 - conditional distributions
-- approximation for discrete distributions
+- approximation for discrete distributions (lattice variables). Open items:
+  - univariate `SaddlePointApprox` cdf: add the continuity correction (Daniels, 1987;
+    Butler ch. 1.2.3). Currently `poisson(3)` at `x=3` gives 0.538 vs exact 0.647. Also
+    lets `infer_t_range` handle lattice tails, which are now excluded
+  - univariate lattice pmf: Daniels' lattice form (divide the pdf by `1 - exp(-s)`) or a
+    continuity correction; see `docs/TODO_R.md` (nbconv). Decide on the API, e.g. a
+    `delta` argument as in `conditional_cdf`
+  - conditional cdf for a vector of interest `P(X_I >= x_I | X_J = x_J)`, continuous and
+    lattice: phase F above (Kolassa & Li, 2010, section 4)
 - bootstrap for estimating equations (Kuonen, 1998, particularly bootstrap for robust estimators)
 - quadratic forms (Kuonen 2001)
 - mixture models
