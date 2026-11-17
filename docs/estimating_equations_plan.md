@@ -18,6 +18,7 @@ What the existing classes do not provide is the distribution of an *estimator*: 
 | Scheme | `W_i` | Conditioning | Example |
 | ------ | ----- | ------------ | ------- |
 | multinomial bootstrap | Poisson(1) | `sum W = n` (a cut) | `example_bootstrap_multinomial.py`, Table 4 |
+| multinomial bootstrap, Huber M-estimator | Poisson(1) | `sum W = n` | `example_bootstrap_robust_estimator.py` |
 | Dirichlet bootstrap | exponential(1) | `sum W = n` | `example_bootstrap_dirichlet.py`, Table 4 |
 | delete-m jackknife | Bernoulli(1/2) | `sum W = n - m` | `example_jackknife_estimating_equation.py`, Table 3 |
 | two-sample permutation | Bernoulli(1/2) | `sum Y = m` | `example_permutation_two_sample.py`, Table 1 |
