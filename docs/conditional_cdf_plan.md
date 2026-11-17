@@ -265,6 +265,9 @@ Their Table 3 (three iid exponentials, `Y = (X_2, X_3, X_1 + X_2 + X_3)`, `n = 1
 from Wang's unpublished report [15]) is a regression target. Typo alert: the summary after Lemma 4.1
 writes `T_{-d0} > t_{-d0}` where the equality is meant.
 
+Detailed plan, split into `d0 = 2` (F1) and `d0 >= 3` (F2, blocked on the multivariate
+cdf phase B): `docs/conditional_vector_plan.md`.
+
 ### Conditioning on inequalities (no source found)
 
 None of Skovgaard, Butler ch. 4, Broda & Paolella, Kolassa (1996), Kolassa & Li (2010)
