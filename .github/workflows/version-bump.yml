@@ -1,0 +1,25 @@
+name: Version bump
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.11"
+    - name: Check version was bumped relative to main
+      run: |
+        git show "origin/${{ github.base_ref }}:pyproject.toml" > "$RUNNER_TEMP/base_pyproject.toml"
+        python .github/scripts/check_version_bump.py "$RUNNER_TEMP/base_pyproject.toml" pyproject.toml
