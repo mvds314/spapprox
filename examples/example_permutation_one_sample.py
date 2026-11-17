@@ -7,7 +7,8 @@ Under the null hypothesis of symmetry about zero, the statistic S = sum_i d_i Z_
 independent signs Z_i = +-1 with probability 1/2, has cgf sum_i log cosh(t d_i). No
 conditioning is involved, so this is a plain linear combination of independent variables,
 built from the existing cgf algebra, and approximated with Lugannani-Rice, as in Davison and
-Hinkley (1988). The data are Darwin's Zea mays differences (Fisher, 1935), for which the exact
+Hinkley (1988). As all d_i are integers, S lies on a lattice of span 2, so the continuity
+corrected version (``delta=2``, Daniels, 1987) is shown as well. The data are Darwin's Zea mays differences (Fisher, 1935), for which the exact
 one-sided significance level is 863 / 32768.
 """
 
@@ -31,18 +32,20 @@ exact = np.array(list(product([-1, 1], repeat=n))) @ d
 obs = d.sum()
 print(f"P(S >= observed): exact {np.mean(exact >= obs):.5f} (863/32768 = {863 / 32768:.5f})")
 print(f"                  saddle point {1 - approx.cdf(x=obs - 1e-9):.5f}")
-print("The statistic lies on a lattice of span 2 (all d_i are integers), the saddle point")
-print("approximation is not continuity corrected.")
+print(f"                  lattice saddle point {1 - approx.cdf(x=obs - 2, delta=2):.5f}")
 
-s = np.linspace(-300, 300, 13)
-print(f"\n{'s':>6} {'exact':>8} {'SP':>8}")
-for si, e, a in zip(s, [np.mean(exact <= si) for si in s], approx.cdf(x=s)):
-    print(f"{si:6.0f} {e:8.5f} {a:8.5f}")
+s = np.linspace(-300, 300, 13) + obs % 2
+print(f"\n{'s':>6} {'exact':>8} {'SP':>8} {'lattice':>8}")
+for si, e, a, al in zip(
+    s, [np.mean(exact <= si) for si in s], approx.cdf(x=s), approx.cdf(x=s, delta=2)
+):
+    print(f"{si:6.0f} {e:8.5f} {a:8.5f} {al:8.5f}")
 
 s = np.linspace(-400, 400, 200)
 fig, ax = plt.subplots()
 ax.step(np.sort(exact), np.arange(1, len(exact) + 1) / len(exact), label="exact")
 ax.plot(s, approx.cdf(x=s), label="saddle point")
+ax.plot(s, approx.cdf(x=s, delta=2), "--", label="lattice saddle point")
 ax.set_xlabel("S")
 ax.legend()
 plt.show()
