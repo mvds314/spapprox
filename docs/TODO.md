@@ -932,9 +932,10 @@ Or into a separate model, e.g., bootstrap.py
 - approximation for discrete distributions (lattice variables). Open items:
   - [x] univariate cdf continuity correction (Daniels, 1987; Butler ch. 1.2.3):
     `cdf(..., delta=span)`, LR and BN. `infer_t_range` still excludes lattice tails
-  - [x] univariate lattice pmf: `pdf(..., delta=span)` returns `delta * f(x)`. Possible
-    refinement: normalize by summing over the lattice instead of integrating, and
-    Daniels' second-order terms
+  - [x] univariate lattice pmf: `pdf(..., delta=span)` returns `delta * f(x)`, not
+    normalized by default (integrating the density is a poor normalization for a lattice,
+    e.g. 41% relative error for `poisson(0.5)` vs 8% unnormalized). Possible refinement:
+    normalize by summing over the lattice, and Daniels' second-order terms
   - conditional cdf for a vector of interest `P(X_I >= x_I | X_J = x_J)`, continuous and
     lattice: phase F above (Kolassa & Li, 2010, section 4)
 - bootstrap for estimating equations (Kuonen, 1998, particularly bootstrap for robust estimators)

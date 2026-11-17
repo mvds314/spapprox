@@ -1,4 +1,5 @@
 import itertools
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -522,12 +523,17 @@ def test_univariate_lattice_cdf_scale_and_t():
         spa.cdf(x, delta=0)
 
 
-def test_univariate_lattice_pmf():
-    spa = UnivariateSaddlePointApprox(poisson(3))
+@pytest.mark.parametrize("lam", [3, 0.5])
+def test_univariate_lattice_pmf(lam):
+    spa = UnivariateSaddlePointApprox(poisson(lam))
     x = np.arange(1, 12)
-    pmf = sps.poisson(3).pmf(x)
-    got = spa.pdf(x, delta=1)
-    assert np.max(np.abs(got - pmf)) < 1e-2
+    pmf = sps.poisson(lam).pmf(x)
+    # not normalized by default: integrating the density is a poor normalization for a lattice
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        got = spa.pdf(x, delta=1)
+    np.testing.assert_allclose(got, spa.pdf(x, delta=1, normalize_pdf=False))
+    assert np.max(np.abs(got / pmf - 1)) < 0.09
     np.testing.assert_allclose(spa.pdf(x, delta=2), 2 * got)
     with pytest.raises(ValueError):
         spa.pdf(x, delta=-1)

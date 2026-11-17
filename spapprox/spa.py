@@ -330,22 +330,27 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             self._pdf_normalization_cache = val
         return self._pdf_normalization_cache
 
-    def pdf(self, x=None, t=None, normalize_pdf=True, fillna=np.nan, delta=None, **solver_kwargs):
+    def pdf(self, x=None, t=None, normalize_pdf=None, fillna=np.nan, delta=None, **solver_kwargs):
         r"""
         Saddle point approximation of the probability density function, see
         :meth:`SaddlePointApprox.pdf`.
 
         Parameters
         ----------
+        normalize_pdf : bool, optional
+            Whether to normalize the density by integrating it. Default is ``None``: ``True``
+            for a continuous variable, ``False`` if ``delta`` is given, as the integral of the
+            density is a poor normalization for a lattice variable.
         delta : float, optional
             Span of the lattice, for a discrete random variable. Default is ``None``:
             continuous. Otherwise, the probability mass function :math:`P(X=x)\approx
             \delta f(x)` is returned, for ``x`` on the lattice. This is the saddle point
-            approximation of Daniels (1983, 1987), optionally normalized by integrating
-            the density.
+            approximation of Daniels (1983, 1987).
         """
         if delta is not None and not delta > 0:
             raise ValueError("delta must be positive")
+        if normalize_pdf is None:
+            normalize_pdf = delta is None
         y = super().pdf(x=x, t=t, normalize_pdf=normalize_pdf, fillna=fillna, **solver_kwargs)
         return y if delta is None else y * delta
 

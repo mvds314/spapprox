@@ -95,7 +95,8 @@ variable; `x` must lie on the lattice. The cdf is the second continuity correcti
 $K'(t)=x+\delta/2$; with `t=` given, it must solve there), with
 $u = 2\sinh(t\delta/2)\sqrt{K''(t)}/\delta$; $w$ is unchanged. The $t=0$ limit is the same
 as the continuous one, so the near-zero interpolation is reused. The pmf is
-$P(X=x)\approx\delta f(x)$. `poisson(3)` at $x=3$: 0.646 vs exact 0.647.
+$P(X=x)\approx\delta f(x)$, not normalized by default (`normalize_pdf=None` means `True`
+only for a continuous variable; integrating the density is a poor lattice normalization). `poisson(3)` at $x=3$: 0.646 vs exact 0.647.
 
 ## `ppf`
 
