@@ -15,6 +15,10 @@ except ImportError:
 else:
     _has_findiff = True
 
+# Offsets 1, 1/2, ..., 2^-52 used to locate the nearest NaN of a function, see
+# PartialDerivative._length_scale
+_PROBES = np.power(2.0, -np.arange(53))
+
 
 def transform_rank3_tensor(T, *A):
     r"""
@@ -114,8 +118,9 @@ class PartialDerivative:
     dim : int or None, default None
         Used to prevent the 1-dim to be cast to scalar, i.e., if orders has lenght 1, the default is scalar.
         When None, it is inferred from orders, if set it should be consistent with orders.
-    h : scalar or vector
-        Step size for the derivative
+    h : scalar, vector or None, default None
+        Step size for the derivative. When None, it is chosen per evaluation point, see
+        :meth:`_step`.
     acc : int
         Accuracy of the finite difference scheme
     """
@@ -133,7 +138,7 @@ class PartialDerivative:
             "accuracy should be an integer >= 2"
         )
         self.acc = int(acc)
-        if not np.isscalar(self.h) and len(self.h) != len(orders):
+        if self.h is not None and not np.isscalar(self.h) and len(self.h) != len(orders):
             raise ValueError(f"h should be a scalar or a vector of length {len(orders)}")
 
     @property
@@ -194,45 +199,70 @@ class PartialDerivative:
     @property
     def h(self):
         """
-        Step size for the derivative
+        Step size for the derivative, None if it is chosen per evaluation point
         """
         return self._h
 
     @h.setter
     def h(self, h):
-        """
-        Note for an n-th order derivative, one has to divide by :math:`h^n`.
-        So, :math:`h^n` should not be too small, as this can lead to numerical instability.
-        We aim aim for :math:`h^n~1e-8`, leading to a step size of :math:`h = 1e-8^{1/n}`.
-        """
-        if h is None:
-            sumord = int(np.sum(self.orders))
-            self.h = min(np.power(1e-9, 1 / sumord), 1e-4)
-        elif np.all(np.asanyarray(h) > 0):
+        if h is None or np.all(np.asanyarray(h) > 0):
             self._h = h
         else:
             raise ValueError("h should be positive")
 
-    @property
-    def _h_vect(self):
+    def _step(self, t):
+        r"""
+        Step size at ``t``, a scalar if ``dim == 0`` and a vector of length ``dim`` otherwise.
+
+        A user supplied ``h`` is returned as is. Otherwise the step balances the truncation
+        error :math:`O(h^{acc})` against the rounding error :math:`O(\epsilon/h^n)` of an
+        ``n``-th order derivative, :math:`h=\epsilon^{1/(n+acc)}L`, for a function that
+        varies on the length scale :math:`L`. Near a boundary of the (implicit) domain, the
+        function typically varies on the scale of the distance to that boundary, e.g.,
+        :math:`-\log(1-t)` near one, so :math:`L` is the minimum of one and the distance from
+        ``t`` to the nearest NaN of ``f`` along the axis, estimated up to a factor two. A
+        boundary that ``t`` lies on is ignored, it is handled by one-sided stencils.
         """
-        Return the vector of h's
-        """
-        if not hasattr(self, "_h_vect_cache"):
-            h = np.asanyarray(self.h)
+        if self.h is not None:
+            h = np.asanyarray(self.h, dtype=float)
             if self.dim == 0:
                 assert h.ndim == 0, "h should be scalar if for scalar valued input"
-                self._h_vect_cache = self.h
-            elif h.ndim == 1:
-                assert len(h) == self.dim, "h should be a scalar or a vector of length dim"
-                self._h_vect_cache = h
-            elif h.ndim == 0:
-                self._h_vect_cache = np.array([self.h] * self.dim)
-            else:
-                raise AssertionError("h can have at most 1 dimension")
-        return self._h_vect_cache
+                return float(h)
+            if h.ndim == 0:
+                return np.full(self.dim, float(h))
+            assert h.ndim == 1 and len(h) == self.dim, (
+                "h should be a scalar or a vector of length dim"
+            )
+            return h
+        base = np.power(np.finfo(float).eps, 1 / (int(np.sum(self.orders)) + self.acc))
+        if self.dim == 0:
+            return base * self._length_scale(t, 1.0)
+        return base * np.array([self._length_scale(t, e) for e in np.eye(self.dim)])
 
-    def _build_grid(self, t):
+    def _length_scale(self, t, e):
+        """
+        Minimum of one and the distance from ``t`` to the nearest non-finite value of ``f`` along
+        the direction ``e``, up to a factor two. A side where ``f`` is not finite arbitrarily
+        close to ``t`` is ignored.
+        """
+
+        def finite(pts):
+            return np.isfinite(np.asarray(self.f(pts), dtype=float))
+
+        ok = finite(np.array([t + e, t - e]))
+        if ok.all():
+            return 1.0
+        dist = []
+        for sign in np.where(ok, 0, [1, -1]):
+            if sign == 0:
+                continue
+            # The domain is convex, so the finite probes are those closer than the boundary
+            side = finite(t + sign * np.multiply.outer(_PROBES, e))
+            if side.any():
+                dist.append(_PROBES[np.argmax(side)])
+        return min([1.0] + dist)
+
+    def _build_grid(self, t, h):
         # Initialize
         t = np.asanyarray(t)
         assert not np.isnan(self.f(t)).any(), "t should be in the domain"
@@ -241,7 +271,7 @@ class PartialDerivative:
         # Use central differences by default
         sel = [self._half_width] * self.dim if self.dim > 0 else [self._half_width]
         x = np.array(
-            [t + i * self._h_vect for i in range(-self._half_width, self._half_width + 1)]
+            [t + i * h for i in range(-self._half_width, self._half_width + 1)]
         ).T
         # But adjust if t-h or t+h is not in the domain (for any of the components)
         if np.isnan(self.f(x.T)).any():
@@ -262,7 +292,7 @@ class PartialDerivative:
                         if not np.isnan(fx[i : self._half_width]).any()
                     )
                     sel[0] += -shift
-                    x += self._h_vect * shift
+                    x += h * shift
                 elif np.isnan(fx[-1]):
                     # Shift to the left
                     if np.isnan(fx[: self._half_width]).any():
@@ -276,7 +306,7 @@ class PartialDerivative:
                     )
                     # Shift to the left
                     sel[0] += shift
-                    x += -self._h_vect * shift
+                    x += -h * shift
                 else:
                     raise RuntimeError("This should never happen, all cases should be handled")
             else:
@@ -303,7 +333,7 @@ class PartialDerivative:
                             if not np.isnan(fxx[i : self._half_width]).any()
                         )
                         sel[i] += -shift
-                        x[i] += self._h_vect[i] * shift
+                        x[i] += h[i] * shift
                     elif np.isnan(fxx[-1]).any():
                         if np.isnan(fxx[: self._half_width]).any():
                             raise AssertionError(
@@ -316,7 +346,7 @@ class PartialDerivative:
                         )
                         # Shift to the left
                         sel[i] += shift
-                        x[i] += -self._h_vect[i] * shift
+                        x[i] += -h[i] * shift
                     else:
                         raise RuntimeError("This should never happen, all cases should be handled")
                     if np.isnan(self.f(x[i])).any():
@@ -352,7 +382,8 @@ class PartialDerivative:
         if np.isnan(self.f(t)).any():
             retval = np.nan if self.dim_image == 0 else np.full(self.dim_image, np.nan)
         else:
-            Xis, sel = self._build_grid(t)
+            h = self._step(t)
+            Xis, sel = self._build_grid(t, h)
             if self.dim == 0:
                 retval = self.f(Xis)
                 retval = self._findiff(retval)
@@ -362,7 +393,7 @@ class PartialDerivative:
             else:
                 retval = self.f(Xis).reshape(tuple([self._grid_size] * self.dim))
                 retval = self._findiff(retval)
-            retval = retval.T[*sel]
+            retval = retval.T[*sel] / np.prod(np.power(h, self.orders))
             assert t.ndim > 0 or retval.ndim == 0, "Return value should be scalar for scalar input"
         return retval
 
@@ -410,10 +441,11 @@ class PartialDerivative:
             if self.dim == 0:
                 if not np.isscalar(self.orders):
                     raise RuntimeError("Scalar valued input should have scalar valued orders")
-                self._findiff_cache = fd.Diff(0, self._h_vect, acc=self.acc) ** self.orders
+                # Unit spacing, __call__ divides by the product of the steps
+                self._findiff_cache = fd.Diff(0, 1.0, acc=self.acc) ** self.orders
             else:
                 terms = [
-                    fd.Diff(i, self._h_vect[i], acc=self.acc) ** order
+                    fd.Diff(i, 1.0, acc=self.acc) ** order
                     for i, order in enumerate(self.orders)
                     if order > 0
                 ]

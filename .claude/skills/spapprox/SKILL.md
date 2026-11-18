@@ -172,7 +172,8 @@ def norm(loc=0, scale=1):
 
 Two factories are not distributions but transformations, and they are what make
 the bootstrap use case work: `univariate_empirical(x)` is the CGF of drawing
-uniformly from a sample, and `univariate_sample_mean(cgf, n)` maps
+uniformly from a sample (standardized internally: `loc`/`scale` are the sample mean and
+std), and `univariate_sample_mean(cgf, n)` maps
 $K \mapsto nK(t/n)$. Composed, they give the bootstrap distribution of a sample
 mean *without bootstrapping* -- see `examples/example_nonparametric_bootstrap.py`.
 

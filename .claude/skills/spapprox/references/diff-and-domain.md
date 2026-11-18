@@ -29,7 +29,13 @@ derivatives are needed at arbitrary points.** So `_build_grid(t)` constructs a
 small local stencil around `t`, applies the findiff operator, and reads off the
 center value. `acc` (default 2, must be >= 2) sets the finite-difference accuracy
 order and therefore the stencil width; `h` is the step size (scalar, or one per
-component).
+component). With `h=None` (the default) `_step(t)` picks it per point:
+$\epsilon^{1/(n+acc)}L$, with $L$ the minimum of one and the distance to the nearest NaN of
+`f` along each axis (probed at `t +- 2^-k`, `_PROBES`), so the step shrinks near a domain
+singularity like $-\log(1-t)$. A boundary `t` lies on is ignored (one-sided stencil). The
+findiff operator is built at unit spacing and the result divided by $\prod h_i^{\alpha_i}$.
+It assumes `f` is well scaled away from boundaries, which holds for the standardized raw
+CGFs (`K(tt, loc=0, scale=1)`) that `cgf_base` differentiates.
 
 Domains are *not* declared to this class -- they are inferred from `f` returning
 NaN. That is the contract: **`f` must map out-of-domain points to NaN**, which is

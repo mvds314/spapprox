@@ -501,7 +501,7 @@ Contract violations and silently wrong results in narrower situations.
   `test_partial_derivative_higher_acc`, `test_tensor_derivatives_higher_acc` in
   `tests/test_diff.py`.
 
-### [ ] 32. Default finite-difference step is poorly chosen
+### [x] 32. Default finite-difference step is poorly chosen
 
 - **Where:** `spapprox/diff.py:192`
 - **What:** `min(1e-9**(1/n), 1e-4)` gives `h=1e-9` for first derivatives and
@@ -518,6 +518,17 @@ Contract violations and silently wrong results in narrower situations.
   `3e-4 -> 1.7e-2`. It also breaks the findiff reference (not the CGF) in
   `test_basic[univariate laplace from multivariate]`. A scale-aware step would
   be needed to win in both regimes.
+- **Resolved:** scale-aware default step, `eps**(1/(n+acc)) * L` with `L` the minimum of one
+  and the distance to the nearest NaN of `f` along each axis (probed at `t +- 2^-k`).
+  Max rel. error, old -> new: d1 exp `2e-8 -> 6e-12`; d3 exp/poisson/empirical/laplace
+  `1e-4..7e-4 -> 1e-7..1e-6`; d3 `-log(1-t)` at `1-t=0.01` `3e-4 -> 3e-5`, at `1e-3`
+  `3e-2 -> 2e-6`; log-sum-exp `Tressian` `2e-4 -> 3e-7`. A function that is badly scaled
+  away from any boundary gets worse (`exp(50t)` d3 `6e-6 -> 3e-4`); CGFs are differentiated
+  standardized, and `univariate_empirical` now standardizes its sample (it was off by
+  `3e4` in d3 for data with std 0.01, with either step). The probing costs one evaluation of
+  `f` at `t +- 1` per axis, plus 53 points per side within distance one of a boundary
+  (slow `test_basic` cases with `quad` reference CGFs: up to 4x slower). Regression tests: `test_default_step` in `tests/test_diff.py`,
+  `test_univariate_empirical_scale` in `tests/test_cgfs.py`.
 
 ### [x] 33. `block_diag_3d` takes its dtype from the first tensor
 
