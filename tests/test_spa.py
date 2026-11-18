@@ -1499,6 +1499,21 @@ def test_estimating_equation_cut():
     )
 
 
+def test_estimating_equation_pdf_at_support_boundary():
+    # At tau = min(x) and max(x) the saddle point escapes to infinity and the Poisson K
+    # overflowed in the tilted Jacobian: no warning, and fillna instead of a non-finite value
+    n = len(_BB_X)
+    ee = EstimatingEquationSaddlePointApprox.from_resampling(
+        lambda x, t: x - t, _BB_X, poisson(1), given=n
+    )
+    tau = np.array([_BB_X.min(), 17.88, _BB_X.max()])
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        y = np.asarray(ee.pdf(tau, normalize_pdf=False, fillna=-1.0))
+    assert y[0] == -1.0 and y[2] == -1.0
+    assert np.isfinite(y[1]) and y[1] > 0
+
+
 @pytest.mark.parametrize("decreasing", [True, False])
 def test_estimating_equation_jackknife(decreasing):
     # Delete-10 jackknife of a ratio of means, saddle point column of Table 3

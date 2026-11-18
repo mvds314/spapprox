@@ -8,9 +8,22 @@ probability approximations", Ann. Statist. 31(1), 274-286.
    exponentials and Z = [[1, 0], [1, 1], [0, 1]]. For the sum of ten independent copies of T,
    the lower quadrant probabilities of Kolassa's Q(t) and Wang's W(t) are compared with
    Monte Carlo (Figure 1).
-2. The endometrial cancer data of Stokes, Davis and Koch (1995) (Table 2): the probability of
-   the critical region {T1 >= 10 or T2 >= 10 or T3 >= 13} under the null hypothesis,
-   approximated with Boole's inequality applied to univariate saddlepoint tail probabilities.
+2. A hypothesis test in conditional logistic regression, on the endometrial cancer data of
+   Stokes, Davis and Koch (1995) (Table 2). The data are 63 matched case-control pairs with
+   three binary covariates; z_j is the case-minus-control covariate difference of a pair, with
+   entries in {-1, 0, 1}. Conditioning on one case per pair removes the pair-specific
+   intercepts. The model becomes a logistic regression on z with no intercept, and the
+   sufficient statistic for the coefficient vector beta is T = sum_j z_j B_j over the pairs.
+   Here B_j indicates which member of the pair is the case. Under H0: beta = 0 each B_j is
+   Bernoulli(1/2), so the null distribution of T is a known discrete distribution on integer
+   vectors.
+
+   The test rejects H0 on the critical region {T1 >= 10 or T2 >= 10 or T3 >= 13}. Its size
+   P_H0(critical region) is computed. Enumerating T exactly quickly becomes infeasible as the
+   number of pairs grows, and the normal approximation is poor this far in the tail. The
+   example therefore bounds the size with Boole's inequality applied to univariate saddlepoint
+   tail probabilities P_H0(T_j >= c_j) at the critical values. For these data the exact
+   distribution is still small enough to check against.
 """
 
 import numpy as np
@@ -54,8 +67,9 @@ ax.set_xlabel("t1")
 ax.set_ylabel("t2")
 ax.set_title("Kolassa (2003) Figure 1: lower quadrant probabilities")
 
-# --- Example 2: endometrial cancer data (Table 2) -----------------------------------------
-# Columns of Table 2: gall bladder disease, hypertension, nonestrogen drug use, number of pairs
+# --- Example 2: conditional logistic regression test, endometrial cancer data (Table 2) ----
+# Rows of Z: the distinct case-minus-control differences in gall bladder disease,
+# hypertension and nonestrogen drug use; m: the number of matched pairs with that difference
 Z = np.array(
     [
         [-1, -1, 0],
@@ -77,7 +91,9 @@ Z = np.array(
     ]
 )
 m = np.array([1, 1, 1, 2, 6, 14, 10, 12, 4, 3, 1, 1, 4, 1, 1, 1])
+# Observed sufficient statistic: in the data every B_j = 1 (the case is the first member)
 observed = m @ Z  # (9, 6, 13)
+# Reject H0: beta = 0 if any T_j reaches its critical value
 critical = np.array([10, 10, 13])
 
 
@@ -85,7 +101,8 @@ def sigmoid(u):
     return 1 / (1 + np.exp(-u))
 
 
-# K(tau) = sum_j m_j [log(1 + exp(z_j tau)) - log(2)], the null CGF of T = sum_j m_j z_j B_j
+# Null CGF of T: each pair contributes z_j B_j with B_j ~ Bernoulli(1/2) under beta = 0, so
+# K(tau) = sum_j m_j [log(1 + exp(z_j tau)) - log(2)], the logistic log-partition function
 def K(t):
     return m @ (np.logaddexp(0, Z @ np.asarray(t)) - np.log(2))
 
@@ -142,7 +159,7 @@ keys = np.array(list(pmf))
 probs = np.array(list(pmf.values()))
 
 print("Observed T:", observed)
-print("Marginal tail probabilities P[T_j >= c_j] (lattice Lugannani-Rice):")
+print("Null tail probabilities P_H0[T_j >= c_j] (lattice Lugannani-Rice):")
 boole = 0.0
 for j in range(3):
     sp = lattice_upper_tail(cgf_logistic[j], critical[j])
@@ -150,8 +167,8 @@ for j in range(3):
     boole += sp
     print(f"  T{j + 1} >= {critical[j]:2d}: saddlepoint {sp:.5f}, exact {exact:.5f}")
 in_region = (keys >= critical).any(axis=1)
-print(f"Boole's bound: {boole:.5f}")
-print(f"Exact P[critical region]: {probs[in_region].sum():.5f}")
+print(f"Size of the test, Boole's bound: {boole:.5f}")
+print(f"Size of the test, exact P_H0[critical region]: {probs[in_region].sum():.5f}")
 # Note: our Boole sum (about 0.01756) does not match the 0.01709 reported in the paper, while the
 # exact probability (0.01713) lies within the paper's Monte Carlo interval. It is unclear how the
 # paper computed its Boole figure, so the discrepancy is not resolved here.

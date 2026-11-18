@@ -2809,7 +2809,10 @@ class EstimatingEquationSaddlePointApprox:
             return ss if self.given is not None else ss[0]
 
         def g(sS):
-            return (cp.K(arg(sS)) - cm.K(arg(sS))) / (2 * h * sS)
+            # At the boundary of the support s escapes to +-inf and K may overflow: the
+            # result is then non-finite, which _pdf_at turns into NaN
+            with np.errstate(over="ignore", invalid="ignore"):
+                return (cp.K(arg(sS)) - cm.K(arg(sS))) / (2 * h * sS)
 
         eps = 1e-3 / np.sqrt(np.atleast_2d(c.d2K(arg(s[-1])))[-1, -1])
         if abs(s[-1]) > eps:
@@ -2830,7 +2833,8 @@ class EstimatingEquationSaddlePointApprox:
             density = spa.conditional_pdf(
                 0.0, given=[self.given], i=1, normalize_pdf=False, **solver_kwargs
             )
-        return abs(self._tilted_jacobian(tau, c, s)) * density
+        retval = abs(self._tilted_jacobian(tau, c, s)) * density
+        return retval if np.isfinite(retval) else np.nan
 
     def pdf(self, tau, normalize_pdf=True, fillna=np.nan, **solver_kwargs):
         r"""
