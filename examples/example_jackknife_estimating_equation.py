@@ -24,14 +24,15 @@ v = np.array(v + [473, 473, 1260, 1958, 4375, 1499, 245, 828, 6361.0])
 n, m = len(u), 10
 tau_hat = v.sum() / u.sum()
 
-ee = spa.EstimatingEquationSaddlePointApprox.from_resampling(
-    lambda x, tau: x[:, 1] - tau * x[:, 0],
-    np.c_[u, v],
-    spa.binomial(1, 0.5),
-    given=n - m,
-    bracket=(6.0, 11.0),
-)
-ee.fit_cdf(num=200)
+with spa.Timer("Saddle point (fit)", decimals=3):
+    ee = spa.EstimatingEquationSaddlePointApprox.from_resampling(
+        lambda x, tau: x[:, 1] - tau * x[:, 0],
+        np.c_[u, v],
+        spa.binomial(1, 0.5),
+        given=n - m,
+        bracket=(6.0, 11.0),
+    )
+    ee.fit_cdf(num=200)
 
 
 def normal(tau):
@@ -42,9 +43,10 @@ def normal(tau):
 
 
 # Monte Carlo reference
-rng = np.random.default_rng(1984)
-keep = np.argsort(rng.random((10**6, n)), axis=1)[:, : n - m]
-sim = v[keep].sum(axis=1) / u[keep].sum(axis=1)
+with spa.Timer("Monte Carlo (10^6 subsamples)", decimals=3):
+    rng = np.random.default_rng(1984)
+    keep = np.argsort(rng.random((10**6, n)), axis=1)[:, : n - m]
+    sim = v[keep].sum(axis=1) / u[keep].sum(axis=1)
 
 # Table 3
 tau = np.round(np.arange(6.6, 9.61, 0.2), 1)
@@ -52,9 +54,15 @@ paper_exact = [0.0001, 0.0003, 0.0013, 0.0041, 0.0112, 0.0310, 0.0726, 0.1578, 0
 paper_exact += [0.6157, 0.7453, 0.8717, 0.9610, 0.9953, 0.9999]
 paper_spa = [0.0001, 0.0004, 0.0015, 0.0043, 0.0118, 0.0303, 0.0725, 0.1550, 0.2844, 0.4476]
 paper_spa += [0.6173, 0.7680, 0.8833, 0.9610, 0.9947, 0.9998]
+with spa.Timer("Saddle point cdf", decimals=3):
+    F_sp = ee.cdf(tau)
+with spa.Timer("Monte Carlo cdf", decimals=3):
+    F_mc = [np.mean(sim <= t) for t in tau]
+with spa.Timer("Normal approximation cdf", decimals=3):
+    F_normal = [normal(t) for t in tau]
 print(f"{'tau':>5} {'MC':>7} {'paper':>7} {'paper SP':>8} {'SP':>7} {'normal':>7}")
-for row in zip(tau, [np.mean(sim <= t) for t in tau], paper_exact, paper_spa, ee.cdf(tau)):
-    print(f"{row[0]:5.1f} " + " ".join(f"{r:7.4f}" for r in row[1:]) + f" {normal(row[0]):7.4f}")
+for row in zip(tau, F_mc, paper_exact, paper_spa, F_sp, F_normal):
+    print(f"{row[0]:5.1f} " + " ".join(f"{r:7.4f}" for r in row[1:]))
 
 # Jackknife mean and variance estimate (n - m) / m * E(tau* - tau_hat)^2
 factor = (n - m) / m

@@ -44,21 +44,26 @@ cgf = spa.bivariate_gamma(a=[n, n, n])
 approx = spa.BivariateSaddlePointApprox(cgf)
 
 # Monte Carlo reference for P[T <= t], one million samples as in the paper
-rng = np.random.default_rng(2003)
-u = rng.exponential(size=(10**6, 3, n)).sum(axis=-1)
-sim = np.column_stack([u[:, 0] + u[:, 1], u[:, 1] + u[:, 2]])
+with spa.Timer("Monte Carlo (10^6 samples)", decimals=3):
+    rng = np.random.default_rng(2003)
+    u = rng.exponential(size=(10**6, 3, n)).sum(axis=-1)
+    sim = np.column_stack([u[:, 0] + u[:, 1], u[:, 1] + u[:, 2]])
 
 sd = np.sqrt(2 * n)
 grid = n * 2 + sd * np.linspace(-2.5, 2.5, 11)
-ratio = np.full((grid.size, grid.size), np.nan)
-for i, t2 in enumerate(grid):
-    for j, t1 in enumerate(grid):
-        pt = np.array([t1, t2])
-        t = cgf.dK_inv(pt)
-        exact = np.mean((sim[:, 0] <= t1) & (sim[:, 1] <= t2))
-        err_q = abs(approx.cdf(t=t, backend="Kolassa") - exact)
-        err_w = abs(approx.cdf(t=t, backend="Wang") - exact)
-        ratio[i, j] = err_q / (err_q + err_w)
+# Points (t1, t2) on the grid, with t2 varying over the rows
+pts = np.array([[t1, t2] for t2 in grid for t1 in grid])
+shape = (grid.size, grid.size)
+with spa.Timer(f"Monte Carlo cdf ({len(pts)} grid points)", decimals=3):
+    exact = np.array([np.mean((sim[:, 0] <= t1) & (sim[:, 1] <= t2)) for t1, t2 in pts])
+with spa.Timer("Solving the saddle point equations", decimals=3):
+    ts = [cgf.dK_inv(pt) for pt in pts]
+with spa.Timer("Saddle point cdf, Kolassa backend", decimals=3):
+    F_q = np.array([approx.cdf(t=t, backend="Kolassa") for t in ts])
+with spa.Timer("Saddle point cdf, Wang backend", decimals=3):
+    F_w = np.array([approx.cdf(t=t, backend="Wang") for t in ts])
+err_q, err_w = np.abs(F_q - exact), np.abs(F_w - exact)
+ratio = (err_q / (err_q + err_w)).reshape(shape)
 
 fig, ax = plt.subplots(facecolor="w")
 cs = ax.contourf(grid, grid, ratio, levels=np.linspace(0, 1, 11), cmap="viridis")
@@ -154,18 +159,19 @@ def lattice_upper_tail(cgf, c):
     return sps.norm.sf(w) + sps.norm.pdf(w) * (1 / v - 1 / w)
 
 
-pmf = exact_distribution()
-keys = np.array(list(pmf))
-probs = np.array(list(pmf.values()))
+with spa.Timer("\nExact null distribution (convolution)", decimals=3):
+    pmf = exact_distribution()
+    keys = np.array(list(pmf))
+    probs = np.array(list(pmf.values()))
+with spa.Timer("Saddle point tail probabilities", decimals=3):
+    sp = [lattice_upper_tail(cgf_logistic[j], critical[j]) for j in range(3)]
 
 print("Observed T:", observed)
 print("Null tail probabilities P_H0[T_j >= c_j] (lattice Lugannani-Rice):")
-boole = 0.0
+boole = sum(sp)
 for j in range(3):
-    sp = lattice_upper_tail(cgf_logistic[j], critical[j])
     exact = probs[keys[:, j] >= critical[j]].sum()
-    boole += sp
-    print(f"  T{j + 1} >= {critical[j]:2d}: saddlepoint {sp:.5f}, exact {exact:.5f}")
+    print(f"  T{j + 1} >= {critical[j]:2d}: saddlepoint {sp[j]:.5f}, exact {exact:.5f}")
 in_region = (keys >= critical).any(axis=1)
 print(f"Size of the test, Boole's bound: {boole:.5f}")
 print(f"Size of the test, exact P_H0[critical region]: {probs[in_region].sum():.5f}")

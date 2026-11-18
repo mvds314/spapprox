@@ -26,19 +26,27 @@ sign = 2 * spa.binomial(1, 0.5) - 1
 cgf = spa.MultivariateCumulantGeneratingFunction.from_univariate(*[sign] * n).ldot(d)
 approx = spa.UnivariateSaddlePointApprox(cgf)
 
-# Exact permutation distribution, by enumeration of all 2^n sign patterns
-exact = np.array(list(product([-1, 1], repeat=n))) @ d
-
 obs = d.sum()
-print(f"P(S >= observed): exact {np.mean(exact >= obs):.5f} (863/32768 = {863 / 32768:.5f})")
-print(f"                  saddle point {1 - approx.cdf(x=obs - 1e-9):.5f}")
-print(f"                  lattice saddle point {1 - approx.cdf(x=obs - 2, delta=2):.5f}")
-
 s = np.linspace(-300, 300, 13) + obs % 2
+
+# Exact permutation distribution, by enumeration of all 2^n sign patterns
+with spa.Timer(f"Exact (enumeration of 2^{n} sign patterns)", decimals=3):
+    exact = np.array(list(product([-1, 1], repeat=n))) @ d
+    p_exact = np.mean(exact >= obs)
+    F_exact = [np.mean(exact <= si) for si in s]
+with spa.Timer("Saddle point", decimals=3):
+    p_sp = 1 - approx.cdf(x=obs - 1e-9)
+    F_sp = approx.cdf(x=s)
+with spa.Timer("Lattice saddle point", decimals=3):
+    p_lattice = 1 - approx.cdf(x=obs - 2, delta=2)
+    F_lattice = approx.cdf(x=s, delta=2)
+
+print(f"\nP(S >= observed): exact {p_exact:.5f} (863/32768 = {863 / 32768:.5f})")
+print(f"                  saddle point {p_sp:.5f}")
+print(f"                  lattice saddle point {p_lattice:.5f}")
+
 print(f"\n{'s':>6} {'exact':>8} {'SP':>8} {'lattice':>8}")
-for si, e, a, al in zip(
-    s, [np.mean(exact <= si) for si in s], approx.cdf(x=s), approx.cdf(x=s, delta=2)
-):
+for si, e, a, al in zip(s, F_exact, F_sp, F_lattice):
     print(f"{si:6.0f} {e:8.5f} {a:8.5f} {al:8.5f}")
 
 s = np.linspace(-400, 400, 200)
