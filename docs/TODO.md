@@ -753,6 +753,30 @@ Contract violations and silently wrong results in narrower situations.
   for any other shape whose last axis does not match the dimension. Regression test:
   `test_multivariate_point_shapes` in `tests/test_mvar_cgfs.py`.
 
+### [x] 58. Univariate `dK_inv` fails at the end of its initial bracket
+
+- **Where:** `spapprox/cgf_base.py`, `UnivariateCumulantGeneratingFunction.dK_inv`
+- **What:** when `x` equals `dK` at an end of the initial bracket, the bracket expansion
+  stopped on equality, after which the strict bracket assertion failed. Hit by
+  `fit_saddle_point_eqn`/`fit_cdf`, whose grid ends are `dK` at the inferred `t` range.
+- **Fixed:** the expansion continues only while `x` lies strictly outside the bracket.
+  Regression test: `test_dK_inv_at_initial_bracket_end` in `tests/test_cgfs.py`.
+
+### [ ] 59. Bivariate `"KL"` cdf fails close to the domain boundary
+
+- **Where:** `spapprox/spa.py`, `BivariateSaddlePointApprox._kl_cdf`
+- **What:** for `from_univariate(gamma(a=3), gamma(a=2)).ldot([[1, 0], [0.5, 1]])`,
+  the `"KL"` cdf is NaN or far outside `[0, 1]` (e.g. -4.24, -12.45) at valid points in the
+  support whose saddlepoint has `t1 >~ 0.97`, near the boundary `t1 < 1`, e.g.
+  `x = (4.325, 3.025)`. `"Kolassa"` is fine there. `fit_cdf` treats such values as failures
+  and fills them from the neighbours.
+
+### [ ] 60. Bivariate `"Wang"` cdf raises for a dependent gamma
+
+- **Where:** `spapprox/spa.py`, `BivariateSaddlePointApprox._wang_cdf`
+- **What:** for the cgf of item 59, `cdf(x=[[2, 3], [4, 5]], backend="Wang")` raises
+  `AssertionError: Something is wrong`. `"KL"` and `"Kolassa"` give 0.21 and 0.68.
+
 ---
 
 ## Tooling / packaging
@@ -949,7 +973,8 @@ Or into a separate model, e.g., bootstrap.py
     `O(1/n)`, about 1.5x that of `"KL"` in 2-D; exact for the normal; continuous;
     symmetric. Phase B (Kolassa & Li 2010 for `d > 2`) is open, and only worth it if
     phase A turns out not to be accurate enough
-  - `fit_cdf` for the multivariate case is not implemented
+  - [x] `fit_cdf` for the multivariate case: tabulates the cdf on a tensor grid in `x` and
+    interpolates (PCHIP by default), see `docs/multivariate_fit_cdf_plan.md`
   - lattice variables: continuity-corrected version of Kolassa (2003) eq. (13)
   - [x] bivariate `"KL"` and `"Wang"` cdf returned NaN, plus `invalid value in sqrt` warnings,
     in `examples/example_Wang1990.py`, e.g. cells (x=0, y=1.0) and (x=-1.0, y=0.0). Cause: `x`

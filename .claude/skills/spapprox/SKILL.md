@@ -285,6 +285,6 @@ tolerance.
   deprecated `FinDiff` API. Do not treat them as behavioral references, and note
   they need `matplotlib`, which is not a declared dependency.
 - **Multivariate support is incomplete by design, not by accident.** Some
-  methods raise `NotImplementedError` (`fit_cdf`, conditioning on three or more variables of interest). The
+  methods raise `NotImplementedError` (conditioning on three or more variables of interest). The
   plan for the multivariate cdf is in `docs/multivariate_cdf_plan.md`. The README lists conditional distributions and quotients of
   random variables as future work.

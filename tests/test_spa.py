@@ -1382,6 +1382,55 @@ def test_mvar_cdf_vectorized_and_invalid_backend():
         spa.cdf(x=xs[0, :2])
 
 
+def test_mvar_fit_cdf_normal():
+    # The Kolassa (2003) approximation is exact for the normal, so only interpolation errors
+    cov = np.array([[1.0, 0.5], [0.5, 2.0]])
+    spa = MultivariateSaddlePointApprox(multivariate_norm(loc=np.zeros(2), cov=cov))
+    spa.fit_cdf(num=20)
+    axes = spa._cdf_axes_cache
+    node = np.array([axes[0][7], axes[1][11]])
+    direct = MultivariateSaddlePointApprox(spa.cgf)
+    assert np.isclose(spa.cdf(x=node), direct.cdf(x=node), atol=1e-10)
+    xs = np.random.default_rng(0).multivariate_normal(np.zeros(2), cov, size=50)
+    fitted = spa.cdf(x=xs)
+    assert np.allclose(fitted, sps.multivariate_normal(np.zeros(2), cov).cdf(xs), atol=5e-3)
+    assert np.allclose(spa.cdf(x=pd.DataFrame(xs)).values, fitted)
+    assert np.allclose(spa.cdf(t=spa.cgf.dK_inv(xs)), fitted)
+    # Outside the grid, the cdf is evaluated directly
+    outside = np.array([axes[0][-1] + 1, 0.3])
+    assert np.isclose(spa.cdf(x=outside), direct.cdf(x=outside))
+    spa.clear_cache()
+    assert not hasattr(spa, "_cdf_interp_cache")
+
+
+def test_bvar_fit_cdf_non_rectangular_support():
+    # X = (Z1, Z1 / 2 + Z2) has support x2 > x1 / 2, so part of the grid is outside the
+    # support, and the corners of the box of t ranges are outside the domain
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(gamma(a=3), gamma(a=2)).ldot(
+        np.array([[1, 0], [0.5, 1]])
+    )
+    spa = BivariateSaddlePointApprox(cgf)
+    spa.fit_saddle_point_eqn(num=10)
+    assert np.isnan(spa._t_cache).any() and not np.isnan(spa._t_cache).all()
+    # Outside the grid, the saddle point equation is solved directly
+    x = np.array([40.0, 30.0])
+    assert np.allclose(spa._dK_inv(x), cgf.dK_inv(x))
+    spa = BivariateSaddlePointApprox(cgf)
+    spa.fit_cdf(num=15)
+    F = spa._cdf_grid_cache
+    assert np.all((F >= 0) & (F <= 1))
+    assert np.all(np.diff(F, axis=0) >= -1e-3) and np.all(np.diff(F, axis=1) >= -1e-3)
+    # Points in the bulk; near the corner of the support, a 15 point grid is too coarse
+    x1 = np.array([2.0, 4.0, 6.0])
+    xs = np.column_stack([x1, x1 / 2 + np.array([2.0, 3.0, 2.5])])
+    direct = BivariateSaddlePointApprox(cgf)
+    assert np.allclose(spa.cdf(x=xs), direct.cdf(x=xs), atol=0.02)
+    # Another backend is evaluated directly
+    assert np.allclose(spa.cdf(x=xs, backend="Kolassa"), direct.cdf(x=xs, backend="Kolassa"))
+    with pytest.raises(ValueError):
+        spa.fit_cdf(backend="foo")
+
+
 # Booth and Butler (1990), Tables 3 and 4
 _BB_U = [155, 68, 28, 25, 190, 82, 92, 196, 164, 68, 82, 36, 195, 92, 185, 61, 62, 71, 207, 185]
 _BB_U = np.array(_BB_U + [475, 155, 29, 96, 699.0])
