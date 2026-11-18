@@ -256,6 +256,15 @@ $\Phi_2(\tilde{\mathbf{x}}, \rho)$ plus correction terms, and optionally uses th
 evaluation. The $\mathbf{t} \approx 0$ singularity is handled by averaging
 evaluations at $\pm 10^{-7}$ rather than by a closed-form limit.
 
+**Lattice:** `BivariateSaddlePointApprox.cdf(x, delta=span)` (scalar or per component,
+`backend="KL"` only; `x` on the lattice) solves the saddle point at $\mathbf{x}+\delta/2$ and
+runs `_LatticeBivariateApprox` (cached per `delta` in `_lattice_cache`), which sets
+`self.delta`: `_rho` replaces $\tau_j$ by $2\sinh(\tau_j\delta_j/2)/\delta_j$ in
+`_kl_first_factor` / `_kl_marginal_factor`, and `_kl_marginal_cdf` uses the univariate lattice
+cdf, Kolassa and Li (2010) Section 3. `_ConditionalBivariateApprox` shares these hooks.
+Independent Poissons (3, 4) at (2, 3): 0.181 vs exact 0.183. `fit_cdf`, `"Wang"`,
+`"Kolassa"` and $d>2$ reject `delta` (`_reject_lattice`).
+
 ## Estimating equations
 
 `EstimatingEquationSaddlePointApprox(cgf, given=None, decreasing=True, bracket=None)`

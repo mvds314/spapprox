@@ -1057,10 +1057,52 @@ def test_mvar_cdf_rejects_delta(backend):
     # delta used to be forwarded to the saddle point solver, which failed misleadingly
     cgf = MultivariateCumulantGeneratingFunction.from_univariate(poisson(3), poisson(4))
     spa = BivariateSaddlePointApprox(cgf)
-    with pytest.raises(NotImplementedError, match="delta"):
-        spa.cdf(x=np.array([2.0, 3.0]), backend=backend, delta=1)
+    if backend != "KL":
+        with pytest.raises(NotImplementedError, match="delta"):
+            spa.cdf(x=np.array([2.0, 3.0]), backend=backend, delta=1)
     with pytest.raises(NotImplementedError, match="delta"):
         spa.fit_cdf(backend=backend, delta=1)
+
+
+def test_bvar_lattice_cdf_independent_poisson():
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(poisson(3), poisson(4))
+    spa = BivariateSaddlePointApprox(cgf)
+    x = np.array([[2.0, 3.0], [5.0, 1.0], [1.0, 7.0]])
+    exact = sps.poisson(3).cdf(x[:, 0]) * sps.poisson(4).cdf(x[:, 1])
+    assert np.allclose(spa.cdf(x=x, delta=1), exact, rtol=0.025)
+    # The uncorrected approximation is far off
+    assert not np.isclose(spa.cdf(x=x[0]), exact[0], rtol=0.2)
+    # Same lattice scaled by two
+    cgf2 = MultivariateCumulantGeneratingFunction.from_univariate(2 * poisson(3), 2 * poisson(4))
+    assert np.allclose(
+        BivariateSaddlePointApprox(cgf2).cdf(x=2 * x, delta=2), spa.cdf(x=x, delta=1)
+    )
+    with pytest.raises(ValueError):
+        spa.cdf(x=x[0], delta=0)
+
+
+def test_bvar_lattice_cdf_kolassa_li_table2():
+    # Kolassa and Li (2010), Table 2: S1 = A + B, S2 = B + C with A, B, C ~ Bin(80, 0.2)
+    n = 80
+    pm = sps.binom(n, 0.2).pmf(np.arange(n + 1))
+    joint = np.zeros((2 * n + 1, 2 * n + 1))
+    for k in range(n + 1):
+        joint[k : k + n + 1, k : k + n + 1] += pm[k] * np.outer(pm, pm)
+    F = joint.cumsum(0).cumsum(1)
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(*[binomial(n, 0.2)] * 3).ldot(
+        np.array([[1.0, 1.0, 0.0], [0.0, 1.0, 1.0]])
+    )
+    spa = BivariateSaddlePointApprox(cgf)
+    for s1, s2, paper in [(36, 36, 1.15e-1), (40, 48, 9.91e-4)]:
+        exact = 1 - F[s1 - 1, -1] - F[s2 - 1, -1] + F[s1 - 1, s2 - 1]
+        upper = (
+            1
+            - spa[0].cdf(x=s1 - 1.0, delta=1)
+            - spa[1].cdf(x=s2 - 1.0, delta=1)
+            + spa.cdf(x=np.array([s1 - 1.0, s2 - 1.0]), delta=1)
+        )
+        assert np.isclose(upper, exact, rtol=0.01)
+        assert np.isclose(upper, paper, rtol=0.01)
 
 
 @pytest.mark.parametrize("backend", ["KL", "Wang"])
