@@ -212,7 +212,6 @@ def test_expon_spa(cgf, dist, trange):
             list(itertools.combinations_with_replacement(np.linspace(-10, 10, 10), 3)),
             3,
             id="Multivariate normal 3 dim",
-            marks=pytest.mark.slow,
         ),
         # Other distribution
         pytest.param(
@@ -1163,7 +1162,7 @@ def test_bvar_cdf_wang_1990_table_1(dx, dy, expected):
         # Relative error O(1/n)
         ("KL", 1, 0.006),
         ("KL", 16, 4e-4),
-        ("KL", 64, 1e-4),
+        pytest.param("KL", 64, 1e-4, marks=pytest.mark.slow),
     ],
 )
 def test_bvar_cdf_dependent_accuracy(backend, k, max_err):
@@ -1434,7 +1433,7 @@ def test_mvar_cdf_kolassa_gamma_accuracy(k, max_err):
     assert max(errs) < max_err
 
 
-@pytest.mark.parametrize("k,max_err", [(1, 0.008), pytest.param(16, 5e-4, marks=pytest.mark.slow)])
+@pytest.mark.parametrize("k,max_err", [(1, 0.008), (16, 5e-4)])
 def test_bvar_cdf_kolassa_accuracy(k, max_err):
     a = np.array([2.0, 1.0, 3.0]) * k
     spa = BivariateSaddlePointApprox(bivariate_gamma(a=a))

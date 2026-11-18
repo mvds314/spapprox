@@ -938,7 +938,7 @@ Contract violations and silently wrong results in narrower situations.
 
 ## Working notes
 
-- Full suite takes ~11 min; iterate with targeted `pytest tests/test_X.py`.
+- Full suite takes ~16 min (~4 min with `-m "not slow"`); iterate with targeted `pytest tests/test_X.py`.
 - Numerical tests compare against `scipy.stats` with tolerances. If a fix shifts
   results, establish whether it is a regression or a genuinely better
   approximation _before_ touching any tolerance.

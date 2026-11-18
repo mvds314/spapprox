@@ -236,7 +236,7 @@ that the tests check.
 
 ```bash
 pip install -e ".[findiff,numdiff,fastnorm]"   # editable install with all extras
-pytest                                          # full suite (~11 min)
+pytest                                          # full suite (~16 min)
 pytest tests/test_diff.py                       # one file
 pytest tests/test_spa.py::test_name             # one test
 pytest -m "not slow"                            # skip slow tests

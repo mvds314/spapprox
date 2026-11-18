@@ -64,11 +64,12 @@ inside `pytest.param(...)`; wrap them in a lambda so they are built at call time
 ## Test and lint
 
 **Default to `pytest -m "not slow"` when running tests.** The full suite takes too
-long for routine iteration; run it only when explicitly asked (CI runs it anyway).
+long for routine iteration; run it only when explicitly asked. CI also skips the slow tests, so
+run the full suite locally before merging a change that touches slow-marked code paths.
 
 ```bash
 pytest -m "not slow"                     # default: skip slow tests
-pytest                                   # full suite (~11 min), only when asked
+pytest                                   # full suite (~16 min), only when asked
 pytest tests/test_diff.py                # single file
 pytest tests/test_diff.py::test_name     # single test
 pytest -k "some_pattern"                 # by name pattern
