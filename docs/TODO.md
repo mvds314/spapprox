@@ -968,6 +968,13 @@ Or into a separate model, e.g., bootstrap.py
   - conditional cdf for a vector of interest `P(X_I >= x_I | X_J = x_J)`, continuous and
     lattice: phase F above (Kolassa & Li, 2010, section 4). Done for two variables of
     interest, `conditional_cdf(i=[a, b], delta=...)`; open for three or more
+  - `bernoulli(p)` factory in `cgfs.py` (thin wrapper around `binomial(n=1, p)`, plus export
+    and test). Then simplify example 2 of `examples/example_Kolassa2003.py`: its hand-written
+    logistic CGF equals `MultivariateCumulantGeneratingFunction.from_univariate(*[binomial(
+    n=m_j, p=0.5)]).ldot(Z.T)` (checked to machine precision). Show both tail approximations
+    side by side: the current first continuity correction and the package's
+    `1 - cdf(x=c - 1, delta=1)` (second correction). Boole sums: 0.01756 (first), 0.01727
+    (second), paper 0.01709, exact 0.01713; the paper's figure is still unexplained
 - bootstrap for robust estimators (Kuonen, 1998): `EstimatingEquationSaddlePointApprox` with
   Poisson weights covers monotone M-estimators. Done: Huber location estimate in
   `examples/example_bootstrap_robust_estimator.py`
