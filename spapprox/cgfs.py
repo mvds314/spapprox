@@ -325,3 +325,12 @@ def binomial(n=1, p=0.5):
             / ((1 - p) * np.exp(-t) + p) ** 3
         ),
     )
+
+
+def bernoulli(p=0.5):
+    r"""
+    Cumulant generating function of a Bernoulli distribution, :math:`K(t)=\log(1-p+pe^t)`.
+
+    Equivalent to ``binomial(n=1, p=p)``.
+    """
+    return binomial(n=1, p=p)

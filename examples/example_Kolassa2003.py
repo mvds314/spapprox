@@ -27,12 +27,11 @@ probability approximations", Ann. Statist. 31(1), 274-286.
 """
 
 import numpy as np
-import scipy.stats as sps
 
 import matplotlib.pyplot as plt
 
 import spapprox as spa
-from spapprox import Domain, MultivariateCumulantGeneratingFunction
+from spapprox import MultivariateCumulantGeneratingFunction
 
 plt.close("all")
 
@@ -102,39 +101,11 @@ observed = m @ Z  # (9, 6, 13)
 critical = np.array([10, 10, 13])
 
 
-def sigmoid(u):
-    return 1 / (1 + np.exp(-u))
-
-
-# Null CGF of T: each pair contributes z_j B_j with B_j ~ Bernoulli(1/2) under beta = 0, so
-# K(tau) = sum_j m_j [log(1 + exp(z_j tau)) - log(2)], the logistic log-partition function
-def K(t):
-    return m @ (np.logaddexp(0, Z @ np.asarray(t)) - np.log(2))
-
-
-def dK(t):
-    return (m * sigmoid(Z @ np.asarray(t))) @ Z
-
-
-def d2K(t):
-    s = sigmoid(Z @ np.asarray(t))
-    return np.einsum("j,ja,jb->ab", m * s * (1 - s), Z, Z)
-
-
-def d3K(t):
-    s = sigmoid(Z @ np.asarray(t))
-    return np.einsum("j,ja,jb,jc->abc", m * s * (1 - s) * (1 - 2 * s), Z, Z, Z)
-
-
-K_vec = np.vectorize(K, signature="(3)->()")
-cgf_logistic = MultivariateCumulantGeneratingFunction(
-    K=K_vec,
-    dK=lambda t: np.apply_along_axis(dK, -1, t),
-    d2K=np.vectorize(d2K, signature="(3)->(3,3)"),
-    d3K=np.vectorize(d3K, signature="(3)->(3,3,3)"),
-    dim=3,
-    domain=Domain(dim=3),
-)
+# Null CGF of T: under beta = 0, the m_j pairs with difference z_j contribute z_j N_j, with
+# N_j ~ binomial(m_j, 1/2) independent, so T = Z' N
+cgf_logistic = MultivariateCumulantGeneratingFunction.from_univariate(
+    *[spa.binomial(n=mj, p=0.5) for mj in m]
+).ldot(Z.T)
 
 
 def exact_distribution():
@@ -151,12 +122,10 @@ def exact_distribution():
     return pmf
 
 
-def lattice_upper_tail(cgf, c):
-    # Lugannani-Rice for P[T >= c] on a lattice with span one (Daniels, 1987)
-    tau = float(cgf.dK_inv(c))
-    w = np.sign(tau) * np.sqrt(2 * (tau * c - cgf.K(tau)))
-    v = (1 - np.exp(-tau)) * np.sqrt(cgf.d2K(tau))
-    return sps.norm.sf(w) + sps.norm.pdf(w) * (1 / v - 1 / w)
+def lattice_upper_tail(cgf, c, correction):
+    # P[T >= c] = 1 - P[T <= c - 1] on a lattice with span one, first or second continuity
+    # correction (Daniels, 1987; Butler, 2007, section 1.2)
+    return 1 - spa.UnivariateSaddlePointApprox(cgf).cdf(x=c - 1, delta=1, correction=correction)
 
 
 with spa.Timer("\nExact null distribution (convolution)", decimals=3):
@@ -164,19 +133,24 @@ with spa.Timer("\nExact null distribution (convolution)", decimals=3):
     keys = np.array(list(pmf))
     probs = np.array(list(pmf.values()))
 with spa.Timer("Saddle point tail probabilities", decimals=3):
-    sp = [lattice_upper_tail(cgf_logistic[j], critical[j]) for j in range(3)]
+    sp = {
+        k: [lattice_upper_tail(cgf_logistic[j], critical[j], k) for j in range(3)] for k in (1, 2)
+    }
 
 print("Observed T:", observed)
-print("Null tail probabilities P_H0[T_j >= c_j] (lattice Lugannani-Rice):")
-boole = sum(sp)
+print("Null tail probabilities P_H0[T_j >= c_j] (lattice Lugannani-Rice, 1st/2nd correction):")
 for j in range(3):
     exact = probs[keys[:, j] >= critical[j]].sum()
-    print(f"  T{j + 1} >= {critical[j]:2d}: saddlepoint {sp[j]:.5f}, exact {exact:.5f}")
+    print(
+        f"  T{j + 1} >= {critical[j]:2d}: saddlepoint {sp[1][j]:.5f} / {sp[2][j]:.5f}, "
+        f"exact {exact:.5f}"
+    )
 in_region = (keys >= critical).any(axis=1)
-print(f"Size of the test, Boole's bound: {boole:.5f}")
+print(f"Size of the test, Boole's bound: {sum(sp[1]):.5f} / {sum(sp[2]):.5f}")
 print(f"Size of the test, exact P_H0[critical region]: {probs[in_region].sum():.5f}")
-# Note: our Boole sum (about 0.01756) does not match the 0.01709 reported in the paper, while the
-# exact probability (0.01713) lies within the paper's Monte Carlo interval. It is unclear how the
+# Note: our Boole sums (about 0.01756 with the first correction, 0.01727 with the second) do not
+# match the 0.01709 reported in the paper, while the exact probability (0.01713) lies within the
+# paper's Monte Carlo interval. It is unclear how the
 # paper computed its Boole figure, so the discrepancy is not resolved here.
 print("Kolassa (2003) reports 0.01709 by Boole's law; Monte Carlo 95% CI (0.01702, 0.01718)")
 

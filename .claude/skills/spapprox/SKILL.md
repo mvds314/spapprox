@@ -56,7 +56,7 @@ Dependencies run strictly one way:
 Public API (`spapprox/__init__.py`): the two CGF classes, `Domain`, the five
 approximation classes, `Timer`, and the distribution factories `norm`,
 `multivariate_norm`, `exponential`, `gamma`, `bivariate_gamma`, `chi2`,
-`laplace`, `poisson`, `binomial`, `univariate_empirical`,
+`laplace`, `poisson`, `bernoulli`, `binomial`, `univariate_empirical`,
 `univariate_sample_mean`.
 
 ## The typical flow
