@@ -999,6 +999,17 @@ def test_bvar_cdf_kl_continuous_near_singularities():
     assert np.allclose(vals, vals[1], atol=1e-6)
 
 
+@pytest.mark.parametrize("backend", ["KL", "Wang", "Kolassa"])
+def test_mvar_cdf_rejects_delta(backend):
+    # delta used to be forwarded to the saddle point solver, which failed misleadingly
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(poisson(3), poisson(4))
+    spa = BivariateSaddlePointApprox(cgf)
+    with pytest.raises(NotImplementedError, match="delta"):
+        spa.cdf(x=np.array([2.0, 3.0]), backend=backend, delta=1)
+    with pytest.raises(NotImplementedError, match="delta"):
+        spa.fit_cdf(backend=backend, delta=1)
+
+
 @pytest.mark.parametrize("backend", ["KL", "Wang"])
 @pytest.mark.parametrize("pt", [[0.0, 1.0], [-1.0, 0.0]])
 def test_bvar_cdf_at_marginal_mean_from_t(backend, pt):
