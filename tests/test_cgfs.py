@@ -100,7 +100,7 @@ from spapprox.diff import PartialDerivative
             [0.2, 0.55],
             sps.norm(loc=0, scale=np.sqrt(2)),
             "findiff",
-            marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
+            marks=[pytest.mark.skipif(not has_findiff, reason="No findiff"), pytest.mark.slow],
             id="sum of two univariate normal distributions",
         ),
         pytest.param(
