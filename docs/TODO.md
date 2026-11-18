@@ -2,7 +2,7 @@
 
 - Go through bug backlog
 - [x] Review implementation against Alhejaili, AlGhamedi (2025) - A review of saddlepoint
-  approximation: done, see "Review: Alhejaili and AlGhamedi (2025)" below. Follow-ups: bug 62,
+  approximation: done, see "Review: Alhejaili and AlGhamedi (2025)" below. Follow-ups: bug 62 (fixed),
   and the lattice items `Pr1` and unconditional bivariate cdf
 - Finish bivariate approximation:
   - basically this case: test_bvar_cdf_near_zero
@@ -805,15 +805,16 @@ Contract violations and silently wrong results in narrower situations.
   Newton steps, and solves directly, starting from it, where the residual stays large.
   Regression test: `test_bvar_fit_saddle_point_eqn_polishes_interpolation`.
 
-### [ ] 62. Multivariate `cdf(..., delta=...)` is forwarded to the root finder
+### [x] 62. Multivariate `cdf(..., delta=...)` is forwarded to the root finder
 
 - **Where:** `MultivariateSaddlePointApprox.cdf` / `BivariateSaddlePointApprox.cdf`, which take
   `**solver_kwargs` but have no `delta`, unlike the univariate and conditional cdfs.
 - **What:** `delta=1` ends up in `dK_inv`. For `from_univariate(poisson(3), poisson(4))` at
   `x=(2, 3)`, `"KL"` and `"Wang"` raise "Failed to solve the saddle point equation", and
   `"Kolassa"` returns `nan`: the message hides the real cause.
-- **Fix:** reject `delta` with a clear `NotImplementedError` until the lattice cdf below is
-  implemented.
+- **Fix:** `cdf` and `fit_cdf` take an explicit `delta=None` and raise a clear
+  `NotImplementedError` otherwise, until the lattice cdf below is implemented. Regression test:
+  `test_mvar_cdf_rejects_delta`.
 
 ---
 

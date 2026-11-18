@@ -1454,7 +1454,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
     _cdf_backends = {"Kolassa": "_kolassa_cdf"}
     _cdf_default_backend = "Kolassa"
 
-    def cdf(self, x=None, t=None, fillna=np.nan, backend=None, **solver_kwargs):
+    def cdf(self, x=None, t=None, fillna=np.nan, backend=None, delta=None, **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function.
 
@@ -1471,6 +1471,10 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         backend : str, optional
             'Kolassa' (default) for the approximation of Kolassa (2003), see
             :meth:`_kolassa_cdf`.
+        delta : None
+            Lattice spans are not supported yet; passing anything other than ``None``
+            raises a :class:`NotImplementedError`. For a lattice variable of interest, see
+            :meth:`conditional_cdf`.
 
         Notes
         -----
@@ -1478,6 +1482,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         table, unless another ``backend`` is requested.
         """
         assert x is not None or t is not None
+        _reject_lattice(delta)
         backend = self._cdf_default_backend if backend is None else backend
         if backend not in self._cdf_backends:
             raise ValueError(f"backend must be one of {list(self._cdf_backends)}")
@@ -1654,6 +1659,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         num=None,
         backend=None,
         method="pchip",
+        delta=None,
         **solver_kwargs,
     ):
         r"""
@@ -1689,7 +1695,10 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             default 'pchip', monotone cubic interpolation along each axis, is about ten times
             more accurate than 'linear' for the default grid, but slower to evaluate, about
             0.5 ms per point. 'cubic' is more accurate still, but can overshoot.
+        delta : None
+            Not supported yet, see :meth:`cdf`.
         """
+        _reject_lattice(delta)
         backend = self._cdf_default_backend if backend is None else backend
         if backend not in self._cdf_backends:
             raise ValueError(f"backend must be one of {list(self._cdf_backends)}")
@@ -2366,6 +2375,13 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
     def _dK_inv(self, x, **solver_kwargs):
         # TODO: implement multivariate interpolation with radial basis functions or something like that
         return super()._dK_inv(x, **solver_kwargs)
+
+
+def _reject_lattice(delta):
+    if delta is not None:
+        raise NotImplementedError(
+            "delta: the multivariate cdf has no continuity correction for lattice variables yet"
+        )
 
 
 def _signed_root(sign, arg):
