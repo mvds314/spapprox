@@ -15,7 +15,7 @@ from .cgfs import (
     univariate_sample_mean,
 )
 from .domain import Domain
-from .mvn import _kolassa_orthant
+from .mvn import _kolassa_orthant, _mvn_logtail
 from .util import fib, type_wrapper
 
 try:
@@ -44,28 +44,39 @@ def _lagrange_weights(nodes, x):
     )
 
 
-def _bvn_tail_derivatives(b, c):
+def _bvn_tail_derivatives(b, c, logscale=0.0):
     r"""
     The tail probability :math:`T(\mathbf{b}) = P(\mathbf{Z}\geq\mathbf{b})` with
     :math:`\mathbf{Z}\sim N(0, A)`, :math:`A = [[1+c^2, c], [c, 1]]`, and its partial
     derivatives :math:`T_1, T_2, T_{11}, T_{12}, T_{111}, T_{112}` with respect to
-    :math:`\mathbf{b}`.
+    :math:`\mathbf{b}`, all multiplied by :math:`e^{c_0}` with :math:`c_0` the ``logscale``.
+
+    The scale is applied in log-space, so that it may be large while :math:`T` underflows.
+    For a large scale, :math:`T` is computed with relative accuracy by :func:`_mvn_logtail`,
+    which requires :math:`A^{-1}\mathbf{b}\geq 0`; the bivariate normal cdf is only
+    accurate in absolute terms.
     """
     s1 = np.sqrt(1 + c**2)
     g = c / s1
-    T = _bvn_cdf(np.array([-b[0] / s1, -b[1]]), g)
+    if logscale > 1:
+        A = np.array([[1 + c**2, c], [c, 1.0]])
+        T = np.exp(logscale + _mvn_logtail(b, A))
+    else:
+        T = np.exp(logscale) * _bvn_cdf(np.array([-b[0] / s1, -b[1]]), g)
     # Z2 | Z1 = b1 ~ N(c b1 / s1^2, 1 / s1^2), and Z1 | Z2 = b2 ~ N(c b2, 1)
     z = s1 * b[1] - g * b[0]
-    p = sps.norm.pdf(b[0] / s1) / s1
-    p1 = -b[0] / s1**2 * p
-    p2 = (b[0] ** 2 / s1**4 - 1 / s1**2) * p
-    phiz, sfz = sps.norm.pdf(z), sps.norm.sf(z)
-    T1 = -p * sfz
-    T2 = -sps.norm.pdf(b[1]) * sps.norm.sf(b[0] - c * b[1])
-    T11 = -p1 * sfz - g * p * phiz
-    T12 = s1 * p * phiz
-    T111 = -p2 * sfz - 2 * g * p1 * phiz - g**2 * z * p * phiz
-    T112 = s1 * p1 * phiz + g * s1 * z * p * phiz
+    lp = logscale + sps.norm.logpdf(b[0] / s1) - np.log(s1)
+    # The density of Z1 at b1 times the conditional tail, and times the conditional density
+    P = np.exp(lp + sps.norm.logsf(z))
+    Q = np.exp(lp + sps.norm.logpdf(z))
+    q1 = -b[0] / s1**2
+    q2 = b[0] ** 2 / s1**4 - 1 / s1**2
+    T1 = -P
+    T2 = -np.exp(logscale + sps.norm.logpdf(b[1]) + sps.norm.logsf(b[0] - c * b[1]))
+    T11 = -q1 * P - g * Q
+    T12 = s1 * Q
+    T111 = -q2 * P - 2 * g * q1 * Q - g**2 * z * Q
+    T112 = s1 * q1 * Q + g * s1 * z * Q
     return T, T1, T2, T11, T12, T111, T112
 
 
@@ -1374,10 +1385,29 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         x = np.asanyarray(x, dtype=float)
         xr = x.reshape(-1, self.dim)
         t = np.asarray(self._interp_cache(xr), dtype=float)
-        # Outside the grid, or next to grid points without a solution, solve directly
-        missing = np.isnan(t).any(axis=-1)
+        # Linear interpolation is only a first guess: the cdf approximations break down when
+        # x is not the gradient at t, see TODO item 60. Polish it by Newton's method.
+        tol = 1e-6 * (1 + np.abs(xr))
+        with np.errstate(all="ignore"):
+            for _ in range(5):
+                res = np.asarray(self.cgf.dK(t), dtype=float).reshape(xr.shape) - xr
+                todo = np.isfinite(res).all(axis=-1) & ~np.all(np.abs(res) <= tol, axis=-1)
+                if not todo.any():
+                    break
+                H = np.asarray(self.cgf.d2K(t[todo]), dtype=float).reshape(-1, self.dim, self.dim)
+                step = np.linalg.solve(H, res[todo][..., None])[..., 0]
+                tn = t[todo] - step
+                ok = np.isfinite(tn).all(axis=-1) & self.cgf.domain.is_in_domain(tn)
+                t[np.flatnonzero(todo)[ok]] = tn[ok]
+            res = np.asarray(self.cgf.dK(t), dtype=float).reshape(xr.shape) - xr
+        # Outside the grid, next to grid points without a solution, or where Newton's method
+        # did not converge, solve directly
+        missing = ~np.all(np.abs(res) <= tol, axis=-1)
         if missing.any():
-            t[missing] = np.reshape(self.cgf.dK_inv(xr[missing], **solver_kwargs), (-1, self.dim))
+            t0 = np.where(np.isfinite(t[missing]), t[missing], 0.0)
+            t[missing] = np.reshape(
+                self.cgf.dK_inv(xr[missing], t0=t0, **solver_kwargs), (-1, self.dim)
+            )
         return t.reshape(x.shape)
 
     def _x_axes(self, t_ranges, num, atol=1e-4, rtol=1e-4):
@@ -2315,14 +2345,16 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         u = np.array([w1h, w2h - w2c])
         A = np.array([[1 + c**2, c], [c, 1.0]])
         b = A @ u
-        C = np.exp(-(w1h**2 + w2h**2) / 2 + u @ A @ u / 2)
-        T, T1, T2, T11, T12, T111, T112 = _bvn_tail_derivatives(b, c)
+        # C T is moderate, but C may overflow while T underflows, so C scales the tail in
+        # log-space
+        logC = -(w1h**2 + w2h**2) / 2 + u @ A @ u / 2
+        T, T1, T2, T11, T12, T111, T112 = _bvn_tail_derivatives(b, c, logscale=logC)
         D111 = T111 + 3 * u[0] * T11 + 3 * u[0] ** 2 * T1 + u[0] ** 3 * T
         D112 = (
             T112 + 2 * u[0] * T12 + u[0] ** 2 * T2 + u[1] * (T11 + 2 * u[0] * T1 + u[0] ** 2 * T)
         )
-        I0 = C * (T - d / 6 * (3 * c * D111 + 3 * D112))
-        I1 = -C * self._kl_first_factor(t, ts[0], e1, w1h) * T1
+        I0 = T - d / 6 * (3 * c * D111 + 3 * D112)
+        I1 = -self._kl_first_factor(t, ts[0], e1, w1h) * T1
         if np.abs(tt) >= h2:
             fac = self._kl_marginal_factor(tt)
         else:

@@ -775,7 +775,7 @@ Contract violations and silently wrong results in narrower situations.
   until the decrement stops decreasing. Regression test:
   `test_vector_estimating_equation_newton_roundoff` in `tests/test_spa.py`.
 
-### [ ] 59. Bivariate `"KL"` cdf fails close to the domain boundary
+### [x] 59. Bivariate `"KL"` cdf fails close to the domain boundary
 
 - **Where:** `spapprox/spa.py`, `BivariateSaddlePointApprox._kl_cdf`
 - **What:** for `from_univariate(gamma(a=3), gamma(a=2)).ldot([[1, 0], [0.5, 1]])`,
@@ -783,12 +783,25 @@ Contract violations and silently wrong results in narrower situations.
   support whose saddlepoint has `t1 >~ 0.97`, near the boundary `t1 < 1`, e.g.
   `x = (4.325, 3.025)`. `"Kolassa"` is fine there. `fit_cdf` treats such values as failures
   and fills them from the neighbours.
+- **Fix:** the prefactor exp(b'A^{-1}b/2) overflowed while the normal tail probability T
+  underflowed to 0, so the cubic correction, a near-total cancellation, was garbage.
+  `_bvn_tail_derivatives` now takes a `logscale` and computes T and its derivatives in log
+  space (T via `_mvn_logtail` for large scales), and `_kl_tail` passes the log prefactor.
+  Close to the boundary, KL is now within about 0.02 of `"Kolassa"` and Monte Carlo.
+  Regression test: `test_bvar_kl_cdf_near_domain_boundary`.
 
-### [ ] 60. Bivariate `"Wang"` cdf raises for a dependent gamma
+### [x] 60. Bivariate `"Wang"` cdf raises for a dependent gamma
 
 - **Where:** `spapprox/spa.py`, `BivariateSaddlePointApprox._wang_cdf`
 - **What:** for the cgf of item 59, `cdf(x=[[2, 3], [4, 5]], backend="Wang")` raises
   `AssertionError: Something is wrong`. `"KL"` and `"Kolassa"` give 0.21 and 0.68.
+- **Correction:** on a fresh object it works; it raised after a coarse
+  `fit_saddle_point_eqn` (e.g. `num=8`), because `_dK_inv` returned linearly
+  interpolated saddlepoints that were far off (t = -4.6 instead of 0.08), so that x was not
+  the gradient at t. `"KL"` and `"Kolassa"` silently gave wrong values there.
+- **Fix:** `MultivariateSaddlePointApprox._dK_inv` polishes the interpolated t by up to five
+  Newton steps, and solves directly, starting from it, where the residual stays large.
+  Regression test: `test_bvar_fit_saddle_point_eqn_polishes_interpolation`.
 
 ---
 
