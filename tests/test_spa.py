@@ -1431,6 +1431,38 @@ def test_bvar_fit_cdf_non_rectangular_support():
         spa.fit_cdf(backend="foo")
 
 
+def _dependent_gamma_cgf():
+    return MultivariateCumulantGeneratingFunction.from_univariate(gamma(a=3), gamma(a=2)).ldot(
+        np.array([[1, 0], [0.5, 1]])
+    )
+
+
+def test_bvar_kl_cdf_near_domain_boundary():
+    # TODO item 59: close to the boundary t1 < 1, the normal tail probability in the KL
+    # expansion underflowed while its prefactor overflowed, giving NaN or values far
+    # outside [0, 1]. Monte Carlo gives 0.457 and 0.066 at the first and third point.
+    cgf = _dependent_gamma_cgf()
+    spa = BivariateSaddlePointApprox(cgf)
+    for t in [[0.98, -1.3], [0.99, -0.3], [0.995, -3.0]]:
+        t = np.array(t)
+        kl = spa.cdf(t=t, backend="KL")
+        assert 0 <= kl <= 1
+        assert np.isclose(kl, spa.cdf(t=t, backend="Kolassa"), atol=0.03)
+
+
+def test_bvar_fit_saddle_point_eqn_polishes_interpolation():
+    # TODO item 60: on a coarse grid, the interpolated saddlepoint was far off, so that the
+    # Wang cdf raised and the other backends were wrong
+    cgf = _dependent_gamma_cgf()
+    xs = np.array([[2.0, 3.0], [4.0, 5.0], [6.0, 5.5]])
+    direct = BivariateSaddlePointApprox(cgf)
+    spa = BivariateSaddlePointApprox(cgf)
+    spa.fit_saddle_point_eqn(num=8)
+    assert np.allclose(spa._dK_inv(xs), cgf.dK_inv(xs), atol=1e-6)
+    for backend in ["Wang", "KL", "Kolassa"]:
+        assert np.allclose(spa.cdf(x=xs, backend=backend), direct.cdf(x=xs, backend=backend))
+
+
 # Booth and Butler (1990), Tables 3 and 4
 _BB_U = [155, 68, 28, 25, 190, 82, 92, 196, 164, 68, 82, 36, 195, 92, 185, 61, 62, 71, 207, 185]
 _BB_U = np.array(_BB_U + [475, 155, 29, 96, 699.0])

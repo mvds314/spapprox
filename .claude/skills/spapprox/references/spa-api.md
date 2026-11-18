@@ -156,8 +156,10 @@ everything from `t`.
 Multivariate: `fit_saddle_point_eqn(t_ranges=None, ..., num=1000)` builds a tensor grid in
 `x` (per component, the marginal `cgf[j].dK` of the inferred `t` range, see `_x_axes`; the
 joint `dK` at the corners of the `t` box can leave the domain). Grid points without a
-solution (outside a non-rectangular support) are NaN in `_t_cache`; `_dK_inv` solves
-directly where interpolation gives NaN or `x` lies outside the grid.
+solution (outside a non-rectangular support) are NaN in `_t_cache`. `_dK_inv` polishes the
+linearly interpolated `t` by up to five Newton steps (the cdf backends need `x = dK(t)`
+accurately; Wang raises otherwise), and solves directly, from the interpolated start, where
+the residual stays large, interpolation gives NaN, or `x` lies outside the grid.
 `fit_cdf(t_ranges=None, atol, rtol, num=None, backend=None, method="pchip")` tabulates the
 cdf on such a grid (default `num = round(2500 ** (1 / d))`) and `cdf` then interpolates
 (`RegularGridInterpolator`, `method` as given) when `backend` is `None` or the fitted one;
