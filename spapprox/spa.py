@@ -2872,7 +2872,7 @@ class EstimatingEquationSaddlePointApprox:
             p = spa.conditional_cdf(x=x, given=[self.given], i=1, **kw, **solver_kwargs)
         return p if self.decreasing else 1 - p
 
-    def cdf(self, tau, fillna=np.nan, **solver_kwargs):
+    def cdf(self, tau, fillna=np.nan, interpolate=False, **solver_kwargs):
         r"""
         Saddle point approximation of :math:`P(\hat\tau\leq\tau)`.
 
@@ -2882,10 +2882,24 @@ class EstimatingEquationSaddlePointApprox:
             Values of the parameter.
         fillna : float, optional
             The value to replace NaNs with.
+        interpolate : bool, optional
+            If ``True``, values within the tabulated range, see :meth:`fit_cdf`, are
+            interpolated linearly from the table, which is much faster but less accurate;
+            values outside it are evaluated directly. The table is fitted first if needed.
+            For a lattice (``delta``), interpolation smooths out the steps of the cdf.
+            Default is ``False``.
         """
         tau = np.asarray(tau, dtype=float)
         wrapper = PandasWrapper(tau)
-        y = np.array([self._cdf_at(t, **solver_kwargs) for t in tau.ravel()]).reshape(tau.shape)
+        flat = tau.ravel()
+        y = np.full(flat.shape, np.nan)
+        inside = np.zeros(flat.shape, dtype=bool)
+        if interpolate:
+            grid, F = self._fitted()
+            inside = (flat >= grid[0]) & (flat <= grid[-1])
+            y[inside] = np.interp(flat[inside], grid, F)
+        y[~inside] = [self._cdf_at(t, **solver_kwargs) for t in flat[~inside]]
+        y = y.reshape(tau.shape)
         y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
@@ -3006,7 +3020,7 @@ class EstimatingEquationSaddlePointApprox:
             self.fit_cdf()
         return self._cdf_tau_cache, self._cdf_cache
 
-    def ppf(self, q, fillna=np.nan):
+    def ppf(self, q, fillna=np.nan, interpolate=False):
         r"""
         Inverse of :meth:`cdf`. The tabulated cdf, see :meth:`fit_cdf`, is interpolated, and
         the result refined with Brent's method.
@@ -3017,6 +3031,10 @@ class EstimatingEquationSaddlePointApprox:
             Probabilities.
         fillna : float, optional
             The value to replace NaNs with.
+        interpolate : bool, optional
+            If ``True``, skip the refinement and return the linear interpolation of the
+            tabulated cdf, which needs no further saddle point evaluations: much faster, but
+            accurate only up to the resolution of the table. Default is ``False``.
         """
         q = np.asarray(q, dtype=float)
         if np.any((q < 0) | (q > 1)):
@@ -3027,7 +3045,10 @@ class EstimatingEquationSaddlePointApprox:
         for k, qq in enumerate(q.ravel()):
             j = np.clip(np.searchsorted(F, qq), 1, len(tau) - 1)
             a, b = tau[j - 1], tau[j]
-            fa, fb = self._cdf_at(a) - qq, self._cdf_at(b) - qq
+            if interpolate:
+                fa = fb = np.nan
+            else:
+                fa, fb = self._cdf_at(a) - qq, self._cdf_at(b) - qq
             if np.isfinite(fa) and np.isfinite(fb) and fa * fb < 0:
                 y[k] = spo.brentq(lambda t: self._cdf_at(t) - qq, a, b, xtol=1e-8)
             elif F[j] > F[j - 1]:

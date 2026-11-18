@@ -87,6 +87,8 @@ ee.cdf([15, 18, 21])
 ee.ppf([0.05, 0.95])
 ```
 
+`cdf` and `ppf` solve saddle point equations for every value. After `ee.fit_cdf()`, pass `interpolate=True` to interpolate the tabulated cdf instead: much faster, accurate up to the resolution of the table.
+
 For a vector $\tau$, e.g., the coefficients of a regression, `MultivariateEstimatingEquationSaddlePointApprox(psi, x, weights, given)` approximates the joint density, with marginals from a tabulated grid (`fit_pdf`, `marginal_cdf`, `marginal_ppf`); see `examples/example_bootstrap_regression.py`.
 
 For a discrete $S(\tau)$, e.g., a mean of integer data under the multinomial bootstrap or the jackknife, pass `delta=1` to `from_resampling` for the continuity-corrected cdf.

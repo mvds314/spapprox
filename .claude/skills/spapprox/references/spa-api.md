@@ -276,7 +276,9 @@ univariate LR cdf, or `conditional_cdf(0, given, i=1)`, at each $\tau$.
   by default over `bracket` (trapezoid, `_pdf_normalization_num` points): unnormalized it
   is about 10% too high for the jackknife example.
 - `fit_cdf(bracket, num)` tabulates the cdf; `ppf` (interpolate + `brentq`), `mean` and
-  `var` (integrals of the tabulated cdf) use it. NaNs near the support boundary are filled
+  `var` (integrals of the tabulated cdf) use it. Opt-in `interpolate=True` on `ppf` (skip
+  `brentq`) and `cdf` (linear interpolation inside the table, direct evaluation outside)
+  avoids further saddle point solves, at the accuracy of the table. NaNs near the support boundary are filled
   with 0/1, and the table is made monotone outward from the median, because the cdf can
   return spurious values right at the boundary.
 - `delta=span` (plus `lattice_point(tau)`, a point on the lattice of $S(\tau)$; defaulted by

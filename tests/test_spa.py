@@ -1609,6 +1609,26 @@ def test_estimating_equation_dirichlet():
     assert np.isclose(ee.var(), x.var() / (n + 1), rtol=0.02)
 
 
+def test_estimating_equation_interpolate(monkeypatch):
+    # interpolate=True reads the fitted table, without new saddle point evaluations inside it
+    x, n = _BB_X, len(_BB_X)
+    ee = EstimatingEquationSaddlePointApprox.from_resampling(
+        lambda x, t: x - t, x, exponential(), given=n, bracket=(x.min(), x.max())
+    )
+    ee.fit_cdf(num=60)
+    p, tau = [0.01, 0.05, 0.95, 0.99], np.array([14.0, 16.0, 17.88, 20.0, 24.0])
+    q_exact, F_exact = np.asarray(ee.ppf(p)), np.asarray(ee.cdf(tau))
+    calls = []
+    cdf_at = ee._cdf_at
+    monkeypatch.setattr(ee, "_cdf_at", lambda t, **kw: calls.append(t) or cdf_at(t, **kw))
+    assert np.allclose(ee.ppf(p, interpolate=True), q_exact, atol=0.05)
+    assert np.allclose(ee.cdf(tau, interpolate=True), F_exact, atol=3e-3)
+    assert calls == []
+    # Outside the table the cdf is evaluated directly
+    ee.cdf(np.array([17.88, 40.0]), interpolate=True)
+    assert calls == [40.0]
+
+
 @pytest.mark.parametrize("decreasing", [True, False])
 def test_estimating_equation_lattice_bootstrap(decreasing):
     # Multinomial bootstrap of a mean of integer data: by the cut, the lattice corrected cdf
