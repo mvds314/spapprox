@@ -1051,3 +1051,11 @@ def test_univariate_empirical_no_overflow():
     assert np.isclose(cgf.K(1.0), K[2])
     assert np.isclose(cgf.dK(1.0), (w @ x)[2])
     assert np.isclose(cgf.d2K(1.0), w[2] @ x**2 - (w[2] @ x) ** 2, rtol=1e-4)
+
+
+def test_dK_inv_at_initial_bracket_end():
+    # x equal to dK at the initial upper end of the bracket used to fail the bracket check
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(gamma(a=3), gamma(a=2)).ldot(
+        np.array([[1, 0], [0.5, 1]])
+    )[0]
+    assert np.isclose(cgf.dK_inv(cgf.dK(0.9)), 0.9)

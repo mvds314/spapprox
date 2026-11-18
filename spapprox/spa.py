@@ -1,4 +1,3 @@
-import itertools
 import operator
 import warnings
 from abc import ABC, abstractmethod
@@ -1353,27 +1352,63 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         function is defined in a neighborhood of zero. The range will be computed
         by scaling iteratively, until we little mass for higher or lower values of x.
         """
-        if t_ranges is None:
-            if hasattr(self, "_t_cache"):
-                t_ranges = np.vstack(
-                    (self._t_cache.min(axis=0).min(axis=0), self._t_cache.max(axis=0).max(axis=0))
-                ).T
-            else:
-                t_ranges = self.infer_t_ranges(atol=atol, rtol=rtol)
-        x_ranges = self.cgf.dK(list(itertools.product(*t_ranges)))
-        x_ranges = np.vstack((x_ranges.min(axis=0), x_ranges.max(axis=0))).T
-        self._x_cache = [np.linspace(*xr, num=num) for xr in x_ranges]
+        if t_ranges is None and hasattr(self, "_x_cache"):
+            self._x_cache = [np.linspace(xa[0], xa[-1], num=num) for xa in self._x_cache]
+        else:
+            self._x_cache = self._x_axes(t_ranges, num, atol=atol, rtol=rtol)
         xir = np.vstack([xi.ravel() for xi in np.meshgrid(*self._x_cache, indexing="ij")]).T
-        self._t_cache = self.cgf.dK_inv(xir, **solver_kwargs)
-        self._t_cache = self._t_cache.reshape(*[num] * self.dim, self.dim)
-        self._interp_cache = RegularGridInterpolator(self._x_cache, self._t_cache)
+        with np.errstate(all="ignore"):
+            t = np.asarray(self.cgf.dK_inv(xir, **solver_kwargs), dtype=float)
+            # Outside the support, the solver may return a point that is no solution
+            ok = np.all(np.abs(self.cgf.dK(t) - xir) <= 1e-6 * (1 + np.abs(xir)), axis=-1)
+        t[~ok] = np.nan
+        self._t_cache = t.reshape(*[num] * self.dim, self.dim)
+        self._interp_cache = RegularGridInterpolator(
+            self._x_cache, self._t_cache, bounds_error=False, fill_value=np.nan
+        )
 
     @type_wrapper(xloc=1)
     def _dK_inv(self, x, **solver_kwargs):
-        if hasattr(self, "_interp_cache"):
-            return self._interp_cache(x)
-        else:
+        if not hasattr(self, "_interp_cache"):
             return super()._dK_inv(x, **solver_kwargs)
+        x = np.asanyarray(x, dtype=float)
+        xr = x.reshape(-1, self.dim)
+        t = np.asarray(self._interp_cache(xr), dtype=float)
+        # Outside the grid, or next to grid points without a solution, solve directly
+        missing = np.isnan(t).any(axis=-1)
+        if missing.any():
+            t[missing] = np.reshape(self.cgf.dK_inv(xr[missing], **solver_kwargs), (-1, self.dim))
+        return t.reshape(x.shape)
+
+    def _x_axes(self, t_ranges, num, atol=1e-4, rtol=1e-4):
+        """
+        Equidistant grid of ``num`` points per component, spanning the image of
+        ``t_ranges[j]`` under the derivative of the marginal cumulant generating function of
+        component ``j``. Unlike the joint derivative at the corners of the box ``t_ranges``,
+        this stays within the domain.
+        """
+        if t_ranges is None:
+            t_ranges = self.infer_t_ranges(atol=atol, rtol=rtol)
+        axes = []
+        for j, tr in enumerate(t_ranges):
+            xr = np.sort(np.asarray(self.cgf[j].dK(np.asarray(tr, dtype=float)), dtype=float))
+            if not (np.all(np.isfinite(xr)) and xr[0] < xr[1]):
+                raise ValueError(f"Invalid range for component {j}: {xr}")
+            axes.append(np.linspace(xr[0], xr[1], num=num))
+        return axes
+
+    def _memoized(self, key, fn):
+        """
+        Evaluate ``fn()``, memoized by ``key`` while :meth:`fit_cdf` tabulates the cdf, so
+        that quantities depending on a few coordinates only, such as marginal saddlepoints,
+        are computed once per grid line.
+        """
+        memo = getattr(self, "_fit_memo", None)
+        if memo is None:
+            return fn()
+        if key not in memo:
+            memo[key] = fn()
+        return memo[key]
 
     def infer_t_ranges(self, atol=1e-4, rtol=1e-4):
         """
@@ -1387,8 +1422,9 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
 
     # Map of the cdf backends to the methods that evaluate them at a single point
     _cdf_backends = {"Kolassa": "_kolassa_cdf"}
+    _cdf_default_backend = "Kolassa"
 
-    def cdf(self, x=None, t=None, fillna=np.nan, backend="Kolassa", **solver_kwargs):
+    def cdf(self, x=None, t=None, fillna=np.nan, backend=None, **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function.
 
@@ -1403,21 +1439,56 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         fillna : float, optional
             The value to replace NaNs with.
         backend : str, optional
-            'Kolassa' for the approximation of Kolassa (2003), see
+            'Kolassa' (default) for the approximation of Kolassa (2003), see
             :meth:`_kolassa_cdf`.
+
+        Notes
+        -----
+        After :meth:`fit_cdf`, points within the fitted grid are interpolated from the
+        table, unless another ``backend`` is requested.
         """
         assert x is not None or t is not None
+        backend = self._cdf_default_backend if backend is None else backend
         if backend not in self._cdf_backends:
             raise ValueError(f"backend must be one of {list(self._cdf_backends)}")
         if x is None:
             x = self.cgf.dK(t)
-        elif t is None:
-            t = self._dK_inv(x, **solver_kwargs)
         wrapper = PandasWrapper(x)
-        x, t = np.asanyarray(x), np.asanyarray(t)
-        y = np.asanyarray(self._spapprox_cdf(x, t, backend=backend, **solver_kwargs))
-        y = np.where(np.isnan(y), fillna, y)
+        x = np.asanyarray(x, dtype=float)
+        if getattr(self, "_cdf_backend_cache", None) == backend:
+            y = self._fitted_cdf(x, t, **solver_kwargs)
+        else:
+            t = self._dK_inv(x, **solver_kwargs) if t is None else t
+            y = self._spapprox_cdf(x, np.asanyarray(t), backend=backend, **solver_kwargs)
+        y = np.where(np.isnan(np.asanyarray(y)), fillna, y)
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+
+    def _fitted_cdf(self, x, t=None, **solver_kwargs):
+        """
+        The cdf interpolated from the table of :meth:`fit_cdf`, evaluated directly outside
+        the grid.
+        """
+        if x.shape[-1] != self.dim:
+            raise ValueError(f"{self.dim} dimensional vector expected")
+        pts = x.reshape(-1, self.dim)
+        axes = self._cdf_axes_cache
+        inside = np.all(
+            [(pts[:, j] >= ax[0]) & (pts[:, j] <= ax[-1]) for j, ax in enumerate(axes)], axis=0
+        )
+        y = np.full(len(pts), np.nan)
+        if inside.any():
+            y[inside] = self._cdf_interp_cache(pts[inside])
+        if not inside.all():
+            out = pts[~inside]
+            if t is None:
+                tt = self._dK_inv(out, **solver_kwargs)
+            else:
+                tt = np.asanyarray(t, dtype=float).reshape(-1, self.dim)[~inside]
+            tt = np.asanyarray(tt).reshape(out.shape)
+            y[~inside] = self._spapprox_cdf(
+                out, tt, backend=self._cdf_backend_cache, **solver_kwargs
+            )
+        return y.reshape(x.shape[:-1])
 
     def _spapprox_cdf(self, x, t, backend="Kolassa", **solver_kwargs):
         # Handle vectorized evaluation
@@ -1503,9 +1574,16 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         def saddle(A):
             if A not in saddles:
                 if len(A) == 1:
-                    saddles[A] = np.atleast_1d(self.cgf[A[0]].dK_inv(x[A[0]], **solver_kwargs))
+                    j = A[0]
+                    tj = self._memoized(
+                        ("saddle", A, x[j]), lambda: self.cgf[j].dK_inv(x[j], **solver_kwargs)
+                    )
+                    saddles[A] = np.atleast_1d(tj)
                 else:
-                    saddles[A] = np.asarray(self[list(A)].cgf.dK_inv(x[list(A)], **solver_kwargs))
+                    saddles[A] = self._memoized(
+                        ("saddle", A, tuple(x[list(A)])),
+                        lambda: np.asarray(self[list(A)].cgf.dK_inv(x[list(A)], **solver_kwargs)),
+                    )
             return saddles[A]
 
         def orthant(A, sg):
@@ -1538,11 +1616,139 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
 
         return tail(tuple(range(d)), -np.ones(d))
 
-    def fit_cdf(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000):
+    def fit_cdf(
+        self,
+        t_ranges=None,
+        atol=1e-4,
+        rtol=1e-4,
+        num=None,
+        backend=None,
+        method="pchip",
+        **solver_kwargs,
+    ):
+        r"""
+        Tabulate the cumulative distribution function on a tensor grid, and interpolate it
+        from now onwards, see :meth:`cdf`.
+
+        The grid has ``num`` equidistant points per component, spanning the image of
+        ``t_ranges[j]`` under the derivative of the marginal cumulant generating function of
+        component :math:`j`. If ``t_ranges`` is not provided, it is inferred from the
+        marginals, see :meth:`infer_t_ranges`. By default, ``num`` is such that the grid has
+        about 2500 points.
+
+        The saddle point equations are solved along the grid, starting from the solutions
+        at neighbouring grid points. Saddlepoints of marginals, which depend on a few
+        coordinates only, are computed once per grid line. Where the approximation is not
+        defined, e.g., outside a non-rectangular support, where the evaluation fails, or
+        where it falls outside :math:`[0,1]`, the table is filled with the largest value at
+        the neighbouring grid points below, or zero, so that it stays monotone. The table is
+        interpolated by ``method``, and the cdf is evaluated directly outside the grid.
+
+        Parameters
+        ----------
+        t_ranges : array_like, optional
+            Ranges of :math:`t` per component, of shape ``(dim, 2)``.
+        atol, rtol : float, optional
+            Tolerances for inferring ``t_ranges``.
+        num : int, optional
+            Number of grid points per component.
+        backend : str, optional
+            The cdf backend to tabulate, the default backend of :meth:`cdf` if not provided.
+        method : str, optional
+            Interpolation method of :class:`scipy.interpolate.RegularGridInterpolator`. The
+            default 'pchip', monotone cubic interpolation along each axis, is about ten times
+            more accurate than 'linear' for the default grid, but slower to evaluate, about
+            0.5 ms per point. 'cubic' is more accurate still, but can overshoot.
         """
-        Fit the cumulative distribution function using linear interpolation.
+        backend = self._cdf_default_backend if backend is None else backend
+        if backend not in self._cdf_backends:
+            raise ValueError(f"backend must be one of {list(self._cdf_backends)}")
+        d = self.dim
+        num = max(int(round(2500 ** (1 / d))), 2) if num is None else int(num)
+        axes = self._x_axes(t_ranges, num, atol=atol, rtol=rtol)
+        shape = (num,) * d
+        T = self._grid_saddles(axes, **solver_kwargs)
+        marginal = [self._axis_saddles(j, ax, **solver_kwargs) for j, ax in enumerate(axes)]
+        targets = self._fit_memo_targets(backend)
+        F = np.full(shape, np.nan)
+        try:
+            for obj, perm in targets:
+                obj._fit_memo = {
+                    ("saddle", (k,), x): tm
+                    for k, j in enumerate(perm)
+                    for x, tm in zip(axes[j], marginal[j])
+                    if np.isfinite(tm)
+                }
+            for idx in np.ndindex(shape):
+                if np.isfinite(T[idx]).all():
+                    x = np.array([ax[i] for ax, i in zip(axes, idx)])
+                    try:
+                        F[idx] = self._spapprox_cdf(x, T[idx], backend=backend, **solver_kwargs)
+                    except Exception:
+                        pass  # left NaN and filled below
+        finally:
+            for obj, _ in targets:
+                obj._fit_memo = None
+        F[(F < -1e-3) | (F > 1 + 1e-3)] = np.nan
+        for idx in np.ndindex(shape):
+            if np.isnan(F[idx]):
+                below = [F[idx[:k] + (idx[k] - 1,) + idx[k + 1 :]] for k in range(d) if idx[k] > 0]
+                F[idx] = max(below, default=0.0)
+        F = np.clip(F, 0, 1)
+        self._cdf_axes_cache, self._cdf_grid_cache = axes, F
+        self._cdf_interp_cache = RegularGridInterpolator(axes, F, method=method)
+        self._cdf_backend_cache = backend
+
+    def _grid_saddles(self, axes, **solver_kwargs):
         """
-        raise NotImplementedError
+        Solutions of the saddle point equation on the tensor grid ``axes``, of shape
+        ``(num, ..., num, dim)``, NaN where no solution is found. Each point starts from the
+        solutions at its neighbours below, and from zero.
+        """
+        d, shape = self.dim, tuple(len(ax) for ax in axes)
+        kwargs = {"method": "hybr", **solver_kwargs}
+        T = np.full(shape + (d,), np.nan)
+        for idx in np.ndindex(shape):
+            x = np.array([ax[i] for ax, i in zip(axes, idx)])
+            starts = [T[idx[:k] + (idx[k] - 1,) + idx[k + 1 :]] for k in range(d) if idx[k] > 0]
+            starts = [t0 for t0 in starts if np.isfinite(t0).all()] + [None]
+            for t0 in starts:
+                try:
+                    with np.errstate(all="ignore"):
+                        t = np.asarray(self.cgf.dK_inv(x, t0=t0, **kwargs), dtype=float)
+                        ok = np.all(np.abs(self.cgf.dK(t) - x) <= 1e-6 * (1 + np.abs(x)))
+                except Exception:
+                    continue
+                # Outside the support, the solver may return a point that is no solution
+                if np.isfinite(t).all() and ok:
+                    T[idx] = t
+                    break
+        return T
+
+    def _axis_saddles(self, j, ax, **solver_kwargs):
+        """
+        Saddlepoints of the marginal of component ``j`` at the points ``ax``, solved outward
+        from the mean, each starting from the previous solution. NaN where it fails.
+        """
+        cgf = self.cgf[j]
+        tm = np.full(len(ax), np.nan)
+        k0 = int(np.argmin(np.abs(ax - cgf.dK0)))
+        for order in (range(k0, len(ax)), range(k0, -1, -1)):
+            t0 = 0.0
+            for k in order:
+                try:
+                    tm[k] = cgf.dK_inv(ax[k], t0=t0, **solver_kwargs)
+                    t0 = tm[k]
+                except Exception:
+                    pass
+        return tm
+
+    def _fit_memo_targets(self, backend):
+        """
+        Objects whose computations are memoized while fitting the cdf, with, per object,
+        the original component of each of its components.
+        """
+        return [(self, list(range(self.dim)))]
 
 
 class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
@@ -1587,8 +1793,9 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
     """
 
     _cdf_backends = {"KL": "_kl_cdf", "Wang": "_wang_cdf", "Kolassa": "_kolassa_cdf"}
+    _cdf_default_backend = "KL"
 
-    def cdf(self, x=None, t=None, fillna=np.nan, backend="KL", **solver_kwargs):
+    def cdf(self, x=None, t=None, fillna=np.nan, backend=None, **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function in
         the bivariate case.
@@ -1821,7 +2028,10 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         t_outer = t.copy()
         t_outer[inner] = 0
         # Note, slicing a component of a cgf sets the other variables to zero
-        ti = self.cgf[inner].dK_inv(x[inner], **solver_kwargs)
+        ti = self._memoized(
+            ("saddle", (inner,), x[inner]),
+            lambda: self.cgf[inner].dK_inv(x[inner], **solver_kwargs),
+        )
         ti0 = np.zeros(2)
         ti0[inner] = ti
         # Calculate components
@@ -1975,7 +2185,13 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
     def _kl_swapped(self):
         """The approximation with the two variables in reverse order."""
-        return self[[1, 0]]
+        if not hasattr(self, "_swapped_cache"):
+            self._swapped_cache = self[[1, 0]]
+        return self._swapped_cache
+
+    def _fit_memo_targets(self, backend):
+        targets = super()._fit_memo_targets(backend)
+        return targets + [(self._kl_swapped(), [1, 0])] if backend == "KL" else targets
 
     def _kl_marginal_cdf(self, i, x, t, **solver_kwargs):
         """Marginal cdf of variable ``i`` used in the inclusion-exclusion of :meth:`_kl_cdf`."""
@@ -1995,8 +2211,19 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         """
         h = self._cdf_singular_width / np.sqrt(np.diag(self.cgf.d2K0))
         sg = np.where(t < 0, -1.0, 1.0)
-        tm = [self.cgf[i].dK_inv(x[i], **solver_kwargs) for i in range(2)]
-        F = [self._kl_marginal_cdf(i, x[i], tm[i], **solver_kwargs) for i in range(2)]
+        tm = [
+            self._memoized(
+                ("saddle", (i,), x[i]), lambda i=i: self.cgf[i].dK_inv(x[i], **solver_kwargs)
+            )
+            for i in range(2)
+        ]
+        F = [
+            self._memoized(
+                ("marginal_cdf", i, x[i]),
+                lambda i=i: self._kl_marginal_cdf(i, x[i], tm[i], **solver_kwargs),
+            )
+            for i in range(2)
+        ]
         near = np.abs(t) < h
         if not near.any():
             J = self._kl_tail(x, t, sg, tm[1], h[1])

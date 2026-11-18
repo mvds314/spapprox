@@ -492,7 +492,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         ub_scaling = next(ub_scalings)
                         max_expansions = 1000
                         for _ in range(max_expansions):
-                            if not x < dKlb:
+                            if x > dKlb:
                                 break
                             lb_new = lb / lb_scaling
                             dKlb_new = self.dK(lb_new, loc=0, scale=1)
@@ -507,7 +507,7 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
                         else:
                             raise Exception("Could not find valid lb")
                         for _ in range(max_expansions):
-                            if not x > dKub:
+                            if x < dKub:
                                 break
                             ub_new = ub / ub_scaling
                             dKub_new = self.dK(ub_new, loc=0, scale=1)
