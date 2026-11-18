@@ -49,7 +49,7 @@ density); and `pdf` failing at the endpoints without `given` (`AssertionError` /
 - `pytest tests/test_spa.py -k estimating_equation`, then `pytest -m "not slow"`,
   `ruff check .`.
 - Rerun `examples/example_bootstrap_dirichlet.py`: no overflow warnings, unchanged table.
-- Bump the version in `pyproject.toml` (26.11.14 -> 26.11.15), required for the PR.
+- Bump the version in `pyproject.toml` (-> 26.11.17 after merging main), required for the PR.
 
 ## Outcome
 

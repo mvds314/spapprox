@@ -153,6 +153,22 @@ implemented well" for some heavy-tailed cases.
 Reach for these when evaluating at many `x` values; skip them when you can drive
 everything from `t`.
 
+Multivariate: `fit_saddle_point_eqn(t_ranges=None, ..., num=1000)` builds a tensor grid in
+`x` (per component, the marginal `cgf[j].dK` of the inferred `t` range, see `_x_axes`; the
+joint `dK` at the corners of the `t` box can leave the domain). Grid points without a
+solution (outside a non-rectangular support) are NaN in `_t_cache`; `_dK_inv` solves
+directly where interpolation gives NaN or `x` lies outside the grid.
+`fit_cdf(t_ranges=None, atol, rtol, num=None, backend=None, method="pchip")` tabulates the
+cdf on such a grid (default `num = round(2500 ** (1 / d))`) and `cdf` then interpolates
+(`RegularGridInterpolator`, `method` as given) when `backend` is `None` or the fitted one;
+outside the grid, or for another backend, it evaluates directly. The default backend is
+the class attribute `_cdf_default_backend` (`"Kolassa"`, `"KL"` for bivariate). The fit
+solves the joint saddlepoints with warm starts (`_grid_saddles`, validated by
+`dK(t) == x`), and memoizes marginal saddlepoints and cdfs through `_memoized` /
+`_fit_memo` (set only during the fit). Failed or out-of-`[0, 1]` values are filled with
+the max over the lower neighbours. About 35 s for a bivariate fit at the default grid.
+Plan: `docs/multivariate_fit_cdf_plan.md`.
+
 ## Sample mean
 
 ```python
