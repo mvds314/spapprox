@@ -36,6 +36,7 @@ To be implemented are:
 - Approximating the distribution of the quotient of random variables
 
 For a discrete (lattice) variable, pass the span of the lattice, e.g., `cdf(x, delta=1)` or `pdf(x, delta=1)`, to get the continuity-corrected cdf or the probability mass function.
+The bivariate cdf of `BivariateSaddlePointApprox` takes `delta` too (scalar or per component), following Kolassa and Li (2010).
 
 ## Basic example
 

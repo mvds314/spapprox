@@ -3,7 +3,7 @@
 - Go through bug backlog
 - [x] Review implementation against Alhejaili, AlGhamedi (2025) - A review of saddlepoint
   approximation: done, see "Review: Alhejaili and AlGhamedi (2025)" below. Follow-ups: bug 62 (fixed),
-  `Pr1` (done), and the lattice item unconditional bivariate cdf
+  `Pr1` (done), and the lattice item unconditional bivariate cdf (done)
 - Finish bivariate approximation:
   - basically this case: test_bvar_cdf_near_zero
   - are there more edge cases?
@@ -825,7 +825,8 @@ Contract violations and silently wrong results in narrower situations.
   `"Kolassa"` returns `nan`: the message hides the real cause.
 - **Fix:** `cdf` and `fit_cdf` take an explicit `delta=None` and raise a clear
   `NotImplementedError` otherwise, until the lattice cdf below is implemented. Regression test:
-  `test_mvar_cdf_rejects_delta`.
+  `test_mvar_cdf_rejects_delta`. The bivariate `"KL"` cdf now supports `delta` (see the lattice
+  items); `"Wang"`, `"Kolassa"`, `fit_cdf` and `d > 2` still raise.
 
 ---
 
@@ -1049,12 +1050,14 @@ Or into a separate model, e.g., bootstrap.py
     Tables 1.12-1.13). Done: `cdf(..., delta=..., correction=1)` reproduces Butler Tables 1.7
     and 1.12; the default `correction=2` is `Pr2`.
     `Pr3` and the alternative left tail `F1a` are not competitors, skip them
-  - unconditional bivariate cdf for lattice variables: none of `"KL"`, `"Wang"`, `"Kolassa"`
-    supports `delta` (see bug 62). Uncorrected, two independent Poissons (3, 4) at (2, 3)
-    give 0.102 vs exact 0.183. Options: Kolassa & Li (2010) eq. (4.8) at `x + delta/2`, which
-    `_ConditionalBivariateApprox` already implements for the conditional case; or Wang (1990)
-    Theorems 2-3 (one or both discrete), which replace `t0` by `1 - exp(-t0)` and `u0` by
-    `1 - exp(-u0)` in the `I21`, `I22` (and `I12`) factors, without an offset
+  - [x] unconditional bivariate cdf for lattice variables:
+    `BivariateSaddlePointApprox.cdf(x, delta=...)`, `"KL"` only, Kolassa & Li (2010) Section 3
+    at `x + delta/2` with `rho(tau) = 2 sinh(tau delta / 2) / delta` (`_LatticeBivariateApprox`;
+    plan: `docs/bivariate_lattice_cdf_plan.md`). Two independent Poissons (3, 4) at (2, 3):
+    0.181 vs exact 0.183 (uncorrected 0.102); reproduces the paper's Table 2 to within 0.7%.
+    Open: `fit_cdf(delta=)`, `"Wang"` (Wang (1990) Theorems 2-3, which replace `t0` by
+    `1 - exp(-t0)` in the factors, without an offset), `"Kolassa"` and `d > 2`
+    (Kolassa (2003) eq. (13), see above), and mixed lattice/continuous components
   - conditional cdf for a vector of interest `P(X_I >= x_I | X_J = x_J)`, continuous and
     lattice: phase F above (Kolassa & Li, 2010, section 4). Done for two variables of
     interest, `conditional_cdf(i=[a, b], delta=...)`; open for three or more
@@ -1085,7 +1088,7 @@ section 3 by the package, checked against the primary sources (Butler 2007, Wang
 | (10)-(12) | second continuity correction `Pr2` | `cdf(delta=)`, matches Butler Table 1.7 |
 | (13) | third approximation `Pr3` | missing, by choice (Butler: not a competitor) |
 | (14)-(21) | Wang (1990) bivariate cdf | `cdf(backend="Wang")`, plus `"KL"` and `"Kolassa"` |
-| (22)-(23) | Wang (1990) discrete versions | missing, see lattice items and bug 62 |
+| (22)-(23) | Wang (1990) discrete versions | missing; the KL lattice version is `cdf(delta=)` |
 | (24)-(25) | multivariate pdf | `MultivariateSaddlePointApprox.pdf` |
 | (27)-(33) | double saddlepoint pdf | `conditional_pdf` (normalized) |
 | (39)-(41) | Skovgaard conditional cdf | `conditional_cdf`, plus Kolassa (1996) second order |
