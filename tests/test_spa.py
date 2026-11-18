@@ -541,6 +541,32 @@ def test_univariate_lattice_cdf_scale_and_t():
         spa.cdf(x, delta=0)
 
 
+def test_univariate_lattice_cdf_first_correction():
+    # Butler (2007), Table 1.7 (Pr1 for Poisson(1), k=1 is at the mean, t=0) and Table 1.12
+    # (F1 for Poisson(5), k=4 needs the value at the mean)
+    spa = UnivariateSaddlePointApprox(poisson(1))
+    k = np.array([1, 3, 5, 7, 9])
+    expected = [0.6330, 0.08045, 0.003667, 8.339e-5, 1.127e-6]
+    np.testing.assert_allclose(1 - spa.cdf(k - 1, delta=1, correction=1), expected, rtol=5e-4)
+    spa5 = UnivariateSaddlePointApprox(poisson(5))
+    expected = [0.006812, 0.04053, 0.1248, 0.2651, 0.4405]
+    got = spa5.cdf(np.arange(5), delta=1, correction=1)
+    np.testing.assert_allclose(got, expected, rtol=5e-4)
+    # t solves the saddle point equation at x + delta, and a lattice with span 2 is the same
+    np.testing.assert_allclose(
+        spa5.cdf(t=spa5.cgf.dK_inv(np.arange(5) + 1.0), delta=1, correction=1), got
+    )
+    spa10 = UnivariateSaddlePointApprox(2 * poisson(5))
+    np.testing.assert_allclose(spa10.cdf(2 * np.arange(5), delta=2, correction=1), got)
+    # BN uses the same u, and has the same limit at t=0
+    bn = spa5.cdf(np.arange(5), delta=1, correction=1, backend="BN")
+    assert np.max(np.abs(bn - sps.poisson(5).cdf(np.arange(5)))) < 3e-3
+    with pytest.raises(ValueError):
+        spa5.cdf(np.arange(5), correction=1)
+    with pytest.raises(ValueError):
+        spa5.cdf(np.arange(5), delta=1, correction=3)
+
+
 @pytest.mark.parametrize("lam", [3, 0.5])
 def test_univariate_lattice_pmf(lam):
     spa = UnivariateSaddlePointApprox(poisson(lam))
@@ -598,6 +624,33 @@ def test_conditional_lattice_binomial():
     assert errors["Kolassa"][1] < errors["Kolassa"][0] / 20
     # Without the lattice correction the approximation is bad
     assert np.max(np.abs(spa.conditional_cdf(n, [s]) - sps.binom.cdf(n, s, 0.4))) > 0.05
+
+
+def test_conditional_lattice_first_correction():
+    # Butler (2007) (4.15)-(4.16). For independent components it is the univariate Pr1
+    indep = MultivariateSaddlePointApprox(_poisson_sum([3.0, 4.0], [[1, 0], [0, 1]]))
+    n = np.arange(0, 9)
+    expected = UnivariateSaddlePointApprox(poisson(3)).cdf(n, delta=1, correction=1)
+    for i in [0, [0]]:
+        got = indep.conditional_cdf(n, [4.0], i=i, delta=1.0, correction=1)
+        np.testing.assert_allclose(got, expected, atol=1e-6)
+    # binomial: accurate and converging, except at s - 1, where x + delta is at the boundary
+    errors = []
+    for k in [1, 4]:
+        spa = MultivariateSaddlePointApprox(_poisson_sum([2.0 * k, 3.0 * k], [[1, 1], [0, 1]]))
+        s = 5 * k
+        n = np.arange(1, s - 1)
+        got = spa.conditional_cdf(n, [s], delta=1.0, correction=1)
+        errors.append(np.max(np.abs(got - sps.binom.cdf(n, s, 0.4))))
+    assert errors[0] < 1e-2
+    assert errors[1] < errors[0] / 5
+    with pytest.raises(NotImplementedError):
+        spa.conditional_cdf(n, [s], backend="Kolassa", delta=1.0, correction=1)
+    with pytest.raises(ValueError):
+        spa.conditional_cdf(n, [s], correction=1)
+    spa3 = MultivariateSaddlePointApprox(_poisson_sum([1.0, 2.0, 3.0], np.eye(3)))
+    with pytest.raises(NotImplementedError):
+        spa3.conditional_cdf([1, 1], [2.0], i=[0, 1], delta=1.0, correction=1)
 
 
 def _nb_pair(r1, r2, p):
