@@ -204,17 +204,30 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             )
         return np.where(np.isnan(retval), fillna, retval)
 
-    def _lattice_u(self, t, delta=None):
+    def _lattice_u(self, t, delta=None, correction=2):
         r"""
         :math:`u = t\sqrt{K''(t)}`, or for a lattice with span ``delta`` the Daniels (1987)
-        version :math:`2\sinh(t\delta/2)\sqrt{K''(t)}/\delta`.
+        versions :math:`2\sinh(t\delta/2)\sqrt{K''(t)}/\delta` (second continuity
+        correction) and :math:`(1-e^{-t\delta})\sqrt{K''(t)}/\delta` (first).
         """
         if delta is None:
             return t * np.sqrt(self.cgf.d2K(t))
+        if correction == 1:
+            return -np.expm1(-t * delta) / delta * np.sqrt(self.cgf.d2K(t))
         return 2 * np.sinh(t * delta / 2) / delta * np.sqrt(self.cgf.d2K(t))
 
+    def _cdf_limit_term(self, delta=None, correction=2):
+        r"""
+        Limit of :math:`1/w - 1/u` at :math:`t=0`: :math:`\rho_3/6`, minus
+        :math:`\delta/(2\sqrt{K''(0)})` for the first continuity correction.
+        """
+        rho3 = self.cgf.d3K0 / np.power(self.cgf.d2K0, 3 / 2)
+        if delta is not None and correction == 1:
+            return rho3 / 6 - delta / 2 / np.sqrt(self.cgf.d2K0)
+        return rho3 / 6
+
     @type_wrapper(xloc=1)
-    def _spapprox_cdf_LR(self, x, t, fillna=np.nan, delta=None):
+    def _spapprox_cdf_LR(self, x, t, fillna=np.nan, delta=None, correction=2):
         r"""
         Lugannani-Rice saddle point approximation of the cumulative distribution as given by
 
@@ -242,23 +255,22 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
 
         [2] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
         """
-        rho3 = self.cgf.d3K0 / np.power(self.cgf.d2K0, 3 / 2)
         retval = self._interpolate_cdf_near_zero(
-            lambda x, t: self._lugannani_rice(x, t, delta),
+            lambda x, t: self._lugannani_rice(x, t, delta, correction),
             x,
             t,
-            1 / 2 + rho3 / 6 / np.sqrt(2 * np.pi),
+            1 / 2 + self._cdf_limit_term(delta, correction) / np.sqrt(2 * np.pi),
         )
         return np.where(np.isnan(retval), fillna, retval)
 
-    def _lugannani_rice(self, x, t, delta=None):
+    def _lugannani_rice(self, x, t, delta=None, correction=2):
         with np.errstate(divide="ignore", invalid="ignore"):
             w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
-            u = self._lattice_u(t, delta)
+            u = self._lattice_u(t, delta, correction)
             return sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
 
     @type_wrapper(xloc=1)
-    def _spapprox_cdf_BN(self, x, t, fillna=np.nan, delta=None):
+    def _spapprox_cdf_BN(self, x, t, fillna=np.nan, delta=None, correction=2):
         r"""
         This is an alternative implementation of the Lugannani-Rice saddle point
         approximation of the cumulative distribution.
@@ -278,16 +290,18 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
 
         [3] Kuonen, D. (2001). Computer-intensive statistical methods: Saddlepoint approximations in bootstrap and inference.
         """
-        rho3 = self.cgf.d3K0 / np.power(self.cgf.d2K0, 3 / 2)
         retval = self._interpolate_cdf_near_zero(
-            lambda x, t: self._barndorff_nielsen(x, t, delta), x, t, sps.norm.cdf(rho3 / 6)
+            lambda x, t: self._barndorff_nielsen(x, t, delta, correction),
+            x,
+            t,
+            sps.norm.cdf(self._cdf_limit_term(delta, correction)),
         )
         return np.where(np.isnan(retval), fillna, retval)
 
-    def _barndorff_nielsen(self, x, t, delta=None):
+    def _barndorff_nielsen(self, x, t, delta=None, correction=2):
         with np.errstate(divide="ignore", invalid="ignore"):
             w = np.sign(t) * np.sqrt(2 * (t * x - self.cgf.K(t)))
-            u = self._lattice_u(t, delta)
+            u = self._lattice_u(t, delta, correction)
             return sps.norm.cdf(w + np.log(u / w) / w)
 
     def _interpolate_cdf_near_zero(self, formula, x, t, limit):
@@ -365,7 +379,16 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
         y = super().pdf(x=x, t=t, normalize_pdf=normalize_pdf, fillna=fillna, **solver_kwargs)
         return y if delta is None else y * delta
 
-    def cdf(self, x=None, t=None, fillna=np.nan, backend="LR", delta=None, **solver_kwargs):
+    def cdf(
+        self,
+        x=None,
+        t=None,
+        fillna=np.nan,
+        backend="LR",
+        delta=None,
+        correction=None,
+        **solver_kwargs,
+    ):
         r"""
         Saddle point approximation of the cumulative distribution function.
 
@@ -425,27 +448,35 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             :math:`P(X\leq x)` is approximated at :math:`x+\delta/2`, using
             :math:`u = 2\sinh(t\delta/2)\sqrt{K''(t)}/\delta`. If only ``t`` is
             given, it must solve the saddle point equation at :math:`x+\delta/2`.
+        correction : int, optional
+            Continuity correction for a lattice, only with ``delta``: 2 (default) for the
+            second continuity correction above, or 1 for the first continuity correction of
+            Daniels (1987), see Butler (2007), (1.27)-(1.29): :math:`P(X\leq x)=1-P(X\geq
+            x+\delta)` is approximated with the saddle point at :math:`x+\delta`, without
+            offset, using :math:`u=(1-e^{-t\delta})\sqrt{K''(t)}/\delta`. Its limit at
+            :math:`t=0` has the extra term :math:`-\delta/(2\sqrt{K''(0)})` in
+            :math:`1/w-1/u`. If only ``t`` is given, it must solve the saddle point equation
+            at :math:`x+\delta`. Neither correction is uniformly more accurate; Butler
+            (2007), Section 1.2.6, suggests computing both.
         """
         assert x is not None or t is not None
         if delta is not None and not delta > 0:
             raise ValueError("delta must be positive")
+        correction = _check_correction(correction, delta)
         if x is None:
             x = self.cgf.dK(t)
             wrapper = PandasWrapper(x)
         else:
             wrapper = PandasWrapper(x)
             if delta is not None:
-                x = np.asanyarray(x) + delta / 2
+                x = np.asanyarray(x) + (delta if correction == 1 else delta / 2)
             if t is None:
                 t = self._dK_inv(x, **solver_kwargs)
+        kwargs = {"delta": delta, "correction": correction}
         if backend == "LR":
-            y = np.asanyarray(
-                self._spapprox_cdf_LR(np.asanyarray(x), np.asanyarray(t), delta=delta)
-            )
+            y = np.asanyarray(self._spapprox_cdf_LR(np.asanyarray(x), np.asanyarray(t), **kwargs))
         elif backend == "BN":
-            y = np.asanyarray(
-                self._spapprox_cdf_BN(np.asanyarray(x), np.asanyarray(t), delta=delta)
-            )
+            y = np.asanyarray(self._spapprox_cdf_BN(np.asanyarray(x), np.asanyarray(t), **kwargs))
         else:
             raise ValueError("backend must be either 'LR' or 'BN'")
         y = np.where(np.isnan(y), fillna, y)
@@ -1002,7 +1033,15 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         return w, 2 * np.sinh(tau_i * delta / 2) / delta * sigma, c
 
     def conditional_cdf(
-        self, x, given, i=0, backend=None, delta=None, fillna=np.nan, **solver_kwargs
+        self,
+        x,
+        given,
+        i=0,
+        backend=None,
+        delta=None,
+        fillna=np.nan,
+        correction=None,
+        **solver_kwargs,
     ):
         r"""
         Saddle point approximation of the conditional cumulative distribution function
@@ -1089,6 +1128,13 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             :math:`x_I+\delta/2`.
         fillna : float, optional
             The value to replace NaNs with.
+        correction : int, optional
+            Continuity correction, only with ``delta``: 2 (default) for the second continuity
+            correction above, or 1 for the first, [2] (4.15)-(4.16): :math:`P(X_i\leq x)=
+            1-P(X_i\geq x+\delta)` is approximated with the numerator saddle point at
+            :math:`x+\delta`, without offset, and
+            :math:`\hat u=(1-e^{-\hat\tau_i\delta})\hat\sigma/\delta`. Only for one
+            variable of interest and ``backend="Skovgaard"``.
 
         References
         ----------
@@ -1101,19 +1147,33 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             probability and conditional inference
         """
         if isinstance(i, (list, tuple, np.ndarray)):
+            if len(i) > 1 and _check_correction(correction, delta) == 1:
+                raise NotImplementedError("correction=1 requires a single variable of interest")
             return self._conditional_cdf_vector(
-                x, given, i, backend=backend, delta=delta, fillna=fillna, **solver_kwargs
+                x,
+                given,
+                i,
+                backend=backend,
+                delta=delta,
+                fillna=fillna,
+                correction=correction,
+                **solver_kwargs,
             )
+        correction = _check_correction(correction, delta)
         backend = "Skovgaard" if backend is None else backend
         if backend not in ("Skovgaard", "Kolassa"):
             raise ValueError(f"Unknown backend {backend!r}, use 'Skovgaard' or 'Kolassa'")
+        if backend == "Kolassa" and correction == 1:
+            raise NotImplementedError("correction=1 requires backend='Skovgaard'")
         if delta is not None and not delta > 0:
             raise ValueError("delta must be positive")
         i, J, x, given = self._conditional_inputs(x, given, i)
         wrapper = PandasWrapper(x)
         y = np.array(
             [
-                self._conditional_cdf_at(xi, xJ, i, J, backend, delta, **solver_kwargs)
+                self._conditional_cdf_at(
+                    xi, xJ, i, J, backend, delta, correction=correction, **solver_kwargs
+                )
                 for xi, xJ in zip(x.ravel(), given)
             ]
         ).reshape(x.shape)
@@ -1121,7 +1181,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
     def _conditional_cdf_vector(
-        self, x, given, i, backend=None, delta=None, fillna=np.nan, **solver_kwargs
+        self, x, given, i, backend=None, delta=None, fillna=np.nan, correction=None, **solver_kwargs
     ):
         """:meth:`conditional_cdf` for a list ``i`` of variables of interest."""
         I = [self._normalize_index(k) for k in i]  # noqa: E741
@@ -1132,7 +1192,9 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             x = np.asarray(x, dtype=float)
             if x.ndim > 0 and x.shape[-1] == 1:
                 x = x[..., 0]
-            return self.conditional_cdf(x, given, I[0], backend, delta, fillna, **solver_kwargs)
+            return self.conditional_cdf(
+                x, given, I[0], backend, delta, fillna, correction=correction, **solver_kwargs
+            )
         if len(I) > 2:
             raise NotImplementedError("At most two variables of interest are supported")
         if backend in (None, "Skovgaard", "KL"):
@@ -1180,11 +1242,13 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         spa.profile.add_saddle(self.cgf.dK_inv(xfull, **solver_kwargs))
         return spa._kl_cdf(xI, t, **solver_kwargs)
 
-    def _conditional_cdf_at(self, xi, xJ, i, J, backend="Skovgaard", delta=None, **solver_kwargs):
+    def _conditional_cdf_at(
+        self, xi, xJ, i, J, backend="Skovgaard", delta=None, correction=2, **solver_kwargs
+    ):
         if not (np.isfinite(xi) and np.isfinite(xJ).all()):
             return np.nan
         if delta is not None:
-            xi = xi + delta / 2
+            xi = xi + (delta if correction == 1 else delta / 2)
         tau0 = self._conditional_denominator_saddle(i, J, xJ, **solver_kwargs)
 
         def point(x):
@@ -1195,7 +1259,12 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
                 with np.errstate(divide="ignore", invalid="ignore"):
                     return sps.norm.cdf(w) - sps.norm.pdf(w) * (w**-3 - 1 / w + c / z)
             w, tau_i, sigma = self._conditional_terms(xfull, i, J, tau0, **solver_kwargs)
-            u = tau_i * sigma if delta is None else 2 * np.sinh(tau_i * delta / 2) / delta * sigma
+            if delta is None:
+                u = tau_i * sigma
+            elif correction == 1:
+                u = -np.expm1(-tau_i * delta) / delta * sigma
+            else:
+                u = 2 * np.sinh(tau_i * delta / 2) / delta * sigma
             with np.errstate(divide="ignore", invalid="ignore"):
                 return sps.norm.cdf(w) + sps.norm.pdf(w) * (1 / w - 1 / u)
 
@@ -2375,6 +2444,17 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
     def _dK_inv(self, x, **solver_kwargs):
         # TODO: implement multivariate interpolation with radial basis functions or something like that
         return super()._dK_inv(x, **solver_kwargs)
+
+
+def _check_correction(correction, delta):
+    """Validate the ``correction`` argument of the lattice cdfs, and return its value."""
+    if correction is None:
+        return 2
+    if delta is None:
+        raise ValueError("correction requires delta")
+    if correction not in (1, 2):
+        raise ValueError("correction must be 1 or 2")
+    return correction
 
 
 def _reject_lattice(delta):

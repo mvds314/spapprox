@@ -100,6 +100,10 @@ $u = 2\sinh(t\delta/2)\sqrt{K''(t)}/\delta$; $w$ is unchanged. The $t=0$ limit i
 as the continuous one, so the near-zero interpolation is reused. The pmf is
 $P(X=x)\approx\delta f(x)$, not normalized by default (`normalize_pdf=None` means `True`
 only for a continuous variable; integrating the density is a poor lattice normalization). `poisson(3)` at $x=3$: 0.646 vs exact 0.647.
+`correction=1` selects the first continuity correction `Pr1` (Butler (1.27)-(1.29)): the
+saddlepoint solves $K'(t)=x+\delta$, $u_1=(1-e^{-t\delta})\sqrt{K''(t)}/\delta$, and the $t=0$
+limit gains $-\delta/(2\sqrt{K''(0)})$ inside the bracket (`_cdf_limit_term`). Reproduces Butler
+Tables 1.7 and 1.12. `correction` without `delta` raises `ValueError` (`_check_correction`).
 
 ## `ppf`
 
@@ -208,6 +212,8 @@ uses invariants $\rho_4,\rho_{13}^2,\rho_{23}^2$ of the joint cgf at $\hat\tau$ 
 **marginal** of $X_J$ (J blocks) at $\tau_0$; $k_{ijkl}$ is a finite difference of `d3K`.
 `delta=span` handles a lattice $X_i$ (second continuity correction, Kolassa eq. (11) for the
 second order; $\hat u$ carries $1/\delta$ for scale invariance); `x` must lie on the lattice.
+`correction=1` is Butler's `P1` (4.15)-(4.16): numerator saddlepoint at $x_i+\delta$,
+$\tilde u_1=(1-e^{-\hat\tau_i\delta})\sigma/\delta$; Skovgaard backend, one variable of interest.
 Plan: `docs/conditional_cdf_plan.md`.
 
 `conditional_cdf(x, given, i=[a, b])` gives the lower orthant

@@ -3,7 +3,7 @@
 - Go through bug backlog
 - [x] Review implementation against Alhejaili, AlGhamedi (2025) - A review of saddlepoint
   approximation: done, see "Review: Alhejaili and AlGhamedi (2025)" below. Follow-ups: bug 62 (fixed),
-  and the lattice items `Pr1` and unconditional bivariate cdf
+  `Pr1` (done), and the lattice item unconditional bivariate cdf
 - Finish bivariate approximation:
   - basically this case: test_bvar_cdf_near_zero
   - are there more edge cases?
@@ -977,7 +977,9 @@ Or into a separate model, e.g., bootstrap.py
   - [x] normalize `conditional_pdf`: `normalize_pdf=True` by default, quadrature in `tau_i`
     along the profile saddle path. The second-order pdf correction is still open
   - [x] the `condition()` stub was removed, use `conditional_cdf` / `conditional_pdf`
-  - `P1`, the first continuity correction of Butler (4.15)-(4.16), for comparison with `P2`
+  - [x] `P1`, the first continuity correction of Butler (4.15)-(4.16), for comparison with `P2`:
+    `conditional_cdf(..., delta=..., correction=1)`, Skovgaard backend and one variable of
+    interest only. On the binomial test it is ~4x less accurate than `P2`
   - vector of interest, `P(X_I >= x_I | X_J = x_J)`: phase F, Kolassa & Li (2010) section 4,
     see `docs/conditional_vector_plan.md`. F1, two variables of interest, is done:
     `conditional_cdf(x, given, i=[a, b], delta=...)`, continuous and lattice. Open: F2,
@@ -1029,11 +1031,12 @@ Or into a separate model, e.g., bootstrap.py
     normalized by default (integrating the density is a poor normalization for a lattice,
     e.g. 41% relative error for `poisson(0.5)` vs 8% unnormalized). Possible refinement:
     normalize by summing over the lattice, and Daniels' second-order terms
-  - univariate first continuity correction `Pr1` (Daniels 1987; Butler (1.27)-(1.29)):
+  - [x] univariate first continuity correction `Pr1` (Daniels 1987; Butler (1.27)-(1.29)):
     `u1 = (1 - exp(-t)) sqrt(K''(t))` at the uncorrected saddlepoint of `k`, and
     `F(k - 1) = 1 - Pr1(X >= k)`. Butler 1.2.6 recommends computing both `Pr1` and `Pr2`,
     as neither dominates (Pr1 often slightly better, e.g. Poisson/binomial left tails,
-    Tables 1.12-1.13). Only `Pr2` is implemented (`delta=`); it reproduces Butler Table 1.7.
+    Tables 1.12-1.13). Done: `cdf(..., delta=..., correction=1)` reproduces Butler Tables 1.7
+    and 1.12; the default `correction=2` is `Pr2`.
     `Pr3` and the alternative left tail `F1a` are not competitors, skip them
   - unconditional bivariate cdf for lattice variables: none of `"KL"`, `"Wang"`, `"Kolassa"`
     supports `delta` (see bug 62). Uncorrected, two independent Poissons (3, 4) at (2, 3)
@@ -1067,7 +1070,7 @@ section 3 by the package, checked against the primary sources (Butler 2007, Wang
 |---|---|---|
 | (4)-(5) | univariate pdf/pmf | `pdf`, `pdf(delta=)` |
 | (6)-(7) | Lugannani-Rice, limit at the mean | `cdf(backend="LR")`, interpolated near `t=0` |
-| (8)-(9) | first continuity correction `Pr1` | missing, see lattice items |
+| (8)-(9) | first continuity correction `Pr1` | `cdf(..., delta=, correction=1)` |
 | (10)-(12) | second continuity correction `Pr2` | `cdf(delta=)`, matches Butler Table 1.7 |
 | (13) | third approximation `Pr3` | missing, by choice (Butler: not a competitor) |
 | (14)-(21) | Wang (1990) bivariate cdf | `cdf(backend="Wang")`, plus `"KL"` and `"Kolassa"` |
@@ -1075,7 +1078,7 @@ section 3 by the package, checked against the primary sources (Butler 2007, Wang
 | (24)-(25) | multivariate pdf | `MultivariateSaddlePointApprox.pdf` |
 | (27)-(33) | double saddlepoint pdf | `conditional_pdf` (normalized) |
 | (39)-(41) | Skovgaard conditional cdf | `conditional_cdf`, plus Kolassa (1996) second order |
-| (42)-(44) | conditional `Pr1` | missing, already listed under conditional distributions |
+| (42)-(44) | conditional `Pr1` | `conditional_cdf(..., delta=, correction=1)` |
 | (45)-(48) | conditional `Pr2` | `conditional_cdf(delta=)` |
 
 Typos in the review, do not implement from it: in (6) the roles of `phi` and `Phi` are swapped
