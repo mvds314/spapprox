@@ -762,6 +762,19 @@ Contract violations and silently wrong results in narrower situations.
 - **Fixed:** the expansion continues only while `x` lies strictly outside the bracket.
   Regression test: `test_dK_inv_at_initial_bracket_end` in `tests/test_cgfs.py`.
 
+### [x] 61. Vector estimating equation solver stalls near the minimum
+
+- **Where:** `spapprox/spa.py`, `MultivariateEstimatingEquationSaddlePointApprox._solve`
+- **What:** close to the minimum, the Newton decrement (e.g. 1e-16) is below the
+  resolution of the objective, so the Armijo test fails by roundoff and backtracking shrinks
+  the step until it no longer moves the iterate. The solver then stalled for all iterations
+  and `pdf` returned NaN, for about 0.5% of points in the bootstrap of a vector mean.
+  Whether a given point stalls depends on roundoff, which made
+  `test_vector_estimating_equation_mean_cut` fail intermittently in CI.
+- **Fixed:** below a decrement of 1e-10, full Newton steps are taken without line search,
+  until the decrement stops decreasing. Regression test:
+  `test_vector_estimating_equation_newton_roundoff` in `tests/test_spa.py`.
+
 ### [ ] 59. Bivariate `"KL"` cdf fails close to the domain boundary
 
 - **Where:** `spapprox/spa.py`, `BivariateSaddlePointApprox._kl_cdf`

@@ -1585,6 +1585,21 @@ def test_vector_estimating_equation_mean_cut():
         assert np.isclose(ee.pdf(tau, normalize_pdf=False), expected, rtol=1e-6)
 
 
+def test_vector_estimating_equation_newton_roundoff():
+    # Near the minimum, the decrease of the objective is below its resolution; backtracking
+    # used to shrink the step to nothing, so the solver stalled and the pdf was NaN
+    rng = np.random.default_rng(10)
+    X = rng.gamma(2, size=(12, 2)) @ np.array([[1, 0.5], [0, 1]])
+    ee = MultivariateEstimatingEquationSaddlePointApprox(
+        lambda x, t: x - t, X, poisson(1), given=12
+    )
+    for tau in [[1.4692213925413358, 2.4823620118250305], [1.7447602783247058, 2.039725281254586]]:
+        A, target = ee._design(ee._psi(np.array(tau)))
+        s = ee._solve(A, target, np.zeros(3))
+        assert np.isfinite(s).all()
+        assert np.allclose(A.T @ ee.weights.dK(A @ s), target, atol=1e-8)
+
+
 @pytest.mark.slow
 def test_vector_estimating_equation_regression_dirichlet():
     # Bayesian bootstrap of a least squares line: marginal quantiles against Monte Carlo
