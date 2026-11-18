@@ -52,13 +52,14 @@ def _bvn_tail_derivatives(b, c, logscale=0.0):
     :math:`\mathbf{b}`, all multiplied by :math:`e^{c_0}` with :math:`c_0` the ``logscale``.
 
     The scale is applied in log-space, so that it may be large while :math:`T` underflows.
-    For a large scale, :math:`T` is computed with relative accuracy by :func:`_mvn_logtail`,
-    which requires :math:`A^{-1}\mathbf{b}\geq 0`; the bivariate normal cdf is only
-    accurate in absolute terms.
+    If :math:`A^{-1}\mathbf{b}\geq 0`, i.e., if the mass of the tail is concentrated near
+    its corner, :math:`T` is computed with relative accuracy by :func:`_mvn_logtail`.
+    Otherwise, the bivariate normal cdf is used, which is only accurate in absolute terms.
     """
     s1 = np.sqrt(1 + c**2)
     g = c / s1
-    if logscale > 1:
+    # A^{-1} = [[1, -c], [-c, 1 + c^2]]
+    if b[0] - c * b[1] >= 0 and (1 + c**2) * b[1] - c * b[0] >= 0:
         A = np.array([[1 + c**2, c], [c, 1.0]])
         T = np.exp(logscale + _mvn_logtail(b, A))
     else:
@@ -2274,19 +2275,43 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
 
         and let :math:`T(\mathbf{b})=P(\mathbf{Z}\geq \mathbf{b})` with
         :math:`\mathbf{Z}\sim N(0, A)`. Then :math:`J\approx I^\emptyset + I^{\{1\}}
-        + I^{\{2\}}`, with
+        + I^{\{2\}} + I^{\{1,2\}}`, with
 
         .. math::
             I^\emptyset = C\left(T - \frac{d}{6}\left[3c(\partial_1+\hat u_1)^3
                 + 3(\partial_1+\hat u_1)^2(\partial_2+\hat u_2)\right]T\right),\\
             I^{\{1\}} = -C\left(\frac{1}{\hat\tau_1 \sqrt{K_{11}-K_{12}^2/K_{22}}}
                 - \frac{1}{\hat w_1}\right)\partial_1 T,\\
-            I^{\{2\}} = \left(\frac{1}{\tilde\tau_2\sqrt{K_{22}(0, \tilde\tau_2)}}
-                - \frac{1}{\hat w_2}\right)\bar\Phi(\hat w_1)\phi(\hat w_2),
+            I^{\{2\}} = f_2\bar\Phi(\hat w_1)\phi(\hat w_2),\quad
+                f_2 = \frac{1}{\tilde\tau_2\sqrt{K_{22}(0, \tilde\tau_2)}}
+                - \frac{1}{\hat w_2},\\
+            I^{\{1,2\}} = \left(\frac{1}{\hat\tau_1\sqrt{K_{11}-K_{12}^2/K_{22}}}
+                \left[\frac{1}{\hat\tau_2\sqrt{K_{22}}} - \frac{1}{\hat w_2-\check w_2}
+                \right] - \frac{f_2}{\hat w_1}\right)\phi(\hat w_1)\phi(\hat w_2),
 
-        where the second derivatives in :math:`I^{\{1\}}` are evaluated at
-        :math:`\hat\tau`, and the derivatives of :math:`T` are with respect to
-        :math:`\mathbf{b}`. The cubic correction in :math:`I^\emptyset` is not given in
+        where the second derivatives in :math:`I^{\{1\}}` and :math:`I^{\{1,2\}}` are
+        evaluated at :math:`\hat\tau`, and the derivatives of :math:`T` are with respect to
+        :math:`\mathbf{b}`. In the conditional case, the weight :math:`r` of
+        :class:`_ConditionalBivariateApprox` multiplies the first terms of the factors, at
+        :math:`(\hat\tau_1, 0)` in :math:`I^{\{1\}}`, :math:`(0,\tilde\tau_2)` in
+        :math:`I^{\{2\}}`, and at :math:`\hat\tau`, resp. :math:`(\hat\tau_1, 0)`, in
+        :math:`I^{\{1,2\}}`.
+
+        [6] omits :math:`I^{\{1,2\}}`, as each absorbed pole contributes a relative error
+        of :math:`O(n^{-1/2})`. That holds for normal deviations only: at a fixed large
+        deviation point, :math:`\phi(\hat w_j)` and :math:`\bar\Phi(\hat w_j)` are of the
+        same order, and without it the relative error does not vanish. For independent
+        components, the approximation with :math:`I^{\{1,2\}}` is the product of the
+        Lugannani-Rice marginal tails. :math:`I^{\{1,2\}}` above consists of two parts.
+        The first is the leading term of the integral of :math:`H^{\{1,2\}}` in the notation
+        of [6], :math:`\phi(\hat w_1)\phi(\hat w_2)H^{\{1,2\}}(\hat\tau)/
+        (\hat w_1(\hat w_2-\check w_2))`. The second is the remainder of :math:`I^{\{2\}}`:
+        [6] evaluates the analytic factor :math:`h_2(\mathbf{w})=H^{\{2\}}/
+        (w_2-\tilde w_2(w_1))` at :math:`w_1=0`, where it equals :math:`f_2`, but
+        :math:`\tau_2` depends on both :math:`w_1` and :math:`w_2`, and the remainder
+        :math:`(h_2(\hat{\mathbf w}) - h_2(0,\hat w_2))/w_1` is of the same order as
+        :math:`I^{\{1,2\}}`; for independent components it vanishes. In the sum, the terms
+        with :math:`G(0,\hat\tau_2)` cancel. The cubic correction in :math:`I^\emptyset` is not given in
         [6] and [7], which refer to [8]. It follows by expanding the exponent
         up to third order around :math:`\hat{\mathbf{u}}`: only :math:`\tilde w_2` is
         not quadratic, so the only non-zero third derivatives are
@@ -2361,6 +2386,14 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         d = self.delta[i]
         return self[i].cdf(x=x - d / 2, delta=d, **solver_kwargs)
 
+    def _kl_weight(self, t):
+        """
+        Weight of the integrand of :meth:`_kl_cdf` at the unreflected point ``t``, relative to
+        :math:`1/(\tau_1\tau_2)`: 1 in the unconditional case, see
+        :class:`_ConditionalBivariateApprox` for the conditional case.
+        """
+        return 1.0
+
     def _kl_first_factor(self, t, ts0, e1, w1h):
         r"""
         The factor :math:`1/(\hat\tau_1\sqrt{K_{11}-K_{12}^2/K_{22}}) - 1/\hat w_1` of
@@ -2368,7 +2401,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         :math:`\hat\tau_1`, ``e1`` the square root and ``t`` the unreflected saddlepoint.
         For a lattice, :math:`\hat\tau_1` is replaced by :meth:`_rho`.
         """
-        return 1 / (self._rho(ts0, 0) * e1) - 1 / w1h
+        r = self._kl_weight(np.array([t[0], 0.0]))
+        return r / (self._rho(ts0, 0) * e1) - 1 / w1h
 
     def _kl_cdf_ordered(self, x, t, **solver_kwargs):
         """
@@ -2425,7 +2459,8 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
         """
         t0 = np.array([0.0, tt])
         w = _signed_root(np.sign(tt), 2 * (tt * self.cgf.dK(t0)[1] - self.cgf.K(t0)))
-        return 1 / (self._rho(tt, 1) * np.sqrt(self.cgf.d2K(t0)[1, 1])) - 1 / w
+        u = self._rho(tt, 1) * np.sqrt(self.cgf.d2K(t0)[1, 1]) / self._kl_weight(t0)
+        return 1 / u - 1 / w
 
     def _kl_tail(self, x, t, sg, tt, h2):
         r"""
@@ -2497,7 +2532,13 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             nodes = np.array([-2, -1, 1, 2]) * h2
             fac = _lagrange_weights(nodes, tt) @ [self._kl_marginal_factor(n) for n in nodes]
         I2 = sg[1] * fac * sps.norm.sf(w1h) * sps.norm.pdf(w2h)
-        return I0 + I1 + I2
+        # I^{1,2} plus the remainder of I^{2}, see the docstring of _kl_cdf
+        I12 = (
+            self._kl_weight(t) / (self._rho(ts[0], 0) * e1 * self._rho(ts[1], 1) * np.sqrt(k2[1, 1]))
+            - self._kl_weight(t10) / (self._rho(ts[0], 0) * e1 * (w2h - w2c))
+            - sg[1] * fac / w1h
+        ) * (sps.norm.pdf(w1h) * sps.norm.pdf(w2h))
+        return I0 + I1 + I2 + I12
 
     def _dK_inv(self, x, **solver_kwargs):
         # TODO: implement multivariate interpolation with radial basis functions or something like that
@@ -2753,15 +2794,8 @@ class _ConditionalBivariateApprox(BivariateSaddlePointApprox):
         d = self.delta[i]
         return spa.conditional_cdf(x - d / 2, self.xJ, i=0, delta=d, **solver_kwargs)
 
-    def _kl_first_factor(self, t, ts0, e1, w1h):
-        r = self.profile.r(np.array([t[0], 0.0]))
-        return r / (self._rho(ts0, 0) * e1) - 1 / w1h
-
-    def _kl_marginal_factor(self, tt):
-        t0 = np.array([0.0, tt])
-        w = _signed_root(np.sign(tt), 2 * (tt * self.cgf.dK(t0)[1] - self.cgf.K(t0)))
-        u = self._rho(tt, 1) * np.sqrt(self.cgf.d2K(t0)[1, 1]) / self.profile.r(t0)
-        return 1 / u - 1 / w
+    def _kl_weight(self, t):
+        return self.profile.r(t)
 
 
 class EstimatingEquationSaddlePointApprox:

@@ -223,11 +223,12 @@ interest raise `NotImplementedError`). `_ConditionalProfile` builds the profile 
 $M(\tau_I)=\min_{\tau_J}[K-\tau_J x_J]$ (inner Newton solve, continuation from $\tau_I=0$ if a
 warm start is infeasible; $M''$ Schur complement, $M'''=K'''[V,V,V]$) and the weight
 $r=\sqrt{\det K_{JJ}(\tau_0)/\det K_{JJ}}$. `_ConditionalBivariateApprox` runs the bivariate KL
-code on $M$ through the hooks `_kl_marginal_cdf` (scalar Skovgaard conditionals),
-`_kl_first_factor` ($r(\hat\tau_1,0)$) and `_kl_marginal_factor` ($r(0,\tilde\tau_2)$), plus
+code on $M$ through the hooks `_kl_marginal_cdf` (scalar Skovgaard conditionals) and
+`_kl_weight` ($r(\tau)$, used at $(\hat\tau_1,0)$, $(0,\tilde\tau_2)$ and $\hat\tau$), plus
 $\rho(\tau)=2\sinh(\tau\delta/2)/\delta$ for a lattice. Reproduces the paper's Table 3 to about
-3 digits. Like the unconditional KL (which drops the $I^{\{1,2\}}$ term), its relative error
-does not vanish at a fixed large deviation point as $n\to\infty$.
+3 digits; with the $I^{\{1,2\}}$ term, which the paper drops, it is more accurate than the
+paper. Both KL variants include $I^{\{1,2\}}$, so their relative error is $O(1/n)$ also at a
+fixed large deviation point.
 Plan: `docs/conditional_vector_plan.md`.
 
 `cdf(x=None, t=None, fillna=np.nan, backend="Kolassa")` works in any dimension
