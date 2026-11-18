@@ -28,28 +28,26 @@ cov = np.array([[2, 1], [1, 2]]) / n
 normal = sps.multivariate_normal(mean=[0, 0], cov=cov)
 
 # Monte Carlo reference, as in the paper
-rng = np.random.default_rng(1990)
-u = rng.exponential(size=(10**6, n, 3))
-mean_x = u[..., [0, 1]].sum(axis=-1).mean(axis=1) - 2
-mean_y = u[..., [0, 2]].sum(axis=-1).mean(axis=1) - 2
-sim = np.column_stack([mean_x, mean_y])
-
-
-def monte_carlo(x, y):
-    return np.mean((sim[:, 0] <= x) & (sim[:, 1] <= y))
-
+with spa.Timer("Monte Carlo (10^6 samples)", decimals=3):
+    rng = np.random.default_rng(1990)
+    u = rng.exponential(size=(10**6, n, 3))
+    mean_x = u[..., [0, 1]].sum(axis=-1).mean(axis=1) - 2
+    mean_y = u[..., [0, 2]].sum(axis=-1).mean(axis=1) - 2
+    sim = np.column_stack([mean_x, mean_y])
 
 # Table 1 of Wang (1990): F(x, y) = F(y, x), so only the cells with x <= y are given.
-print(f"{'y':>5} {'x':>5} {'MC':>9} {'Wang':>9} {'KL':>9} {'Kolassa':>9} {'normal':>9}")
-for y in ys:
-    for x in xs[xs <= y]:
-        pt = np.array([x, y])
-        t = cgf.dK_inv(pt)  # solve the saddlepoint equation K'(t) = (x, y)
-        row = [
-            monte_carlo(x, y),
-            approx.cdf(t=t, backend="Wang"),
-            approx.cdf(t=t, backend="KL"),
-            approx.cdf(t=t, backend="Kolassa"),
-            normal.cdf(pt),
-        ]
-        print(f"{y:5.1f} {x:5.1f} " + " ".join(f"{v:9.5f}" for v in row))
+cells = np.array([[x, y] for y in ys for x in xs[xs <= y]])
+with spa.Timer(f"Monte Carlo cdf ({len(cells)} cells)", decimals=3):
+    F_mc = [np.mean((sim[:, 0] <= x) & (sim[:, 1] <= y)) for x, y in cells]
+with spa.Timer("Solving the saddle point equations", decimals=3):
+    ts = [cgf.dK_inv(pt) for pt in cells]  # solve K'(t) = (x, y)
+F = {}
+for backend in ["Wang", "KL", "Kolassa"]:
+    with spa.Timer(f"Saddle point cdf, {backend} backend", decimals=3):
+        F[backend] = [approx.cdf(t=t, backend=backend) for t in ts]
+with spa.Timer("Normal approximation cdf", decimals=3):
+    F_normal = [normal.cdf(pt) for pt in cells]
+
+print(f"\n{'y':>5} {'x':>5} {'MC':>9} {'Wang':>9} {'KL':>9} {'Kolassa':>9} {'normal':>9}")
+for (x, y), *row in zip(cells, F_mc, F["Wang"], F["KL"], F["Kolassa"], F_normal):
+    print(f"{y:5.1f} {x:5.1f} " + " ".join(f"{v:9.5f}" for v in row))

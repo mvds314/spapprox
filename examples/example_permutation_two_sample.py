@@ -90,10 +90,12 @@ def interval(pvalues, A, B, level=0.95):
 
 for name, (A, B, paper) in data.items():
     print(f"{name}:")
-    pe, ps = exact(A, B)[0], saddle_point(A, B)[0]
+    with spa.Timer("  Exact significance level and interval (enumeration)", decimals=3):
+        pe, ce = exact(A, B)[0], interval(exact, A, B)
+    with spa.Timer("  Saddle point significance level and interval", decimals=3):
+        ps, cs = saddle_point(A, B)[0], interval(saddle_point, A, B)
     print(f"  two-sided significance level: exact {2 * pe:.3f}, saddle point {2 * ps:.3f}")
     print(f"  paper (Table 1): exact {paper['p'][0]:.3f}, saddle point {paper['p'][1]:.3f}")
-    ce, cs = interval(exact, A, B), interval(saddle_point, A, B)
     print(
         f"  95% interval: exact ({ce[0]:.2f}, {ce[1]:.2f}), saddle point ({cs[0]:.2f}, {cs[1]:.2f})"
     )
@@ -102,8 +104,13 @@ for name, (A, B, paper) in data.items():
 
 A, B, _ = data["pain relief"]
 print("\npain relief, one-sided significance level, continuity correction for span 0.1:")
-print(f"  exact {exact(A, B)[0]:.5f}")
-print(f"  saddle point {saddle_point(A, B)[0]:.5f}, lattice {saddle_point(A, B, 0.1)[0]:.5f}")
+with spa.Timer("  Exact", decimals=3):
+    pe = exact(A, B)[0]
+with spa.Timer("  Saddle point", decimals=3):
+    ps = saddle_point(A, B)[0]
+with spa.Timer("  Lattice saddle point", decimals=3):
+    pl = saddle_point(A, B, 0.1)[0]
+print(f"  exact {pe:.5f}, saddle point {ps:.5f}, lattice {pl:.5f}")
 
 # Wilcoxon rank sum test: the permutation test applied to the ranks, a lattice of span 1
 ranks = np.argsort(np.argsort(np.r_[A, B])) + 1.0

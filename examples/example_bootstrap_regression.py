@@ -51,19 +51,21 @@ bracket = np.column_stack([estimate - 6 * sd, estimate + 6 * sd])
 print(f"estimate: intercept {estimate[0]:.3f}, slope {estimate[1]:.3f}")
 
 schemes = {
-    "multinomial": (spa.poisson(1), rng.multinomial(n, np.ones(n) / n, size=20000)),
-    "Dirichlet": (spa.exponential(), rng.exponential(size=(20000, n))),
+    "multinomial": (spa.poisson(1), lambda: rng.multinomial(n, np.ones(n) / n, size=20000)),
+    "Dirichlet": (spa.exponential(), lambda: rng.exponential(size=(20000, n))),
 }
 p = np.array([0.025, 0.05, 0.25, 0.5, 0.75, 0.95, 0.975])
 results = {}
-for name, (weights, W) in schemes.items():
-    mc = least_squares(W)
-    ee = spa.MultivariateEstimatingEquationSaddlePointApprox(
-        psi, data, weights, given=n, dpsi=dpsi, bracket=bracket
-    )
-    ee.fit_pdf(num=51)
-    results[name] = mc, ee
+for name, (weights, draw) in schemes.items():
     print(f"\n{name} bootstrap")
+    with spa.Timer("  Monte Carlo (20000 resamples)", decimals=3):
+        mc = least_squares(draw())
+    with spa.Timer("  Saddle point (fit pdf on a 51 x 51 grid)", decimals=3):
+        ee = spa.MultivariateEstimatingEquationSaddlePointApprox(
+            psi, data, weights, given=n, dpsi=dpsi, bracket=bracket
+        )
+        ee.fit_pdf(num=51)
+    results[name] = mc, ee
     for j, label in enumerate(["intercept", "slope"]):
         print(f"  {label}: quantile {'MC':>8} {'SP':>8}")
         for pp, q_mc, q_sp in zip(p, np.quantile(mc[:, j], p), ee.marginal_ppf(j, p)):

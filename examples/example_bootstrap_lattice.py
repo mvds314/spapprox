@@ -32,10 +32,11 @@ def psi(x, tau):
 
 
 # Multinomial bootstrap
-p = np.array([1.0])
-for _ in range(n):
-    p = np.convolve(p, np.bincount(x.astype(int)) / n)
-exact_boot = np.cumsum(p)
+with spa.Timer("Exact multinomial bootstrap (convolution)", decimals=3):
+    p = np.array([1.0])
+    for _ in range(n):
+        p = np.convolve(p, np.bincount(x.astype(int)) / n)
+    exact_boot = np.cumsum(p)
 boot = {
     delta: spa.EstimatingEquationSaddlePointApprox.from_resampling(
         psi, x, spa.poisson(1), given=n, delta=delta
@@ -45,7 +46,8 @@ boot = {
 
 # Delete-d jackknife
 d = 5
-sums = np.array([x[list(c)].sum() for c in combinations(range(n), n - d)])
+with spa.Timer(f"Exact delete-{d} jackknife (enumeration)", decimals=3):
+    sums = np.array([x[list(c)].sum() for c in combinations(range(n), n - d)])
 jack = {
     delta: spa.EstimatingEquationSaddlePointApprox.from_resampling(
         psi, x, spa.binomial(1, 0.5), given=n - d, delta=delta
@@ -59,9 +61,13 @@ for name, m, F_exact, approx in [
 ]:
     # Values of the resampled mean, on its lattice of span 1 / m
     tau = np.round(m * np.array([1.6, 2.0, 2.4, 2.8, 3.2, 3.6, 4.0, 4.4])) / m
-    print(f"\n{name}, P(mean <= tau):")
-    print(f"{'tau':>7} {'exact':>8} {'SP':>8} {'lattice':>8}")
-    for t, a, b in zip(tau, approx[None].cdf(tau), approx[1.0].cdf(tau)):
+    print(f"\n{name}:")
+    with spa.Timer("  Saddle point cdf", decimals=3):
+        F_sp = approx[None].cdf(tau)
+    with spa.Timer("  Lattice saddle point cdf", decimals=3):
+        F_lattice = approx[1.0].cdf(tau)
+    print(f"P(mean <= tau):\n{'tau':>7} {'exact':>8} {'SP':>8} {'lattice':>8}")
+    for t, a, b in zip(tau, F_sp, F_lattice):
         print(f"{t:7.3f} {F_exact(round(m * t)):8.5f} {a:8.5f} {b:8.5f}")
 
 tau = np.linspace(1.2, 4.5, 150)

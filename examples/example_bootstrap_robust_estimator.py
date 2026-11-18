@@ -51,15 +51,18 @@ bracket = (x.min(), x.max())
 
 results = {}
 for name, psi in [("Huber", psi_huber), ("mean", psi_mean)]:
+    print(f"\n{name}:")
     estimate = solve(psi, np.ones((1, n)))[0]
-    mc = solve(psi, W)
-    ee = spa.EstimatingEquationSaddlePointApprox.from_resampling(
-        psi, x, spa.poisson(1), given=n, bracket=bracket
-    )
-    ee.fit_cdf(num=60)
+    with spa.Timer(f"Monte Carlo ({len(W)} resamples)", decimals=3):
+        mc = solve(psi, W)
+    with spa.Timer("Saddle point (fit)", decimals=3):
+        ee = spa.EstimatingEquationSaddlePointApprox.from_resampling(
+            psi, x, spa.poisson(1), given=n, bracket=bracket
+        )
+        ee.fit_cdf(num=60)
     results[name] = estimate, mc, ee
 
-    print(f"\n{name} estimate {estimate:.2f}, multinomial bootstrap:")
+    print(f"{name} estimate {estimate:.2f}, multinomial bootstrap:")
     p = np.array([0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99])
     q = np.quantile(mc, p)
     print(f"{'p':>6} {'MC quantile':>12} {'SP cdf':>8}")
