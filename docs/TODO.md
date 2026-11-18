@@ -1,7 +1,9 @@
 # Priorities
 
 - Go through bug backlog
-- Maybe review implementation with this in mind: Alhejaili, AlGhamedi (2025) - A review of saddlepoint approximation
+- [x] Review implementation against Alhejaili, AlGhamedi (2025) - A review of saddlepoint
+  approximation: done, see "Review: Alhejaili and AlGhamedi (2025)" below. Follow-ups: bug 62,
+  and the lattice items `Pr1` and unconditional bivariate cdf
 - Finish bivariate approximation:
   - basically this case: test_bvar_cdf_near_zero
   - are there more edge cases?
@@ -803,6 +805,16 @@ Contract violations and silently wrong results in narrower situations.
   Newton steps, and solves directly, starting from it, where the residual stays large.
   Regression test: `test_bvar_fit_saddle_point_eqn_polishes_interpolation`.
 
+### [ ] 62. Multivariate `cdf(..., delta=...)` is forwarded to the root finder
+
+- **Where:** `MultivariateSaddlePointApprox.cdf` / `BivariateSaddlePointApprox.cdf`, which take
+  `**solver_kwargs` but have no `delta`, unlike the univariate and conditional cdfs.
+- **What:** `delta=1` ends up in `dK_inv`. For `from_univariate(poisson(3), poisson(4))` at
+  `x=(2, 3)`, `"KL"` and `"Wang"` raise "Failed to solve the saddle point equation", and
+  `"Kolassa"` returns `nan`: the message hides the real cause.
+- **Fix:** reject `delta` with a clear `NotImplementedError` until the lattice cdf below is
+  implemented.
+
 ---
 
 ## Tooling / packaging
@@ -1016,6 +1028,18 @@ Or into a separate model, e.g., bootstrap.py
     normalized by default (integrating the density is a poor normalization for a lattice,
     e.g. 41% relative error for `poisson(0.5)` vs 8% unnormalized). Possible refinement:
     normalize by summing over the lattice, and Daniels' second-order terms
+  - univariate first continuity correction `Pr1` (Daniels 1987; Butler (1.27)-(1.29)):
+    `u1 = (1 - exp(-t)) sqrt(K''(t))` at the uncorrected saddlepoint of `k`, and
+    `F(k - 1) = 1 - Pr1(X >= k)`. Butler 1.2.6 recommends computing both `Pr1` and `Pr2`,
+    as neither dominates (Pr1 often slightly better, e.g. Poisson/binomial left tails,
+    Tables 1.12-1.13). Only `Pr2` is implemented (`delta=`); it reproduces Butler Table 1.7.
+    `Pr3` and the alternative left tail `F1a` are not competitors, skip them
+  - unconditional bivariate cdf for lattice variables: none of `"KL"`, `"Wang"`, `"Kolassa"`
+    supports `delta` (see bug 62). Uncorrected, two independent Poissons (3, 4) at (2, 3)
+    give 0.102 vs exact 0.183. Options: Kolassa & Li (2010) eq. (4.8) at `x + delta/2`, which
+    `_ConditionalBivariateApprox` already implements for the conditional case; or Wang (1990)
+    Theorems 2-3 (one or both discrete), which replace `t0` by `1 - exp(-t0)` and `u0` by
+    `1 - exp(-u0)` in the `I21`, `I22` (and `I12`) factors, without an offset
   - conditional cdf for a vector of interest `P(X_I >= x_I | X_J = x_J)`, continuous and
     lattice: phase F above (Kolassa & Li, 2010, section 4). Done for two variables of
     interest, `conditional_cdf(i=[a, b], delta=...)`; open for three or more
@@ -1031,6 +1055,40 @@ Or into a separate model, e.g., bootstrap.py
   `examples/example_bootstrap_robust_estimator.py`
 - quadratic forms (Kuonen 2001)
 - mixture models
+
+## Review: Alhejaili and AlGhamedi (2025)
+
+"A review of saddle-point approximation: theory and applications", Adv. Appl. Stat. 92(3),
+343-390. Sections 1-2 and 4 are a literature survey; section 3 states the formulas. Coverage of
+section 3 by the package, checked against the primary sources (Butler 2007, Wang 1990):
+
+| Review | Formula | Status |
+|---|---|---|
+| (4)-(5) | univariate pdf/pmf | `pdf`, `pdf(delta=)` |
+| (6)-(7) | Lugannani-Rice, limit at the mean | `cdf(backend="LR")`, interpolated near `t=0` |
+| (8)-(9) | first continuity correction `Pr1` | missing, see lattice items |
+| (10)-(12) | second continuity correction `Pr2` | `cdf(delta=)`, matches Butler Table 1.7 |
+| (13) | third approximation `Pr3` | missing, by choice (Butler: not a competitor) |
+| (14)-(21) | Wang (1990) bivariate cdf | `cdf(backend="Wang")`, plus `"KL"` and `"Kolassa"` |
+| (22)-(23) | Wang (1990) discrete versions | missing, see lattice items and bug 62 |
+| (24)-(25) | multivariate pdf | `MultivariateSaddlePointApprox.pdf` |
+| (27)-(33) | double saddlepoint pdf | `conditional_pdf` (normalized) |
+| (39)-(41) | Skovgaard conditional cdf | `conditional_cdf`, plus Kolassa (1996) second order |
+| (42)-(44) | conditional `Pr1` | missing, already listed under conditional distributions |
+| (45)-(48) | conditional `Pr2` | `conditional_cdf(delta=)` |
+
+Typos in the review, do not implement from it: in (6) the roles of `phi` and `Phi` are swapped
+in the text; Theorem 3.2 has `1 - e^{t0}`, Wang (1990) has `1 - e^{-t0}`; (44) should read
+`K_t'(t0, 0) = j`; (48) should use the offset saddlepoint `(t~, u~)` in the Hessian; in (32)
+`u0^T x` should be `t0^T x`.
+
+Mentioned in the survey but not implemented, candidate applications: non-normal base
+distributions (Wood, Booth and Butler 1993), saddlepoint approximations from a truncated CGF
+for general statistics (Easton and Ronchetti 1986; Gatto and Ronchetti 1996), empirical and
+extended empirical saddlepoint (Feuerverger 1989; Fasiolo et al. 2018), and saddlepoint
+smoothers for discrete data (Davison and Wang 2002). The remark on non-convex support (exclude
+points outside the support when normalizing a multivariate pdf) does not apply yet: no factory
+has a non-convex support.
 
 ## Literature to review
 

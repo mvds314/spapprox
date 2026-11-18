@@ -1,7 +1,7 @@
 [project]
 name = "spapprox"
 description = "Saddle point approximation"
-version = "26.11.17"
+version = "26.11.18"
 authors = [{ name = "Martin van der Schans" }]
 readme = "README.md"
 keywords = ["statistics"]
