@@ -3069,6 +3069,7 @@ class MultivariateEstimatingEquationSaddlePointApprox:
         if not np.isfinite(obj):
             return np.full_like(s, np.nan)
         floor = obj - 750
+        last_decrement = np.inf
         for _ in range(max_iter):
             a = A @ s
             g = A.T @ Kw.dK(a) - target
@@ -3082,6 +3083,18 @@ class MultivariateEstimatingEquationSaddlePointApprox:
                 break
             if decrement < 1e-20:
                 return s
+            if decrement < 1e-10:
+                # Close to the minimum, the decrease is below the resolution of the objective,
+                # so backtracking can shrink the step to nothing; take full Newton steps,
+                # until roundoff stops the decrement from decreasing
+                if decrement >= last_decrement:
+                    return s
+                last_decrement = decrement
+                s = s - step
+                obj = objective(s)
+                if not np.isfinite(obj):
+                    break
+                continue
             lam = 1.0
             for _ in range(50):
                 s_new = s - lam * step
