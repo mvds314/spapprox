@@ -4,6 +4,7 @@ from .cgf_base import (  # noqa: F401
 )
 
 from .cgfs import (  # noqa: F401
+    bernoulli,
     binomial,
     bivariate_gamma,
     chi2,

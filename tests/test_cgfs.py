@@ -16,6 +16,7 @@ from spapprox import (
     MultivariateCumulantGeneratingFunction,
     UnivariateCumulantGeneratingFunction,
     UnivariateSaddlePointApprox,
+    bernoulli,
     binomial,
     bivariate_gamma,
     chi2,
@@ -467,6 +468,14 @@ from spapprox.diff import PartialDerivative
             marks=pytest.mark.skipif(not has_findiff, reason="No findiff"),
             id="univariate binomial from multivariate",
         ),
+        pytest.param(
+            bernoulli(p=0.3),
+            lambda t: np.log(0.7 + 0.3 * np.exp(t)),
+            [0.2, 0.55, -0.4],
+            sps.bernoulli(p=0.3),
+            "numdifftools",
+            id="univariate bernoulli",
+        ),
         # Case 16: Univariate sample mean
         pytest.param(
             univariate_sample_mean(norm(2, 1), 25),
@@ -834,6 +843,7 @@ def test_return_type(cgf):
             [0.2, 0.55],
             id="Univariate binomial from multivariate",
         ),
+        pytest.param(bernoulli(p=0.3), [0.2, 0.55, -0.4], id="Univariate bernoulli"),
         pytest.param(
             univariate_sample_mean(norm(2, 1), 25),
             [0.2, 0.55, -0.23],
