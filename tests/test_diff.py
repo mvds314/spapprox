@@ -773,6 +773,35 @@ def test_tensor_derivatives_higher_acc():
     assert np.allclose(Tressian(lse, 2, acc=4, h=1e-2)(t), T, atol=1e-8)
 
 
+@pytest.mark.skipif(not _has_findiff, reason="findiff not installed")
+def test_default_step():
+    # Bug 32: eps^(1/(n+acc)) for well-scaled functions, scaled by the distance to the nearest
+    # NaN near a singularity. The old fixed step had errors 2e-8, 1e-4 and 3e-2 here
+    assert PartialDerivative(np.exp, 1)(0.3) == pytest.approx(np.exp(0.3), rel=1e-10)
+    assert PartialDerivative(np.exp, 3)(0.3) == pytest.approx(np.exp(0.3), rel=1e-6)
+    f = lambda t: np.where(np.asarray(t) < 1, -np.log(np.abs(1 - np.asarray(t))), np.nan)  # noqa: E731
+    for d in [0.1, 1e-3]:
+        assert PartialDerivative(f, 3)(1 - d) == pytest.approx(2 / d**3, rel=1e-4)
+    # On a closed boundary, the one-sided stencil uses the distance on the other side
+    g = lambda t: np.where(np.asarray(t) >= 0, np.exp(t), np.nan)  # noqa: E731
+    assert PartialDerivative(g, 2)(0.0) == pytest.approx(1, rel=1e-5)
+
+    def lse(t):
+        return np.log(np.exp(np.asarray(t)).sum(axis=-1))
+
+    t = np.array([0.1, 0.2])
+    p = np.exp(t) / np.exp(t).sum()
+    d = np.eye(2)
+    T = (
+        np.einsum("ij,jk,i->ijk", d, d, p)
+        - np.einsum("ij,i,k->ijk", d, p, p)
+        - np.einsum("ik,i,j->ijk", d, p, p)
+        - np.einsum("jk,i,j->ijk", d, p, p)
+        + 2 * np.einsum("i,j,k->ijk", p, p, p)
+    )
+    assert np.allclose(Tressian(lse, 2)(t), T, atol=1e-6)
+
+
 def test_block_diag_3d_dtype_and_inputs():
     res = block_diag_3d(np.ones((1, 1, 1), int), 0.5 * np.ones((1, 1, 1)))
     assert res.dtype == float

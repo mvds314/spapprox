@@ -1053,6 +1053,27 @@ def test_univariate_empirical_no_overflow():
     assert np.isclose(cgf.d2K(1.0), w[2] @ x**2 - (w[2] @ x) ** 2, rtol=1e-4)
 
 
+@pytest.mark.parametrize("scale", [1e-2, 1, 50])
+@pytest.mark.parametrize(
+    "backend",
+    [
+        pytest.param("numdifftools", marks=pytest.mark.skipif(not has_numdifftools, reason="")),
+        pytest.param("findiff", marks=pytest.mark.skipif(not has_findiff, reason="No findiff")),
+    ],
+)
+def test_univariate_empirical_scale(scale, backend):
+    # The sample is standardized, so numerical derivatives do not depend on its scale
+    x = 3 + scale * np.random.default_rng(0).standard_normal(50)
+    cgf = univariate_empirical(x)
+    cgf._numdiff_backend = backend
+    t = 0.7 / scale
+    w = np.exp(t * x - (t * x).max())
+    w /= w.sum()
+    c = x - w @ x
+    assert np.isclose(cgf.d2K(t), w @ c**2, rtol=1e-5)
+    assert np.isclose(cgf.d3K(t), w @ c**3, rtol=1e-4)
+
+
 def test_dK_inv_at_initial_bracket_end():
     # x equal to dK at the initial upper end of the bracket used to fail the bracket check
     cgf = MultivariateCumulantGeneratingFunction.from_univariate(gamma(a=3), gamma(a=2)).ldot(

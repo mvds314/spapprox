@@ -274,9 +274,16 @@ def univariate_empirical(x):
     """
     Given a vector :math`x` with observations of a univariate random variable,
     draw one of then with equal probability.
+
+    The cgf is that of the standardized sample, with ``loc`` and ``scale`` the sample mean and
+    standard deviation, so numerical derivatives do not depend on the scale of the data.
     """
 
     x = np.asanyarray(x, dtype=float)
+    loc = x.mean()
+    scale = x.std()
+    scale = 1.0 if not scale > 0 else scale
+    x = (x - loc) / scale
 
     # Use logsumexp and softmax to prevent overflow for large t * x
     @type_wrapper(xloc=0)
@@ -291,7 +298,7 @@ def univariate_empirical(x):
         y = (softmax(tx, axis=-1) * x).sum(axis=-1)
         return y.tolist() if t.ndim == 1 else y
 
-    return UnivariateCumulantGeneratingFunction(K, dK=dK)
+    return UnivariateCumulantGeneratingFunction(K, dK=dK, loc=loc, scale=scale)
 
 
 def poisson(mu=1):
