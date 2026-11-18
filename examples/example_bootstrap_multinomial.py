@@ -43,10 +43,12 @@ paper_spa += [6.12, 7.46]
 
 with spa.Timer("Saddle point quantiles", decimals=3):
     q = np.asarray(ee.ppf(p)) - x.mean()
+with spa.Timer("Saddle point quantiles, interpolated from the fit", decimals=3):
+    q_interp = np.asarray(ee.ppf(p, interpolate=True)) - x.mean()
 with spa.Timer("Monte Carlo quantiles", decimals=3):
     q_mc = np.quantile(sim, p) - x.mean()
-print(f"{'p':>7} {'MC':>7} {'paper':>7} {'paper SP':>8} {'SP':>7}")
-for row in zip(p, q_mc, paper_exact, paper_spa, q):
+print(f"{'p':>7} {'MC':>7} {'paper':>7} {'paper SP':>8} {'SP':>7} {'interp':>7}")
+for row in zip(p, q_mc, paper_exact, paper_spa, q, q_interp):
     print(f"{row[0]:7.4f} " + " ".join(f"{v:7.2f}" for v in row[1:]))
 
 # The estimating equation and the empirical cgf give the same cdf (the cut)
