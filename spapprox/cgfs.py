@@ -584,30 +584,63 @@ def asymmetric_generalized_normal(beta=2, sigma=1, loc=0, scale=1):
     if bl == 2 and br == 2:
         return _split_normal(sl, sr, lognorm, cumulants, loc=loc, scale=scale)
 
+    # Generalized binomial coefficients C(b, k), k = 2, ..., 9, for the series of
+    # (1 + r)^b - 1 - b r
+    binom_coefs = {
+        b: np.cumprod([b - j for j in range(9)])[1:] / np.cumprod(np.arange(1, 10))[1:]
+        for b in {bl, br}
+    }
+
     def h(t, x):
         # Log of the unnormalized tilted density
         return t * x - (x / sr) ** br if x >= 0 else t * x - (-x / sl) ** bl
 
     def tilted(t):
-        # Integrate in u = x - mode of the tilted density, with the exponent max subtracted,
-        # splitting at the mode and at the kink in x = 0
+        # Integrate in v = (x - mode) / w, with w the width of the tilted density at its mode
+        # and the exponent max subtracted, splitting at the mode and at the kink in x = 0
         if t > 0 and br > 1:
             mode = sr * (t * sr / br) ** (1 / (br - 1))
+            w = np.sqrt(sr**br / (br * (br - 1) * mode ** (br - 2)))
         elif t < 0 and bl > 1:
             mode = -sl * (-t * sl / bl) ** (1 / (bl - 1))
+            w = np.sqrt(sl**bl / (bl * (bl - 1) * (-mode) ** (bl - 2)))
         else:
-            mode = 0.0
+            mode, w = 0.0, 1.0
         c = h(t, mode)
 
-        def f(u):
-            return np.exp(h(t, mode + u) - c) * u ** np.arange(4)
+        def f(v):
+            u = w * v
+            if mode != 0 and u / mode > -1:
+                # On the side of the mode, h(mode + u) - c = A (beta r - (1 + r)^beta + 1) with
+                # r = u / mode and A = |mode / sigma|^beta, avoiding the cancellation of the
+                # large terms t x and |x / sigma|^beta
+                b, sig = (br, sr) if mode > 0 else (bl, sl)
+                r = u / mode
+                if abs(r) < 1e-2:
+                    # Series, as the closed form cancels for small r
+                    phi = -np.polyval(binom_coefs[b][::-1], r) * r**2
+                else:
+                    phi = b * r - np.expm1(b * np.log1p(r))
+                logf = np.abs(mode / sig) ** b * phi
+            else:
+                logf = h(t, mode + u) - c
+            return np.exp(logf) * v ** np.arange(4)
 
-        edges = [-np.inf, *sorted({0.0, -mode}), np.inf]
+        # After rescaling the integrals are of order one, so an absolute tolerance is safe; it
+        # is needed for pieces where the integrand underflows, which never converge otherwise.
+        # Breakpoints a few widths from the mode keep long pieces, e.g., up to a far away kink,
+        # from missing the mass when all their initial nodes underflow
+        edges = [-np.inf, *sorted({-40.0, -10.0, 0.0, 10.0, 40.0, -mode / w}), np.inf]
         mom = sum(
-            quad_vec(f, lo, hi, epsabs=0, epsrel=1e-12)[0] for lo, hi in zip(edges, edges[1:])
+            quad_vec(f, lo, hi, epsabs=1e-14, epsrel=1e-12)[0] for lo, hi in zip(edges, edges[1:])
         )
-        m1, m2, m3 = mom[1:] / mom[0]
-        return lognorm + c + np.log(mom[0]), mode + m1, m2 - m1**2, m3 - 3 * m1 * m2 + 2 * m1**3
+        m1, m2, m3 = mom[1:] / mom[0] * w ** np.arange(1, 4)
+        return (
+            lognorm + c + np.log(w * mom[0]),
+            mode + m1,
+            m2 - m1**2,
+            m3 - 3 * m1 * m2 + 2 * m1**3,
+        )
 
     def moment(i):
         return np.vectorize(lambda t: tilted(t)[i], otypes=[float])

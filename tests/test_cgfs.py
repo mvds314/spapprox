@@ -1198,6 +1198,18 @@ def test_asymmetric_generalized_normal_special_cases():
     t = np.array([-1e4, 1e4])
     assert np.allclose(cgf.dK(t), t * np.array([4, 0.25]) / 2)
     assert np.allclose(cgf.d2K(t), [2, 0.125])
+    # Far in the tail of a quadrature case the tilted density is close to normal, so its cgf
+    # matches the Laplace approximation at the mode; here the mode is about 3e8 widths away
+    # from the kink in zero
+    b, s, t = 1.1, 1.5, 5.0
+    cgf = asymmetric_generalized_normal(beta=(1, b), sigma=(0.5, s))
+    mode = s * (t * s / b) ** (1 / (b - 1))
+    w2 = s**b / (b * (b - 1) * mode ** (b - 2))
+    lognorm = -np.log(0.5 + s * gamma_fn(1 + 1 / b))
+    laplace_K = lognorm + (b - 1) * (mode / s) ** b + 0.5 * np.log(2 * np.pi * w2)
+    assert np.isclose(cgf.K(t), laplace_K, rtol=1e-12)
+    assert np.isclose(cgf.dK(t), mode, rtol=1e-6)
+    assert np.isclose(cgf.d2K(t), w2, rtol=1e-6)
     cgf = asymmetric_generalized_normal(beta=1, sigma=(2, 0.5), loc=1, scale=3)
     ref = sps.laplace_asymmetric(2, loc=1, scale=3)
     assert np.allclose([cgf.dK0, cgf.d2K0], ref.stats("mv"))

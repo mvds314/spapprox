@@ -43,7 +43,7 @@ spapprox/
 +-- diff.py       (569 loc)   numerical differentiation via findiff
 +-- domain.py     (587 loc)   Domain: where K is finite
 +-- cgf_base.py  (1919 loc)   CGF base + Univariate/Multivariate classes  <- the heart
-+-- cgfs.py       (734 loc)   concrete distribution factories
++-- cgfs.py       (830 loc)   concrete distribution factories
 +-- spa.py        (799 loc)   the saddle point approximation classes
 `-- __init__.py               public API re-exports
 tests/            test_cgfs, test_mvar_cgfs, test_diff, test_domain, test_spa
