@@ -13,7 +13,7 @@ docstrings plus the `examples/` scripts, and a lean distribution.
 - Metadata is minimal: no classifiers, one keyword, one URL, and `license` uses the
   legacy `{ text = ... }` table.
 - Version is CalVer `26.11.31`, bumped on every PR.
-- CI tests Python 3.11 only. There is no release workflow.
+- CI tested Python 3.11 only (now 3.11-3.14). There is no release workflow.
 - README still says "UNDER CONSTRUCTION". It lists "approximating conditional
   distributions" as to be implemented, but they are implemented and documented
   further down. It installs from GitHub, links relative paths (`examples/...`),
@@ -127,8 +127,9 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
 
 ### 5. CI and publishing (later)
 
-- Test matrix: Python 3.11-3.14 on the fast suite (the classifiers already claim
-  these). Optionally add a job with all extras (`findiff`, `fastnorm`).
+- [x] Test matrix: Python 3.11-3.14 on the fast suite. The aggregate `test` job keeps
+  the single required status check of the `main` ruleset.
+- Optionally add a job with all extras (`findiff`, `fastnorm`).
 - A `build` job on every PR: `python -m build` plus `twine check`.
 - Later, a PyPI publishing workflow triggered by a manually created GitHub Release
   (`release: published`). It would use `pypa/gh-action-pypi-publish` with PyPI

@@ -54,7 +54,7 @@ Optional dependencies, all probed with `try/import` at module load:
 | `numdifftools` | `has_numdifftools` | `cgf_base.py` | default numerical differentiation backend |
 | `fastnorm` | `_has_fastnorm` | `spa.py` | faster bivariate normal cdf |
 
-CI (`.github/workflows/python-app.yml`, Python 3.11; runs `pytest -m "not slow"` and `ruff check .` on
+CI (`.github/workflows/python-app.yml`; runs `pytest -m "not slow"` on Python 3.11-3.14 and `ruff check .` on
 pushes to `main`/`dev` and PRs to `main`) installs **only** `numdifftools`
 (`pip install -e ".[numdiff]"`), so any code path reachable by default must work
 without the other two. This includes test collection: never construct findiff
