@@ -1055,18 +1055,6 @@ def test_bvar_cdf_kl_continuous_near_singularities():
     assert np.allclose(vals, vals[1], atol=1e-6)
 
 
-@pytest.mark.parametrize("backend", ["KL", "Wang", "Kolassa"])
-def test_mvar_cdf_rejects_delta(backend):
-    # delta used to be forwarded to the saddle point solver, which failed misleadingly
-    cgf = MultivariateCumulantGeneratingFunction.from_univariate(poisson(3), poisson(4))
-    spa = BivariateSaddlePointApprox(cgf)
-    if backend == "Wang":
-        with pytest.raises(NotImplementedError, match="delta"):
-            spa.cdf(x=np.array([2.0, 3.0]), backend=backend, delta=1)
-    with pytest.raises(NotImplementedError, match="delta"):
-        spa.fit_cdf(backend=backend, delta=1)
-
-
 def _shared_poisson_exact_cdf(x, lams):
     # X_j = N_j + N_0, N independent Poisson(lams), lams[0] the shared component
     n0 = np.arange(int(min(x)) + 1)
@@ -1121,13 +1109,11 @@ def test_mvar_lattice_cdf_mixed():
     # Continuous across the marginal mean of the continuous component
     vals = [spa.cdf(x=[x[0, 0], mean[1] + d], delta=[1, 0]) for d in [-1e-6, 0, 1e-6]]
     assert np.allclose(vals, vals[1], atol=1e-6)
-    # The bivariate class forwards to the same approximation; "KL" has no mixed version
+    # The bivariate class forwards to the same approximation
     bspa = BivariateSaddlePointApprox(cgf)
     assert bspa.cdf(x=x[0], delta=[1, 0], backend="Kolassa") == pytest.approx(
         spa.cdf(x=x[0], delta=[1, 0]), rel=1e-12
     )
-    with pytest.raises(NotImplementedError, match="Kolassa"):
-        bspa.cdf(x=x[0], delta=[1, 0])
     # Zero spans: the continuous approximation
     assert spa.cdf(x=x[0], delta=0) == spa.cdf(x=x[0])
 
@@ -1204,6 +1190,132 @@ def test_bvar_lattice_cdf_kolassa_li_table2():
         )
         assert np.isclose(upper, exact, rtol=0.01)
         assert np.isclose(upper, paper, rtol=0.01)
+
+
+def _kolassa_li_binomial_sums(n=80, p=0.2):
+    # S1 = A + B, S2 = B + C with A, B, C ~ Bin(n, p), and its exact cdf by convolution
+    pm = sps.binom(n, p).pmf(np.arange(n + 1))
+    joint = np.zeros((2 * n + 1, 2 * n + 1))
+    for k in range(n + 1):
+        joint[k : k + n + 1, k : k + n + 1] += pm[k] * np.outer(pm, pm)
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(*[binomial(n, p)] * 3).ldot(
+        np.array([[1.0, 1.0, 0.0], [0.0, 1.0, 1.0]])
+    )
+    return cgf, joint.cumsum(0).cumsum(1)
+
+
+def test_bvar_lattice_cdf_wang():
+    # Wang (1990), Theorems 2-3: at x + delta, t replaced by 1 - exp(-t) in the factors
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(poisson(3), poisson(4))
+    spa = BivariateSaddlePointApprox(cgf)
+    x = np.array([[2.0, 3.0], [5.0, 1.0], [1.0, 7.0], [1.0, 1.0], [6.0, 8.0]])
+    exact = sps.poisson(3).cdf(x[:, 0]) * sps.poisson(4).cdf(x[:, 1])
+    got = spa.cdf(x=x, delta=1, backend="Wang")
+    assert np.allclose(got, exact, rtol=3e-3)
+    # Independent: the product of the univariate first continuity corrections
+    prod = [
+        spa[0].cdf(a, delta=1, correction=1) * spa[1].cdf(b, delta=1, correction=1) for a, b in x
+    ]
+    assert np.allclose(got, prod, rtol=1e-5)
+    # Continuous at the double singularity t = 0, x + delta = (3, 4)
+    vals = [spa.cdf(x=[2 + d, 3 + d], delta=1, backend="Wang") for d in [-1e-6, 0, 1e-6]]
+    assert np.allclose(vals, vals[1], atol=1e-6)
+    # Same lattice scaled by two
+    cgf2 = MultivariateCumulantGeneratingFunction.from_univariate(2 * poisson(3), 2 * poisson(4))
+    assert np.allclose(
+        BivariateSaddlePointApprox(cgf2).cdf(x=2 * x, delta=2, backend="Wang"), got, rtol=1e-8
+    )
+    # Dependent: less accurate than "KL", but far better than without correction
+    cgf, F = _kolassa_li_binomial_sums()
+    spa = BivariateSaddlePointApprox(cgf)
+    x = np.array([[24, 26], [30, 36], [36, 36], [28, 40], [20, 36]], dtype=float)
+    exact = F[x[:, 0].astype(int), x[:, 1].astype(int)]
+    err = np.abs(spa.cdf(x=x, delta=1, backend="Wang") / exact - 1)
+    assert err.max() < 0.05
+    assert np.all(err < np.abs(spa.cdf(x=x, backend="Wang") / exact - 1) / 3)
+
+
+def test_bvar_lattice_cdf_mixed():
+    # X1 Poisson, X2 continuous: continuous components keep tau, no offset, and plain LR
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(poisson(3), gamma(a=4))
+    spa = BivariateSaddlePointApprox(cgf)
+    x = np.array([[2.0, 3.0], [5.0, 1.5], [1.0, 7.0], [0.0, 2.0]])
+    exact = sps.poisson(3).cdf(x[:, 0]) * sps.gamma(4).cdf(x[:, 1])
+    for backend, correction, rtol in [("KL", 2, 0.05), ("Wang", 1, 0.006)]:
+        got = spa.cdf(x=x, delta=[1, None], backend=backend)
+        assert np.allclose(got, exact, rtol=rtol)
+        # Independent: the product of the marginal approximations
+        prod = [spa[0].cdf(a, delta=1, correction=correction) * spa[1].cdf(b) for a, b in x]
+        assert np.allclose(got, prod, rtol=1e-5)
+        # The order of the components does not matter
+        swapped = BivariateSaddlePointApprox(cgf[[1, 0]])
+        assert np.allclose(swapped.cdf(x=x[:, ::-1], delta=[0, 1], backend=backend), got)
+    # Dependent: X1 = N0 + N1, X2 = N0 + G, exact by summation over N0. "KL" converges
+    errs = []
+    for k in [1, 4]:
+        l0, l1, a = 2.0 * k, 3.0 * k, 4.0 * k
+        cgf = MultivariateCumulantGeneratingFunction.from_univariate(
+            poisson(l0), poisson(l1), gamma(a=a)
+        ).ldot([[1, 1, 0], [1, 0, 1]])
+        spa = BivariateSaddlePointApprox(cgf)
+        mean = cgf.dK0
+        f = np.array([[0.7, 0.8], [1.3, 0.8], [0.7, 1.3], [1.0, 1.0]])
+        x = np.column_stack([np.floor(mean[0] * f[:, 0]), mean[1] * f[:, 1]])
+        exact = [
+            np.sum(
+                sps.poisson(l0).pmf(m)
+                * sps.poisson(l1).cdf(xx[0] - m)
+                * sps.gamma(a).cdf(xx[1] - m)
+            )
+            for xx in x
+            for m in [np.arange(int(xx[0]) + 1)]
+        ]
+        errs.append(np.max(np.abs(spa.cdf(x=x, delta=[1, None]) / exact - 1)))
+        assert np.allclose(spa.cdf(x=x, delta=[1, None], backend="Wang"), exact, rtol=0.04)
+    assert errs[0] < 0.01 and errs[1] < errs[0] / 3
+    # Continuous across the marginal mean of the continuous component
+    vals = [spa.cdf(x=[x[0, 0], mean[1] + d], delta=[1, 0]) for d in [-1e-6, 0, 1e-6]]
+    assert np.allclose(vals, vals[1], atol=1e-6)
+
+
+@pytest.mark.parametrize(
+    "backend",
+    [
+        "Wang",
+        pytest.param("Kolassa", marks=pytest.mark.slow),
+        pytest.param("KL", marks=pytest.mark.slow),
+    ],
+)
+def test_bvar_fit_cdf_lattice(backend):
+    # The table holds the smooth continuity corrected approximation, see fit_cdf
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(poisson(3), poisson(4))
+    spa = BivariateSaddlePointApprox(cgf)
+    spa.fit_cdf(backend=backend, delta=1, num=25)
+    direct = BivariateSaddlePointApprox(cgf)
+    axes = spa._cdf_axes_cache
+    node = np.array([axes[0][8], axes[1][10]])
+    assert np.isclose(
+        spa.cdf(x=node, delta=1, backend=backend),
+        direct.cdf(x=node, delta=1, backend=backend),
+        atol=1e-10,
+    )
+    x = np.array([[2.0, 3.0], [5.0, 1.0], [1.0, 7.0], [4.0, 4.0]])
+    exact = sps.poisson(3).cdf(x[:, 0]) * sps.poisson(4).cdf(x[:, 1])
+    fitted = spa.cdf(x=x, delta=1, backend=backend)
+    assert np.allclose(fitted, direct.cdf(x=x, delta=1, backend=backend), atol=5e-3)
+    assert np.allclose(fitted, exact, atol=0.01)
+    # Without delta, or with another delta, the table is not used
+    assert spa.cdf(x=x[0], backend=backend) == direct.cdf(x=x[0], backend=backend)
+    assert spa.cdf(x=2 * x[0], delta=2, backend=backend) == direct.cdf(
+        x=2 * x[0], delta=2, backend=backend
+    )
+    # Outside the grid, the cdf is evaluated directly
+    outside = np.array([axes[0][-1] + 1, 3.0])
+    assert spa.cdf(x=outside, delta=1, backend=backend) == pytest.approx(
+        direct.cdf(x=outside, delta=1, backend=backend), rel=1e-12
+    )
+    spa.clear_cache()
+    assert not hasattr(spa, "_cdf_delta_cache")
 
 
 @pytest.mark.parametrize("backend", ["KL", "Wang"])

@@ -827,7 +827,7 @@ Contract violations and silently wrong results in narrower situations.
 - **Fix:** `cdf` and `fit_cdf` take an explicit `delta=None` and raise a clear
   `NotImplementedError` otherwise, until the lattice cdf below is implemented. Regression test:
   `test_mvar_cdf_rejects_delta`. The bivariate `"KL"` cdf now supports `delta` (see the lattice
-  items), and so does `"Kolassa"` in any dimension; `"Wang"` and `fit_cdf` still raise.
+  items), and so do `"Kolassa"` in any dimension, `"Wang"`, and `fit_cdf`.
 
 ---
 
@@ -1064,9 +1064,18 @@ Or into a separate model, e.g., bootstrap.py
     at `x + delta/2` with `rho(tau) = 2 sinh(tau delta / 2) / delta` (`_LatticeBivariateApprox`;
     plan: `docs/bivariate_lattice_cdf_plan.md`). Two independent Poissons (3, 4) at (2, 3):
     0.181 vs exact 0.183 (uncorrected 0.102); reproduces the paper's Table 2 to within 0.7%.
-    Open: `fit_cdf(delta=)`, `"Wang"` (Wang (1990) Theorems 2-3, which replace `t0` by
-    `1 - exp(-t0)` in the factors, without an offset), and mixed lattice/continuous
-    components for `"KL"`. Done: `"Kolassa"`, any `d`, also mixed (Kolassa (2003) eq. (13))
+    Done: `"Kolassa"`, any `d`, also mixed (Kolassa (2003) eq. (13)); `"Wang"` (Wang (1990)
+    Theorems 2-3: `t0` replaced by `(1 - exp(-t0 delta)) / delta` in the factors, evaluated at
+    `x + delta`, as the univariate `correction=1`; the review's `1 - e^{t0}` at `x`, the
+    reflected version, is less accurate and fails at the lower support boundary). Poissons
+    (3, 4): within 0.24% of exact (product of the univariate `Pr1`); Table 2 binomial sums:
+    within 4.2% (`"KL"` 0.1%, uncorrected `"Wang"` 26%). Mixed lattice/continuous components
+    for `"KL"` and `"Wang"` (`delta=[1, None]`, same convention as `"Kolassa"`): Poisson(3) and
+    independent gamma(4) give the product of the marginals, KL within 5% (at x1 = 0) / Wang
+    0.6%; dependent `(N0 + N1, N0 + G)`: KL 0.8% -> 0.2% for 4 times the means, Wang 3.7%.
+    `fit_cdf(delta=)`: tabulates the smooth corrected approximation `cdf(x, delta=)` on the
+    usual grid (no lattice origin needed), used only for the same backend and `delta`
+    (plan: `docs/bivariate_lattice_cdf_plan.md`, follow-ups)
   - near-lattice variables: for `N + G`, with `N` on a lattice with span `delta` and a small
     independent continuous `G`, neither the continuous nor the lattice approximation is
     accurate. Add the alias saddlepoints `tau + 2 pi i k / delta`, `k != 0`, to the inversion,
@@ -1102,7 +1111,7 @@ section 3 by the package, checked against the primary sources (Butler 2007, Wang
 | (10)-(12) | second continuity correction `Pr2` | `cdf(delta=)`, matches Butler Table 1.7 |
 | (13) | third approximation `Pr3` | missing, by choice (Butler: not a competitor) |
 | (14)-(21) | Wang (1990) bivariate cdf | `cdf(backend="Wang")`, plus `"KL"` and `"Kolassa"` |
-| (22)-(23) | Wang (1990) discrete versions | missing; the KL lattice version is `cdf(delta=)` |
+| (22)-(23) | Wang (1990) discrete versions | `cdf(backend="Wang", delta=)`, at `x + delta` |
 | (24)-(25) | multivariate pdf | `MultivariateSaddlePointApprox.pdf` |
 | (27)-(33) | double saddlepoint pdf | `conditional_pdf` (normalized) |
 | (39)-(41) | Skovgaard conditional cdf | `conditional_cdf`, plus Kolassa (1996) second order |
