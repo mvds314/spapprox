@@ -1,11 +1,12 @@
 # Priorities
 
-- Go through bug backlog
+- [x] Go through bug backlog: all items fixed. The two `tofix` cases of `test_dKinv` (univariate
+  gamma sliced from a bivariate gamma) pass since the domain fixes; markers removed
 - [x] Review implementation against Alhejaili, AlGhamedi (2025) - A review of saddlepoint
   approximation: done, see "Review: Alhejaili and AlGhamedi (2025)" below. Follow-ups: bug 62 (fixed),
   `Pr1` (done), and the lattice item unconditional bivariate cdf (done)
 - Finish bivariate approximation:
-  - basically this case: test_bvar_cdf_near_zero
+  - [x] basically this case: test_bvar_cdf_near_zero (passes, no longer `tofix`)
   - are there more edge cases?
 - Multivariate approximation: cdf phase A done (`backend="Kolassa"`); phase B only if
   needed, see `docs/multivariate_cdf_plan.md`
