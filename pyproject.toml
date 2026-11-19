@@ -1,26 +1,55 @@
 [project]
 name = "spapprox"
-description = "Saddle point approximation"
-version = "26.11.31"
+description = "Saddle point approximations of distributions from their cumulant generating functions"
+version = "26.11.32"
 authors = [{ name = "Martin van der Schans" }]
 readme = "README.md"
-keywords = ["statistics"]
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+keywords = [
+  "statistics",
+  "saddlepoint approximation",
+  "saddle point approximation",
+  "cumulant generating function",
+  "bootstrap",
+  "resampling",
+  "probability distributions",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Mathematics",
+]
 requires-python = ">=3.11"
-dependencies = ["numpy", "scipy", "pandas", "statsmodels"]
-license = { text = "BSD-3-Clause" }
+dependencies = ["numpy>=1.24", "scipy>=1.10", "pandas>=2.0", "statsmodels>=0.14"]
 
 [project.optional-dependencies]
 findiff = ["findiff>=0.11"] # Fast implementation of finite difference schemes, Diff API requires >=0.11
 numdiff = ["numdifftools"] # Alternative to findiff, seems slower
 fastnorm = ["fastnorm"]
+all = ["findiff>=0.11", "numdifftools", "fastnorm"]
 
 
 [project.urls]
-repository = "https://github.com/mvds314/spapprox"
+Homepage = "https://github.com/mvds314/spapprox"
+Source = "https://github.com/mvds314/spapprox"
+Issues = "https://github.com/mvds314/spapprox/issues"
+Changelog = "https://github.com/mvds314/spapprox/releases"
 
 [build-system]
-requires = ["flit_core >=3.2,<4"]
+requires = ["flit_core >=3.12,<4"]
 build-backend = "flit_core.buildapi"
+
+[tool.flit.sdist]
+include = ["tests/", "CITATION.cff"]
+exclude = ["docs/", "examples/", ".claude/", ".github/", "CLAUDE.md"]
 
 [tool.ruff]
 line-length = 99
