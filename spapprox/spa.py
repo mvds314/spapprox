@@ -1074,11 +1074,11 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         and :math:`k^{ij}` is the inverse of :math:`K''(\hat\tau)`. It needs the fourth
         derivative of the cgf, which is computed as a finite difference of ``d3K``.
 
-        For two variables of interest, ``i=[a, b]``, the lower orthant probability
-        :math:`P(X_a\leq x_a, X_b\leq x_b\mid X_J=x_J)` is approximated following Kolassa
-        and Li (2010), Section 4, see :class:`_ConditionalProfile` and
-        :class:`_ConditionalBivariateApprox`. The bivariate approximation of
-        :meth:`BivariateSaddlePointApprox._kl_cdf` is applied to the profile cumulant
+        For several variables of interest, ``i=[a, b, ...]``, the lower orthant probability
+        :math:`P(X_I\leq x_I\mid X_J=x_J)` is approximated following Kolassa and Li (2010),
+        Section 4, see :class:`_ConditionalProfile`, :class:`_ConditionalMultivariateApprox`
+        and :class:`_ConditionalBivariateApprox`. The approximation of
+        :meth:`MultivariateSaddlePointApprox._kl_cdf` is applied to the profile cumulant
         generating function :math:`M(\tau_I)=\min_{\tau_J}[K(\tau)-\tau_J\cdot x_J]`,
         normalized to :math:`M(0)=0`, with the Jacobian
         :math:`\sqrt{\det K_{JJ}''(\tau_0)/\det K_{JJ}''}` of the conditioning components
@@ -1095,18 +1095,19 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         Parameters
         ----------
         x : array_like
-            Values of the variable of interest. For two variables of interest, a vector of
-            length two, or an array of shape ``(n, 2)``, in the order of ``i``.
+            Values of the variable of interest. For :math:`d_0` variables of interest, a
+            vector of length :math:`d_0`, or an array of shape ``(n, d_0)``, in the order of
+            ``i``.
         given : array_like
             Values of the conditioning variables, in increasing order of their index.
             Either a vector, used for all values of ``x``, or an array with one row for
             each value of ``x``.
         i : int or list of int, optional
-            Index of the variable of interest, or a list with the indices of two variables
-            of interest. Default is the first.
+            Index of the variable of interest, or a list with the indices of several
+            variables of interest. Default is the first.
         backend : str, optional
             ``"Skovgaard"`` (default, first order) or ``"Kolassa"`` (second order). For two
-            variables of interest, only ``"KL"`` is available, which is the default.
+            or more variables of interest, only ``"KL"`` is available, which is the default.
         delta : float, optional
             Span of the lattice of :math:`X_i`, for a discrete variable of interest. Default
             is ``None``: continuous. Then ``x`` must lie on the lattice, and the second
@@ -1115,7 +1116,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             at :math:`x+\delta/2` with :math:`\hat u=2\sinh(\hat\tau_i\delta/2)\hat\sigma/\delta`.
             For ``backend="Kolassa"`` this is eq. (11) of [4]. The conditioning variables
             may be continuous or on a lattice; they are not corrected. For two variables of
-            interest, a scalar or the spans of both, and eq. (4.8) of [5] is used, again at
+            interest, a scalar or the spans of all of them, and eq. (4.8) of [5] is used, at
             :math:`x_I+\delta/2`.
         fillna : float, optional
             The value to replace NaNs with.
@@ -1186,22 +1187,21 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             return self.conditional_cdf(
                 x, given, I[0], backend, delta, fillna, correction=correction, **solver_kwargs
             )
-        if len(I) > 2:
-            raise NotImplementedError("At most two variables of interest are supported")
+        d0 = len(I)
         if backend in (None, "Skovgaard", "KL"):
             backend = "KL"
         else:
-            raise ValueError(f"Unknown backend {backend!r} for two variables, use 'KL'")
+            raise ValueError(f"Unknown backend {backend!r} for several variables, use 'KL'")
         J = [j for j in range(self.dim) if j not in I]
         if not J:
             raise ValueError("Conditioning requires at least one conditioning variable")
         if delta is not None:
-            delta = np.broadcast_to(np.asarray(delta, dtype=float), (2,)).copy()
+            delta = np.broadcast_to(np.asarray(delta, dtype=float), (d0,)).copy()
             if not (delta > 0).all():
                 raise ValueError("delta must be positive")
         x = np.asarray(x, dtype=float)
-        if x.ndim == 0 or x.shape[-1] != 2 or x.ndim > 2:
-            raise ValueError("x must have shape (2,) or (n, 2)")
+        if x.ndim == 0 or x.shape[-1] != d0 or x.ndim > 2:
+            raise ValueError(f"x must have shape ({d0},) or (n, {d0})")
         xs = np.atleast_2d(x)
         given = np.asarray(given, dtype=float)
         if given.ndim == 1 and len(given) == len(J):
@@ -1229,7 +1229,8 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         t = np.asarray(self.cgf.dK_inv(xfull, **solver_kwargs), dtype=float)[I]
         if np.isnan(t).any():
             return np.nan
-        spa = _ConditionalBivariateApprox(self, I, J, xJ, tau0, delta)
+        cls = _ConditionalBivariateApprox if len(I) == 2 else _ConditionalMultivariateApprox
+        spa = cls(self, I, J, xJ, tau0, delta)
         spa.profile.add_saddle(self.cgf.dK_inv(xfull, **solver_kwargs))
         return spa._kl_cdf(xI, t, **solver_kwargs)
 
@@ -3005,17 +3006,18 @@ class _LatticeBivariateApprox(BivariateSaddlePointApprox):
         return self._swapped_cache
 
 
-class _ConditionalBivariateApprox(BivariateSaddlePointApprox):
+class _ConditionalMultivariateApprox(MultivariateSaddlePointApprox):
     r"""
-    Approximation of the conditional distribution of :math:`X_I` given :math:`X_J=x_J`, for
-    two variables of interest, by the bivariate approximation of Kolassa and Li (2010)
-    applied to the profile :math:`M` of :class:`_ConditionalProfile`, Section 4 of their
-    paper. Compared to the unconditional case, the weight :math:`r` of the profile enters
-    the factors of :math:`I^{\{1\}}` and :math:`I^{\{2\}}`, and the marginal cdfs in the
-    inclusion-exclusion are the conditional cdfs of :math:`X_{I_k}` given :math:`X_J`. For a
-    lattice with spans ``delta``, :math:`\tau_k` in these factors is replaced by
-    :math:`2\sinh(\tau_k\delta_k/2)/\delta_k`, eq. (4.8), and the approximation should be
-    evaluated at the continuity corrected point :math:`x_I+\delta/2`.
+    Approximation of the conditional distribution of :math:`X_I` given :math:`X_J=x_J` by
+    the approximation of Kolassa and Li (2010) applied to the profile :math:`M` of
+    :class:`_ConditionalProfile`, Section 4 of their paper, here for any number of variables
+    of interest, see :meth:`MultivariateSaddlePointApprox._kl_cdf`. Compared to the
+    unconditional case, the weight :math:`r` of the profile enters the inversion integrand,
+    and the marginal cdfs in the inclusion-exclusion are the conditional cdfs of
+    :math:`X_{I_k}` given :math:`X_J`. For a lattice with spans ``delta``, :math:`\tau_k` in
+    the factors :math:`1/\tau_k` is replaced by :math:`2\sinh(\tau_k\delta_k/2)/\delta_k`,
+    eq. (4.8), and the approximation should be evaluated at the continuity corrected point
+    :math:`x_I+\delta/2`.
     """
 
     def __init__(self, parent, I, J, xJ, tau0, delta=None):  # noqa: E741
@@ -3024,14 +3026,6 @@ class _ConditionalBivariateApprox(BivariateSaddlePointApprox):
         self.parent, self.I, self.J = parent, list(I), list(J)
         self.xJ, self.tau0 = np.asarray(xJ, dtype=float), np.asarray(tau0, dtype=float)
         self.delta = None if delta is None else np.asarray(delta, dtype=float)
-
-    def _kl_swapped(self):
-        if not hasattr(self, "_swapped_cache"):
-            delta = None if self.delta is None else self.delta[::-1]
-            self._swapped_cache = _ConditionalBivariateApprox(
-                self.parent, self.I[::-1], self.J, self.xJ, self.tau0, delta
-            )
-        return self._swapped_cache
 
     def _kl_marginal_cdf(self, i, x, t, **solver_kwargs):
         spa = self.parent[[self.I[i]] + self.J]
@@ -3042,6 +3036,22 @@ class _ConditionalBivariateApprox(BivariateSaddlePointApprox):
 
     def _kl_weight(self, t):
         return self.profile.r(t)
+
+
+class _ConditionalBivariateApprox(_ConditionalMultivariateApprox, BivariateSaddlePointApprox):
+    r"""
+    :class:`_ConditionalMultivariateApprox` for two variables of interest, with the
+    bivariate approximation of :meth:`BivariateSaddlePointApprox._kl_cdf`, which is
+    equivalent, but faster.
+    """
+
+    def _kl_swapped(self):
+        if not hasattr(self, "_swapped_cache"):
+            delta = None if self.delta is None else self.delta[::-1]
+            self._swapped_cache = _ConditionalBivariateApprox(
+                self.parent, self.I[::-1], self.J, self.xJ, self.tau0, delta
+            )
+        return self._swapped_cache
 
 
 class EstimatingEquationSaddlePointApprox:

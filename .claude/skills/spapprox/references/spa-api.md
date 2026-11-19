@@ -221,16 +221,18 @@ second order; $\hat u$ carries $1/\delta$ for scale invariance); `x` must lie on
 $\tilde u_1=(1-e^{-\hat\tau_i\delta})\sigma/\delta$; Skovgaard backend, one variable of interest.
 Plan: `docs/conditional_cdf_plan.md`.
 
-`conditional_cdf(x, given, i=[a, b])` gives the lower orthant
-$P(X_a\le x_a, X_b\le x_b \mid X_J=x_J)$, Kolassa & Li (2010) Sec. 4 (`x` of shape `(2,)` or
-`(n, 2)`, only `backend="KL"`, `delta` scalar or per component; more than two variables of
-interest raise `NotImplementedError`). `_ConditionalProfile` builds the profile pseudo-cgf
+`conditional_cdf(x, given, i=[a, b, ...])` gives the lower orthant
+$P(X_I\le x_I \mid X_J=x_J)$, Kolassa & Li (2010) Sec. 4 (`x` of shape `(d0,)` or
+`(n, d0)`, only `backend="KL"`, `delta` scalar or per component). `_ConditionalProfile` builds the profile pseudo-cgf
 $M(\tau_I)=\min_{\tau_J}[K-\tau_J x_J]$ (inner Newton solve, continuation from $\tau_I=0$ if a
 warm start is infeasible; $M''$ Schur complement, $M'''=K'''[V,V,V]$) and the weight
 $r=\sqrt{\det K_{JJ}(\tau_0)/\det K_{JJ}}$. `_ConditionalBivariateApprox` runs the bivariate KL
 code on $M$ through the hooks `_kl_marginal_cdf` (scalar Skovgaard conditionals) and
 `_kl_weight` ($r(\tau)$, used at $(\hat\tau_1,0)$, $(0,\tilde\tau_2)$ and $\hat\tau$), plus
-$\rho(\tau)=2\sinh(\tau\delta/2)/\delta$ for a lattice. Reproduces the paper's Table 3 to about
+$\rho(\tau)=2\sinh(\tau\delta/2)/\delta$ for a lattice. For $d_0\ge3$ (F2),
+`_ConditionalMultivariateApprox` runs the general-`d` KL engine (`kl.py`) on $M$ with the same
+hooks; `_ConditionalBivariateApprox` derives from it and only adds the bivariate order swap.
+Reproduces the paper's Table 3 to about
 3 digits; with the $I^{\{1,2\}}$ term, which the paper drops, it is more accurate than the
 paper. Both KL variants include $I^{\{1,2\}}$, so their relative error is $O(1/n)$ also at a
 fixed large deviation point.
@@ -248,7 +250,19 @@ invariant. Error $O(n^{-1})$, about 1.5x that of `"KL"` in 2-D. Independent comp
 do not give the product of the 1-D results (eq. (5) adds the cubic corrections), the
 difference is $O(n^{-1})$.
 
-`cdf(x, delta=...)` (`"Kolassa"`; bivariate also `"KL"`, `"Wang"`): lattice spans, scalar or per
+`cdf(x=None, t=None, backend="KL")` (phase B, `spapprox/kl.py`): Kolassa & Li (2010) in any
+dimension; `d = 2` reproduces `BivariateSaddlePointApprox` `"KL"`. `_KLSolver` caches the
+profiles $\min L$ over the later components (nested minimizers), `_KLOrder` evaluates one
+order of the variables (jets of the nested signed roots, the cubic term of $I^\emptyset$ via
+`_kolassa_orthant`, all $2^d$ subset terms with nested divided differences), `_kl_orthant`
+blends the $d!$ orders (first variable $j$ with weight $\propto\prod_{k\ne j}z_k^2$,
+recursively) and `_kl_cdf` reflects and does inclusion-exclusion with LR marginals. Hooks on
+the approximation class: `_kl_weight`, `_rho`, `_kl_marginal_cdf` (shared by the lattice and
+conditional subclasses). About 0.7 s per point for `d = 3`, 1.7-2.6x more accurate than
+`"Kolassa"` (absolute error, 3-D gamma). Default stays `"Kolassa"`. Derivation and caveats:
+phase B of `docs/multivariate_cdf_plan.md`.
+
+`cdf(x, delta=...)` (`"Kolassa"`, `"KL"`; bivariate also `"Wang"`): lattice spans, scalar or per
 component, `None`/0 for continuous components, so lattice and continuous components may be
 mixed (`_parse_delta`). Evaluated at $\mathbf{x}+\delta/2$; `_kolassa_orthant(..., delta=)`
 applies eq. (13): the factor $\prod_j\hat\tau_j/\rho_j(\hat\tau_j)$ and the linear term
@@ -257,6 +271,9 @@ $-\sum_j a_j(\partial_j+\hat\tau_j)T$, $a_j=1/\hat\tau_j-(\delta_j/2)\coth(\hat\
 coordinates. Reproduces Boole's law 0.01709 of Kolassa (2003) section 5 (example 2 of
 `examples/example_Kolassa2003.py`). `fit_cdf(delta=)` tabulates it. Plan:
 `docs/multivariate_lattice_cdf_plan.md`, including when a component counts as continuous.
+With `backend="KL"` (`_LatticeMultivariateApprox`, eq. (4.8) of Kolassa and Li (2010) at
+$\mathbf{x}+\delta/2$, via `_cdf_evaluator`) all spans must be positive for $d>2$; mixed spans
+raise `NotImplementedError` there (the bivariate class supports them).
 
 `spapprox/mvn.py` holds the numerics: `_mvn_logtail` (normal orthant probability
 in log-space with **relative** accuracy, via Genz's separation of variables and a

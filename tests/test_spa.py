@@ -824,6 +824,94 @@ def test_conditional_vector_lattice_multinomial():
     assert not np.allclose(spa.conditional_cdf(x, [s], i=[0, 1]), exact, rtol=0.2)
 
 
+def test_conditional_vector_three_normal_and_independent():
+    # Three variables of interest: exact for the normal distribution
+    rng = np.random.default_rng(5)
+    L = rng.normal(size=(5, 5))
+    cov = L @ L.T + 5 * np.eye(5)
+    loc = rng.normal(size=5)
+    spa = MultivariateSaddlePointApprox(multivariate_norm(loc=loc, cov=cov))
+    I, J = [3, 0, 1], [2, 4]  # noqa: E741
+    xJ = loc[J] + 0.5
+    B = cov[np.ix_(I, J)] @ np.linalg.inv(cov[np.ix_(J, J)])
+    ref = sps.multivariate_normal(
+        loc[I] + B @ (xJ - loc[J]),
+        cov[np.ix_(I, I)] - B @ cov[np.ix_(J, I)],
+        abseps=1e-10,
+        releps=1e-10,
+    )
+    x = ref.mean + np.sqrt(np.diag(ref.cov)) * np.array([[0.5, -0.7, 0.2], [-1.0, -1.0, -1.5]])
+    assert np.allclose(spa.conditional_cdf(x, xJ, i=I), ref.cdf(x), atol=1e-7)
+    # Variables of interest independent of each other and of the conditioning ones: the
+    # product of the conditional marginals
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(
+        *[gamma(a=a) for a in [2.0, 3.0, 1.5, 2.5, 1.0]]
+    ).ldot(
+        np.array(
+            [
+                [1, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0],
+                [0, 0, 1, 0, 0],
+                [0, 0, 0, 1, 1],
+                [0, 0, 0, 0, 1],
+            ]
+        )
+    )
+    spa = MultivariateSaddlePointApprox(cgf)
+    x, given = np.array([1.5, 2.5, 1.0]), [3.0, 1.2]
+    expected = np.prod([spa[[k, 3, 4]].conditional_cdf(x[k], given) for k in range(3)])
+    assert spa.conditional_cdf(x, given, i=[0, 1, 2]) == pytest.approx(expected, abs=1e-9)
+
+
+def _dirichlet_cdf(u, a):
+    """P(D1 <= u1, D2 <= u2, D3 <= u3) for D Dirichlet(a), with a of length 4."""
+    a1, a2, a3, a4 = a
+
+    def inner(v1):
+        r = 1 - v1
+        f = lambda v2: (
+            sps.beta(a2, a3 + a4).pdf(v2 / r)
+            / r
+            * sps.beta(a3, a4).cdf(min(u[2] / max(r - v2, 1e-300), 1.0))
+        )
+        return quad(f, 0, min(u[1], r), epsabs=1e-13, epsrel=1e-10, limit=200)[0]
+
+    integrand = lambda v1: sps.beta(a1, a2 + a3 + a4).pdf(v1) * inner(v1)
+    return quad(integrand, 0, min(u[0], 1), epsabs=1e-13, epsrel=1e-10, limit=200)[0]
+
+
+@pytest.mark.parametrize("n,max_rel", [(2, 0.03), pytest.param(8, 0.004, marks=pytest.mark.slow)])
+def test_conditional_vector_three_dirichlet(n, max_rel):
+    # (X1, X2, X3) / S given S = X1 + ... + X4 = s is Dirichlet for X_k iid gamma(n), with
+    # relative error O(1/n)
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(
+        *[gamma(a=n, scale=1 / n) for _ in range(4)]
+    )
+    spa = MultivariateSaddlePointApprox(cgf.ldot(np.vstack([np.eye(4)[:3], np.ones(4)])))
+    s = 4.0
+    for u in [[0.2, 0.25, 0.3], [0.3, 0.3, 0.3], [0.15, 0.2, 0.15]]:
+        exact = _dirichlet_cdf(u, [n] * 4)
+        got = spa.conditional_cdf(np.array(u) * s, [s], i=[0, 1, 2])
+        assert got == pytest.approx(exact, rel=max_rel)
+
+
+def test_conditional_vector_three_lattice_multinomial():
+    # (N1, N2, N3) given N1 + ... + N4 = s is multinomial
+    lams, s = np.array([2.0, 3.0, 4.0, 5.0]), 14
+    A = np.vstack([np.eye(4)[:3], np.ones(4)]).T
+    spa = MultivariateSaddlePointApprox(_poisson_sum(lams, A))
+    x = np.array([[1, 2, 3], [2, 3, 4]], dtype=float)
+    exact = [
+        sum(
+            sps.multinomial.pmf([a, b, c, s - a - b - c], s, lams / lams.sum())
+            for a, b, c in itertools.product(*[range(int(k) + 1) for k in xx])
+            if a + b + c <= s
+        )
+        for xx in x
+    ]
+    assert np.allclose(spa.conditional_cdf(x, [s], i=[0, 1, 2], delta=1), exact, rtol=0.015)
+
+
 def test_conditional_vector_input_validation():
     spa = _dirichlet_spa(10)
     x = np.array([0.9, 1.1])
@@ -831,7 +919,7 @@ def test_conditional_vector_input_validation():
     assert spa.conditional_cdf([0.9], [1.1, 3.0], i=[0]) == pytest.approx(
         spa.conditional_cdf(0.9, [1.1, 3.0], i=0)
     )
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError, match="conditioning"):
         spa.conditional_cdf([0.5, 0.5, 0.5], [], i=[0, 1, 2])
     with pytest.raises(ValueError):
         spa.conditional_cdf(x, [3.0], i=[0, 0])

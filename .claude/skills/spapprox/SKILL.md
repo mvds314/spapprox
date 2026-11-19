@@ -38,7 +38,8 @@ cleverly avoiding solving it -- drives most of the API surface below.
 ```
 spapprox/
 +-- util.py        (32 loc)   type_wrapper, Timer, fib
-+-- mvn.py        (236 loc)   normal orthant probabilities, Kolassa (2003) orthant formula
++-- mvn.py        (270 loc)   normal orthant probabilities, Kolassa (2003) orthant formula
++-- kl.py         (581 loc)   Kolassa & Li (2010) multivariate cdf engine, any dimension
 +-- diff.py       (569 loc)   numerical differentiation via findiff
 +-- domain.py     (587 loc)   Domain: where K is finite
 +-- cgf_base.py  (1919 loc)   CGF base + Univariate/Multivariate classes  <- the heart
@@ -50,7 +51,7 @@ examples/         standalone matplotlib demo scripts (not part of the test suite
 ```
 
 Dependencies run strictly one way:
-`util / diff / domain -> cgf_base -> cgfs -> spa` (and `mvn -> spa`). Nothing in `diff.py` or
+`util / diff / domain -> cgf_base -> cgfs -> spa` (and `mvn -> kl -> spa`). Nothing in `diff.py` or
 `domain.py` knows about CGFs; keep it that way when adding code.
 
 Public API (`spapprox/__init__.py`): the two CGF classes, `Domain`, the five
@@ -184,7 +185,8 @@ mean *without bootstrapping* -- see `examples/example_nonparametric_bootstrap.py
   subclass wiring in `univariate_sample_mean`.
 - `MultivariateSaddlePointApprox(cgf)` -- `pdf`, marginals (`spa[i]`,
   `spa[[i, j]]`), and `cdf(backend="Kolassa")` for any dimension (Kolassa
-  (2003), built on the normal orthant helpers in `mvn.py`), and `conditional_cdf` /
+  (2003), built on the normal orthant helpers in `mvn.py`) or `cdf(backend="KL")` (Kolassa
+  & Li (2010), any dimension, engine in `kl.py`), and `conditional_cdf` /
   `conditional_pdf` for `X_i | X_J = x_J`.
 - `BivariateSaddlePointApprox(cgf)` -- adds the bivariate cdf backends `"KL"`
   (default) and `"Wang"`, and inherits `"Kolassa"`.
@@ -286,6 +288,7 @@ tolerance.
   deprecated `FinDiff` API. Do not treat them as behavioral references, and note
   they need `matplotlib`, which is not a declared dependency.
 - **Multivariate support is incomplete by design, not by accident.** Some
-  methods raise `NotImplementedError` (conditioning on three or more variables of interest). The
+  methods raise `NotImplementedError` (e.g. the `"KL"` cdf with mixed lattice and continuous
+  spans). The
   plan for the multivariate cdf is in `docs/multivariate_cdf_plan.md`. The README lists conditional distributions and quotients of
   random variables as future work.

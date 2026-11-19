@@ -275,8 +275,16 @@ With `P` the set of remaining poles and `B = U \ P`:
 
 ```
 J = sum_P N_P a_P,      a_P = sum_{A in B} c_{A, B-A},
-c_{A,R} = sum_{Q in R} (-1)^|R-Q| h_A(tau^(U-(A+Q))) / prod_{j in R} u_j(tau^(P)),
 ```
+
+`c_{A,R}` is `h_A` with the poles `j in R` removed by *nested* differences, built from the
+last position inwards: walking the order, component `j` of the point is `0` if `j` is in
+neither `A` nor `R`, `tau_tilde_j(prefix)` if `j in A`, and if `j in R` the value is
+`[f(tau_tilde_j) - f(0)] / u_j(prefix, tau_tilde_j)`, with `f` the recursion over the later
+components and `u_j` evaluated at the actual prefix. (A flat inclusion-exclusion
+`sum_Q (-1)^|R-Q| h_A(...) / prod u_j` with all `u_j` at one point, as first written here,
+is not correct for `|R| >= 2`: the divided differences do not commute with the nested
+minimizers.)
 
 - `N_P` is the Gaussian integral with poles `P` in the coordinates `w_j` (`j in B`) and `u_j`
   (`j in P`): Jacobian `M_B` (rows `j in B` unit vectors), `A_B = M_B'M_B`, expansion point
@@ -330,3 +338,46 @@ Normal exact (`d = 3, 4`); `d = 2` against `BivariateSaddlePointApprox` `"KL"`; 
 (product of LR marginals); 3-D gamma with a common component `Z_0 + Z_i` vs quadrature, error
 rate as shape parameters scale by `k`, against `"Kolassa"`; relabeling invariance; continuity
 across `t_j = 0`; reflection consistency.
+
+## Phase B: outcome
+
+Implemented in `spapprox/kl.py` (`_KLSolver`: cached profiles and nested minimizers;
+`_KLOrder`: one order of the variables, the jets of B1, the cubic term of B2 via
+`_kolassa_orthant`, the subset terms of B3; `_kl_orthant`: the blend of B4; `_kl_cdf`: the
+reflection and inclusion-exclusion) and wired in as
+`MultivariateSaddlePointApprox.cdf(backend="KL")` with the hooks `_kl_weight`, `_rho` and
+`_kl_marginal_cdf`, so the lattice version (all spans positive, eq. (4.8)) and the
+conditional profile (F1/F2) reuse it. The default backend stays `"Kolassa"`.
+
+Accuracy:
+
+- `d = 2`: agrees with `BivariateSaddlePointApprox` `"KL"` to `1e-11` away from zero, `~2e-9`
+  in the near-zero band (different interpolation nodes). Lattice `d = 2` to `1e-13`.
+- Normal `d = 3, 4`: exact to `~1e-13`; relabeling invariance to `4e-14`.
+- 3-D gamma with a common component (`Z_0 + Z_i`, shapes times `k`), maximum absolute error
+  over a grid, KL vs Kolassa: `k = 1`: `4.3e-3` vs `1.1e-2`; `k = 4`: `1.2e-3` vs `2.6e-3`;
+  `k = 16`: `3.5e-4` vs `6.0e-4`, so `O(1/k)`. Relative error in the lower tail at fixed
+  saddlepoints: `k = 4`: `3.9e-3` vs `5.3e-2`; `k = 16`: `1.4e-3` vs `1.3e-2`; `k = 64`:
+  `4.0e-4` vs `2.4e-3` (probabilities down to `1e-69`); at `k = 1`, `t = (-2, -2, -2)`:
+  `1.25%` vs `16%`.
+- 3-D Poisson with a common shock (lattice), relative error KL vs Kolassa: `k = 1`: `2.5%` vs
+  `6.3%`; `k = 4`: `0.65%` vs `2.1%`; `k = 16`: `0.17%` vs `0.55%`.
+
+Known properties and limitations:
+
+- Continuous across a single hyperplane `t_j = 0` (to `~1e-9`). Where two or more components
+  of the saddlepoint vanish together the limit depends on the direction of approach (`~1e-4`
+  at `k = 1`), because the blend weights are angular; the bivariate code has the same
+  property at `t = 0` (`~3e-5`).
+- For `d = 3` the slope has a small kink across `t_j = 0` of order `n^{-3/2}` (standardized
+  jump `2.8e-3`, `3.8e-4`, `4.8e-5` for `k = 1, 4, 16`), below the `O(1/n)` error; not present
+  for `d = 2`.
+- Orders whose nested minimizers leave the domain of the cgf are dropped from the blend (the
+  result is `NaN` if all are).
+- Two orders share profile cache entries, so equal values can differ by rounding; `w_j` is
+  snapped to its expansion within `1e-7` standard deviations of the minimizer
+  (`_snap_width`), and the saddlepoint is polished by Newton steps.
+- Cost: about `0.7 s` per point for `d = 3`, up to `d!` orders and `2^d` subset terms;
+  near-zero tensor interpolation multiplies this. Mixed lattice/continuous spans raise
+  `NotImplementedError` (use `"Kolassa"`).
+
