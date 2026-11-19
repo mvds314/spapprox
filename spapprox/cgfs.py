@@ -1,3 +1,35 @@
+r"""
+Cumulant generating functions of common distributions.
+
+Every function in this module is a factory returning a configured
+:class:`~spapprox.UnivariateCumulantGeneratingFunction` or
+:class:`~spapprox.MultivariateCumulantGeneratingFunction`. Each supplies as many analytic
+derivatives as are cheaply available, an analytic inverse ``dK_inv`` of the first derivative
+where it exists, and a :class:`~spapprox.Domain` when the cgf is not finite everywhere.
+
+Where a factory takes ``loc`` and ``scale``, the cgf and its domain are stated for the
+standardized variable :math:`Z`, and the object represents :math:`X=\text{scale}\cdot Z+\text{loc}`
+with :math:`K_X(t)=K_Z(\text{scale}\cdot t)+\text{loc}\cdot t`; the base class applies the
+transformation. The parametrizations follow ``scipy.stats`` where possible.
+
+Two factories are transformations rather than distributions: :func:`univariate_empirical`,
+the cgf of drawing uniformly from a sample, and :func:`univariate_sample_mean`, the cgf of the
+mean of i.i.d. copies. Composed, they give the bootstrap distribution of a sample mean, see
+``examples/example_nonparametric_bootstrap.py``.
+
+Examples
+--------
+>>> import spapprox as spa
+>>> cgf = spa.gamma(a=2, scale=3)
+>>> float(cgf.dK0), float(cgf.d2K0)
+(6.0, 18.0)
+
+References
+----------
+[1] Butler (2007) - Saddlepoint Approximations with Applications
+[2] Johnson, Kotz, Balakrishnan (1994) - Continuous Univariate Distributions
+"""
+
 import numpy as np
 from scipy.integrate import quad_vec
 from scipy.special import gammaln, log_ndtr, logsumexp, softmax
@@ -11,6 +43,41 @@ from .util import type_wrapper
 
 
 def norm(loc=0, scale=1):
+    r"""
+    Normal distribution with mean ``loc`` and standard deviation ``scale``, as
+    ``scipy.stats.norm(loc, scale)``.
+
+    The cgf of the standard normal is exact and in closed form,
+
+    .. math::
+        K(t) = \frac{t^2}{2}, \qquad t\in\mathbb{R},
+
+    and the saddle point approximation of the density is exact.
+
+    Parameters
+    ----------
+    loc : float, optional
+        Mean. Default is 0.
+    scale : float, optional
+        Standard deviation. Default is 1.
+
+    Returns
+    -------
+    UnivariateCumulantGeneratingFunction
+        The cgf, with analytic derivatives and ``dK_inv``.
+
+    Examples
+    --------
+    >>> import spapprox as spa
+    >>> spa.norm(loc=1, scale=2).K(0.5)
+    1.0
+
+    See ``examples/basic_example.py``.
+
+    References
+    ----------
+    [1] Butler (2007) - Saddlepoint Approximations with Applications, Section 1.1
+    """
     return UnivariateCumulantGeneratingFunction(
         K=lambda t: t**2 / 2,
         dK=lambda t: t,
@@ -23,22 +90,42 @@ def norm(loc=0, scale=1):
 
 
 def multivariate_norm(loc=0, scale=None, dim=None, cov=None):
-    """
-    Multivariate normal distribution with mean vector `loc` and covariance matrix `scale`.
-    Scale can also be a vector of standard deviations.
+    r"""
+    Multivariate normal distribution with mean vector `loc` and scale `scale`, i.e., the
+    distribution of :math:`X=\text{scale}\cdot Z+\text{loc}` for a standard normal vector
+    :math:`Z`, with covariance matrix :math:`\text{scale}\cdot\text{scale}^T`.
+    Scale can also be a vector of standard deviations, or the covariance matrix can be
+    given through `cov`.
+
+    The cgf is exact and in closed form, :math:`K(t)=<t,t>/2` for :math:`Z`, finite
+    everywhere, as ``scipy.stats.multivariate_normal(loc, cov)``.
 
     Parameters
     ----------
     loc: array_like, or float
        location vector
     scale: matrix, array_like, or float
-       scale matrix. Whan an array is provided, it is interpreted as a vector of standard deviations.
+       scale matrix. When a vector is provided, it is interpreted as a vector of standard
+       deviations.
     dim: int
        dimension of the multivariate normal distribution. When not specified, it is either
        inferred or defaults to 2 if, loc and scale can be scalars.
     cov: matrix, array_like, or float
        can be used instead of scale to provide the covariance matrix. The scale equals
        the Cholesky decomposition of the covariance matrix.
+
+    Returns
+    -------
+    MultivariateCumulantGeneratingFunction
+        The cgf, with analytic derivatives and ``dK_inv``.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import spapprox as spa
+    >>> cgf = spa.multivariate_norm(loc=[0, 1], cov=[[1, 0.5], [0.5, 2]])
+    >>> cgf.cov.tolist()
+    [[1.0, 0.5], [0.5, 2.0]]
 
     References
     ----------
@@ -93,6 +180,41 @@ def multivariate_norm(loc=0, scale=None, dim=None, cov=None):
 
 
 def exponential(loc=0, scale=1):
+    r"""
+    Exponential distribution with location ``loc`` and scale (mean) ``scale``, as
+    ``scipy.stats.expon(loc, scale)``.
+
+    The cgf of the standard exponential is exact and in closed form,
+
+    .. math::
+        K(t) = -\log(1-t), \qquad t<1,
+
+    so :math:`t<1/\text{scale}` for the scaled variable.
+
+    Parameters
+    ----------
+    loc : float, optional
+        Location. Default is 0.
+    scale : float, optional
+        Scale, the mean of the unshifted variable. Default is 1.
+
+    Returns
+    -------
+    UnivariateCumulantGeneratingFunction
+        The cgf, with analytic derivatives and ``dK_inv``.
+
+    Examples
+    --------
+    >>> import spapprox as spa
+    >>> float(spa.exponential(scale=2).dK0)
+    2.0
+
+    See ``examples/basic_example.py``.
+
+    References
+    ----------
+    [1] Butler (2007) - Saddlepoint Approximations with Applications, Section 1.1
+    """
     return UnivariateCumulantGeneratingFunction(
         K=lambda t: np.log(1 / (1 - t)),
         dK=lambda t: 1 / (1 - t),
@@ -106,6 +228,45 @@ def exponential(loc=0, scale=1):
 
 
 def gamma(a=1, scale=1):
+    r"""
+    Gamma distribution with shape ``a`` and scale ``scale``, as
+    ``scipy.stats.gamma(a, scale=scale)``.
+
+    The cgf of the gamma distribution with unit scale is exact and in closed form,
+
+    .. math::
+        K(t) = -a\log(1-t), \qquad t<1,
+
+    so :math:`t<1/\text{scale}` for the scaled variable. Unlike most other factories there
+    is no ``loc`` parameter; add a constant instead, e.g., ``gamma(a) + 1``. The saddle
+    point density is exact up to normalization (Stirling's approximation of
+    :math:`\Gamma(a)`).
+
+    Parameters
+    ----------
+    a : float, optional
+        Shape parameter, positive. Default is 1, the exponential distribution.
+    scale : float, optional
+        Scale parameter. Default is 1.
+
+    Returns
+    -------
+    UnivariateCumulantGeneratingFunction
+        The cgf, with analytic derivatives and ``dK_inv``.
+
+    Examples
+    --------
+    >>> import spapprox as spa
+    >>> cgf = spa.gamma(a=2, scale=3)
+    >>> float(cgf.dK0), float(cgf.d2K0)
+    (6.0, 18.0)
+
+    See ``examples/example_parametric_bootstrap.py``.
+
+    References
+    ----------
+    [1] Butler (2007) - Saddlepoint Approximations with Applications, Section 1.1
+    """
     return UnivariateCumulantGeneratingFunction(
         K=lambda t, a=a: -a * np.log(1 - t),
         dK=lambda t, a=a: a / (1 - t),
@@ -231,6 +392,24 @@ def bivariate_gamma(a=None, loc=0, scale=1):
 
 
 def chi2(df=1):
+    r"""
+    Chi-squared distribution with ``df`` degrees of freedom, as ``scipy.stats.chi2(df)``.
+
+    Equivalent to ``gamma(a=df / 2, scale=2)``, so the cgf is exact and in closed form,
+
+    .. math::
+        K(t) = -\frac{\text{df}}{2}\log(1-2t), \qquad t<1/2.
+
+    Parameters
+    ----------
+    df : float, optional
+        Degrees of freedom, positive. Default is 1.
+
+    Returns
+    -------
+    UnivariateCumulantGeneratingFunction
+        The cgf, see :func:`gamma`.
+    """
     return gamma(a=df / 2, scale=2)
 
 
@@ -444,6 +623,38 @@ def bivariate_poisson(mu=None):
 
 
 def laplace(loc=0, scale=1):
+    r"""
+    Laplace (double exponential) distribution with location ``loc`` and scale ``scale``, as
+    ``scipy.stats.laplace(loc, scale)``.
+
+    The cgf of the standard Laplace distribution is exact and in closed form,
+
+    .. math::
+        K(t) = -\log(1-t^2), \qquad -1<t<1,
+
+    so :math:`|t|<1/\text{scale}` for the scaled variable.
+
+    Parameters
+    ----------
+    loc : float, optional
+        Location, the mean. Default is 0.
+    scale : float, optional
+        Scale. Default is 1, i.e., variance 2.
+
+    Returns
+    -------
+    UnivariateCumulantGeneratingFunction
+        The cgf, with analytic derivatives and ``dK_inv``.
+
+    See Also
+    --------
+    asymmetric_laplace, generalized_normal
+
+    References
+    ----------
+    [1] Kotz, Kozubowski, Podgorski (2001) - The Laplace Distribution and Generalizations
+    [2] Butler (2007) - Saddlepoint Approximations with Applications, Section 1.1
+    """
     return UnivariateCumulantGeneratingFunction(
         K=lambda t: -np.log(1 - t**2),
         dK=lambda t: 2 * t / (1 - t**2),
@@ -705,15 +916,46 @@ def _split_normal(sl, sr, lognorm, cumulants, loc=0, scale=1):
 
 def univariate_sample_mean(cgf, sample_size):
     r"""
-    Given the cumulant generating function of a univariate random variable, this class
-    provides the saddle point approximation of the sample mean of the random variable.
+    Cumulant generating function of the sample mean of i.i.d. copies of a random variable.
 
     Given :math:`n` i.i.d. random variables :math:`X_1, \ldots, X_n` with
-    cumulant generating function :math:`K`, the cumulant generating function :math:`K_n`
+    cumulant generating function :math:`K`, the cumulant generating function
     of the sample mean :math:`\bar{X}` is given by
 
     .. math::
-        K_{\bar{X}}(t) = \sum_{i=1}^n 1/n*K_i(t)= \sum_{i=1}^n K_i(t/n) = n K(t/n).
+        K_{\bar{X}}(t) = \sum_{i=1}^n K(t/n) = n K(t/n),
+
+    which is finite for :math:`t/n` in the domain of :math:`K`. The derivatives and
+    ``dK_inv`` follow from those of ``cgf``: :math:`K_{\bar{X}}'(t)=K'(t/n)` and
+    :math:`(K_{\bar{X}}')^{-1}(x)=n(K')^{-1}(x)`.
+
+    Parameters
+    ----------
+    cgf : UnivariateCumulantGeneratingFunction
+        The cgf :math:`K` of a single observation.
+    sample_size : int
+        The sample size :math:`n`, a positive integer.
+
+    Returns
+    -------
+    UnivariateCumulantGeneratingFunction
+        The cgf of :math:`\bar{X}`.
+
+    Examples
+    --------
+    >>> import spapprox as spa
+    >>> cgf = spa.univariate_sample_mean(spa.exponential(), 10)  # gamma(a=10, scale=0.1)
+    >>> round(float(cgf.d2K0), 6)
+    0.1
+
+    See ``examples/example_parametric_bootstrap.py`` and
+    ``examples/example_nonparametric_bootstrap.py``, and
+    :class:`~spapprox.UnivariateSaddlePointApproxMean`.
+
+    References
+    ----------
+    [1] Daniels (1954) - Saddlepoint approximations in statistics
+    [2] Butler (2007) - Saddlepoint Approximations with Applications, Section 3.1
     """
     assert isinstance(cgf, UnivariateCumulantGeneratingFunction)
     assert isinstance(sample_size, int) and sample_size > 0
@@ -728,12 +970,46 @@ def univariate_sample_mean(cgf, sample_size):
 
 
 def univariate_empirical(x):
-    """
-    Given a vector :math`x` with observations of a univariate random variable,
-    draw one of then with equal probability.
+    r"""
+    Empirical distribution of a sample: the cgf of drawing one of the observations
+    :math:`x_1,\ldots,x_n` with equal probability,
+
+    .. math::
+        K(t) = \log\frac{1}{n}\sum_{i=1}^n e^{tx_i}, \qquad t\in\mathbb{R}.
 
     The cgf is that of the standardized sample, with ``loc`` and ``scale`` the sample mean and
-    standard deviation, so numerical derivatives do not depend on the scale of the data.
+    standard deviation (``scale`` is 1 for a constant sample), so numerical derivatives do not
+    depend on the scale of the data. :math:`K` and :math:`K'` are exact (evaluated stably with
+    ``logsumexp`` and ``softmax``); the higher derivatives and the inverse of :math:`K'` are
+    numerical. Note that the distribution is discrete, with support in
+    :math:`[\min_i x_i, \max_i x_i]`.
+
+    Combined with :func:`univariate_sample_mean` it approximates the bootstrap distribution
+    of the sample mean without resampling (Davison and Hinkley, 1988).
+
+    Parameters
+    ----------
+    x : array_like
+        The observations.
+
+    Returns
+    -------
+    UnivariateCumulantGeneratingFunction
+        The cgf of the empirical distribution.
+
+    Examples
+    --------
+    >>> import spapprox as spa
+    >>> cgf = spa.univariate_empirical([1.0, 2.0, 6.0])
+    >>> round(float(cgf.dK0), 6)
+    3.0
+
+    See ``examples/example_nonparametric_bootstrap.py``.
+
+    References
+    ----------
+    [1] Davison, Hinkley (1988) - Saddlepoint approximations in resampling methods
+    [2] Butler (2007) - Saddlepoint Approximations with Applications, Section 3.4
     """
 
     x = np.asanyarray(x, dtype=float)
@@ -759,6 +1035,38 @@ def univariate_empirical(x):
 
 
 def poisson(mu=1):
+    r"""
+    Poisson distribution with mean ``mu``, as ``scipy.stats.poisson(mu)``.
+
+    The cgf is exact and in closed form,
+
+    .. math::
+        K(t) = \mu(e^t-1), \qquad t\in\mathbb{R}.
+
+    There are no ``loc`` and ``scale`` parameters. The distribution is a lattice
+    distribution with span 1; use the continuity-corrected cdf of the approximation classes
+    for tail probabilities.
+
+    Parameters
+    ----------
+    mu : float, optional
+        Mean, positive. Default is 1.
+
+    Returns
+    -------
+    UnivariateCumulantGeneratingFunction
+        The cgf, with analytic derivatives and ``dK_inv``.
+
+    Examples
+    --------
+    >>> import spapprox as spa
+    >>> float(spa.poisson(3).d3K0)
+    3.0
+
+    References
+    ----------
+    [1] Butler (2007) - Saddlepoint Approximations with Applications, Section 1.2
+    """
     return UnivariateCumulantGeneratingFunction(
         K=lambda t, mu=mu: mu * (np.exp(t) - 1),
         dK=lambda t, mu=mu: mu * np.exp(t),
@@ -769,6 +1077,41 @@ def poisson(mu=1):
 
 
 def binomial(n=1, p=0.5):
+    r"""
+    Binomial distribution with ``n`` trials and success probability ``p``, as
+    ``scipy.stats.binom(n, p)``.
+
+    The cgf is exact and in closed form,
+
+    .. math::
+        K(t) = n\log(1-p+pe^t), \qquad t\in\mathbb{R}.
+
+    There are no ``loc`` and ``scale`` parameters. The distribution is a lattice
+    distribution with span 1 and support :math:`\{0,\ldots,n\}`.
+
+    Parameters
+    ----------
+    n : int, optional
+        Number of trials. Default is 1.
+    p : float, optional
+        Success probability, in :math:`(0, 1)`. Default is 0.5.
+
+    Returns
+    -------
+    UnivariateCumulantGeneratingFunction
+        The cgf, with analytic derivatives and ``dK_inv``.
+
+    Examples
+    --------
+    >>> import spapprox as spa
+    >>> cgf = spa.binomial(n=10, p=0.3)
+    >>> round(float(cgf.dK0), 6), round(float(cgf.d2K0), 6)
+    (3.0, 2.1)
+
+    References
+    ----------
+    [1] Butler (2007) - Saddlepoint Approximations with Applications, Section 1.2
+    """
     return UnivariateCumulantGeneratingFunction(
         K=lambda t, n=n, p=p: n * np.log(p * (np.exp(t) - 1) + 1),
         dK=lambda t, n=n, p=p: n * p / ((1 - p) * np.exp(-t) + p),

@@ -95,7 +95,7 @@ the others, except the PyPI part of item 5.
   raw dollar signs.
 - Check the result with `twine check` and by previewing the long description.
 
-### 3. Docstrings
+### 3. Docstrings -- done
 
 Docstrings plus examples are the documentation, so no Sphinx site for now. The
 style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
@@ -109,9 +109,10 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
   `d3K`, `dK_inv`, algebra, `ldot`, `from_univariate`, ...), `Domain`, and every
   approximation class and its public methods.
 - Add a small fast test that fails when a name in `__all__`, or a public method of
-  one, has no docstring, so coverage does not regress.
-- Optionally, enable ruff's `D` (pydocstyle) rules for `spapprox/` only, with a
-  numpydoc convention. Leave this out if it is too noisy.
+  one, has no docstring, so coverage does not regress: `tests/test_docstrings.py`
+  (inherited docstrings count; ruff `D` rules stay off).
+- Ruff's `D` (pydocstyle) rules were left off as too noisy; the test above covers
+  the public API instead.
 
 ### 4. Examples -- done
 
