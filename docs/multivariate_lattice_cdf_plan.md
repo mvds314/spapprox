@@ -32,6 +32,22 @@ Continuity correction: `P[X <= x] = P[-X >= -x]`; with `x` on the lattice, evalu
 Reflection does not change `delta`, `tau/rho` is even and `a` is odd in `tau`, so passing
 the reflected saddlepoint `sg * tau` is enough.
 
+### When a component counts as continuous
+
+The mixed formula needs every continuous component to have a bounded density given the
+lattice components. A sum `N + G` of a lattice `N` and an independent continuous `G` is
+continuous, so `delta_j = 0`. A component fixed by the lattice ones, e.g. `0.7 N`, is not:
+it lies on a lattice with span `0.7 delta_N` and needs that `delta`.
+
+If `G` is small compared with the span `delta` of `N`, the continuous approximation of
+`N + G` is poor: the inversion integral has alias saddlepoints at `tau + 2 pi i k / delta`,
+which it ignores. Their weight relative to the main saddlepoint is
+`|M_G(tau + 2 pi i / delta) / M_G(tau)|`, `exp(-2 pi^2 sigma^2 / delta^2)` for normal `G`
+with standard deviation `sigma`: 3e-9, 0.007, 0.17 for `sigma / delta` = 1, 0.5, 0.3. Rule
+of thumb: continuous is fine for `sigma >~ delta / 2`; below about `delta / 4` the lattice
+correction is closer. Document this in the `delta` docstring. Adding the alias terms, which
+interpolates between both, is a follow-up in `docs/TODO.md`.
+
 ## Design
 
 1. `spapprox/mvn.py`: `_kolassa_orthant(K, k2, k3, tau, tx, delta=None)`. `delta` is a
@@ -44,6 +60,8 @@ the reflected saddlepoint `sg * tau` is enough.
      negative entries raise `ValueError`. Only `backend="Kolassa"` accepts it (else
      `NotImplementedError`). The cdf is evaluated at `x + delta/2`, with the saddlepoint
      solved there; if only `t` is given, `x = dK(t)` first, as in the bivariate cdf. The
+     docstring states the bounded-density condition and the `sigma >~ delta / 2` rule above.
+     The
      `fit_cdf` table is bypassed when `delta` is given.
    - `_kolassa_cdf(x, t, delta=None, ...)` passes `delta[idx]` to `_kolassa_orthant` for
      every subproblem in the recursion.
@@ -61,7 +79,8 @@ the reflected saddlepoint `sg * tau` is enough.
 - Continuity across `tau_j = 0` (points around a marginal mean).
 - `delta` with all zeros equals the continuous result.
 - Mixed: Poisson + gamma (dependent through a shared Poisson term, or independent: product
-  check) vs numerical summation/integration.
+  check) vs numerical summation/integration. Include a continuous component `N0 + G` that
+  shares `N0` with a lattice component.
 - Input validation: negative `delta`, wrong length, `delta` with `backend="KL"` in `d > 2`,
   mixed `delta` with bivariate `"KL"`.
 - `examples/example_Kolassa2003.py`, example 2: full inclusion-exclusion (Boole's law) with

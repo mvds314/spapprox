@@ -1064,6 +1064,12 @@ Or into a separate model, e.g., bootstrap.py
     Open: `fit_cdf(delta=)`, `"Wang"` (Wang (1990) Theorems 2-3, which replace `t0` by
     `1 - exp(-t0)` in the factors, without an offset), `"Kolassa"` and `d > 2`
     (Kolassa (2003) eq. (13), see above), and mixed lattice/continuous components
+  - near-lattice variables: for `N + G`, with `N` on a lattice with span `delta` and a small
+    independent continuous `G`, neither the continuous nor the lattice approximation is
+    accurate. Add the alias saddlepoints `tau + 2 pi i k / delta`, `k != 0`, to the inversion,
+    which interpolates between both; their relative weight is
+    `|M_G(tau + 2 pi i / delta) / M_G(tau)|`, `exp(-2 pi^2 sigma^2 / delta^2)` for normal
+    `G`, see `docs/multivariate_lattice_cdf_plan.md`. Research level, start with `d = 1`
   - conditional cdf for a vector of interest `P(X_I >= x_I | X_J = x_J)`, continuous and
     lattice: phase F above (Kolassa & Li, 2010, section 4). Done for two variables of
     interest, `conditional_cdf(i=[a, b], delta=...)`; open for three or more
