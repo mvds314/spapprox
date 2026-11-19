@@ -12,6 +12,8 @@
   (`backend="KL"`, any dimension), see `docs/multivariate_cdf_plan.md`
 
 - Bootstrap distributions (Booth and Butler): done, see `docs/estimating_equations_plan.md`
+- [ ] Close GitHub issues #1 (transition to pyproject.toml) and #2 (transition to findiff):
+  both look done
 
 # Bug backlog
 
@@ -979,7 +981,6 @@ These would go into cgfs.py
 - also see Butler 2007, page 90 for higher order expansions
 - add multinomial bootstrap of the mean
 - see the exercise in Butler for negative binomial distribution, and multivariate logistic distribution
-- Saddlepoint approximation of de EDF (Kuonen 2001, chapter 5)
 
 ## Applications
 
@@ -1108,8 +1109,60 @@ Or into a separate model, e.g., bootstrap.py
 - bootstrap for robust estimators (Kuonen, 1998): `EstimatingEquationSaddlePointApprox` with
   Poisson weights covers monotone M-estimators. Done: Huber location estimate in
   `examples/example_bootstrap_robust_estimator.py`
-- quadratic forms (Kuonen 2001)
-- mixture models
+- Kuonen (2001), "Computer-intensive statistical methods: saddlepoint approximations with
+  applications in bootstrap and robust inference", EPFL thesis 2449 (open access on
+  Infoscience). Chapter 5 ("Bootstrap distributions") was listed here as "saddlepoint
+  approximation of the EDF"; its sections 5.1 and 5.3 (bootstrap of the mean, estimating
+  equations, Huber M-estimates) are covered by `EstimatingEquationSaddlePointApprox`. Open:
+  - [ ] quadratic forms in normal variables (chapter 3; Kuonen 1999, Biometrika):
+    `Q = x^T A x`, `x ~ N(mu, Sigma)`, is a weighted sum of noncentral chi2 variables with a
+    closed-form cgf `K(t) = sum_i [-log(1 - 2 t l_i) / 2 + t l_i d_i^2 / (1 - 2 t l_i)]`, domain
+    `t < 1 / (2 max l_i)` (and the mirror bound for negative `l_i`). Mostly a factory
+    (`quadratic_form(A, mu, Sigma)`, plus `noncentral_chi2`). Applications: Durbin-Watson,
+    Box-Pierce / Ljung-Box, variance component tests, Cramer-von Mises / Anderson-Darling
+    (infinite weighted chi2 sums, truncated), delta-gamma VaR, and the nonparametric
+    regression tests of section 3.5. Ratios `P(Q1 / Q2 <= r) = P(Q1 - r Q2 <= 0)` give the
+    first quotient of random variables (README future work)
+  - [ ] saddlepoint mixture approximation for bootstrap distributions with an outlier
+    (section 5.2): with an outlier `x_j` the bootstrap mean is multi-modal (one mode per
+    resample count `r` of `x_j`), the plain saddle point approximation is unimodal. Use
+    `P(X* <= x) = sum_r F_s(x | f_j* = r) Binom(r; n, 1/n)`, truncated at `r ~ 4`, with `F_s` the
+    saddle point cdf given `f_j* = r`. Benchmark: Daniels and Young (1991) data,
+    `-0.4621, -0.4608, -0.4492, -0.3830, -0.3109, -0.2282, -0.0896, 0.0927, 0.2183, 2.0723`.
+    Natural on top of a generic mixture combinator (below). Kuonen's rule of thumb: the plain
+    approximation fails beyond the boxplot fence at about 3 IQR
+  - [ ] studentized bootstrap distributions (chapter 6; Daniels and Young 1991; Kuonen 2001,
+    Statistics and Computing; Davison and Hinkley 1997, section 9.5): the bootstrap
+    distribution of `(t* - t) / v*^(1/2)` for the mean and for (studentized) Huber M-estimates,
+    including Huber's proposal 2. Needs a joint saddle point for `(t*, v*)` and integration
+    over the studentization (section 6.5.2), cf. the conditional / multivariate machinery
+    already in `spa.py`. Gives bootstrap-t confidence intervals without resampling (chapter 7
+    has the simulation study). The main open item of the thesis; write a plan in `docs/` first
+  - [ ] coupon collector's problem (chapter 4): saddle point approximation of the number of
+    draws needed, a sum of independent geometric variables. Small, possibly an example plus a
+    `geometric` factory
+- mixture models, `K(t) = log sum_i p_i exp(K_i(t))`: not expressible with the current algebra,
+  needs a combinator in `cgf_base.py` next to `+` and `ldot`. Cases:
+  - [ ] finite mixtures (scale mixtures of normals, regime models)
+  - [ ] compound / random sums, `K(t) = K_N(K_Y(t))`, e.g. compound Poisson
+    `lambda (M_Y(t) - 1)`: aggregate losses in insurance and operational risk
+- [ ] extended empirical saddlepoint (Feuerverger 1989; Fasiolo, Wood, Hartig and Bravington
+  2018, Electron. J. Stat. 12(1), R package `esaddle`). The empirical cgf
+  `K_m(l) = log (1/m) sum_i exp(l^T s_i)` (`univariate_empirical` is the 1-d version) only has a
+  saddle point inside the convex hull of the sample and loses accuracy in the tails. EES mixes
+  it with a normal cgf: `g(s, gamma) K_m(l) + (1 - g(s, gamma)) (l^T mu + l^T Sigma l / 2)`,
+  with `g -> 0` as the Mahalanobis distance of `s` to the sample mean grows (their eq. (10)),
+  and `gamma` chosen by cross-validation. Note the cgf depends on the evaluation point `s`, so
+  it does not fit the plain CGF object. Use: density of non-normal summary statistics in
+  synthetic likelihood for models that can only be simulated. Needs a multivariate empirical
+  cgf factory first
+- [ ] truncated cgf for general statistics (Easton and Ronchetti 1986; Gatto and Ronchetti
+  1996; Wang 1992): build an approximate cgf from the first 3-4 cumulants of a statistic
+  (e.g. from its von Mises expansion) and apply the saddle point approximation, for
+  statistics without a tractable cgf (correlation coefficient, variance ratios)
+- [ ] saddlepoint smoothers for discrete data (Davison and Wang 2002, Biometrika): saddle point
+  approximation as a smoother of discrete distributions, e.g. p-values of exact conditional
+  tests. Read the paper before scoping
 
 ## Review: Alhejaili and AlGhamedi (2025)
 
@@ -1141,7 +1194,8 @@ Mentioned in the survey but not implemented, candidate applications: non-normal 
 distributions (Wood, Booth and Butler 1993), saddlepoint approximations from a truncated CGF
 for general statistics (Easton and Ronchetti 1986; Gatto and Ronchetti 1996), empirical and
 extended empirical saddlepoint (Feuerverger 1989; Fasiolo et al. 2018), and saddlepoint
-smoothers for discrete data (Davison and Wang 2002). The remark on non-convex support (exclude
+smoothers for discrete data (Davison and Wang 2002); these are listed under "Applications"
+above. The remark on non-convex support (exclude
 points outside the support when normalizing a multivariate pdf) does not apply yet: no factory
 has a non-convex support.
 
