@@ -795,13 +795,11 @@ def test_return_type(cgf):
             bivariate_gamma([0, 1.1, 1.2])[0],
             [0.2, 0.55],
             id="Scaled univariate gamma from bivariate gamma",
-            marks=pytest.mark.tofix,
         ),
         pytest.param(
             bivariate_gamma([1.3, 1.1, 1.2], loc=0.05, scale=1.05)[0],
             [0.2, 0.55],
             id="Sliced bivariate gamma",
-            marks=pytest.mark.tofix,
         ),
         pytest.param(
             chi2(df=3),
