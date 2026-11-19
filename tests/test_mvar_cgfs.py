@@ -15,11 +15,15 @@ from spapprox import (
     MultivariateSaddlePointApprox,
     UnivariateCumulantGeneratingFunction,
     bivariate_gamma,
+    bivariate_poisson,
     exponential,
     gamma,
+    jensen_multivariate_gamma,
+    multinomial,
     multivariate_norm,
     norm,
 )
+from spapprox.cgf_base import has_numdifftools
 from spapprox.diff import _has_findiff as has_findiff
 from spapprox.diff import block_diag_3d
 from spapprox.util import type_wrapper
@@ -1256,3 +1260,96 @@ def test_multivariate_point_shapes(dim):
         for f in ["K", "dK", "d2K", "dK_inv"]:
             with pytest.raises(ValueError, match="vector of length"):
                 getattr(cgf, f)(bad)
+
+
+def _multinomial_K(t, n=6, p=(0.2, 0.3, 0.5)):
+    return np.log(
+        sum(
+            sps.multinomial.pmf([a, b, n - a - b], n, p) * np.exp(t[0] * a + t[1] * b)
+            for a in range(n + 1)
+            for b in range(n + 1 - a)
+        )
+    )
+
+
+def _bivariate_poisson_K(t, mu=(0.7, 1.0, 2.0)):
+    k = np.arange(80)
+    y = [sps.poisson.pmf(k, m) for m in mu]
+    # sum over Y0, Y1, Y2 of P(Y0) P(Y1) P(Y2) exp(t1 (Y0 + Y1) + t2 (Y0 + Y2))
+    return np.log(
+        (y[0] * np.exp((t[0] + t[1]) * k)).sum()
+        * (y[1] * np.exp(t[0] * k)).sum()
+        * (y[2] * np.exp(t[1] * k)).sum()
+    )
+
+
+_jensen_sigma = np.array([[2, 0.6, 0.3], [0.6, 1, 0.2], [0.3, 0.2, 1.5]])
+
+
+@pytest.mark.skipif(not has_numdifftools, reason="No numdifftools")
+@pytest.mark.parametrize(
+    "mcgf, K, mean, cov, t",
+    [
+        pytest.param(
+            multinomial(6, [0.2, 0.3, 0.5]),
+            _multinomial_K,
+            6 * np.array([0.2, 0.3]),
+            6 * (np.diag([0.2, 0.3]) - np.outer([0.2, 0.3], [0.2, 0.3])),
+            [0.3, -0.4],
+            id="multinomial",
+        ),
+        pytest.param(
+            bivariate_poisson([0.7, 1.0, 2.0]),
+            _bivariate_poisson_K,
+            [1.7, 2.7],
+            [[1.7, 0.7], [0.7, 2.7]],
+            [0.3, -0.4],
+            id="bivariate poisson",
+        ),
+        pytest.param(
+            jensen_multivariate_gamma(2.5, _jensen_sigma),
+            lambda t: -2.5 * np.log(np.linalg.det(np.eye(3) - _jensen_sigma * t)),
+            2.5 * np.diag(_jensen_sigma),
+            2.5 * _jensen_sigma**2,
+            [0.1, -0.4, 0.2],
+            id="jensen multivariate gamma",
+        ),
+    ],
+)
+def test_additional_distributions(mcgf, K, mean, cov, t):
+    import numdifftools as nd
+
+    t = np.asarray(t, float)
+    assert np.isclose(mcgf.K(t), K(t))
+    assert np.allclose(mcgf.dK0, mean)
+    assert np.allclose(mcgf.d2K0, cov)
+    assert np.allclose(nd.Gradient(mcgf.K)(t), mcgf.dK(t))
+    assert np.allclose(nd.Jacobian(mcgf.dK)(t), mcgf.d2K(t))
+    d3K = mcgf.d3K(t)
+    assert np.allclose(nd.Jacobian(lambda s: mcgf.d2K(s).ravel())(t).reshape(d3K.shape), d3K)
+    assert np.allclose(mcgf.dK_inv(mcgf.dK(t)), t)
+    ts = np.array([t, t / 2])
+    assert np.allclose(mcgf.d3K(ts)[1], mcgf.d3K(t / 2))
+    assert np.allclose(mcgf.dK_inv(mcgf.dK(ts)), ts)
+
+
+def test_additional_distributions_pdf():
+    spa = MultivariateSaddlePointApprox(multinomial(20, [0.2, 0.3, 0.5]))
+    exact = sps.multinomial.pmf([4, 6, 10], 20, [0.2, 0.3, 0.5])
+    assert np.isclose(spa.pdf(x=[4, 6], normalize_pdf=False), exact, rtol=0.05)
+    spa = MultivariateSaddlePointApprox(bivariate_poisson([1, 2, 3]))
+    exact = sum(
+        sps.poisson.pmf(k, 1) * sps.poisson.pmf(3 - k, 2) * sps.poisson.pmf(5 - k, 3)
+        for k in range(4)
+    )
+    assert np.isclose(spa.pdf(x=[3, 5], normalize_pdf=False), exact, rtol=0.05)
+
+
+def test_jensen_multivariate_gamma_domain():
+    mcgf = jensen_multivariate_gamma(2.5, [[2, 0.6], [0.6, 1]])
+    # The marginals are gamma with scales sigma_ii
+    assert np.isclose(mcgf[0].K(0.3), gamma(2.5, scale=2).K(0.3))
+    # Inside the linear bound t_i < 1 / sigma_ii, but sigma^{-1} - T is not positive definite
+    assert np.isnan(mcgf.K([0.45, 0.9]))
+    with pytest.raises(ValueError):
+        jensen_multivariate_gamma(1, [[1, 2], [2, 1]])
