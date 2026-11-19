@@ -1727,9 +1727,117 @@ def test_mvar_cdf_vectorized_and_invalid_backend():
     assert np.allclose(spa.cdf(x=pd.DataFrame(xs)).values, vals)
     assert np.isclose(spa[[1]].cdf(x=[0.3]), sps.norm.cdf(0.3))
     with pytest.raises(ValueError):
-        spa.cdf(x=xs[0], backend="KL")
+        spa.cdf(x=xs[0], backend="Wang")
     with pytest.raises(ValueError):
         spa.cdf(x=xs[0, :2])
+
+
+def test_mvar_cdf_kl_matches_bivariate():
+    # For d = 2, the general implementation reduces to the bivariate one
+    cgf = bivariate_gamma(a=[2.0, 1.0, 3.0])
+    mspa, bspa = MultivariateSaddlePointApprox(cgf), BivariateSaddlePointApprox(cgf)
+    for t in [[0.2, 0.3], [-0.4, 0.25], [0.3, -0.5], [-0.6, -0.3]]:
+        assert mspa.cdf(t=t, backend="KL") == pytest.approx(bspa.cdf(t=t), abs=1e-11)
+    # Near tau_j = 0, both are interpolated, but on different nodes
+    t = [1e-3, -0.05]
+    assert mspa.cdf(t=t, backend="KL") == pytest.approx(bspa.cdf(t=t), abs=1e-8)
+    cgf = _poisson_sum([1.0, 2.0, 3.0], np.vstack([[1, 1], np.eye(2)]))
+    mspa, bspa = MultivariateSaddlePointApprox(cgf), BivariateSaddlePointApprox(cgf)
+    for x in [[2, 3], [4, 1], [1, 5]]:
+        expected = bspa.cdf(x=x, delta=1)
+        assert mspa.cdf(x=x, delta=1, backend="KL") == pytest.approx(expected, abs=1e-10)
+
+
+def test_mvar_cdf_kl_normal():
+    # Exact for the normal distribution
+    cov = np.array([[2.0, 0.5, 0.3], [0.5, 1.0, -0.4], [0.3, -0.4, 3.0]])
+    spa = MultivariateSaddlePointApprox(multivariate_norm(loc=np.zeros(3), cov=cov))
+    dist = sps.multivariate_normal(np.zeros(3), cov, abseps=1e-10, releps=1e-10)
+    for x in [[0.1, 0.2, -0.3], [-1.0, -0.5, -2.0]]:
+        expected = dist.cdf(x)
+        assert spa.cdf(x=x, backend="KL") == pytest.approx(expected, abs=1e-7)
+
+
+def test_mvar_cdf_kl_gamma_tail():
+    # Relative error far in the tails, where Kolassa (2003) is off by more than 10%
+    a = np.array([2.0, 1.0, 3.0, 1.5])
+    spa = MultivariateSaddlePointApprox(_common_gamma(a))
+    for t in [[0.2, 0.15, 0.1], [-1.0, -1.0, -1.0], [-2.0, -2.0, -2.0]]:
+        exact = _common_gamma_cdf(spa.cgf.dK(t), a)
+        assert spa.cdf(t=t, backend="KL") == pytest.approx(exact, rel=0.015)
+    assert spa.cdf(t=t, backend="Kolassa") != pytest.approx(exact, rel=0.1)
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize(
+    "k,max_err,max_rel", [(1, 5e-3, None), (4, 1.5e-3, 5e-3), (16, 4e-4, 2e-3)]
+)
+def test_mvar_cdf_kl_gamma_accuracy(k, max_err, max_rel):
+    # Error O(1/n), with n proportional to k, smaller than that of Kolassa (2003), and
+    # relative error O(1/n) at fixed t, i.e., in the large deviation regime
+    a = np.array([2.0, 1.0, 3.0, 1.5]) * k
+    spa = MultivariateSaddlePointApprox(_common_gamma(a))
+    errs, kolassa = [], []
+    for z in itertools.product([-1.4, 0.5, 1.6], repeat=3):
+        t = np.array(z) / np.sqrt(k) / 3
+        exact = _common_gamma_cdf(spa.cgf.dK(t), a)
+        errs.append(abs(spa.cdf(t=t, backend="KL") - exact))
+        kolassa.append(abs(spa.cdf(t=t) - exact))
+    assert max(errs) < max_err and max(errs) < max(kolassa) / 1.5
+    if max_rel is not None:
+        for t in [[-1.0, -1.0, -1.0], [-4 / 3, -2 / 3, -1.0]]:
+            x = spa.cgf.dK(t)
+            log_integrand = lambda z: (
+                sps.gamma(a[0]).logpdf(z)
+                + sum(sps.gamma(ai).logcdf(xi - z) for ai, xi in zip(a[1:], x))
+            )
+            pts = np.linspace(0, min(x), 9)[1:-1]
+            exact = quad(
+                lambda z: np.exp(log_integrand(z)), 0, min(x), points=pts, limit=500, epsabs=0
+            )[0]
+            assert spa.cdf(t=t, backend="KL") == pytest.approx(exact, rel=max_rel)
+
+
+def test_mvar_cdf_kl_invariances():
+    a = np.array([2.0, 1.0, 3.0, 1.5])
+    spa = MultivariateSaddlePointApprox(_common_gamma(a))
+    # Relabeling the components
+    perm = [2, 0, 1]
+    pspa = MultivariateSaddlePointApprox(_common_gamma(a[[0] + [p + 1 for p in perm]]))
+    for t in [[0.2, -0.3, 0.1], [-0.5, -0.2, -0.4]]:
+        t = np.array(t)
+        expected = spa.cdf(t=t, backend="KL")
+        assert pspa.cdf(t=t[perm], backend="KL") == pytest.approx(expected, abs=1e-10)
+    # Continuity across the hyperplanes tau_j = 0
+    eps = 1e-9
+    for j in [0, 2]:
+        p, q = np.array([0.2, -0.3, 0.1]), np.array([0.2, -0.3, 0.1])
+        p[j], q[j] = eps, -eps
+        assert spa.cdf(t=p, backend="KL") == pytest.approx(spa.cdf(t=q, backend="KL"), abs=1e-7)
+    # Independent components: the product of the Lugannani-Rice marginals
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(*[gamma(a=ai) for ai in a[1:]])
+    spa = MultivariateSaddlePointApprox(cgf)
+    for t in [[0.2, -0.3, 0.1], [-0.5, -0.2, -0.4]]:
+        x = cgf.dK(t)
+        expected = np.prod([spa[i].cdf(x=x[i], t=t[i]) for i in range(3)])
+        assert spa.cdf(t=t, backend="KL") == pytest.approx(expected, abs=1e-12)
+
+
+def test_mvar_lattice_cdf_kl_poisson_sum():
+    # The lattice version, Kolassa and Li (2010), Section 3, relative error O(1/n), and
+    # smaller than that of Kolassa (2003) eq. (13)
+    errs = []
+    A = np.vstack([[1, 1, 1], np.eye(3)])
+    for k in [1, 4]:
+        lams = np.array([1.0, 1.0, 1.5, 2.0]) * k
+        spa = MultivariateSaddlePointApprox(_poisson_sum(lams, A))
+        x = np.floor(A.T @ lams * np.array([[0.6, 0.7, 0.8], [1.3, 0.8, 1.2]]))
+        exact = np.array([_shared_poisson_exact_cdf(xx, lams) for xx in x])
+        errs.append(np.max(np.abs(spa.cdf(x=x, delta=1, backend="KL") / exact - 1)))
+        assert errs[-1] < np.max(np.abs(spa.cdf(x=x, delta=1) / exact - 1)) / 1.5
+    assert errs[0] < 0.03 and errs[1] < errs[0] / 2.5
+    with pytest.raises(NotImplementedError, match="Kolassa"):
+        spa.cdf(x=x[0], delta=[1, 1, 0], backend="KL")
 
 
 def test_mvar_fit_cdf_normal():
