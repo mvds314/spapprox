@@ -1,5 +1,7 @@
 # Priorities
 
+- [ ] First official PyPI release: see `docs/first_release_plan.md`
+
 - [x] Go through bug backlog: all items fixed. The two `tofix` cases of `test_dKinv` (univariate
   gamma sliced from a bivariate gamma) pass since the domain fixes; markers removed
 - [x] Review implementation against Alhejaili, AlGhamedi (2025) - A review of saddlepoint
