@@ -209,7 +209,7 @@ def exponential(loc=0, scale=1):
     >>> float(spa.exponential(scale=2).dK0)
     2.0
 
-    See ``examples/expon_example.py``.
+    See ``examples/basic_example.py``.
 
     References
     ----------

@@ -274,8 +274,7 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
     The exact values are 0.1912, 0.5768 and 0.9380. For a lattice variable pass its span,
     e.g., ``approx.cdf(x=3, delta=1)``.
 
-    See ``examples/basic_example.py``, ``examples/expon_example.py`` and
-    ``examples/example_sum_random_variables.py``.
+    See ``examples/basic_example.py`` and ``examples/example_sum_random_variables.py``.
 
     References
     ----------
