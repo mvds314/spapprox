@@ -29,6 +29,7 @@ from spapprox import (
     norm,
     poisson,
     univariate_empirical,
+    univariate_sample_mean,
 )
 from spapprox.domain import Domain
 from spapprox.mvn import _mvn_logtail, _mvn_tail_derivatives
@@ -776,7 +777,8 @@ def _dirichlet_spa(n):
 @pytest.mark.parametrize(
     "y, paper, exact",
     [
-        # Point, approximation of [Kolassa and Li (2010), Table 3], exact value
+        # Point, approximation of [Kolassa and Li (2010), Table 3], exact value. The paper drops
+        # I^{1,2}, and is about 12% too low at the last three points
         ((2.5, 2.5, 7.0), 6.25e-2, 6.3187e-2),
         ((3.0, 3.0, 7.0), 3.02e-4, 3.4577e-4),
         ((2.5, 3.0, 6.5), 5.25e-4, 6.0910e-4),
@@ -795,8 +797,8 @@ def test_conditional_vector_dirichlet(y, paper, exact):
     F2 = spa[[1, 2]].conditional_cdf(x[1], given)
     sf = 1 - F1 - F2 + F
     if paper is not None:
-        assert sf == pytest.approx(paper, rel=0.025)
-    assert sf == pytest.approx(exact, rel=0.15)
+        assert abs(sf / exact - 1) < abs(paper / exact - 1)
+    assert sf == pytest.approx(exact, rel=0.04)
 
 
 def test_conditional_vector_continuous_at_singularity():
@@ -815,7 +817,9 @@ def test_conditional_vector_lattice_multinomial():
     x = np.array([[1, 2], [2, 3], [3, 4], [4, 2]], dtype=float)
     pmf = lambda a, b: sps.multinomial.pmf([a, b, s - a - b], s, lams / lams.sum())
     exact = [sum(pmf(a, b) for a in range(u + 1) for b in range(v + 1)) for u, v in x.astype(int)]
-    assert np.allclose(spa.conditional_cdf(x, [s], i=[0, 1], delta=1), exact, rtol=1e-2)
+    # The relative error is O(1/s) and about the sum of the errors of the conditional marginal
+    # approximations: at (1, 2) it is -1.5%, where those of the marginals add up to -1.4%
+    assert np.allclose(spa.conditional_cdf(x, [s], i=[0, 1], delta=1), exact, rtol=2e-2)
     # Without the lattice correction the approximation is bad
     assert not np.allclose(spa.conditional_cdf(x, [s], i=[0, 1]), exact, rtol=0.2)
 
@@ -1160,9 +1164,9 @@ def test_bvar_cdf_wang_1990_table_1(dx, dy, expected):
         ("Wang", 1, 0.04),
         ("Wang", 16, 0.003),
         # Relative error O(1/n)
-        ("KL", 1, 0.006),
-        ("KL", 16, 4e-4),
-        pytest.param("KL", 64, 1e-4, marks=pytest.mark.slow),
+        ("KL", 1, 0.003),
+        ("KL", 16, 2.5e-4),
+        pytest.param("KL", 64, 6e-5, marks=pytest.mark.slow),
     ],
 )
 def test_bvar_cdf_dependent_accuracy(backend, k, max_err):
@@ -1176,6 +1180,37 @@ def test_bvar_cdf_dependent_accuracy(backend, k, max_err):
         x = spa.cgf.dK(t)
         errs.append(abs(spa.cdf(t=t, backend=backend) - _bivariate_gamma_cdf(x, a)))
     assert max(errs) < max_err
+
+
+def _bivariate_gamma_sf(x, a):
+    # P(X1 >= x1, X2 >= x2), the gamma survival functions are 1 for negative arguments
+    integrand = lambda z: (
+        sps.gamma(a[0]).pdf(z) * sps.gamma(a[1]).sf(x[0] - z) * sps.gamma(a[2]).sf(x[1] - z)
+    )
+    lo, hi = sorted(x)
+    body = quad(integrand, 0, hi, points=[lo], limit=400, epsabs=0, epsrel=1e-12)[0]
+    return body + sps.gamma(a[0]).sf(hi)
+
+
+@pytest.mark.parametrize("n", [10, 160])
+def test_bvar_kl_cdf_independent_large_deviation(n):
+    # For independent components the upper orthant approximation, including I^{1,2}, is the
+    # product of the Lugannani-Rice marginal tails. Without I^{1,2} its relative error does not
+    # vanish at a fixed large deviation point: -2.4% for n = 10, -0.85% for n = 160
+    g = univariate_sample_mean(gamma(a=1), n)
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(g, g).ldot(-np.eye(2))
+    x = np.array([1.3, 1.25])
+    lr = np.prod([UnivariateSaddlePointApprox(-1 * g).cdf(x=-xi) for xi in x])
+    assert BivariateSaddlePointApprox(cgf).cdf(x=-x) == pytest.approx(lr, rel=1e-7)
+
+
+def test_bvar_kl_cdf_dependent_large_deviation():
+    # Upper orthant at a fixed multiple of the mean: the relative error is O(1/n); without
+    # I^{1,2} it stalls at about -0.13%
+    a = np.array([1.0, 2.0, 2.0]) * 128
+    x = np.array([a[0] + a[1], a[0] + a[2]]) * np.array([1.2, 1.4])
+    spa = BivariateSaddlePointApprox(bivariate_gamma(a=a).ldot(-np.eye(2)))
+    assert spa.cdf(x=-x) == pytest.approx(_bivariate_gamma_sf(x, a), rel=2e-4)
 
 
 @pytest.mark.parametrize("backend", ["KL", "Wang"])

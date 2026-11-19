@@ -996,12 +996,18 @@ Or into a separate model, e.g., bootstrap.py
     see `docs/conditional_vector_plan.md`. F1, two variables of interest, is done:
     `conditional_cdf(x, given, i=[a, b], delta=...)`, continuous and lattice. Open: F2,
     three or more variables of interest
-  - the bivariate `"KL"` cdf, also conditional, drops the `I^{1,2}` term of Kolassa & Li
-    (2010). Its relative error therefore does not vanish at a fixed large deviation point:
-    for two independent gamma(n) means at (1.3, 1.25) it is -2.4%, -1.2%, -0.85% for
-    n = 10, 40, 160, where the product of the Lugannani-Rice marginals converges at 1/n.
-    For independent components the missing term is `phi(w1) phi(w2) f1 f2`, with
-    `f_j = 1/u_j - 1/w_j`. Consider adding it
+  - [x] the bivariate `"KL"` cdf, also conditional, dropped the `I^{1,2}` term of Kolassa & Li
+    (2010), so its relative error did not vanish at a fixed large deviation point (-2.4%,
+    -1.2%, -0.85% for two independent gamma(n) means at (1.3, 1.25), n = 10, 40, 160). Added,
+    together with the remainder of `I^{2}`, which evaluates `H^{2}` at `w1 = 0`. Now equal
+    to the product of the Lugannani-Rice marginals for independent components, and O(1/n) at
+    large deviations for dependent ones. Dirichlet Table 3 errors: -1.1/-12.8/-12/-12% ->
+    +1.0/+3.5/+3.4/+3.4%. On the conditional lattice multinomial test the error at s = 12 is
+    -1.5% at (1, 2), was +0.5%: it is now about the sum of the errors of the conditional
+    marginals (-1.4%), which the old version partly cancelled by accident. It converges at
+    O(1/s), the old one did not (+1.7% at s = 192).
+    `_bvn_tail_derivatives` now uses the log-scale tail whenever `A^{-1} b >= 0`, the normal
+    cdfs lost relative accuracy in small tails
   - non-linear conditioning `Z = g(X, Y)`: phase G, Wang (1993). Lower priority
 - resampling distributions, Booth and Butler (1990): done with
   `EstimatingEquationSaddlePointApprox` (scalar estimating equations, multinomial and Dirichlet
