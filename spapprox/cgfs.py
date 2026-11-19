@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.integrate import quad_vec
-from scipy.special import gammaln, logsumexp, softmax
+from scipy.special import gammaln, log_ndtr, logsumexp, softmax
 
 from .cgf_base import (
     MultivariateCumulantGeneratingFunction,
@@ -508,7 +508,8 @@ def generalized_normal(beta=2, loc=0, scale=1):
     .. math::
         K(t) = \log\frac{\beta}{2\Gamma(1/\beta)}\int e^{tx-|x|^\beta}\,dx.
 
-    For :math:`\beta=1` this is the Laplace distribution, see :func:`laplace`, and for
+    For :math:`\beta=1` this is the Laplace distribution, see :func:`laplace`, for
+    :math:`\beta=2` a normal distribution with variance :math:`1/2`, see :func:`norm`, and for
     :math:`\beta<1` the moment generating function is infinite for all :math:`t\neq 0`, so no
     saddle point approximation exists.
 
@@ -518,6 +519,8 @@ def generalized_normal(beta=2, loc=0, scale=1):
     """
     if beta == 1:
         return laplace(loc=loc, scale=scale)
+    if beta == 2:
+        return norm(loc=loc, scale=scale / np.sqrt(2))
     return asymmetric_generalized_normal(beta=beta, sigma=1, loc=loc, scale=scale)
 
 
@@ -537,8 +540,17 @@ def asymmetric_generalized_normal(beta=2, sigma=1, loc=0, scale=1):
     +(-1)^k\sigma_L^{k+1}\Gamma((k+1)/\beta_L)/\beta_L\right)`. Scalar `beta` or `sigma`
     apply to both sides; equal sides give :func:`generalized_normal`.
 
-    The cgf has no closed form and is evaluated by quadrature of the exponentially tilted
-    density; its derivatives are the mean, variance and third central moment of that density.
+    In general, the cgf has no closed form and is evaluated by quadrature of the exponentially
+    tilted density; its derivatives are the mean, variance and third central moment of that
+    density. With both shapes two (the split normal), the tilted density is a mixture of two
+    half normals, with :math:`N(t\sigma_R^2/2,\sigma_R^2/2)` truncated to :math:`x\geq 0` and
+    :math:`N(t\sigma_L^2/2,\sigma_L^2/2)` truncated to :math:`x<0`, which gives the exact cgf
+
+    .. math::
+        K(t) = \log c + \log\left(\sigma_R J(t\sigma_R) + \sigma_L J(-t\sigma_L)\right),
+        \qquad J(s) = \int_0^\infty e^{sy-y^2}dy = \sqrt{\pi}e^{s^2/4}\Phi(s/\sqrt{2}),
+
+    and its derivatives from the moments of the truncated normals.
     A side with shape above one leaves the cgf finite in that direction, a side with shape one
     bounds the domain, :math:`t<1/\sigma_R` or :math:`t>-1/\sigma_L`. Shapes below one make the
     cgf infinite on that side, so no saddle point approximation exists. With both shapes one,
@@ -559,6 +571,18 @@ def asymmetric_generalized_normal(beta=2, sigma=1, loc=0, scale=1):
     if bl == 1 and br == 1:
         return asymmetric_laplace(kappa=np.sqrt(sl / sr), loc=loc, scale=scale * np.sqrt(sl * sr))
     lognorm = -np.log(sl * np.exp(gammaln(1 + 1 / bl)) + sr * np.exp(gammaln(1 + 1 / br)))
+    k = np.arange(1, 4)
+    raw = np.exp(lognorm) * (
+        sr ** (k + 1) * np.exp(gammaln((k + 1) / br)) / br
+        + (-1) ** k * sl ** (k + 1) * np.exp(gammaln((k + 1) / bl)) / bl
+    )
+    cumulants = dict(
+        dK0=raw[0],
+        d2K0=raw[1] - raw[0] ** 2,
+        d3K0=raw[2] - 3 * raw[0] * raw[1] + 2 * raw[0] ** 3,
+    )
+    if bl == 2 and br == 2:
+        return _split_normal(sl, sr, lognorm, cumulants, loc=loc, scale=scale)
 
     def h(t, x):
         # Log of the unnormalized tilted density
@@ -588,20 +612,59 @@ def asymmetric_generalized_normal(beta=2, sigma=1, loc=0, scale=1):
     def moment(i):
         return np.vectorize(lambda t: tilted(t)[i], otypes=[float])
 
-    k = np.arange(1, 4)
-    raw = np.exp(lognorm) * (
-        sr ** (k + 1) * np.exp(gammaln((k + 1) / br)) / br
-        + (-1) ** k * sl ** (k + 1) * np.exp(gammaln((k + 1) / bl)) / bl
-    )
     return UnivariateCumulantGeneratingFunction(
         K=moment(0),
         dK=moment(1),
         d2K=moment(2),
         d3K=moment(3),
-        dK0=raw[0],
-        d2K0=raw[1] - raw[0] ** 2,
-        d3K0=raw[2] - 3 * raw[0] * raw[1] + 2 * raw[0] ** 3,
+        **cumulants,
         domain=Domain(g=-1 / sl if bl == 1 else None, l=1 / sr if br == 1 else None),
+        loc=loc,
+        scale=scale,
+    )
+
+
+def _split_normal(sl, sr, lognorm, cumulants, loc=0, scale=1):
+    """
+    Exact cgf of the split normal, see :func:`asymmetric_generalized_normal` with both shapes
+    two: the tilted density is a mixture of two truncated normals.
+    """
+
+    def logJ(s):
+        return 0.5 * np.log(np.pi) + s**2 / 4 + log_ndtr(s / np.sqrt(2))
+
+    def half(t, sigma):
+        # Mean, variance and third central moment of N(t sigma^2 / 2, sigma^2 / 2) truncated
+        # to x >= 0, with lambda the inverse Mills ratio at the truncation point alpha
+        sd = sigma / np.sqrt(2)
+        alpha = -t * sigma**2 / 2 / sd
+        lam = np.exp(-(alpha**2) / 2 - 0.5 * np.log(2 * np.pi) - log_ndtr(-alpha))
+        return (
+            t * sigma**2 / 2 + sd * lam,
+            sd**2 * (1 + alpha * lam - lam**2),
+            sd**3 * lam * (alpha**2 - 1 - 3 * alpha * lam + 2 * lam**2),
+        )
+
+    def parts(t):
+        t = np.asanyarray(t, float)
+        lr, ll = np.log(sr) + logJ(t * sr), np.log(sl) + logJ(-t * sl)
+        logM = np.logaddexp(lr, ll)
+        wr, wl = np.exp(lr - logM), np.exp(ll - logM)
+        mr, vr, cr = half(t, sr)
+        ml, vl, cl = half(-t, sl)
+        ml, cl = -ml, -cl  # reflect the right half of -X to the left half of X
+        m = wr * mr + wl * ml
+        dr, dl = mr - m, ml - m
+        v = wr * (vr + dr**2) + wl * (vl + dl**2)
+        c3 = wr * (cr + 3 * vr * dr + dr**3) + wl * (cl + 3 * vl * dl + dl**3)
+        return lognorm + logM, m, v, c3
+
+    return UnivariateCumulantGeneratingFunction(
+        K=lambda t: parts(t)[0],
+        dK=lambda t: parts(t)[1],
+        d2K=lambda t: parts(t)[2],
+        d3K=lambda t: parts(t)[3],
+        **cumulants,
         loc=loc,
         scale=scale,
     )

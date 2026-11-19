@@ -971,7 +971,8 @@ All the funtionality in this package should make the results achieved in most pa
 These would go into cgfs.py
 
 - [x] add asymmetric laplace: `asymmetric_laplace`
-- [x] add generalized normal distribution: `generalized_normal`, the cgf by quadrature, `beta >= 1`
+- [x] add generalized normal distribution: `generalized_normal`, the cgf by quadrature, `beta >= 1`;
+  exact for `beta` 1 (Laplace) and 2 (normal, split normal in the asymmetric version)
 - [x] add asymmetric generalized normal distribution: `asymmetric_generalized_normal`, the
   asymmetric exponential power version (shape and scale per side). Hosking's log-normal-type
   skewed version is not possible: its cgf is infinite on one side of zero

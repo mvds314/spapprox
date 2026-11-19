@@ -60,8 +60,8 @@ approximation classes, `Timer`, and the distribution factories `norm`,
 `jensen_multivariate_gamma`, `chi2`, `laplace`, `asymmetric_laplace`,
 `generalized_normal`, `asymmetric_generalized_normal`, `poisson`, `bernoulli`, `binomial`, `negative_binomial`,
 `multinomial`, `bivariate_poisson`, `univariate_empirical`,
-`univariate_sample_mean`. The (asymmetric) generalized normal has no closed-form cgf and
-evaluates it by quadrature (slow per point); `jensen_multivariate_gamma` has a non-linear
+`univariate_sample_mean`. The (asymmetric) generalized normal has no closed-form cgf except for
+shapes 1 and 2, and otherwise evaluates it by quadrature (slow per point); `jensen_multivariate_gamma` has a non-linear
 domain, declared as its linear outer bound with `K` NaN beyond it.
 
 ## The typical flow

@@ -1153,12 +1153,13 @@ def test_generalized_normal_beta():
     "beta, sigma, ts",
     [
         pytest.param((1.5, 3), (2, 0.5), [-1, 0.5, 3], id="beta > 1"),
+        pytest.param(2, (2, 0.5), [-3, 0.7, 30], id="split normal"),
         pytest.param((1, 2.5), (0.5, 1.5), [-0.9, 0.3, 2], id="beta_L = 1"),
         pytest.param((4, 1), (1, 2), [-3, 0.1, 0.24], id="beta_R = 1"),
     ],
 )
 def test_asymmetric_generalized_normal(beta, sigma, ts):
-    (bl, br), (sl, sr) = beta, sigma
+    (bl, br), (sl, sr) = np.broadcast_to(beta, 2), sigma
     cgf = asymmetric_generalized_normal(beta=beta, sigma=sigma, loc=1, scale=2)
 
     def logpdf(x):
@@ -1191,6 +1192,12 @@ def test_asymmetric_generalized_normal(beta, sigma, ts):
 def test_asymmetric_generalized_normal_special_cases():
     cgf = asymmetric_generalized_normal(beta=3)
     assert np.isclose(cgf.K(1.2), generalized_normal(beta=3).K(1.2))
+    # The exact split normal cgf is stable far into the tails, where the tilted density is a
+    # single normal with variance sigma^2 / 2
+    cgf = asymmetric_generalized_normal(beta=2, sigma=(2, 0.5))
+    t = np.array([-1e4, 1e4])
+    assert np.allclose(cgf.dK(t), t * np.array([4, 0.25]) / 2)
+    assert np.allclose(cgf.d2K(t), [2, 0.125])
     cgf = asymmetric_generalized_normal(beta=1, sigma=(2, 0.5), loc=1, scale=3)
     ref = sps.laplace_asymmetric(2, loc=1, scale=3)
     assert np.allclose([cgf.dK0, cgf.d2K0], ref.stats("mv"))
