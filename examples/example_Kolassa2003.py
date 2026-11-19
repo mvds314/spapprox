@@ -26,6 +26,8 @@ probability approximations", Ann. Statist. 31(1), 274-286.
    distribution is still small enough to check against.
 """
 
+import itertools
+
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -146,12 +148,27 @@ for j in range(3):
         f"exact {exact:.5f}"
     )
 in_region = (keys >= critical).any(axis=1)
-print(f"Size of the test, Boole's bound: {sum(sp[1]):.5f} / {sum(sp[2]):.5f}")
+print(f"Size of the test, Bonferroni bound: {sum(sp[1]):.5f} / {sum(sp[2]):.5f}")
+
+
+def lattice_upper_orthant(A):
+    # P[T_A >= c_A] = P[-T_A <= -c_A], Kolassa (2003) eq. (13) with continuity correction
+    A = list(A)
+    neg = spa.MultivariateSaddlePointApprox(cgf_logistic.ldot(-np.eye(3)[A]))
+    return neg.cdf(x=-critical[A].astype(float), delta=1)
+
+
+# Boole's law, i.e., inclusion-exclusion over the joint upper orthants
+subsets = [A for r in (1, 2, 3) for A in itertools.combinations(range(3), r)]
+with spa.Timer("\nSaddle point joint tail probabilities", decimals=3):
+    joint = {A: lattice_upper_orthant(A) for A in subsets}
+boole = 0.0
+for A, p in joint.items():
+    exact = probs[(keys[:, list(A)] >= critical[list(A)]).all(axis=1)].sum()
+    print(f"  P[T_j >= c_j, j in {A}]: saddlepoint {p:.6f}, exact {exact:.6f}")
+    boole += (-1) ** (len(A) + 1) * p
+print(f"Size of the test, Boole's law (lattice Kolassa (2003)): {boole:.5f}")
 print(f"Size of the test, exact P_H0[critical region]: {probs[in_region].sum():.5f}")
-# Note: our Boole sums (about 0.01756 with the first correction, 0.01727 with the second) do not
-# match the 0.01709 reported in the paper, while the exact probability (0.01713) lies within the
-# paper's Monte Carlo interval. It is unclear how the
-# paper computed its Boole figure, so the discrepancy is not resolved here.
 print("Kolassa (2003) reports 0.01709 by Boole's law; Monte Carlo 95% CI (0.01702, 0.01718)")
 
 plt.show()
