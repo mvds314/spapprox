@@ -203,13 +203,130 @@ That is good enough to postpone phase B.
   superior" against Wang; we have not compared against our `"KL"`. The outcome decides
   phase B.
 
-## Phase B outline (only if needed)
+## Phase B: plan and derivation
 
-B1. Derive `g^{jk}` and `g^{jkl}` for general `d` from the nested parametrization; check
-    them against the 2-D formulas in `_kl_tail`.
-B2. Implement the nested constrained minimizers `tau_tilde^j` and the derivatives
-    (2.7)-(2.9).
-B3. Implement `I^∅` with the cubic correction, and the `I^{r}` terms via eq. (3.10).
-B4. Add reflection and inclusion-exclusion. Blend over variable orders for continuity,
-    or find a cheaper symmetrization.
-B5. Validate as in A6 and compare with phase A.
+Goal: `MultivariateSaddlePointApprox.cdf(backend="KL")` for any `d`, the Lugannani-Rice type
+approximation of Kolassa & Li (2010), sections 2-3, generalizing the bivariate `"KL"` code
+(`BivariateSaddlePointApprox._kl_cdf`, `_kl_tail`) so that `d = 2` reproduces it, then use it
+for `d0 >= 3` variables of interest in `conditional_cdf` (F2 of
+`docs/conditional_vector_plan.md`). Notation: `n` absorbed in `K`, `L(tau) = K(tau) - tau.x`,
+one fixed order of the variables `1..d`, all saddlepoint components positive (the orthant is
+reflected, see B4).
+
+### B1. Nested roots and their jets
+
+For a prefix `gamma^k` (first `k` components fixed) let `tau_tilde^k(gamma^k)` minimize `L` over
+the others and `l_k(gamma^k) = L(tau_tilde^k(gamma^k))` (profile; `l_0 = L(tau_hat) =
+-w_hat.w_hat/2`). Then `(w_j - w_hat_j)^2 / 2 = D_j(tau^j) := l_j(tau^j) - l_{j-1}(tau^{j-1})`,
+and `w_tilde_j(w^{j-1}) = w_hat_j - sqrt(2 E_j(tau^{j-1}))`, `E_j(gamma) = l_j(gamma, 0) -
+l_{j-1}(gamma)`. Derivatives of the profiles (implicit function theorem, as in
+`_ConditionalProfile`): gradient `K_a - x_a`, Hessian the Schur complement `H_k = V'K''V`,
+third derivatives `K'''[V, V, V]`, `V = [I; -K_FF^-1 K_Fk]`, `F` the free components, at
+`tau_tilde^k`.
+
+2-jet of `w_k(tau^k)` at `tau_hat^k`, with `s = w_k - w_hat_k`, `s^2/2 = D_k`, `s = 0` there:
+`s_a s_b = D_ab` gives `s_a = H_k[a, k] / sqrt(H_k[k, k])` (the Hessian of `D_k` is the
+rank-one `H_k[:, k] H_k[k, :] / H_k[k, k]`, because `H_{k-1}` is the Schur complement of
+`H_k`). The third derivative gives `s_a s_bc + s_b s_ac + s_c s_ab = D_abc`, solved for the
+symmetric `s_bc` in the order `(k, k)`, `(k, c)`, `(b, c)`, since `s_k > 0`. Here `D_abc =
+l_k''' - l_{k-1}'''` (padded). The inverse map `tau^{j-1}(w^{j-1})` has Jacobian `B =
+(dw/dtau)^-1` (lower triangular) and second derivatives `-B_ik s^(k)_ab B_ap B_bq`.
+
+2-jet of `F_j(gamma) = w_hat_j - sqrt(2 E_j)` at `tau_hat^{j-1}`, with `r = sqrt(2 E_j) =
+w_hat_j - w_check_j`: `E_a = K_a(p_j) - x_a`, `E_ab = H_j(p_j)[<j, <j] - H_{j-1}(tau_hat)`, at
+`p_j = tau_tilde^j(tau_hat^{j-1}, 0)`; `F_a = -E_a / r`, `F_ab = -E_ab / r + E_a E_b / r^3`.
+Then `w_tilde_j` has gradient `c_j = B'F'` and Hessian `B'F''B + sum_a F_a d^2 tau_a / dw^2`
+at `w_hat^{j-1}`. For `d = 2` this is `c = f'/e'`, `d = (f''e' - f'e'')/e'^3` of `_kl_tail`
+(checked term by term).
+
+### B2. The cubic term of `I^∅`
+
+`u_j = w_j - w_tilde_j(w^{j-1})` (`u_1 = w_1`), `w_j = u_j + w_tilde_j(w^{j-1}(u))`, Jacobian
+`dw/du = M` unit lower triangular, `g(u) = w.w/2 - w_hat.w`. At `u_hat` the gradient of `g` in
+`w` vanishes, so `g'' = A = M'M`, and
+
+```
+g_abc = sum_j (M_ja W^j_bc + M_jb W^j_ac + M_jc W^j_ab),
+W^j_ab = d^2 w_j / du_a du_b = sum_{l,m<j} w_tilde_j^{lm} M_la M_mb + sum_{l<j} w_tilde_j^l W^l_ab,
+```
+
+recursively, `W^1 = 0`. Expanding `exp(g)` to third order, a factor `u_a - u_hat_a` is
+`-d/db_a - u_hat_a` applied to `T(b) = P(Z >= b)`, `Z ~ N(0, A)`, `b = A u_hat`:
+
+```
+I^∅ = C [T - 1/6 g_abc (d_a + u_hat_a)(d_b + u_hat_b)(d_c + u_hat_c) T],
+C = exp(-w_hat.w_hat/2 + u_hat'A u_hat/2).
+```
+
+This is `_kolassa_orthant(K=-w_hat.w_hat/2, k2=A, k3=g''', tau=u_hat, tx=0)`, which already
+evaluates it in log-space. For `d = 2`: `g_111 = 3cd`, `g_112 = d`, the formula of `_kl_tail`.
+
+### B3. The other terms, all subsets
+
+`G(tau) = r(tau) prod_j phi_j(tau^j)`, `phi_j = u_j / rho_j(tau_j) * dtau_j/dw_j` (`r = 1` and
+`rho(tau) = tau` unconditional and continuous; the profile weight and `2 sinh(tau delta/2) /
+delta` otherwise), `dtau_j/dw_j = (w_j - w_hat_j) / (K_j(tau_tilde^j) - x_j)`, or
+`1 / sqrt(H_j[j, j])` where `w_j = w_hat_j`. `G = sum_A H^A`, `H^A = sum_{S in A} (-1)^|A-S|
+G(tau^S)`, `h_A = H^A / prod_{j in A} u_j` analytic. The bivariate code keeps all four subsets
+(`I^{1,2}` is needed for a relative error `O(1/n)` at large deviations, and makes it factorize
+under independence). In general, keep all `2^d` subsets, and treat the poles that a term
+does not absorb as in Lugannani-Rice: decompose `h_A` once more over the remaining poles.
+With `P` the set of remaining poles and `B = U \ P`:
+
+```
+J = sum_P N_P a_P,      a_P = sum_{A in B} c_{A, B-A},
+c_{A,R} = sum_{Q in R} (-1)^|R-Q| h_A(tau^(U-(A+Q))) / prod_{j in R} u_j(tau^(P)),
+```
+
+- `N_P` is the Gaussian integral with poles `P` in the coordinates `w_j` (`j in B`) and `u_j`
+  (`j in P`): Jacobian `M_B` (rows `j in B` unit vectors), `A_B = M_B'M_B`, expansion point
+  `(w_hat_B, u_hat_P)`, `b = A_B v_hat`; `N_P = C_B phi(b_B; A_BB) P(Z_P >= b_P | Z_B = b_B)`
+  (density times conditional orthant, log-space via `_mvn_logtail`, the conditional point is
+  the Schur complement times `u_hat_P >= 0`). `N_∅ = prod phi(w_hat_j)`. `N_U` is `I^∅`
+  including the cubic term.
+- `tau^(P)` is the point with `w_j = w_hat_j` for `j` not in `P` and `tau_j = 0` for `j in
+  P`: sequentially `tau_j = 0` (`j in P`) or `tau_j = tau_tilde_j(tau^{j-1})` (property
+  (2.5c)), so no inversion of `tau -> w` is needed. `tau^(∅) = tau_hat`.
+- `u_j(tau) = w_j(tau^j) - w_j(tau^{j-1}, 0)`, computed from the profiles.
+
+For `d = 2` this is exactly `_kl_tail`: `c_{{1}, ∅}` is the factor of `I^{1}`, `c_{{2}, ∅} =
+f_2` (at `tau^({1}) = (0, tau_tilde_2)`), `c_{{1,2}, ∅} + c_{{2}, {1}}` is the bracket of
+`I^{1,2}` plus the remainder of `I^{2}` (the `G(0, tau_hat_2)` terms cancel), and `c_{{1},
+{2}} = 0`. Properties: exact for the normal (`G = 1`, `g` quadratic), the product of the
+Lugannani-Rice marginals under independence (`u = w`, all `A_B = I`, `h_A` depends only on
+`w_A`), `O(1/n)` relative error. Cost: `2^d` points `tau^(P)`, and the profiles at the
+prefixes of the points `tau^S`, memoized by prefix.
+
+Near-equal `w_j ~ w_hat_j` at a point `tau^S` (e.g., near independence) makes `(w_j -
+w_hat_j) / (K_j - x_j)` a 0/0: there, `dw_j / dtau_j = sqrt(S*) (1 + (S(tau_j) - S*) /
+(3 S*))` with `S = H_j[j, j]` along `tau_j` and `S*` at `tau_tilde_j(tau^{j-1})`, error
+`O(delta^2)`.
+
+### B4. Orthants, near-zero components, order blending
+
+- **Reflection/inclusion-exclusion**: the recursion of `_kolassa_cdf`, with the KL tail in
+  every orthant in which the reflected marginal saddlepoint is non-negative. 1-D tails: the
+  Lugannani-Rice cdf (as in 2-D), via the hook `_kl_marginal_cdf`.
+- **Near zero**: Lagrange interpolation in the saddlepoint components with `|t_j| < h_j`, fixed
+  orientation, tensor product, as in `_kl_cdf_ordered`. Intermediate removable singularities
+  (a component of a point `tau^(P)` close to 0, like `tau_tilde_2` in 2-D): interpolate the
+  tail in that component of `t` the same way (the 2-D code interpolates the factor `f_2` in
+  `tau_tilde_2` instead, so `d = 2` differs inside that band only, at the level of the
+  interpolation error).
+- **Blending**: with a fixed order, the approximation is continuous across `t_j = 0` only for
+  the first variable (`w_hat_2..d` are then the nested roots of the marginal of the others).
+  Weight the `d!` orders recursively: the first variable is `j` with weight
+  `omega_j = z_j^-2 / sum_k z_k^-2`, `z_j = t_j sqrt(K''_jj(0))`, and the rest is weighted the
+  same way among the remaining variables. For `d = 2`, `omega_1 = z_2^2 / (z_1^2 + z_2^2)`,
+  the bivariate rule. At `z_j = 0` only orders starting with `j` get weight, and their weights
+  are those of the `(d-1)`-dim approximation of `X_{-j}`, which is the term of the
+  inclusion-exclusion, so the blend is continuous across every hyperplane `t_j = 0`, and it is
+  symmetric (relabeling invariant). Orders with weight below `1e-12` are skipped. Cost: up to
+  `d!` orders (6 for `d = 3`, 24 for `d = 4`).
+
+### B5. Validation
+
+Normal exact (`d = 3, 4`); `d = 2` against `BivariateSaddlePointApprox` `"KL"`; independence
+(product of LR marginals); 3-D gamma with a common component `Z_0 + Z_i` vs quadrature, error
+rate as shape parameters scale by `k`, against `"Kolassa"`; relabeling invariance; continuity
+across `t_j = 0`; reflection consistency.
