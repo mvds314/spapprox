@@ -29,34 +29,31 @@ docstrings plus the `examples/` scripts, and a lean distribution.
 - `statsmodels` is a hard dependency, used only for `PandasWrapper` and `cov2corr`.
 - GitHub issues #1 and #2 can probably be closed (see `docs/TODO.md`).
 
-## Decisions to make first
+## Decisions
 
-1. **Version scheme.** PyPI orders versions by PEP 440, and that order is permanent.
-   - Keep CalVer: release `YY.MM.N` as usual (e.g. `26.12.1`). Nothing changes for
-     the `version-bump` check. "Official" is then a matter of the README and
-     classifiers (`Development Status :: 4 - Beta` or `5 - Production/Stable`).
-   - Switch to SemVer `1.0.0`: this can never go back to CalVer, because `26.x`
-     sorts above `1.x`. The `version-bump` check would need rewriting.
-   - Recommendation: keep CalVer. It is already enforced, and the package has no
-     API-compatibility promise yet that SemVer would express.
-2. **Does every merge to `main` get published?** Recommendation: no. Publish on a
-   GitHub Release (tag `vYY.MM.N`). `main` keeps bumping per PR, and releases are
-   cut when worthwhile.
-3. **sdist contents.** Recommendation: package, `README.md`, `LICENSE`,
-   `CITATION.cff` and `tests/` (downstream packagers such as conda-forge run them).
-   Exclude `docs/`, `examples/`, `.claude/`, `.github/` and the agent instruction
-   files.
-4. **`statsmodels` dependency.** It is heavy for two helpers. Optionally replace
-   `PandasWrapper` with a small wrapper in `util.py` and `cov2corr` with three lines
-   of numpy, then drop the dependency. This is not a release blocker. It is
-   cheap, though, and easier to do before users depend on the install footprint.
+1. **Version scheme: keep CalVer** (`YY.MM.N`, decided). PyPI orders versions by
+   PEP 440 and that order is permanent: after a `26.x` release, a SemVer `1.0.0`
+   would sort below it. The `version-bump` check stays as it is. "Official" is
+   expressed by the README and the classifiers (`Development Status :: 4 - Beta`
+   for now).
+2. **Releases are cut manually on GitHub** (decided), not on every merge to `main`.
+   `main` keeps bumping the version per PR, and a GitHub Release (tag `vYY.MM.N`)
+   is created by hand when worthwhile. Publishing to PyPI is a later step (work
+   package 5).
+3. **sdist contents:** package, `README.md`, `LICENSE`, `CITATION.cff` and `tests/`
+   (downstream packagers such as conda-forge run them). `docs/`, `examples/`,
+   `.claude/`, `.github/` and `CLAUDE.md` are excluded. The wheel contains only the
+   package.
+4. **`statsmodels` dependency.** Open. It is heavy for two helpers (`PandasWrapper`,
+   `cov2corr`), and both are easy to replace. Not a release blocker.
 
 ## Work packages
 
-Each package is one PR (worktree + version bump, as usual). Items 1-4 are
-independent. Item 5 depends on 1 and 2, and item 6 on all the others.
+Each package is one PR (worktree + version bump, as usual). Items 1 and 2 were
+done together with this plan. Items 3 and 4 are independent. Item 6 depends on
+the others, except the PyPI part of item 5.
 
-### 1. Packaging and metadata (`pyproject.toml`)
+### 1. Packaging and metadata (`pyproject.toml`) -- done
 
 - `license = "BSD-3-Clause"` (SPDX string) plus `license-files = ["LICENSE"]`.
   This needs `flit_core >=3.12`, so bump the build requirement.
@@ -83,7 +80,7 @@ independent. Item 5 depends on 1 and 2, and item 6 on all the others.
 - Verify: `python -m build`, then `twine check dist/*`, then list the contents of
   both artifacts, then install the wheel into a clean venv and `import spapprox`.
 
-### 2. README cleanup
+### 2. README cleanup -- done
 
 - Remove "UNDER CONSTRUCTION". Fix the "to be implemented" list: conditional
   distributions are done, quotients are not.
@@ -128,19 +125,17 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
   examples cannot go stale again. Drop the "untested and partly stale" warnings
   from `CLAUDE.md` and the skill once this is in.
 
-### 5. CI and release workflow
+### 5. CI and publishing (later)
 
-- Test matrix: Python 3.11, 3.12 and 3.13 on the fast suite. Optionally add a
-  job with all extras (`findiff`, `fastnorm`).
+- Test matrix: Python 3.11-3.14 on the fast suite (the classifiers already claim
+  these). Optionally add a job with all extras (`findiff`, `fastnorm`).
 - A `build` job on every PR: `python -m build` plus `twine check`.
-- `.github/workflows/release.yml`, triggered on `release: published`: build, then
-  publish with `pypa/gh-action-pypi-publish` and PyPI **trusted publishing**
-  (OIDC, so no API token is stored). Use a protected `pypi` environment. Optionally
-  publish to TestPyPI first, or on `workflow_dispatch`.
-- A check that the release tag matches the version in `pyproject.toml`.
-- One-time manual setup: create the PyPI (and TestPyPI) project as a pending
-  trusted publisher for `mvds314/spapprox`, workflow `release.yml`, environment
-  `pypi`.
+- Later, a PyPI publishing workflow triggered by a manually created GitHub Release
+  (`release: published`). It would use `pypa/gh-action-pypi-publish` with PyPI
+  trusted publishing (OIDC, so no API token is stored) and a protected `pypi`
+  environment, and check that the tag matches the version in `pyproject.toml`.
+- Until then, build locally (`python -m build`) and attach the wheel and sdist to
+  the GitHub Release by hand.
 
 ### 6. Release readiness and cut
 
@@ -153,10 +148,10 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
 - Update `CITATION.cff`: version, date and URL.
 - Close issues #1 and #2.
 - Run the full suite locally (`pytest`, ~16 min) and `ruff check .`.
-- Dry run on TestPyPI, then `pip install` from TestPyPI into a clean venv, then
-  run the README quick start.
-- Create the GitHub Release `vYY.MM.N` with release notes. This publishes to
-  PyPI. Afterwards, check the PyPI page rendering and `pip install spapprox`.
+- Build locally, install the wheel into a clean venv, and run the README quick
+  start.
+- Create the GitHub Release `vYY.MM.N` by hand, with release notes and the built
+  artifacts attached. Publishing to PyPI comes later (item 5).
 
 ## Out of scope for the first release
 
