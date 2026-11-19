@@ -817,7 +817,8 @@ def test_conditional_vector_lattice_multinomial():
     x = np.array([[1, 2], [2, 3], [3, 4], [4, 2]], dtype=float)
     pmf = lambda a, b: sps.multinomial.pmf([a, b, s - a - b], s, lams / lams.sum())
     exact = [sum(pmf(a, b) for a in range(u + 1) for b in range(v + 1)) for u, v in x.astype(int)]
-    # The relative error is O(1/s): at (1, 2) it is -1.5%, and -0.5% at (4, 8) for s = 48
+    # The relative error is O(1/s) and about the sum of the errors of the conditional marginal
+    # approximations: at (1, 2) it is -1.5%, where those of the marginals add up to -1.4%
     assert np.allclose(spa.conditional_cdf(x, [s], i=[0, 1], delta=1), exact, rtol=2e-2)
     # Without the lattice correction the approximation is bad
     assert not np.allclose(spa.conditional_cdf(x, [s], i=[0, 1]), exact, rtol=0.2)

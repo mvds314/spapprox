@@ -1002,8 +1002,10 @@ Or into a separate model, e.g., bootstrap.py
     together with the remainder of `I^{2}`, which evaluates `H^{2}` at `w1 = 0`. Now equal
     to the product of the Lugannani-Rice marginals for independent components, and O(1/n) at
     large deviations for dependent ones. Dirichlet Table 3 errors: -1.1/-12.8/-12/-12% ->
-    +1.0/+3.5/+3.4/+3.4%. The conditional lattice multinomial test is slightly worse at
-    s = 12 (-1.5% at (1, 2), was +0.5%), but now converges at O(1/s), the old one did not.
+    +1.0/+3.5/+3.4/+3.4%. On the conditional lattice multinomial test the error at s = 12 is
+    -1.5% at (1, 2), was +0.5%: it is now about the sum of the errors of the conditional
+    marginals (-1.4%), which the old version partly cancelled by accident. It converges at
+    O(1/s), the old one did not (+1.7% at s = 192).
     `_bvn_tail_derivatives` now uses the log-scale tail whenever `A^{-1} b >= 0`, the normal
     cdfs lost relative accuracy in small tails
   - non-linear conditioning `Z = g(X, Y)`: phase G, Wang (1993). Lower priority
