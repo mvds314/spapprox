@@ -970,17 +970,23 @@ All the funtionality in this package should make the results achieved in most pa
 
 These would go into cgfs.py
 
-- add asymmetric laplace?
-- add generalized normal distribution
-- add asymmetric generalized normal distribution
+- [x] add asymmetric laplace: `asymmetric_laplace`
+- [x] add generalized normal distribution: `generalized_normal`, the cgf by quadrature, `beta >= 1`;
+  exact for `beta` 1 (Laplace) and 2 (normal, split normal in the asymmetric version)
+- [x] add asymmetric generalized normal distribution: `asymmetric_generalized_normal`, the
+  asymmetric exponential power version (shape and scale per side). Hosking's log-normal-type
+  skewed version is not possible: its cgf is infinite on one side of zero
 - add Cheriyan and Ramabhadran's multivariate gamma distribution (Kotz 2000)
-- add Jensen's multivariate Gamma (See Butler 2007, page 77)
-- multinomial distribution (see Butler 2007, page 80)
-- add bivariate poisson distribution (see Butler 2007, page 81)
+- [x] add Jensen's multivariate Gamma (See Butler 2007, page 77): `jensen_multivariate_gamma`;
+  the domain is declared as the linear outer bound `t_i < 1/sigma_ii`, K is NaN beyond the
+  positive definiteness boundary
+- [x] multinomial distribution (see Butler 2007, page 80): `multinomial`, cgf of the first k-1 counts
+- [x] add bivariate poisson distribution (see Butler 2007, page 81): `bivariate_poisson`
 - add multivariate exponential as special case of gamma
 - also see Butler 2007, page 90 for higher order expansions
 - add multinomial bootstrap of the mean
-- see the exercise in Butler for negative binomial distribution, and multivariate logistic distribution
+- [x] negative binomial distribution: `negative_binomial`
+- see the exercise in Butler for the multivariate logistic distribution
 
 ## Applications
 

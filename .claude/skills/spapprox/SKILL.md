@@ -43,7 +43,7 @@ spapprox/
 +-- diff.py       (569 loc)   numerical differentiation via findiff
 +-- domain.py     (587 loc)   Domain: where K is finite
 +-- cgf_base.py  (1919 loc)   CGF base + Univariate/Multivariate classes  <- the heart
-+-- cgfs.py       (276 loc)   concrete distribution factories
++-- cgfs.py       (830 loc)   concrete distribution factories
 +-- spa.py        (799 loc)   the saddle point approximation classes
 `-- __init__.py               public API re-exports
 tests/            test_cgfs, test_mvar_cgfs, test_diff, test_domain, test_spa
@@ -56,9 +56,13 @@ Dependencies run strictly one way:
 
 Public API (`spapprox/__init__.py`): the two CGF classes, `Domain`, the five
 approximation classes, `Timer`, and the distribution factories `norm`,
-`multivariate_norm`, `exponential`, `gamma`, `bivariate_gamma`, `chi2`,
-`laplace`, `poisson`, `bernoulli`, `binomial`, `univariate_empirical`,
-`univariate_sample_mean`.
+`multivariate_norm`, `exponential`, `gamma`, `bivariate_gamma`,
+`jensen_multivariate_gamma`, `chi2`, `laplace`, `asymmetric_laplace`,
+`generalized_normal`, `asymmetric_generalized_normal`, `poisson`, `bernoulli`, `binomial`, `negative_binomial`,
+`multinomial`, `bivariate_poisson`, `univariate_empirical`,
+`univariate_sample_mean`. The (asymmetric) generalized normal has no closed-form cgf except for
+shapes 1 and 2, and otherwise evaluates it by quadrature (slow per point); `jensen_multivariate_gamma` has a non-linear
+domain, declared as its linear outer bound with `K` NaN beyond it.
 
 ## The typical flow
 

@@ -4,14 +4,21 @@ from .cgf_base import (  # noqa: F401
 )
 
 from .cgfs import (  # noqa: F401
+    asymmetric_generalized_normal,
+    asymmetric_laplace,
     bernoulli,
     binomial,
     bivariate_gamma,
+    bivariate_poisson,
     chi2,
     exponential,
     gamma,
+    generalized_normal,
+    jensen_multivariate_gamma,
     laplace,
+    multinomial,
     multivariate_norm,
+    negative_binomial,
     norm,
     poisson,
     univariate_empirical,
