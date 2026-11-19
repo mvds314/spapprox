@@ -26,7 +26,7 @@ pip install git+https://github.com/mvds314/spapprox.git
 
 - `numdiff`: [numdifftools](https://pypi.org/project/numdifftools/), the default numerical
   differentiation backend, used when a cgf has no analytic derivatives.
-- `findiff`: [findiff](https://pypi.org/project/findiff/) (>= 0.11), a faster finite
+- `findiff`: [findiff](https://pypi.org/project/findiff/) (>= 0.11), an alternative finite
   difference backend.
 - `fastnorm`: [fastnorm](https://pypi.org/project/fastnorm/), for faster bivariate normal
   cdf evaluation.
@@ -165,7 +165,7 @@ standalone scripts. They need `matplotlib`.
 
 | Script | Shows |
 |---|---|
-| [`basic_example.py`](https://github.com/mvds314/spapprox/blob/main/examples/basic_example.py), [`expon_example.py`](https://github.com/mvds314/spapprox/blob/main/examples/expon_example.py) | pdf and cdf of simple distributions |
+| [`basic_example.py`](https://github.com/mvds314/spapprox/blob/main/examples/basic_example.py) | pdf and cdf of the normal and exponential distributions |
 | [`example_sum_random_variables.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_sum_random_variables.py) | sum of independent random variables |
 | [`example_parametric_bootstrap.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_parametric_bootstrap.py) | distribution of a sample mean |
 | [`example_nonparametric_bootstrap.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_nonparametric_bootstrap.py) | bootstrap of the mean without resampling |
@@ -175,6 +175,7 @@ standalone scripts. They need `matplotlib`.
 | [`example_bootstrap_regression.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_bootstrap_regression.py) | bootstrap of regression coefficients (vector estimating equation) |
 | [`example_jackknife_estimating_equation.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_jackknife_estimating_equation.py) | delete-m jackknife |
 | [`example_permutation_one_sample.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_permutation_one_sample.py), [`example_permutation_two_sample.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_permutation_two_sample.py) | permutation tests |
+| [`example_numdiff_backends.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_numdiff_backends.py) | numerical derivatives of a cgf with `numdifftools` and `findiff` |
 | [`example_Wang1990.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_Wang1990.py), [`example_Kolassa2003.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_Kolassa2003.py) | bivariate and multivariate cdf, reproducing published tables |
 
 ## Limitations and future work

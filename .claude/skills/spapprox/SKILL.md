@@ -47,7 +47,7 @@ spapprox/
 +-- spa.py        (799 loc)   the saddle point approximation classes
 `-- __init__.py               public API re-exports
 tests/            test_cgfs, test_mvar_cgfs, test_diff, test_domain, test_spa
-examples/         standalone matplotlib demo scripts (not part of the test suite)
+examples/         standalone matplotlib demo scripts, smoke tested by test_examples
 ```
 
 Dependencies run strictly one way:
@@ -247,6 +247,7 @@ pytest tests/test_diff.py                       # one file
 pytest tests/test_spa.py::test_name             # one test
 pytest -m "not slow"                            # skip slow tests
 pytest -m "not tofix"                           # skip known-broken tests
+pytest -m examples                              # run the examples/ scripts
 ruff check .                                    # line-length 99
 ```
 
@@ -287,10 +288,10 @@ tolerance.
   become `fillna` (default `np.nan`), and several internal callers deliberately
   pass `fillna=0` during integration. Preserve the parameter when wrapping or
   overriding evaluation methods.
-- **`examples/` is untested and partly stale** -- `example_findiff.py`,
-  `example_findiff_multivariate.py` and `example_gen_lin_opr.py` still use the
-  deprecated `FinDiff` API. Do not treat them as behavioral references, and note
-  they need `matplotlib`, which is not a declared dependency.
+- **`examples/` is only smoke tested** -- `tests/test_examples.py` (markers `slow`
+  and `examples`, `pytest -m examples`) checks that each script runs, not its
+  numbers, and the Examples workflow runs them after every merge into `main`. They
+  need `matplotlib`, which is not a declared dependency.
 - **Multivariate support is incomplete by design, not by accident.** Some
   methods raise `NotImplementedError` (e.g. the `"KL"` cdf with mixed lattice and continuous
   spans). The

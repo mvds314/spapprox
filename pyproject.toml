@@ -1,7 +1,7 @@
 [project]
 name = "spapprox"
 description = "Saddle point approximations of distributions from their cumulant generating functions"
-version = "26.11.32"
+version = "26.11.33"
 authors = [{ name = "Martin van der Schans" }]
 readme = "README.md"
 license = "BSD-3-Clause"
@@ -68,4 +68,5 @@ ignore = [
 markers = [
   "slow: marks tests as slow (deselect with '-m \"not slow\"')",
   "tofix: marks tests as to be fixed (deselect with '-m \"not tofix\"')",
+  "examples: runs the scripts in examples/ (select with '-m examples', needs matplotlib)",
 ]
