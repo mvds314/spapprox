@@ -24,6 +24,11 @@ def _api():
         if inspect.isclass(obj):
             for member, owner in _public_members(obj):
                 raw = inspect.getattr_static(obj, member)
+                # Plain data attributes (e.g. ``delta = None``) cannot carry a docstring
+                if not isinstance(raw, (staticmethod, classmethod, property, type)) and not (
+                    inspect.isfunction(raw)
+                ):
+                    continue
                 yield f"{name}.{member} (defined in {owner.__name__})", raw
 
 
