@@ -173,7 +173,12 @@ solves the joint saddlepoints with warm starts (`_grid_saddles`, validated by
 `dK(t) == x`), and memoizes marginal saddlepoints and cdfs through `_memoized` /
 `_fit_memo` (set only during the fit). Failed or out-of-`[0, 1]` values are filled with
 the max over the lower neighbours. About 35 s for a bivariate fit at the default grid.
-Plan: `docs/multivariate_fit_cdf_plan.md`.
+Plan: `docs/multivariate_fit_cdf_plan.md`. `fit_cdf(delta=)` tabulates what
+`cdf(x, delta=)` returns (the smooth corrected approximation, saddlepoints solved on the
+shifted grid) on the usual grid, no lattice origin needed; stored in `_cdf_delta_cache`, and
+`cdf` uses the table only for the same backend and `delta` (`_uses_cdf_table`). `cdf` routes
+through `_lattice_spans` (parse, all-zero -> `None`, backend in `_lattice_backends`),
+`_cdf_evaluator(backend, delta)` (offset, object, kwargs) and `_direct_cdf`.
 
 ## Sample mean
 
@@ -243,14 +248,14 @@ invariant. Error $O(n^{-1})$, about 1.5x that of `"KL"` in 2-D. Independent comp
 do not give the product of the 1-D results (eq. (5) adds the cubic corrections), the
 difference is $O(n^{-1})$.
 
-`cdf(x, delta=...)` (`"Kolassa"` only, `_lattice_kolassa_cdf`): lattice spans, scalar or per
+`cdf(x, delta=...)` (`"Kolassa"`; bivariate also `"KL"`, `"Wang"`): lattice spans, scalar or per
 component, `None`/0 for continuous components, so lattice and continuous components may be
 mixed (`_parse_delta`). Evaluated at $\mathbf{x}+\delta/2$; `_kolassa_orthant(..., delta=)`
 applies eq. (13): the factor $\prod_j\hat\tau_j/\rho_j(\hat\tau_j)$ and the linear term
 $-\sum_j a_j(\partial_j+\hat\tau_j)T$, $a_j=1/\hat\tau_j-(\delta_j/2)\coth(\hat\tau_j\delta_j/2)$
 (`_lattice_factors`, series for small $\tau\delta$). The recursion is unchanged in corrected
 coordinates. Reproduces Boole's law 0.01709 of Kolassa (2003) section 5 (example 2 of
-`examples/example_Kolassa2003.py`). The `fit_cdf` table is not used with `delta`. Plan:
+`examples/example_Kolassa2003.py`). `fit_cdf(delta=)` tabulates it. Plan:
 `docs/multivariate_lattice_cdf_plan.md`, including when a component counts as continuous.
 
 `spapprox/mvn.py` holds the numerics: `_mvn_logtail` (normal orthant probability
@@ -270,15 +275,20 @@ evaluation. The $\mathbf{t} \approx 0$ singularity is handled by averaging
 evaluations at $\pm 10^{-7}$ rather than by a closed-form limit.
 
 **Lattice:** `BivariateSaddlePointApprox.cdf(x, delta=span)` (scalar or per component,
-`backend="KL"`, or `"Kolassa"` which forwards to the multivariate path; `x` on the lattice)
-solves the saddle point at $\mathbf{x}+\delta/2$ and
-runs `_LatticeBivariateApprox` (cached per `delta` in `_lattice_cache`), which sets
-`self.delta`: `_rho` replaces $\tau_j$ by $2\sinh(\tau_j\delta_j/2)/\delta_j$ in
-`_kl_first_factor` / `_kl_marginal_factor`, and `_kl_marginal_cdf` uses the univariate lattice
-cdf, Kolassa and Li (2010) Section 3. `_ConditionalBivariateApprox` shares these hooks.
-Independent Poissons (3, 4) at (2, 3): 0.181 vs exact 0.183. Mixed `delta` raises
-`NotImplementedError` for `"KL"`, all-zero `delta` is the continuous cdf. `fit_cdf` and
-`"Wang"` reject `delta`.
+`None`/0 entries continuous, so mixed is allowed for every backend; `x` on the lattice).
+`_cdf_evaluator` picks the shift and object: `"KL"` solves the saddle point at
+$\mathbf{x}+\delta/2$ and runs `_LatticeBivariateApprox` (cached per `delta` in
+`_lattice_cache`), which sets `self.delta`: `_rho` replaces $\tau_j$ by
+$2\sinh(\tau_j\delta_j/2)/\delta_j$ in `_kl_first_factor` / `_kl_marginal_factor` / $I^{\{1,2\}}$,
+and `_kl_marginal_cdf` uses the univariate lattice cdf, Kolassa and Li (2010) Section 3;
+continuous components (`delta[k] == 0`) keep $\tau$ and the plain LR marginal.
+`_ConditionalBivariateApprox` shares these hooks. `"Wang"` runs the same object at
+$\mathbf{x}+\delta$ with `_wang_rho` $=(1-e^{-t\delta})/\delta$ in $u,\tilde u$ of
+`_bivariate_formula` (Wang 1990 Thms 2-3; like univariate `correction=1`; the axis limit gets
+$-\delta/(2\sqrt{K_{ii}})$). `"Kolassa"` forwards to the multivariate path. Independent
+Poissons (3, 4) at (2, 3): KL 0.181, Wang 0.1835 vs exact 0.183. Wang is less accurate under
+dependence (4% on the Kolassa-Li binomial sums vs 0.1% for KL). All-zero `delta` is the
+continuous cdf.
 
 ## Estimating equations
 
