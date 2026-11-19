@@ -172,7 +172,24 @@ def _multiplicity(R):
     return math.factorial(len(R)) // math.prod(math.factorial(c) for c in counts)
 
 
-def _kolassa_orthant(K, k2, k3, tau, tx):
+def _lattice_factors(tau, delta):
+    r"""
+    The factor :math:`\tau/\rho(\tau)` and the coefficient
+    :math:`a(\tau)=1/\tau-\rho'(\tau)/\rho(\tau)=1/\tau-(\delta/2)\coth(\tau\delta/2)` of
+    Kolassa (2003) eq. (13), with :math:`\rho(\tau)=2\sinh(\tau\delta/2)/\delta` for a
+    lattice with span :math:`\delta`. For :math:`\delta=0`, a continuous variable, they are 1
+    and 0. Series expansions are used for small :math:`\tau\delta`.
+    """
+    z = np.asarray(tau, dtype=float) * np.asarray(delta, dtype=float) / 2
+    small = np.abs(z) < 1e-3
+    zs = np.where(small, 1.0, z)
+    fac = np.where(small, 1 - z**2 / 6 + 7 * z**4 / 360, zs / np.sinh(zs))
+    # a = (delta / 2) (1/z - coth(z)), with 1/z - coth(z) = -z/3 + z^3/45 - ...
+    g = np.where(small, -z / 3 + z**3 / 45, 1 / zs - 1 / np.tanh(zs))
+    return fac, np.asarray(delta, dtype=float) / 2 * g
+
+
+def _kolassa_orthant(K, k2, k3, tau, tx, delta=None):
     r"""
     Kolassa (2003) eq. (5): the approximation of :math:`P(\mathbf{X}\geq\mathbf{x})`
     for a random vector with cumulant generating function :math:`K`, when all
@@ -197,6 +214,17 @@ def _kolassa_orthant(K, k2, k3, tau, tx):
     normal distribution, and is not singular when components of :math:`\hat\tau` are
     zero.
 
+    For components on lattices with spans :math:`\delta_j`, evaluated at the continuity
+    corrected point, eq. (13) of Kolassa (2003) replaces :math:`1/\tau_j` in the inversion
+    integrand by :math:`1/\rho_j(\tau_j)`, with
+    :math:`\rho_j(\tau)=2\sinh(\tau\delta_j/2)/\delta_j`. Expanding
+    :math:`\tau_j/\rho_j(\tau_j)` to first order around :math:`\hat\tau_j` multiplies the
+    approximation by :math:`\prod_j\hat\tau_j/\rho_j(\hat\tau_j)` and adds
+    :math:`-\sum_j a_j(\partial_j+\hat\tau_j)T` within the brackets, with
+    :math:`a_j=1/\hat\tau_j-(\delta_j/2)\coth(\hat\tau_j\delta_j/2)`, see
+    :func:`_lattice_factors`. A continuous component has :math:`\delta_j=0`, factor 1 and
+    :math:`a_j=0`, so that components may be mixed.
+
     Parameters
     ----------
     K : float
@@ -209,6 +237,8 @@ def _kolassa_orthant(K, k2, k3, tau, tx):
         The saddlepoint :math:`\hat\tau\geq 0`.
     tx : float
         :math:`\hat\tau\cdot\mathbf{x}`.
+    delta : array_like, optional
+        Lattice spans, 0 for continuous components. ``None`` means all continuous.
     """
     tau = np.asarray(tau, dtype=float)
     d = len(tau)
@@ -233,4 +263,8 @@ def _kolassa_orthant(K, k2, k3, tau, tx):
             cubic += 3 * mult * M[R] * D[R]
         else:
             cubic += mult * k3[R] * D[R]
-    return D[()] - cubic / 6
+    if delta is None or not np.any(delta):
+        return D[()] - cubic / 6
+    fac, a = _lattice_factors(tau, delta)
+    linear = sum(a[j] * (D[(j,)] + tau[j] * D[()]) for j in range(d))
+    return np.prod(fac) * (D[()] - linear - cubic / 6)

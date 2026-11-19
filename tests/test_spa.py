@@ -32,7 +32,7 @@ from spapprox import (
     univariate_sample_mean,
 )
 from spapprox.domain import Domain
-from spapprox.mvn import _mvn_logtail, _mvn_tail_derivatives
+from spapprox.mvn import _lattice_factors, _mvn_logtail, _mvn_tail_derivatives
 from spapprox.spa import _bvn_tail_derivatives
 
 
@@ -1060,11 +1060,109 @@ def test_mvar_cdf_rejects_delta(backend):
     # delta used to be forwarded to the saddle point solver, which failed misleadingly
     cgf = MultivariateCumulantGeneratingFunction.from_univariate(poisson(3), poisson(4))
     spa = BivariateSaddlePointApprox(cgf)
-    if backend != "KL":
+    if backend == "Wang":
         with pytest.raises(NotImplementedError, match="delta"):
             spa.cdf(x=np.array([2.0, 3.0]), backend=backend, delta=1)
     with pytest.raises(NotImplementedError, match="delta"):
         spa.fit_cdf(backend=backend, delta=1)
+
+
+def _shared_poisson_exact_cdf(x, lams):
+    # X_j = N_j + N_0, N independent Poisson(lams), lams[0] the shared component
+    n0 = np.arange(int(min(x)) + 1)
+    p0 = sps.poisson(lams[0]).pmf(n0)
+    return sum(p * np.prod(sps.poisson(lams[1:]).cdf(x - n)) for n, p in zip(n0, p0))
+
+
+def test_mvar_lattice_cdf_poisson_sum():
+    # Trivariate Poisson sums with a shared component: relative error O(1/n), Kolassa (2003)
+    # eq. (13). Independent components (lams[0] = 0) are not the product of the 1-D results,
+    # as eq. (5) adds the cubic corrections of the components
+    errs = []
+    for k in [1, 4]:
+        for shared in [1.0, 0.0]:
+            lams = np.array([shared, 1.0, 1.5, 2.0]) * k
+            A = np.vstack([[1, 1, 1], np.eye(3)])
+            spa = MultivariateSaddlePointApprox(_poisson_sum(lams, A))
+            mean = A.T @ lams
+            x = np.floor(mean * np.array([[0.6, 0.7, 0.8], [1, 1, 1], [1.3, 0.8, 1.2]]))
+            got = spa.cdf(x=x, delta=1)
+            exact = [_shared_poisson_exact_cdf(xx, lams) for xx in x]
+            errs.append(np.max(np.abs(got / exact - 1)))
+    # The largest error, -11%, is for independent components at the small counts (0, 1, 1)
+    assert max(errs[:2]) < 0.12
+    assert errs[2] < errs[0] / 2.5 and errs[3] < errs[1] / 2.5
+    # Without the continuity correction the approximation is bad
+    assert not np.allclose(spa.cdf(x=x), exact, rtol=0.1)
+
+
+def test_mvar_lattice_cdf_mixed():
+    # X1 = N0 + N1 on a lattice, X2 = N0 + G continuous, with N0, N1 Poisson and G gamma
+    errs = []
+    for k in [1, 4]:
+        l0, l1, a = 2.0 * k, 3.0 * k, 4.0 * k
+        cgf = MultivariateCumulantGeneratingFunction.from_univariate(
+            poisson(l0), poisson(l1), gamma(a=a)
+        ).ldot([[1, 1, 0], [1, 0, 1]])
+        spa = MultivariateSaddlePointApprox(cgf)
+        mean = cgf.dK0
+        x = np.array([[np.floor(mean[0] * f), mean[1] * g] for f, g in [(0.7, 0.8), (1.3, 0.8)]])
+        n = [np.arange(int(xx[0]) + 1) for xx in x]
+        exact = [
+            np.sum(
+                sps.poisson(l0).pmf(m)
+                * sps.poisson(l1).cdf(xx[0] - m)
+                * sps.gamma(a).cdf(xx[1] - m)
+            )
+            for m, xx in zip(n, x)
+        ]
+        errs.append(np.max(np.abs(spa.cdf(x=x, delta=[1, None]) / exact - 1)))
+    assert errs[0] < 0.03 and errs[1] < errs[0] / 2.5
+    # Continuous across the marginal mean of the continuous component
+    vals = [spa.cdf(x=[x[0, 0], mean[1] + d], delta=[1, 0]) for d in [-1e-6, 0, 1e-6]]
+    assert np.allclose(vals, vals[1], atol=1e-6)
+    # The bivariate class forwards to the same approximation; "KL" has no mixed version
+    bspa = BivariateSaddlePointApprox(cgf)
+    assert bspa.cdf(x=x[0], delta=[1, 0], backend="Kolassa") == pytest.approx(
+        spa.cdf(x=x[0], delta=[1, 0]), rel=1e-12
+    )
+    with pytest.raises(NotImplementedError, match="Kolassa"):
+        bspa.cdf(x=x[0], delta=[1, 0])
+    # Zero spans: the continuous approximation
+    assert spa.cdf(x=x[0], delta=0) == spa.cdf(x=x[0])
+
+
+def test_mvar_lattice_cdf_kolassa_2003_boole():
+    # Kolassa (2003) section 5: Boole's law over the joint upper orthants, 0.01709
+    Z = np.array(
+        [[-1, -1, 0], [-1, 0, -1], [-1, 1, 0], [0, -1, -1], [0, -1, 0], [0, 0, 0], [0, 0, 1],
+         [0, 1, 0], [0, 1, 1], [1, -1, 0], [1, -1, 1], [1, 0, -1], [1, 0, 0], [1, 0, 1],
+         [1, 1, 0], [1, 1, 1]]
+    )  # fmt: skip
+    m = [1, 1, 1, 2, 6, 14, 10, 12, 4, 3, 1, 1, 4, 1, 1, 1]
+    c = np.array([10.0, 10.0, 13.0])
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(
+        *[binomial(n=mj, p=0.5) for mj in m]
+    ).ldot(Z.T)
+    boole = 0.0
+    for r in (1, 2, 3):
+        for A in itertools.combinations(range(3), r):
+            neg = MultivariateSaddlePointApprox(cgf.ldot(-np.eye(3)[list(A)]))
+            boole += (-1) ** (r + 1) * neg.cdf(x=-c[list(A)], delta=1)
+    assert boole == pytest.approx(0.01709, abs=5e-6)
+
+
+def test_mvar_lattice_cdf_input_validation():
+    spa = MultivariateSaddlePointApprox(_poisson_sum([1.0, 2.0, 3.0], np.eye(3)))
+    x = np.array([1.0, 2.0, 3.0])
+    with pytest.raises(ValueError, match="non-negative"):
+        spa.cdf(x=x, delta=[1, -1, 1])
+    with pytest.raises(ValueError, match="length"):
+        spa.cdf(x=x, delta=[1, 1])
+    # The series for small tau delta matches the closed form
+    z = np.array([1 - 1e-9, 1 + 1e-9]) * 2e-3
+    fac, a = _lattice_factors(z, 1.0)
+    assert np.allclose(fac[0], fac[1], rtol=1e-12) and np.allclose(a[0], a[1], rtol=1e-8)
 
 
 def test_bvar_lattice_cdf_independent_poisson():
@@ -1080,8 +1178,8 @@ def test_bvar_lattice_cdf_independent_poisson():
     assert np.allclose(
         BivariateSaddlePointApprox(cgf2).cdf(x=2 * x, delta=2), spa.cdf(x=x, delta=1)
     )
-    with pytest.raises(ValueError):
-        spa.cdf(x=x[0], delta=0)
+    # Zero spans: the continuous approximation
+    assert spa.cdf(x=x[0], delta=0) == spa.cdf(x=x[0])
 
 
 def test_bvar_lattice_cdf_kolassa_li_table2():

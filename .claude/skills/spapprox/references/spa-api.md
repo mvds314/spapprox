@@ -239,7 +239,19 @@ P_A^{\sigma'}$, solving the marginal saddlepoint equations of the subvectors. Th
 1-D base case is also eq. (5) (Robinson-type), not Lugannani-Rice: that makes the
 approximation exactly continuous across $\hat\tau_j = 0$; LR would jump by
 $O(n^{-1})$. It has no singularities, is exact for the normal, and is permutation
-invariant. Error $O(n^{-1})$, about 1.5x that of `"KL"` in 2-D.
+invariant. Error $O(n^{-1})$, about 1.5x that of `"KL"` in 2-D. Independent components
+do not give the product of the 1-D results (eq. (5) adds the cubic corrections), the
+difference is $O(n^{-1})$.
+
+`cdf(x, delta=...)` (`"Kolassa"` only, `_lattice_kolassa_cdf`): lattice spans, scalar or per
+component, `None`/0 for continuous components, so lattice and continuous components may be
+mixed (`_parse_delta`). Evaluated at $\mathbf{x}+\delta/2$; `_kolassa_orthant(..., delta=)`
+applies eq. (13): the factor $\prod_j\hat\tau_j/\rho_j(\hat\tau_j)$ and the linear term
+$-\sum_j a_j(\partial_j+\hat\tau_j)T$, $a_j=1/\hat\tau_j-(\delta_j/2)\coth(\hat\tau_j\delta_j/2)$
+(`_lattice_factors`, series for small $\tau\delta$). The recursion is unchanged in corrected
+coordinates. Reproduces Boole's law 0.01709 of Kolassa (2003) section 5 (example 2 of
+`examples/example_Kolassa2003.py`). The `fit_cdf` table is not used with `delta`. Plan:
+`docs/multivariate_lattice_cdf_plan.md`, including when a component counts as continuous.
 
 `spapprox/mvn.py` holds the numerics: `_mvn_logtail` (normal orthant probability
 in log-space with **relative** accuracy, via Genz's separation of variables and a
@@ -258,13 +270,15 @@ evaluation. The $\mathbf{t} \approx 0$ singularity is handled by averaging
 evaluations at $\pm 10^{-7}$ rather than by a closed-form limit.
 
 **Lattice:** `BivariateSaddlePointApprox.cdf(x, delta=span)` (scalar or per component,
-`backend="KL"` only; `x` on the lattice) solves the saddle point at $\mathbf{x}+\delta/2$ and
+`backend="KL"`, or `"Kolassa"` which forwards to the multivariate path; `x` on the lattice)
+solves the saddle point at $\mathbf{x}+\delta/2$ and
 runs `_LatticeBivariateApprox` (cached per `delta` in `_lattice_cache`), which sets
 `self.delta`: `_rho` replaces $\tau_j$ by $2\sinh(\tau_j\delta_j/2)/\delta_j$ in
 `_kl_first_factor` / `_kl_marginal_factor`, and `_kl_marginal_cdf` uses the univariate lattice
 cdf, Kolassa and Li (2010) Section 3. `_ConditionalBivariateApprox` shares these hooks.
-Independent Poissons (3, 4) at (2, 3): 0.181 vs exact 0.183. `fit_cdf`, `"Wang"`,
-`"Kolassa"` and $d>2$ reject `delta` (`_reject_lattice`).
+Independent Poissons (3, 4) at (2, 3): 0.181 vs exact 0.183. Mixed `delta` raises
+`NotImplementedError` for `"KL"`, all-zero `delta` is the continuous cdf. `fit_cdf` and
+`"Wang"` reject `delta`.
 
 ## Estimating equations
 

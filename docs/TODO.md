@@ -826,7 +826,7 @@ Contract violations and silently wrong results in narrower situations.
 - **Fix:** `cdf` and `fit_cdf` take an explicit `delta=None` and raise a clear
   `NotImplementedError` otherwise, until the lattice cdf below is implemented. Regression test:
   `test_mvar_cdf_rejects_delta`. The bivariate `"KL"` cdf now supports `delta` (see the lattice
-  items); `"Wang"`, `"Kolassa"`, `fit_cdf` and `d > 2` still raise.
+  items), and so does `"Kolassa"` in any dimension; `"Wang"` and `fit_cdf` still raise.
 
 ---
 
@@ -1034,7 +1034,9 @@ Or into a separate model, e.g., bootstrap.py
     phase A turns out not to be accurate enough
   - [x] `fit_cdf` for the multivariate case: tabulates the cdf on a tensor grid in `x` and
     interpolates (PCHIP by default), see `docs/multivariate_fit_cdf_plan.md`
-  - lattice variables: continuity-corrected version of Kolassa (2003) eq. (13)
+  - [x] lattice variables: continuity-corrected version of Kolassa (2003) eq. (13),
+    `MultivariateSaddlePointApprox.cdf(x, delta=...)`, any dimension, also mixed lattice and
+    continuous components, see `docs/multivariate_lattice_cdf_plan.md`
   - [x] bivariate `"KL"` and `"Wang"` cdf returned NaN, plus `invalid value in sqrt` warnings,
     in `examples/example_Wang1990.py`, e.g. cells (x=0, y=1.0) and (x=-1.0, y=0.0). Cause: `x`
     at a marginal mean up to roundoff, so the *marginal* saddlepoint is ~1e-15 and
@@ -1062,8 +1064,8 @@ Or into a separate model, e.g., bootstrap.py
     plan: `docs/bivariate_lattice_cdf_plan.md`). Two independent Poissons (3, 4) at (2, 3):
     0.181 vs exact 0.183 (uncorrected 0.102); reproduces the paper's Table 2 to within 0.7%.
     Open: `fit_cdf(delta=)`, `"Wang"` (Wang (1990) Theorems 2-3, which replace `t0` by
-    `1 - exp(-t0)` in the factors, without an offset), `"Kolassa"` and `d > 2`
-    (Kolassa (2003) eq. (13), see above), and mixed lattice/continuous components
+    `1 - exp(-t0)` in the factors, without an offset), and mixed lattice/continuous
+    components for `"KL"`. Done: `"Kolassa"`, any `d`, also mixed (Kolassa (2003) eq. (13))
   - near-lattice variables: for `N + G`, with `N` on a lattice with span `delta` and a small
     independent continuous `G`, neither the continuous nor the lattice approximation is
     accurate. Add the alias saddlepoints `tau + 2 pi i k / delta`, `k != 0`, to the inversion,
@@ -1076,8 +1078,9 @@ Or into a separate model, e.g., bootstrap.py
   - [x] `bernoulli(p)` factory in `cgfs.py` (wraps `binomial(n=1, p)`). Example 2 of
     `examples/example_Kolassa2003.py` now builds its null CGF as
     `from_univariate(*[binomial(n=m_j, p=0.5)]).ldot(Z.T)` and shows the first and second
-    continuity corrections side by side. Boole sums: 0.01756 (first), 0.01727 (second), paper
-    0.01709, exact 0.01713; the paper's figure is still unexplained
+    continuity corrections side by side. Bonferroni sums: 0.01756 (first), 0.01727 (second).
+    Explained with the lattice `"Kolassa"` cdf: the paper's 0.01709 is Boole's law with the
+    pair and triple orthants (eq. (13)), which the example now reproduces; exact 0.01713
 - bootstrap for robust estimators (Kuonen, 1998): `EstimatingEquationSaddlePointApprox` with
   Poisson weights covers monotone M-estimators. Done: Huber location estimate in
   `examples/example_bootstrap_robust_estimator.py`

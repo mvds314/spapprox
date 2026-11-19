@@ -1541,10 +1541,28 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         backend : str, optional
             'Kolassa' (default) for the approximation of Kolassa (2003), see
             :meth:`_kolassa_cdf`.
-        delta : None
-            Lattice spans are not supported yet; passing anything other than ``None``
-            raises a :class:`NotImplementedError`. For a lattice variable of interest, see
-            :meth:`conditional_cdf`.
+        delta : float or array_like, optional
+            Spans of the lattices on which the components lie, a scalar or one per
+            component, for the continuity correction of Kolassa (2003) eq. (13). ``None`` or
+            0 entries mark continuous components, so that lattice and continuous components
+            may be mixed. The approximation is evaluated at :math:`\mathbf{x}+\delta/2`,
+            ``x`` should lie on the lattice. If only ``t`` is given, it is used to compute
+            ``x``, and the saddle point equation is solved at :math:`\mathbf{x}+\delta/2`.
+            Only for ``backend='Kolassa'``; the table of :meth:`fit_cdf` is not used.
+
+            A continuous component should have a bounded density given the lattice
+            components. A sum :math:`N+G` of a lattice variable :math:`N` and an independent
+            continuous :math:`G` is continuous, but a component fixed by the lattice ones,
+            e.g. :math:`0.7N`, lies on a lattice with span :math:`0.7\delta_N`. If :math:`G`
+            is small compared with the span :math:`\delta` of :math:`N`, the continuous
+            approximation of :math:`N+G` is poor: it ignores the saddlepoints
+            :math:`\tau+2\pi ik/\delta`, :math:`k\neq0`, of the inversion integral, with
+            relative weight :math:`|M_G(\tau+2\pi i/\delta)/M_G(\tau)|`, i.e.,
+            :math:`\exp(-2\pi^2\sigma^2/\delta^2)` for a normal :math:`G` with standard
+            deviation :math:`\sigma`. As a rule of thumb, treating :math:`N+G` as continuous
+            is fine for :math:`\sigma\gtrsim\delta/2`, and the lattice correction is closer
+            for :math:`\sigma\lesssim\delta/4`. For a lattice variable of interest given
+            other variables, see :meth:`conditional_cdf`.
 
         Notes
         -----
@@ -1552,10 +1570,11 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         table, unless another ``backend`` is requested.
         """
         assert x is not None or t is not None
-        _reject_lattice(delta)
         backend = self._cdf_default_backend if backend is None else backend
         if backend not in self._cdf_backends:
             raise ValueError(f"backend must be one of {list(self._cdf_backends)}")
+        if delta is not None:
+            return self._lattice_kolassa_cdf(x, t, fillna, backend, delta, **solver_kwargs)
         if x is None:
             x = self.cgf.dK(t)
         wrapper = PandasWrapper(x)
@@ -1566,6 +1585,28 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             t = self._dK_inv(x, **solver_kwargs) if t is None else t
             y = self._spapprox_cdf(x, np.asanyarray(t), backend=backend, **solver_kwargs)
         y = np.where(np.isnan(np.asanyarray(y)), fillna, y)
+        return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
+
+    def _lattice_kolassa_cdf(self, x, t, fillna, backend, delta, **solver_kwargs):
+        """:meth:`cdf` with lattice spans ``delta``, see there."""
+        if backend != "Kolassa":
+            raise NotImplementedError(
+                "delta: the lattice cdf is only implemented for backend='Kolassa'"
+            )
+        delta = _parse_delta(delta, self.dim)
+        if x is None:
+            x = self.cgf.dK(t)
+        wrapper = PandasWrapper(x)
+        x = np.asanyarray(x, dtype=float)
+        if x.shape[-1] != self.dim:
+            raise ValueError(f"{self.dim} dimensional vector expected")
+        xs = x + delta / 2
+        ts = np.asanyarray(self._dK_inv(xs, **solver_kwargs))
+        pts, tts = xs.reshape(-1, self.dim), ts.reshape(-1, self.dim)
+        y = np.array(
+            [self._kolassa_cdf(p, q, delta=delta, **solver_kwargs) for p, q in zip(pts, tts)]
+        ).reshape(x.shape[:-1])
+        y = np.where(np.isnan(y), fillna, y)
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
     def _fitted_cdf(self, x, t=None, **solver_kwargs):
@@ -1608,7 +1649,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             raise ValueError(f"{self.dim} dimensional vector expected")
         return getattr(self, self._cdf_backends[backend])(x, t, **solver_kwargs)
 
-    def _kolassa_cdf(self, x, t, **solver_kwargs):
+    def _kolassa_cdf(self, x, t, delta=None, **solver_kwargs):
         r"""
         Saddle point approximation of the cumulative distribution function in any
         dimension, following Kolassa (2003).
@@ -1658,12 +1699,21 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         as eq. (5) multiplies them by the potentially huge factor
         :math:`\exp(\hat\tau^T K''(\hat\tau)\hat\tau/2)`.
 
+        For lattice components, the orthant approximations use eq. (13) of [1] instead,
+        evaluated at the continuity corrected point. The recursion is unchanged: in
+        corrected coordinates, :math:`P(X_j\geq k)` and :math:`P(X_j\leq k-\delta_j)` have
+        the same corrected point :math:`k-\delta_j/2`. The lattice terms vanish at
+        :math:`\hat\tau_j=0`, so that the approximation is still continuous there.
+
         Parameters
         ----------
         x : array_like
-            A single point at which to evaluate the cumulative distribution function.
+            A single point at which to evaluate the cumulative distribution function,
+            continuity corrected for lattice components.
         t : array_like
             Solution of the saddle point equation at ``x``.
+        delta : array_like, optional
+            Lattice spans, 0 for continuous components, see :meth:`cdf`.
 
         References
         ----------
@@ -1698,7 +1748,8 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             te[idx] = tau
             k2 = self.cgf.d2K(te)[np.ix_(idx, idx)] * np.outer(sg, sg)
             k3 = self.cgf.d3K(te)[np.ix_(idx, idx, idx)] * np.einsum("i,j,k->ijk", sg, sg, sg)
-            return _kolassa_orthant(self.cgf.K(te), k2, k3, sg * tau, tau @ x[idx])
+            dA = None if delta is None else delta[idx]
+            return _kolassa_orthant(self.cgf.K(te), k2, k3, sg * tau, tau @ x[idx], delta=dA)
 
         def tail(A, sg):
             if not A:
@@ -1934,20 +1985,29 @@ class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
             with :math:`\tau_j` replaced by :math:`2\sinh(\tau_j\delta_j/2)/\delta_j` in the
             factors of :math:`I^{\{1\}}` and :math:`I^{\{2\}}`, and with the lattice
             corrected marginal cdfs, see :meth:`UnivariateSaddlePointApprox.cdf`. ``x``
-            should lie on the lattice. Only for ``backend='KL'``. If only ``t`` is given, it
-            is used to compute ``x``, and the saddle point equation is solved at
-            :math:`\mathbf{x}+\delta/2`.
+            should lie on the lattice. If only ``t`` is given, it is used to compute ``x``,
+            and the saddle point equation is solved at :math:`\mathbf{x}+\delta/2`. For
+            ``backend='Kolassa'``, see :meth:`MultivariateSaddlePointApprox.cdf`, which also
+            allows mixed lattice and continuous components (``None`` or 0 entries). Not for
+            ``backend='Wang'``.
         """
-        if delta is None:
-            return super().cdf(x=x, t=t, fillna=fillna, backend=backend, **solver_kwargs)
+        if delta is None or backend == "Kolassa":
+            return super().cdf(
+                x=x, t=t, fillna=fillna, backend=backend, delta=delta, **solver_kwargs
+            )
         assert x is not None or t is not None
         if backend not in (None, "KL"):
             raise NotImplementedError(
-                "delta: the lattice cdf is only implemented for backend='KL'"
+                "delta: the lattice cdf is only implemented for backend='KL' and 'Kolassa'"
             )
-        delta = np.broadcast_to(np.asarray(delta, dtype=float), (2,))
+        delta = _parse_delta(delta, 2)
+        if not delta.any():
+            return super().cdf(x=x, t=t, fillna=fillna, backend=backend, **solver_kwargs)
         if not (delta > 0).all():
-            raise ValueError("delta must be positive")
+            raise NotImplementedError(
+                "delta: mixed lattice and continuous components are only implemented for "
+                "backend='Kolassa'"
+            )
         if x is None:
             x = self.cgf.dK(t)
         wrapper = PandasWrapper(x)
@@ -2554,6 +2614,21 @@ def _check_correction(correction, delta):
     if correction not in (1, 2):
         raise ValueError("correction must be 1 or 2")
     return correction
+
+
+def _parse_delta(delta, dim):
+    """
+    Lattice spans ``delta`` of the multivariate cdfs as a float array of length ``dim``, with
+    0 for continuous components (``None`` or 0 entries).
+    """
+    if np.ndim(delta) == 0:
+        delta = [delta] * dim
+    if len(delta) != dim:
+        raise ValueError(f"delta must be a scalar or have length {dim}")
+    delta = np.array([0.0 if d is None else float(d) for d in delta])
+    if not (np.isfinite(delta).all() and (delta >= 0).all()):
+        raise ValueError("delta must be non-negative")
+    return delta
 
 
 def _reject_lattice(delta):
