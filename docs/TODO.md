@@ -972,7 +972,9 @@ These would go into cgfs.py
 
 - [x] add asymmetric laplace: `asymmetric_laplace`
 - [x] add generalized normal distribution: `generalized_normal`, the cgf by quadrature, `beta >= 1`
-- add asymmetric generalized normal distribution
+- [x] add asymmetric generalized normal distribution: `asymmetric_generalized_normal`, the
+  asymmetric exponential power version (shape and scale per side). Hosking's log-normal-type
+  skewed version is not possible: its cgf is infinite on one side of zero
 - add Cheriyan and Ramabhadran's multivariate gamma distribution (Kotz 2000)
 - [x] add Jensen's multivariate Gamma (See Butler 2007, page 77): `jensen_multivariate_gamma`;
   the domain is declared as the linear outer bound `t_i < 1/sigma_ii`, K is NaN beyond the

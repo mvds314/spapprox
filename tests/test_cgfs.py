@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 import scipy.stats as sps
 from scipy.integrate import quad
+from scipy.special import gamma as gamma_fn
 from scipy.special import logsumexp
 
 from spapprox import (
@@ -17,6 +18,7 @@ from spapprox import (
     MultivariateCumulantGeneratingFunction,
     UnivariateCumulantGeneratingFunction,
     UnivariateSaddlePointApprox,
+    asymmetric_generalized_normal,
     asymmetric_laplace,
     bernoulli,
     binomial,
@@ -1145,3 +1147,52 @@ def test_generalized_normal_beta():
     assert np.isclose(generalized_normal(beta=2).K(0.7), 0.7**2 / 4)
     with pytest.raises(ValueError):
         generalized_normal(beta=0.5)
+
+
+@pytest.mark.parametrize(
+    "beta, sigma, ts",
+    [
+        pytest.param((1.5, 3), (2, 0.5), [-1, 0.5, 3], id="beta > 1"),
+        pytest.param((1, 2.5), (0.5, 1.5), [-0.9, 0.3, 2], id="beta_L = 1"),
+        pytest.param((4, 1), (1, 2), [-3, 0.1, 0.24], id="beta_R = 1"),
+    ],
+)
+def test_asymmetric_generalized_normal(beta, sigma, ts):
+    (bl, br), (sl, sr) = beta, sigma
+    cgf = asymmetric_generalized_normal(beta=beta, sigma=sigma, loc=1, scale=2)
+
+    def logpdf(x):
+        z = (x - 1) / 2
+        logf = -((z / sr) ** br) if z >= 0 else -((-z / sl) ** bl)
+        return logf - np.log(2 * (sl * gamma_fn(1 + 1 / bl) + sr * gamma_fn(1 + 1 / br)))
+
+    moments = [quad(lambda x, k=k: x**k * np.exp(logpdf(x)), -np.inf, np.inf)[0] for k in range(4)]
+    assert np.isclose(moments[0], 1)
+    m, v = moments[1], moments[2] - moments[1] ** 2
+    assert np.allclose([cgf.dK0, cgf.d2K0], [m, v])
+    assert np.isclose(cgf.d3K0, moments[3] - 3 * m * moments[2] + 2 * m**3)
+    for t in ts:
+        K = cgf.K(t)
+        f = lambda y: np.exp(t * y + logpdf(y) - K)
+        assert np.isclose(quad(f, -np.inf, 1)[0] + quad(f, 1, np.inf)[0], 1)
+    h = 1e-5
+    t = np.asarray(ts, float)
+    assert np.allclose((cgf.K(t + h) - cgf.K(t - h)) / (2 * h), cgf.dK(t), rtol=1e-5)
+    assert np.allclose((cgf.dK(t + h) - cgf.dK(t - h)) / (2 * h), cgf.d2K(t), rtol=1e-5)
+    assert np.allclose((cgf.d2K(t + h) - cgf.d2K(t - h)) / (2 * h), cgf.d3K(t), rtol=1e-4)
+    assert np.isclose(cgf.dK_inv(cgf.dK(ts[-1])), ts[-1])
+    # Out of domain for a side with shape one
+    if bl == 1:
+        assert np.isnan(cgf.K(-1.01 / (2 * sl)))
+    if br == 1:
+        assert np.isnan(cgf.K(1.01 / (2 * sr)))
+
+
+def test_asymmetric_generalized_normal_special_cases():
+    cgf = asymmetric_generalized_normal(beta=3)
+    assert np.isclose(cgf.K(1.2), generalized_normal(beta=3).K(1.2))
+    cgf = asymmetric_generalized_normal(beta=1, sigma=(2, 0.5), loc=1, scale=3)
+    ref = sps.laplace_asymmetric(2, loc=1, scale=3)
+    assert np.allclose([cgf.dK0, cgf.d2K0], ref.stats("mv"))
+    with pytest.raises(ValueError):
+        asymmetric_generalized_normal(beta=(0.5, 2))

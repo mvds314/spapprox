@@ -503,8 +503,7 @@ def generalized_normal(beta=2, loc=0, scale=1):
 
     The standardized density is :math:`\beta/(2\Gamma(1/\beta))\exp(-|x|^\beta)`. The moment
     generating function is finite for all :math:`t` when :math:`\beta>1`, but has no closed
-    form, so it is evaluated by quadrature of the exponentially tilted density. Its
-    derivatives are the mean, variance and third central moment of the tilted density:
+    form, so it is evaluated by quadrature, see :func:`asymmetric_generalized_normal`:
 
     .. math::
         K(t) = \log\frac{\beta}{2\Gamma(1/\beta)}\int e^{tx-|x|^\beta}\,dx.
@@ -519,22 +518,69 @@ def generalized_normal(beta=2, loc=0, scale=1):
     """
     if beta == 1:
         return laplace(loc=loc, scale=scale)
-    if not beta > 1:
-        raise ValueError("beta must be at least 1, otherwise the cgf is infinite for t != 0")
-    lognorm = np.log(beta / 2) - gammaln(1 / beta)
+    return asymmetric_generalized_normal(beta=beta, sigma=1, loc=loc, scale=scale)
 
-    def tilted(t, b=beta):
-        # Integrate in u = x - mode of the tilted density, with exponent max subtracted
-        mode = np.sign(t) * (np.abs(t) / b) ** (1 / (b - 1))
-        c = t * mode - np.abs(mode) ** b
+
+def asymmetric_generalized_normal(beta=2, sigma=1, loc=0, scale=1):
+    r"""
+    Asymmetric generalized normal (asymmetric exponential power) distribution, with shapes
+    :math:`\beta=(\beta_L,\beta_R)` and scales :math:`\sigma=(\sigma_L,\sigma_R)` to the left
+    and right of zero. The standardized density is
+
+    .. math::
+        f(x) = c\exp\left(-|x/\sigma_L|^{\beta_L}\right) \text{ for } x<0, \qquad
+        f(x) = c\exp\left(-(x/\sigma_R)^{\beta_R}\right) \text{ for } x\geq 0,
+
+    with :math:`1/c=\sigma_L\Gamma(1+1/\beta_L)+\sigma_R\Gamma(1+1/\beta_R)`, so the
+    density is continuous at zero, and the raw moments are
+    :math:`\text{E}X^k=c\left(\sigma_R^{k+1}\Gamma((k+1)/\beta_R)/\beta_R
+    +(-1)^k\sigma_L^{k+1}\Gamma((k+1)/\beta_L)/\beta_L\right)`. Scalar `beta` or `sigma`
+    apply to both sides; equal sides give :func:`generalized_normal`.
+
+    The cgf has no closed form and is evaluated by quadrature of the exponentially tilted
+    density; its derivatives are the mean, variance and third central moment of that density.
+    A side with shape above one leaves the cgf finite in that direction, a side with shape one
+    bounds the domain, :math:`t<1/\sigma_R` or :math:`t>-1/\sigma_L`. Shapes below one make the
+    cgf infinite on that side, so no saddle point approximation exists. With both shapes one,
+    this is :func:`asymmetric_laplace` with :math:`\kappa=\sqrt{\sigma_L/\sigma_R}` and scale
+    :math:`\sqrt{\sigma_L\sigma_R}`, which is returned instead.
+
+    References
+    ----------
+    [1] Zhu, Zinde-Walsh (2009) - Properties and estimation of asymmetric exponential power
+        distribution
+    """
+    bl, br = np.broadcast_to(np.asanyarray(beta, float), 2)
+    sl, sr = np.broadcast_to(np.asanyarray(sigma, float), 2)
+    if not (bl >= 1 and br >= 1):
+        raise ValueError("beta must be at least 1, otherwise the cgf is infinite on that side")
+    if not (sl > 0 and sr > 0):
+        raise ValueError("sigma must be positive")
+    if bl == 1 and br == 1:
+        return asymmetric_laplace(kappa=np.sqrt(sl / sr), loc=loc, scale=scale * np.sqrt(sl * sr))
+    lognorm = -np.log(sl * np.exp(gammaln(1 + 1 / bl)) + sr * np.exp(gammaln(1 + 1 / br)))
+
+    def h(t, x):
+        # Log of the unnormalized tilted density
+        return t * x - (x / sr) ** br if x >= 0 else t * x - (-x / sl) ** bl
+
+    def tilted(t):
+        # Integrate in u = x - mode of the tilted density, with the exponent max subtracted,
+        # splitting at the mode and at the kink in x = 0
+        if t > 0 and br > 1:
+            mode = sr * (t * sr / br) ** (1 / (br - 1))
+        elif t < 0 and bl > 1:
+            mode = -sl * (-t * sl / bl) ** (1 / (bl - 1))
+        else:
+            mode = 0.0
+        c = h(t, mode)
 
         def f(u):
-            x = mode + u
-            return np.exp(t * x - np.abs(x) ** b - c) * u ** np.arange(4)
+            return np.exp(h(t, mode + u) - c) * u ** np.arange(4)
 
+        edges = [-np.inf, *sorted({0.0, -mode}), np.inf]
         mom = sum(
-            quad_vec(f, lo, hi, epsabs=0, epsrel=1e-12)[0]
-            for lo, hi in [(-np.inf, 0), (0, np.inf)]
+            quad_vec(f, lo, hi, epsabs=0, epsrel=1e-12)[0] for lo, hi in zip(edges, edges[1:])
         )
         m1, m2, m3 = mom[1:] / mom[0]
         return lognorm + c + np.log(mom[0]), mode + m1, m2 - m1**2, m3 - 3 * m1 * m2 + 2 * m1**3
@@ -542,14 +588,20 @@ def generalized_normal(beta=2, loc=0, scale=1):
     def moment(i):
         return np.vectorize(lambda t: tilted(t)[i], otypes=[float])
 
+    k = np.arange(1, 4)
+    raw = np.exp(lognorm) * (
+        sr ** (k + 1) * np.exp(gammaln((k + 1) / br)) / br
+        + (-1) ** k * sl ** (k + 1) * np.exp(gammaln((k + 1) / bl)) / bl
+    )
     return UnivariateCumulantGeneratingFunction(
         K=moment(0),
         dK=moment(1),
         d2K=moment(2),
         d3K=moment(3),
-        dK0=0,
-        d2K0=np.exp(gammaln(3 / beta) - gammaln(1 / beta)),
-        d3K0=0,
+        dK0=raw[0],
+        d2K0=raw[1] - raw[0] ** 2,
+        d3K0=raw[2] - 3 * raw[0] * raw[1] + 2 * raw[0] ** 3,
+        domain=Domain(g=-1 / sl if bl == 1 else None, l=1 / sr if br == 1 else None),
         loc=loc,
         scale=scale,
     )

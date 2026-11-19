@@ -4,6 +4,7 @@ from .cgf_base import (  # noqa: F401
 )
 
 from .cgfs import (  # noqa: F401
+    asymmetric_generalized_normal,
     asymmetric_laplace,
     bernoulli,
     binomial,
