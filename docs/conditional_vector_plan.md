@@ -1,6 +1,6 @@
 # Plan: conditional tail of a vector of interest (Kolassa & Li 2010, section 4)
 
-Status: F1 (two variables of interest) done, see `conditional_cdf(i=[a, b])`; F2 open. Parent: phase F of `docs/conditional_cdf_plan.md`.
+Status: F1 (two variables of interest) done, see `conditional_cdf(i=[a, b])`; F2 (`d0 >= 3`) done, see `conditional_cdf(i=[a, b, c, ...])` and the F2 outcome below. Parent: phase F of `docs/conditional_cdf_plan.md`.
 
 Goal: `MultivariateSaddlePointApprox.conditional_cdf`-style approximation of
 
@@ -89,8 +89,8 @@ the repo. Phase F inherits that. So split by `d0`:
 - **F1: `d0 = 2`, any `d > 2`.** Needs only the bivariate-level derivation, which exists. This
   is the useful case (two parameters of interest, nuisance conditioned out) and
   covers the paper's Table 3. Do this first.
-- **F2: `d0 >= 3`.** Blocked on phase B of the multivariate cdf plan (general-`d` cubic
-  term, order blending). Do not start until that is decided.
+- **F2: `d0 >= 3`.** Was blocked on phase B of the multivariate cdf plan (general-`d` cubic
+  term, order blending); done now that phase B exists, see the F2 outcome below.
 - **F0 (sanity, no new feature): `d0 = 1`.** The paper's formula must reduce to the existing
   first-order `conditional_cdf(backend="Skovgaard")`. Use it as a unit test of the nested
   roots code, not as a new code path.
@@ -178,3 +178,25 @@ installed there); mark the quadrature-heavy ones `slow`.
 - **Accuracy is limited**: 10% to 14% relative error at `n = 10` in the far tail (Table 3), so
   tolerances must follow the `n`-sequence, not a fixed small number.
 - **Discontinuity in the variable order** (as in the bivariate `"KL"`).
+
+## F2 outcome
+
+`_ConditionalMultivariateApprox` applies the general-`d` engine (`spapprox/kl.py`, phase B of
+`multivariate_cdf_plan.md`) to the profile cgf of the `d0` variables of interest, with the
+same hooks as F1: the weight `sqrt(det K''_JJ(tau_0) / det K''_JJ)`, the conditional
+Skovgaard cdfs as 1-D marginals, and, for lattice variables of interest (`delta=`, all
+spans positive), `rho(tau) = 2 sinh(tau delta / 2) / delta` at `x_I + delta / 2`.
+`_ConditionalBivariateApprox` now derives from it and only keeps the bivariate order swap, so
+`d0 = 2` is unchanged. Validation (`tests/test_spa.py`, `test_conditional_vector_three_*`):
+
+- Normal, `d = 5`, `I = [3, 0, 1]`, `J = [2, 4]`: exact to `1e-9`.
+- Independent variables of interest: the product of the conditional marginals to `5e-11`.
+- Dirichlet(`n, n, n, n`) as 4 iid gammas given their total, `P(D_1 <= u_1, D_2 <= u_2,
+  D_3 <= u_3)` against quadrature: relative error at most `2.6%` for `n = 2`, `0.36%` for
+  `n = 8`.
+- Multinomial as independent Poissons (`lambda = (2, 3, 4, 5)`) given the total `14`,
+  lattice: relative error at most `1.25%`.
+
+Cost: a point takes seconds (up to about 14 s near the origin of the saddlepoint, where the
+tensor interpolation multiplies the inner profile solves).
+

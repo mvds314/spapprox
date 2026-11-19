@@ -50,3 +50,14 @@ def type_wrapper(xloc=0):
         return wrapped
 
     return decorator
+
+
+def _lagrange_weights(nodes, x):
+    """Weights of the Lagrange interpolating polynomial through ``nodes`` at ``x``."""
+    nodes = np.asarray(nodes, dtype=float)
+    return np.array(
+        [
+            np.prod([(x - nk) / (nj - nk) for k, nk in enumerate(nodes) if k != j])
+            for j, nj in enumerate(nodes)
+        ]
+    )

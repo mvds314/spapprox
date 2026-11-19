@@ -8,8 +8,8 @@
 - Finish bivariate approximation:
   - [x] basically this case: test_bvar_cdf_near_zero (passes, no longer `tofix`)
   - are there more edge cases?
-- Multivariate approximation: cdf phase A done (`backend="Kolassa"`); phase B only if
-  needed, see `docs/multivariate_cdf_plan.md`
+- Multivariate approximation: cdf phase A done (`backend="Kolassa"`); phase B done
+  (`backend="KL"`, any dimension), see `docs/multivariate_cdf_plan.md`
 
 - Bootstrap distributions (Booth and Butler): done, see `docs/estimating_equations_plan.md`
 
@@ -921,6 +921,11 @@ Contract violations and silently wrong results in narrower situations.
     accurate as either order. Picking the order with the smaller `|z|` still left jumps of
     6.6e-4.
 
+  The general-`d` version of these three steps (nested roots, cubic term via
+  `(-d/db_i - u_hat_i)`, reflection, blending over the `d!` orders) is derived in phase B of
+  `docs/multivariate_cdf_plan.md` and implemented in `spapprox/kl.py`; still not checked
+  against the literature.
+
   Regression tests: `test_bvar_cdf_dependent_accuracy` (both backends),
   `test_bvar_cdf_kl_continuous_near_singularities`, `test_bvar_cdf_invariant_to_relabeling`
   (both backends), KL checks in the independence and near-axis tests.
@@ -995,8 +1000,9 @@ Or into a separate model, e.g., bootstrap.py
     interest only. On the binomial test it is ~4x less accurate than `P2`
   - vector of interest, `P(X_I >= x_I | X_J = x_J)`: phase F, Kolassa & Li (2010) section 4,
     see `docs/conditional_vector_plan.md`. F1, two variables of interest, is done:
-    `conditional_cdf(x, given, i=[a, b], delta=...)`, continuous and lattice. Open: F2,
-    three or more variables of interest
+    `conditional_cdf(x, given, i=[a, b], delta=...)`, continuous and lattice. F2, three or
+    more variables of interest, is done too: `conditional_cdf(x, given, i=[a, b, c, ...],
+    delta=...)`, on the general-`d` engine of phase B (`spapprox/kl.py`)
   - [x] the bivariate `"KL"` cdf, also conditional, dropped the `I^{1,2}` term of Kolassa & Li
     (2010), so its relative error did not vanish at a fixed large deviation point (-2.4%,
     -1.2%, -0.85% for two independent gamma(n) means at (1.3, 1.25), n = 10, 40, 160). Added,
@@ -1031,8 +1037,16 @@ Or into a separate model, e.g., bootstrap.py
   - cdf for any dimension: phase A of `docs/multivariate_cdf_plan.md` is done,
     `MultivariateSaddlePointApprox.cdf(backend="Kolassa")` (Kolassa 2003). Error
     `O(1/n)`, about 1.5x that of `"KL"` in 2-D; exact for the normal; continuous;
-    symmetric. Phase B (Kolassa & Li 2010 for `d > 2`) is open, and only worth it if
-    phase A turns out not to be accurate enough
+    symmetric
+  - [x] phase B: `MultivariateSaddlePointApprox.cdf(backend="KL")`, Kolassa & Li (2010) for
+    any `d` (`spapprox/kl.py`), with the general-`d` cubic term of `I^∅`, all `2^d` subset
+    terms, reflection and inclusion-exclusion, and a recursive blend over the `d!` orders.
+    `d = 2` reproduces the bivariate `"KL"`; for a 3-D gamma it is 1.7-2.6x more accurate
+    than `"Kolassa"` in absolute error and up to 10x in relative tail error, `O(1/n)`.
+    Lattice when all spans are positive. Default stays `"Kolassa"` (cost about 0.7 s per
+    point for `d = 3`). Open: direction-dependent limits where two or more saddlepoint
+    components vanish, an `n^{-3/2}` slope kink across `t_j = 0` for `d = 3`, and mixed
+    lattice/continuous spans for `d > 2` (the bivariate `"KL"` supports them); see "Phase B: outcome" in `docs/multivariate_cdf_plan.md`
   - [x] `fit_cdf` for the multivariate case: tabulates the cdf on a tensor grid in `x` and
     interpolates (PCHIP by default), see `docs/multivariate_fit_cdf_plan.md`
   - [x] lattice variables: continuity-corrected version of Kolassa (2003) eq. (13),
@@ -1084,7 +1098,7 @@ Or into a separate model, e.g., bootstrap.py
     `G`, see `docs/multivariate_lattice_cdf_plan.md`. Research level, start with `d = 1`
   - conditional cdf for a vector of interest `P(X_I >= x_I | X_J = x_J)`, continuous and
     lattice: phase F above (Kolassa & Li, 2010, section 4). Done for two variables of
-    interest, `conditional_cdf(i=[a, b], delta=...)`; open for three or more
+    interest, `conditional_cdf(i=[a, b], delta=...)`, and for three or more (F2)
   - [x] `bernoulli(p)` factory in `cgfs.py` (wraps `binomial(n=1, p)`). Example 2 of
     `examples/example_Kolassa2003.py` now builds its null CGF as
     `from_univariate(*[binomial(n=m_j, p=0.5)]).ldot(Z.T)` and shows the first and second

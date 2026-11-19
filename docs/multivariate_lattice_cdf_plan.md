@@ -90,5 +90,7 @@ interpolates between both, is a follow-up in `docs/TODO.md`.
 
 ## Out of scope
 
-Lattice `conditional_cdf` for three or more variables of interest (F2). `fit_cdf(delta=)`,
-lattice `"Wang"` and mixed `"KL"` were done later, see `docs/bivariate_lattice_cdf_plan.md`.
+`fit_cdf(delta=)`, lattice `"Wang"` and mixed bivariate `"KL"` were done later, see
+`docs/bivariate_lattice_cdf_plan.md`. The lattice `"KL"` for `d > 2` (all spans positive) and
+the lattice `conditional_cdf` for three or more variables of interest (F2) came with phase B
+of `docs/multivariate_cdf_plan.md`.
