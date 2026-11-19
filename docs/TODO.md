@@ -845,6 +845,20 @@ Contract violations and silently wrong results in narrower situations.
 
 ---
 
+## Findings from the docstring pass (unverified, not fixed)
+
+Spotted while documenting the public API (first release plan, item 3). Check before fixing.
+
+- [ ] `bivariate_gamma.dK` (`cgfs.py`) has unreachable code after a `return`.
+- [ ] The `bivariate_gamma` docstring cites "Huzurbazar (2012)" with the title of Butler's book.
+- [ ] `MultivariateCumulantGeneratingFunction.d3K` is findiff-only, whatever `numdiff_backend` is.
+- [ ] `from_univariate` asserts at least one cgf, but its message says "at least 2".
+- [ ] `loc_vect` does not cache its result when `loc` is a 1-d array.
+- [ ] `_get_scale_mat_inv` uses `self.scale_inv` instead of its `scale_inv` argument in the
+  1-d branch.
+- [ ] Univariate `d2K`/`d3K` accept a `loc` argument and ignore it.
+- [ ] `fit_ppf` solves `dK_inv` on its x grid, where the t grid would avoid root finding.
+
 ## Tooling / packaging
 
 ### [x] 16. Python version floor conflicts with the syntax in use
