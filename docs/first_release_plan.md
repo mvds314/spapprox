@@ -113,17 +113,19 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
 - Optionally, enable ruff's `D` (pydocstyle) rules for `spapprox/` only, with a
   numpydoc convention. Leave this out if it is too noisy.
 
-### 4. Examples
+### 4. Examples -- done
 
-- Port the three `FinDiff` scripts to the `Diff` API, or delete them if they only
-  demonstrate internals (`example_gen_lin_opr.py`, `example_einsum.py`).
-- Merge `basic_example.py` and `expon_example.py`. Give the remaining scripts a
-  short header docstring stating what they show, and whether they need an
-  optional extra.
-- Add a CI smoke test that runs each example with the `Agg` matplotlib backend
-  (a separate job, or a `slow`-marked parametrized test over `examples/*.py`), so
-  examples cannot go stale again. Drop the "untested and partly stale" warnings
-  from `CLAUDE.md` and the skill once this is in.
+- Deleted the development scratch scripts (`example_findiff.py`,
+  `example_findiff_multivariate.py`, `example_gen_lin_opr.py`, `example_einsum.py`) and
+  the unfinished `example_hypergeometric_bootstrap.py`, which used a removed API. Added
+  `example_numdiff_backends.py` to show the two numerical differentiation backends.
+- Merged `expon_example.py` into `basic_example.py`, and gave every script a header
+  docstring.
+- `tests/test_examples.py` runs every script with the `Agg` backend (markers `slow` and
+  `examples`, so not in PR CI). The Examples workflow (`examples.yml`) runs them after
+  each merge into `main`, and on demand.
+- `release.yml` runs when a GitHub release is published, and fails unless the Examples
+  workflow passed on the released commit. The PyPI publish job (item 5) will depend on it.
 
 ### 5. CI and publishing (later)
 
@@ -131,8 +133,8 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
   the single required status check of the `main` ruleset.
 - Optionally add a job with all extras (`findiff`, `fastnorm`).
 - A `build` job on every PR: `python -m build` plus `twine check`.
-- Later, a PyPI publishing workflow triggered by a manually created GitHub Release
-  (`release: published`). It would use `pypa/gh-action-pypi-publish` with PyPI
+- Later, a PyPI publishing job in `release.yml` (triggered by a manually created GitHub
+  Release), depending on its `check-examples` job. It would use `pypa/gh-action-pypi-publish` with PyPI
   trusted publishing (OIDC, so no API token is stored) and a protected `pypi`
   environment, and check that the tag matches the version in `pyproject.toml`.
 - Until then, build locally (`python -m build`) and attach the wheel and sdist to
@@ -148,7 +150,7 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
   compatibility promise.
 - Update `CITATION.cff`: version, date and URL.
 - Close issues #1 and #2.
-- Run the full suite locally (`pytest`, ~16 min) and `ruff check .`.
+- Run the full suite locally (`pytest`, ~16 min plus the examples) and `ruff check .`.
 - Build locally, install the wheel into a clean venv, and run the README quick
   start.
 - Create the GitHub Release `vYY.MM.N` by hand, with release notes and the built

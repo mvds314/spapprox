@@ -1,4 +1,13 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+Bootstrap distribution of a sample mean without resampling: the transform-domain bootstrap.
+
+``univariate_empirical(sample)`` is the cgf of drawing one observation uniformly from the
+sample, and ``UnivariateSaddlePointApproxMean`` turns it into the distribution of the mean of
+``subsample_size`` such draws, i.e. the bootstrap distribution of the mean. It is compared with
+an ordinary Monte Carlo bootstrap.
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,9 +15,6 @@ import spapprox as spa
 from statsmodels.distributions import ECDF
 
 plt.close("all")
-
-# Consider the bootstrapped sample mean
-# Can we approximate its distribution?
 
 # Toggle one of the examples below
 if False:
@@ -22,10 +28,10 @@ elif False:
     normalize_pdf = True  # This one is not really implemented well
     subsample_size = 100
 elif True:
-    sample = np.random.laplace(3, 2, 100000)
-    t = np.linspace(-150, 150, num=100)
+    sample = np.random.laplace(3, 2, 10000)
+    t = np.linspace(-50, 50, num=100)
     normalize_pdf = True  # This one is not really implemented well
-    subsample_size = 10000
+    subsample_size = 1000
 
 
 with spa.util.Timer("Initializing saddle point approximation"):
@@ -43,7 +49,7 @@ with spa.util.Timer("Bootstrapping with saddle point approximation"):
 
 with spa.util.Timer("Bootstrapping"):
     sample_means = np.array(
-        [np.random.choice(sample, replace=True, size=subsample_size).mean() for i in range(100000)]
+        [np.random.choice(sample, replace=True, size=subsample_size).mean() for i in range(20000)]
     )
     yecdf = ECDF(sample_means)(x)
 
@@ -57,3 +63,4 @@ ax = axs[1]
 ax.plot(x, ycdf, label="Saddle point approximation")
 ax.plot(x, yecdf, label="Empirical cdf")
 ax.legend()
+plt.show()

@@ -641,6 +641,16 @@ Contract violations and silently wrong results in narrower situations.
 
 ## Low severity / robustness
 
+### [ ] 63. pdf normalization fails for a cgf with only numerical derivatives near a domain bound
+
+- **Where:** `spapprox/spa.py`, `UnivariateSaddlePointApprox._pdf_normalization`
+- **What:** the tail integral runs up to the domain bound, where numerical derivatives
+  (both backends) break down, so the integral is not finite and the assertion fails.
+- **Repro:** `UnivariateSaddlePointApprox(UnivariateCumulantGeneratingFunction(K=lambda t:
+  -np.log1p(-t), domain=Domain(l=1))).pdf(t=0.5)` raises `AssertionError`. With the analytic
+  derivatives (`exponential()`) it works.
+- **Workaround:** `normalize_pdf=False`, as in `examples/example_numdiff_backends.py`.
+
 ### [x] 43. `ndarray * Domain` is hijacked by numpy
 
 - **Where:** `spapprox/domain.py:304-308`

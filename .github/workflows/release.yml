@@ -1,0 +1,41 @@
+# Checks a manually published GitHub release. The released commit must have a successful run
+# of the Examples workflow; publishing to PyPI will be added here later, depending on this job.
+
+name: Release
+
+on:
+  release:
+    types: [ published ]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  check-examples:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+    - name: Check that the examples passed on the released commit
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        SHA: ${{ github.sha }}
+      run: |
+        run_id=$(gh api "repos/$REPO/actions/workflows/examples.yml/runs?head_sha=$SHA" \
+          --jq '.workflow_runs | sort_by(.created_at) | last | .id // empty')
+        if [ -z "$run_id" ]; then
+          echo "::error::No Examples run for $SHA. Run the Examples workflow on this commit" \
+            "(Actions > Examples > Run workflow), then re-run this job."
+          exit 1
+        fi
+        echo "Examples run: https://github.com/$REPO/actions/runs/$run_id"
+        # Wait for a run that is still in progress, e.g. when releasing right after a merge
+        gh run watch "$run_id" --repo "$REPO" --exit-status > /dev/null || true
+        conclusion=$(gh api "repos/$REPO/actions/runs/$run_id" --jq '.conclusion')
+        if [ "$conclusion" != "success" ]; then
+          echo "::error::The Examples run for $SHA concluded with '$conclusion'."
+          exit 1
+        fi
+        echo "The examples passed on $SHA."

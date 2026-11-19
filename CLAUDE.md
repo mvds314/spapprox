@@ -74,6 +74,7 @@ pytest tests/test_diff.py                # single file
 pytest tests/test_diff.py::test_name     # single test
 pytest -k "some_pattern"                 # by name pattern
 pytest -m "not tofix"                    # skip known-broken/WIP tests
+pytest -m examples                       # run the examples/ scripts (needs matplotlib)
 ruff check .                             # lint (line-length 99, see pyproject.toml)
 ```
 
@@ -94,9 +95,11 @@ genuinely better approximation before touching a tolerance.
 - A CGF's `K`/`dK`/`d2K`/`d3K` always describe the **standardized** variable;
   `loc`/`scale` are applied by the base class. Never bake them into a
   distribution factory's derivatives -- they would be applied twice.
-- `examples/` is untested, needs `matplotlib` (not a declared dependency), and
-  is partly stale (some scripts still use the deprecated `FinDiff` API). Do not
-  treat it as a behavioral reference.
+- `examples/` needs `matplotlib` (not a declared dependency). `tests/test_examples.py`
+  runs every script as a smoke test (markers `slow` and `examples`), and the Examples
+  workflow runs them after each merge into `main`; a GitHub release checks that this
+  run passed on the released commit (`release.yml`). They check that the scripts run,
+  not their numbers, so do not treat them as a behavioral reference.
 
 Note: `.github/copilot-instructions.md` is a hard link to this file, so GitHub
 Copilot CLI and Claude Code read the same content. Edit this file, not the link.
