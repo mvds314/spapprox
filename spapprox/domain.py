@@ -1,3 +1,22 @@
+r"""
+Domains of cumulant generating functions.
+
+A cumulant generating function :math:`K(t)=\log\mathbb{E}e^{<t,X>}` is finite on a convex
+set containing zero, and is only evaluated there. :class:`Domain` describes such a set with
+bound constraints and linear inequalities, and supports the operations needed to propagate
+the domain through the cgf algebra: translation (:meth:`Domain.add`), scaling
+(:meth:`Domain.mul`), linear maps (:meth:`Domain.ldot`, :meth:`Domain.ldotinv`),
+intersection (:meth:`Domain.intersect`) and Cartesian products (:meth:`Domain.stack`,
+:meth:`Domain.from_domains`).
+
+This module does not know about cumulant generating functions.
+
+References
+----------
+[1] Butler (2007) - Saddlepoint Approximations with Applications, Section 1.1
+[2] Barndorff-Nielsen (1978) - Information and Exponential Families in Statistical Theory
+"""
+
 import numpy as np
 import pandas as pd
 
@@ -18,7 +37,40 @@ class Domain:
     .. math::
         Ax \leq a,
         Bx < b,
+
     where :math:`A` and :math:`B` are matrices.
+
+    Parameters
+    ----------
+    dim : int, optional
+        Dimension. Default is 1.
+    l, g, le, ge : float or array_like, optional
+        Strict upper (``l``), strict lower (``g``), inclusive upper (``le``) and inclusive
+        lower (``ge``) bounds. Scalars, or in the multivariate case also vectors of length
+        ``dim``, where NaN entries mean no bound. Default is no bound.
+    A, a : array_like, optional
+        Matrix of shape ``(m, dim)`` and vector of length ``m`` of the constraints
+        :math:`Ax\leq a`. Both or neither should be given.
+    B, b : array_like, optional
+        Matrix of shape ``(m, dim)`` and vector of length ``m`` of the constraints
+        :math:`Bx<b`. Both or neither should be given.
+
+    Notes
+    -----
+    ``t in domain`` is true if all entries of :meth:`is_in_domain` are true.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import spapprox as spa
+    >>> d = spa.Domain(g=-1, l=1)  # the domain of the Laplace cgf
+    >>> d.is_in_domain(np.array([-1.0, 0.0, 0.5, 1.0])).tolist()
+    [False, True, True, False]
+    >>> (2 * d).is_in_domain(1.5)  # the domain of 2X is stretched
+    True
+    >>> d2 = spa.Domain(dim=2, l=[1, 1], B=[[1, 1]], b=[1])  # t1 < 1, t2 < 1, t1 + t2 < 1
+    >>> d2.is_in_domain(np.array([[0.4, 0.4], [0.6, 0.6]])).tolist()
+    [True, False]
     """
 
     # Make numpy defer to our reflected operators, e.g., ``ndarray * Domain``
@@ -97,30 +149,52 @@ class Domain:
 
     @property
     def has_lower_bounds(self):
+        """
+        Whether a lower bound ``g`` or ``ge`` is set.
+        """
         return self.g is not None or self.ge is not None
 
     @property
     def has_upper_bounds(self):
+        """
+        Whether an upper bound ``l`` or ``le`` is set.
+        """
         return self.l is not None or self.le is not None
 
     @property
     def has_inclusive_bounds(self):
+        """
+        Whether an inclusive bound ``le`` or ``ge`` is set.
+        """
         return self.le is not None or self.ge is not None
 
     @property
     def has_strict_bounds(self):
+        """
+        Whether a strict bound ``l`` or ``g`` is set.
+        """
         return self.l is not None or self.g is not None
 
     @property
     def has_bounds(self):
+        """
+        Whether any bound ``l``, ``g``, ``le`` or ``ge`` is set.
+        """
         return self.has_inclusive_bounds or self.has_strict_bounds
 
     @property
     def has_ineq_constraints(self):
+        """
+        Whether linear inequality constraints ``A``, ``a`` or ``B``, ``b`` are set.
+        """
         return self.A is not None or self.B is not None
 
     @property
     def l_vect(self):
+        """
+        The strict upper bound ``l`` as a vector of length ``dim``, with NaN where there is
+        no bound.
+        """
         if not hasattr(self, "_l_vect_cache"):
             if self.l is None:
                 self._l_vect_cache = np.full(self.dim, np.nan)
@@ -136,6 +210,10 @@ class Domain:
 
     @property
     def g_vect(self):
+        """
+        The strict lower bound ``g`` as a vector of length ``dim``, with NaN where there is
+        no bound.
+        """
         if not hasattr(self, "_g_vect_cache"):
             if self.g is None:
                 self._g_vect_cache = np.full(self.dim, np.nan)
@@ -151,6 +229,10 @@ class Domain:
 
     @property
     def le_vect(self):
+        """
+        The inclusive upper bound ``le`` as a vector of length ``dim``, with NaN where there is
+        no bound.
+        """
         if not hasattr(self, "_le_vect_cache"):
             if self.le is None:
                 self._le_vect_cache = np.full(self.dim, np.nan)
@@ -166,6 +248,10 @@ class Domain:
 
     @property
     def ge_vect(self):
+        """
+        The inclusive lower bound ``ge`` as a vector of length ``dim``, with NaN where there is
+        no bound.
+        """
         if not hasattr(self, "_ge_vect_cache"):
             if self.ge is None:
                 self._ge_vect_cache = np.full(self.dim, np.nan)
@@ -498,10 +584,48 @@ class Domain:
         return Domain(l=l, g=g, le=le, ge=ge, A=A, a=a, B=B, b=b, dim=self.dim)
 
     def stack(self, other):
+        """
+        Cartesian product with another domain, the domain of the stacked vector
+        :math:`(x, y)`, see :meth:`from_domains`.
+
+        Parameters
+        ----------
+        other : Domain
+            The domain of :math:`y`.
+
+        Returns
+        -------
+        Domain
+            Domain of dimension ``self.dim + other.dim``.
+        """
         return Domain.from_domains(self, other)
 
     @classmethod
     def from_domains(cls, *domains):
+        r"""
+        Cartesian product of domains, i.e., the domain of the stacked vector
+        :math:`(x_1, \ldots, x_k)` where each :math:`x_i` is in the :math:`i`-th domain.
+
+        Bounds are concatenated and the linear inequality constraints are combined into
+        block diagonal matrices.
+
+        Parameters
+        ----------
+        *domains : Domain
+            The domains to combine, in order.
+
+        Returns
+        -------
+        Domain
+            Domain of dimension the sum of the dimensions.
+
+        Examples
+        --------
+        >>> import spapprox as spa
+        >>> d = spa.Domain.from_domains(spa.Domain(l=1), spa.Domain(g=-1, l=1))
+        >>> d.dim, d.l.tolist(), d.g.tolist()
+        (2, [1, 1], [nan, -1.0])
+        """
         assert all(isinstance(d, Domain) for d in domains), "All arguments should be Domains"
         dim = sum(d.dim for d in domains)
         if dim == 1:
@@ -569,6 +693,21 @@ class Domain:
 
     @type_wrapper(xloc=1)
     def is_in_domain(self, t):
+        """
+        Check which points are in the domain.
+
+        Parameters
+        ----------
+        t : array_like
+            In dimension 1 a scalar or an array of points; otherwise a point (a vector of
+            length ``dim``) or an array of shape ``(n, dim)`` of points.
+
+        Returns
+        -------
+        bool or array_like of bool
+            Whether each point satisfies all constraints. Points with NaN entries are not
+            in the domain.
+        """
         if self.dim == 1 and t.ndim < 2:
             val = np.full(t.shape, pd.notnull(t))
             t = np.expand_dims(t, axis=t.ndim)

@@ -1,3 +1,59 @@
+r"""
+Saddle point approximations of densities and distribution functions.
+
+Given the cumulant generating function :math:`K` of a random variable :math:`X` (see
+:mod:`spapprox.cgf_base` and :mod:`spapprox.cgfs`), the saddle point approximation of the
+density is
+
+.. math::
+    f(x) \approx \frac{1}{\sqrt{2\pi K''(t)}}\exp\big(K(t)-tx\big),
+    \qquad K'(t)=x,
+
+where :math:`t` solves the saddle point equation (Daniels, 1954). The cdf is approximated
+with the Lugannani and Rice (1980) or the Barndorff-Nielsen (1986, 1990) formula, with the
+continuity corrections of Daniels (1987) for lattice variables.
+
+Classes
+-------
+:class:`UnivariateSaddlePointApprox`
+    pdf, cdf and ppf of a univariate random variable.
+:class:`UnivariateSaddlePointApproxMean`
+    The same for the mean of i.i.d. copies, e.g., the bootstrap distribution of a mean.
+:class:`MultivariateSaddlePointApprox`
+    joint pdf, marginals, the joint cdf (Kolassa, 2003; Kolassa and Li, 2010) and the
+    conditional pdf and cdf (Skovgaard, 1987) of a random vector.
+:class:`BivariateSaddlePointApprox`
+    adds the bivariate cdf of Wang (1990).
+:class:`EstimatingEquationSaddlePointApprox`
+    distribution of the root of an estimating equation, e.g., a bootstrapped or
+    jackknifed M-estimator (Daniels, 1983; Booth and Butler, 1990).
+:class:`MultivariateEstimatingEquationSaddlePointApprox`
+    the same for a vector-valued root.
+
+Every ``pdf`` and ``cdf`` accepts either ``x`` or the saddle point ``t``. Given ``t``,
+``x=K'(t)`` is computed directly; given ``x``, the saddle point equation must be solved
+numerically per point, which is slower. Generate ``t`` when sweeping a curve, or call
+``fit_saddle_point_eqn`` first.
+
+References
+----------
+[1] Daniels (1954) - Saddlepoint approximations in statistics
+[2] Lugannani, Rice (1980) - Saddle point approximation for the distribution of the sum of
+    independent random variables
+[3] Daniels (1983) - Saddlepoint approximations for estimating equations
+[4] Barndorff-Nielsen (1986) - Inference on full or partial parameters based on the
+    standardized signed log likelihood ratio
+[5] Daniels (1987) - Tail probability approximations
+[6] Skovgaard (1987) - Saddlepoint expansions for conditional distributions
+[7] Booth, Butler (1990) - Randomization distributions and saddlepoint approximations in
+    generalized linear models
+[8] Wang (1990) - Saddlepoint approximations for bivariate distributions
+[9] Kolassa (2003) - Multivariate saddlepoint tail probability approximations
+[10] Butler (2007) - Saddlepoint Approximations with Applications
+[11] Kolassa, Li (2010) - Multivariate saddlepoint approximations in tail probability and
+     conditional inference
+"""
+
 import operator
 import warnings
 from abc import ABC, abstractmethod
@@ -73,7 +129,16 @@ def _bvn_tail_derivatives(b, c, logscale=0.0):
 
 class SaddlePointApprox(ABC):
     """
-    Interface for saddle point approximation of probability density functions
+    Interface for saddle point approximation of probability density functions.
+
+    Parameters
+    ----------
+    cgf : UnivariateCumulantGeneratingFunction or MultivariateCumulantGeneratingFunction
+        The cumulant generating function of the random variable or vector, available as the
+        attribute ``cgf``.
+    pdf_normalization : float, optional
+        The normalization constant of the probability density function. If not provided, it
+        is computed by numerical integration when a normalized pdf is requested.
     """
 
     # Half-width, in standardized units t * sqrt(K''(0)), of the window around t=0
@@ -111,6 +176,20 @@ class SaddlePointApprox(ABC):
             True.
         fillna : float, optional
             The value to replace NaNs with.
+        **solver_kwargs
+            Passed on to the solver of the saddle point equation, see
+            :meth:`~spapprox.UnivariateCumulantGeneratingFunction.dK_inv`.
+
+        Returns
+        -------
+        float or array_like
+            The approximate density at ``x`` (or at :math:`K'(t)`), of the container type of
+            ``x``.
+
+        References
+        ----------
+        [1] Daniels (1954) - Saddlepoint approximations in statistics
+        [2] Butler (2007) - Saddlepoint Approximations with Applications, Section 1.1
         """
         assert x is not None or t is not None
         if x is None:
@@ -125,9 +204,17 @@ class SaddlePointApprox(ABC):
         return y.tolist() if y.ndim == 0 else wrapper.wrap(y)
 
     def cdf(self, *args, x=None, t=None, fillna=np.nan, **solver_kwargs):
+        """
+        Saddle point approximation of the cumulative distribution function. Raises
+        ``NotImplementedError`` unless implemented by the subclass.
+        """
         raise NotImplementedError(f"CDF not implemented for {self.__class__.__name__}")
 
     def ppf(self, q, *args, fillna=np.nan, t0=None, ttol=1e-4, **kwargs):
+        """
+        Percent point function, the inverse of :meth:`cdf`. Raises ``NotImplementedError``
+        unless implemented by the subclass; only univariate approximations implement it.
+        """
         raise NotImplementedError(f"PPF not implemented for {self.__class__.__name__}")
 
     @type_wrapper(xloc=1)
@@ -142,11 +229,16 @@ class SaddlePointApprox(ABC):
     @property
     @abstractmethod
     def dim(self):
+        """
+        Dimension of the random variable, 1 for univariate approximations.
+        """
         raise NotImplementedError
 
     def clear_cache(self):
         """
-        Clear any information stored from fit functions
+        Clear any information stored by the fit functions, e.g.,
+        :meth:`~UnivariateSaddlePointApprox.fit_saddle_point_eqn`, and the computed pdf
+        normalization (a user-supplied ``pdf_normalization`` is kept).
         """
         # Use vars, as inspect.getmembers would evaluate (expensive) properties
         for attr in [k for k in vars(self) if k.endswith("_cache")]:
@@ -169,6 +261,21 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
     pdf_normalization : float, optional
         The normalization constant of the probability density function. If not
         provided, it will be computed using numerical integration.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import spapprox as spa
+    >>> approx = spa.UnivariateSaddlePointApprox(spa.gamma(a=3))
+    >>> t = np.array([-1.0, 0.0, 0.5])
+    >>> np.round(approx.cdf(t=t), 4).tolist()  # at x = K'(t) = 1.5, 3, 6
+    [0.1913, 0.5768, 0.938]
+
+    The exact values are 0.1912, 0.5768 and 0.9380. For a lattice variable pass its span,
+    e.g., ``approx.cdf(x=3, delta=1)``.
+
+    See ``examples/basic_example.py``, ``examples/expon_example.py`` and
+    ``examples/example_sum_random_variables.py``.
 
     References
     ----------
@@ -317,6 +424,9 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
 
     @property
     def dim(self):
+        """
+        Dimension of the random variable, always 1.
+        """
         return 1
 
     @property
@@ -362,6 +472,13 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             continuous. Otherwise, the probability mass function :math:`P(X=x)\approx
             \delta f(x)` is returned, for ``x`` on the lattice. This is the saddle point
             approximation of Daniels (1983, 1987).
+
+        For the other parameters see :meth:`SaddlePointApprox.pdf`.
+
+        Returns
+        -------
+        float or array_like
+            The approximate density, or probability mass if ``delta`` is given.
         """
         if delta is not None and not delta > 0:
             raise ValueError("delta must be positive")
@@ -449,6 +566,22 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             :math:`1/w-1/u`. If only ``t`` is given, it must solve the saddle point equation
             at :math:`x+\delta`. Neither correction is uniformly more accurate; Butler
             (2007), Section 1.2.6, suggests computing both.
+        **solver_kwargs
+            Passed on to the solver of the saddle point equation.
+
+        Returns
+        -------
+        float or array_like
+            The approximate :math:`P(X\leq x)`, of the container type of ``x``.
+
+        References
+        ----------
+        [1] Lugannani, Rice (1980) - Saddle point approximation for the distribution of the
+            sum of independent random variables
+        [2] Barndorff-Nielsen (1986) - Inference on full or partial parameters based on the
+            standardized signed log likelihood ratio
+        [3] Daniels (1987) - Tail probability approximations
+        [4] Butler (2007) - Saddlepoint Approximations with Applications, Sections 1.2, 2.4
         """
         assert x is not None or t is not None
         if delta is not None and not delta > 0:
@@ -479,9 +612,11 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
         Percent point function computed as the inverse of the saddle point
         approximation of the cumulative distribution function.
 
-        When available, the ppf interpolated. The method is based on
-        a custom implementation. Probably we could have also used the
-        Scipy's sampling pinv method.
+        After :meth:`fit_ppf`, the ppf is interpolated linearly. Otherwise the equation
+        :math:`\hat F(K'(t))=q` is solved for :math:`t` numerically, per point for scalar
+        ``q`` (with :func:`scipy.optimize.root_scalar`, trying several methods and searching a
+        bracket automatically) or jointly for array ``q`` (with :func:`scipy.optimize.root`),
+        and :math:`K'(t)` is returned.
 
         Parameters
         ----------
@@ -489,6 +624,17 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             The values at which to evaluate the inverse cumulative distribution function.
         fillna : float, optional
             The value to replace NaNs with.
+        t0 : float or array_like, optional
+            Starting value(s) of :math:`t` for the root finder. Default is 0.
+        ttol : float, optional
+            Absolute tolerance on the cdf for accepting a solution. Default is 1e-4.
+        **kwargs
+            Passed on to the root finder, e.g., ``method``.
+
+        Returns
+        -------
+        float or array_like
+            The approximate quantiles.
 
         Notes
         -----
@@ -671,13 +817,26 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
 
     def infer_t_range(self, atol=1e-4, rtol=1e-4, max_iter=500):
         """
-        Infers a suitable range for so that it covers roughly the entire probability mass
+        Infers a suitable range for :math:`t` so that it covers roughly the entire probability
+        mass.
 
         The bounds are expanded until the cdf is close to zero (lower bound) or one (upper
         bound). For lattice or bounded-support distributions the saddle point cdf may never
         get there: it can turn around, leave :math:`[0, 1]`, or become ``nan``. Such a step is
         treated as the end of the usable range, and the last valid bound is returned with a
         warning.
+
+        Parameters
+        ----------
+        atol, rtol : float, optional
+            Tolerances for the cdf to be close to 0 and 1.
+        max_iter : int, optional
+            Maximum number of expansion steps per bound.
+
+        Returns
+        -------
+        list of float
+            The lower and upper bound ``[lb, ub]`` of :math:`t`, with ``lb <= 0 <= ub``.
         """
         lb, ub, _, _ = self._infer_t_range(atol=atol, rtol=rtol, max_iter=max_iter)
         return [lb, ub]
@@ -733,12 +892,27 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
 
     def fit_saddle_point_eqn(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
         """
-        Evaluate the saddle point equation to the given range of values.
-        And use linear interpolation to solve the saddle point equation, form now onwards.
+        Solve the saddle point equation on a grid over the given range, and use linear
+        interpolation to solve the saddle point equation from now onwards.
+
+        This speeds up repeated evaluations of :meth:`pdf` and :meth:`cdf` given ``x``.
+        Outside the grid the numerical solver is used. :meth:`clear_cache` removes the fit.
 
         If t_range is not provided, it will be assumed that the cumulant generating
         function is defined in a neighborhood of zero. The range will be computed
-        by scaling iteratively, until we little mass for higher or lower values of x.
+        by scaling iteratively, until there is little mass left beyond it, see
+        :meth:`infer_t_range`.
+
+        Parameters
+        ----------
+        t_range : sequence of float, optional
+            Lower and upper bound of :math:`t`.
+        atol, rtol : float, optional
+            Tolerances passed to :meth:`infer_t_range`.
+        num : int, optional
+            Number of grid points, equally spaced in :math:`x`. Default is 1000.
+        **solver_kwargs
+            Passed on to the solver of the saddle point equation.
         """
         if t_range is None:
             if hasattr(self, "_t_cache"):
@@ -755,6 +929,17 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
 
         If t_range is not provided, it is taken from a previous fit (of the ppf or the
         saddle point equation), or inferred otherwise.
+
+        After the fit, :meth:`ppf` interpolates. :meth:`clear_cache` removes the fit.
+
+        Parameters
+        ----------
+        t_range : sequence of float, optional
+            Lower and upper bound of :math:`t`.
+        atol, rtol : float, optional
+            Tolerances passed to :meth:`infer_t_range`.
+        num : int, optional
+            Number of grid points, equally spaced in :math:`x`. Default is 1000.
         """
         if t_range is None:
             if hasattr(self, "_ppf_t_cache"):
@@ -790,11 +975,16 @@ class UnivariateSaddlePointApproxMean(UnivariateSaddlePointApprox):
     provides the saddle point approximation of the sample mean of the random variable.
 
     Given :math:`n` i.i.d. random variables :math:`X_1, \ldots, X_n` with
-    cumulant generating function :math:`K`, the cumulant generating function :math:`K_n`
+    cumulant generating function :math:`K`, the cumulant generating function
     of the sample mean :math:`\bar{X}` is given by
 
     .. math::
-        K_{\bar{X}}(t) = \sum_{i=1}^n 1/n*K_i(t)= \sum_{i=1}^n K_i(t/n) = n K(t/n).
+        K_{\bar{X}}(t) = \sum_{i=1}^n K(t/n) = n K(t/n),
+
+    see :func:`~spapprox.univariate_sample_mean`. The attribute ``cgf`` holds the cgf of
+    :math:`\bar X`, so ``pdf``, ``cdf`` and ``ppf`` are those of the sample mean. With the cgf
+    of :func:`~spapprox.univariate_empirical` this approximates the bootstrap distribution
+    of the mean without resampling (Davison and Hinkley, 1988).
 
     Parameters
     ----------
@@ -805,6 +995,22 @@ class UnivariateSaddlePointApproxMean(UnivariateSaddlePointApprox):
     pdf_normalization : float, optional
         The normalization constant of the probability density function. If not
         provided, it will be computed using numerical integration.
+
+    Examples
+    --------
+    >>> import spapprox as spa
+    >>> approx = spa.UnivariateSaddlePointApproxMean(spa.exponential(), sample_size=10)
+    >>> round(approx.cdf(t=0), 4)  # exact: gamma(10, scale=0.1).cdf(1) = 0.5421
+    0.5421
+
+    See ``examples/example_parametric_bootstrap.py`` and
+    ``examples/example_nonparametric_bootstrap.py``.
+
+    References
+    ----------
+    [1] Daniels (1954) - Saddlepoint approximations in statistics
+    [2] Davison, Hinkley (1988) - Saddlepoint approximations in resampling methods
+    [3] Butler (2007) - Saddlepoint Approximations with Applications, Section 3.4
     """
 
     def __init__(self, cgf, sample_size, pdf_normalization=None):
@@ -818,23 +1024,46 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
     r"""
     Given the cumulant generating function of a random vector, this class
     provides the saddle point approximation of the probability density function,
-    and of the cumulative distribution function, see :meth:`_kolassa_cdf`.
+    of the cumulative distribution function, of marginal distributions, and of
+    conditional distributions.
 
-    The multivariate saddle point approximation is given by
+    The multivariate saddle point approximation of the density of a random vector of
+    dimension :math:`d` is given by
 
     .. math::
-        f(\mathbf{x}) \approx \frac{1}{2\pi\sqrt{\left|\det H\right|}}
-        \exp\left(K(\mathbf{t}) - \mathbf{x}\cdot\mathbf{t}\right)
+        f(\mathbf{x}) \approx \frac{1}{(2\pi)^{d/2}\sqrt{\det H}}
+        \exp\left(K(\mathbf{t}) - \mathbf{x}\cdot\mathbf{t}\right),
 
+    where :math:`H=K''(\mathbf{t})` is the Hessian matrix of the cumulant generating function,
+    and :math:`\mathbf{t}` solves the saddle point equation :math:`K'(\mathbf{t})=\mathbf{x}`.
 
-    where :math:`H` is the Hessian matrix of the cumulant generating function,
-    and :math:`\mathbf{t}` solves the saddle point equation :math:`K(\mathbf{t})=x`.
+    The joint cdf :math:`P(\mathbf{X}\leq\mathbf{x})` is available for any dimension with the
+    backends ``"Kolassa"`` (Kolassa, 2003; the default) and ``"KL"`` (Kolassa and Li, 2010),
+    see :meth:`cdf`. Marginals are obtained by indexing, ``approx[i]`` or
+    ``approx[[i, j]]``, and the conditional distribution of one component given the others
+    with :meth:`conditional_pdf` and :meth:`conditional_cdf` (Skovgaard, 1987).
 
-    We follow the approach as outlined in [4] Section 5.2.
+    Parameters
+    ----------
+    cgf : MultivariateCumulantGeneratingFunction
+        The cumulant generating function of the random vector.
+    pdf_normalization : float, optional
+        The normalization constant of the probability density function. If not
+        provided, it will be computed using numerical integration.
 
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import spapprox as spa
+    >>> cgf = spa.multivariate_norm(loc=np.zeros(3), cov=np.eye(3))
+    >>> approx = spa.MultivariateSaddlePointApprox(cgf)
+    >>> round(approx.pdf(t=np.zeros(3), normalize_pdf=False), 6)  # (2 pi)^(-3/2)
+    0.063494
+    >>> approx[0].dim, approx[[0, 1]].dim
+    (1, 2)
 
-    See the Kolasse book on how to remove singularities
-    DasGupta claims the multidimensional case is too notationally complex
+    See ``examples/example_Kolassa2003.py`` and
+    ``examples/example_permutation_two_sample.py``.
 
     References
     ----------
@@ -844,6 +1073,10 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
     [4] Gatto (2000) - Symbolic computation for approximating distributions of some families of one and two-sample nonparametric test statistics
     [5] Gatto (2019) - Saddlepoint approximations for data in simplices
     [6] Kolassa (2003) - Multivariate saddlepoint tail probability approximations
+    [7] Kolassa, Li (2010) - Multivariate saddlepoint approximations in tail probability and
+        conditional inference
+    [8] Skovgaard (1987) - Saddlepoint expansions for conditional distributions
+    [9] Butler (2007) - Saddlepoint Approximations with Applications, Sections 3.1, 4.1
     """
 
     def __init__(self, cgf, pdf_normalization=None):
@@ -1413,16 +1646,34 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
 
     @property
     def dim(self):
+        """
+        Dimension of the random vector, that of the cgf.
+        """
         return self.cgf.dim
 
     def fit_saddle_point_eqn(self, t_ranges=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
         """
-        Evaluate the saddle point equation to the given range of values.
-        And use linear interpolation to solve the saddle point equation, form now onwards.
+        Solve the saddle point equation on a tensor grid of :math:`x` values, and use linear
+        interpolation, polished by a few Newton steps, to solve the saddle point equation
+        from now onwards. Outside the grid, or where this does not converge, the numerical
+        solver is used. :meth:`clear_cache` removes the fit.
 
-        If t_range is not provided, it will be assumed that the cumulant generating
-        function is defined in a neighborhood of zero. The range will be computed
-        by scaling iteratively, until we little mass for higher or lower values of x.
+        The grid has ``num`` equidistant points per component, spanning the image of
+        ``t_ranges[j]`` under the derivative of the marginal cgf of component :math:`j`. If
+        ``t_ranges`` is not provided, the grid of a previous fit is reused, or the ranges
+        are inferred from the marginals, see :meth:`infer_t_ranges`.
+
+        Parameters
+        ----------
+        t_ranges : array_like, optional
+            Ranges of :math:`t` per component, of shape ``(dim, 2)``.
+        atol, rtol : float, optional
+            Tolerances for inferring ``t_ranges``.
+        num : int, optional
+            Number of grid points per component. Default is 1000; note that the grid has
+            ``num ** dim`` points, so use a much smaller value for :math:`d>2`.
+        **solver_kwargs
+            Passed on to the solver of the saddle point equation.
         """
         if t_ranges is None and hasattr(self, "_x_cache"):
             self._x_cache = [np.linspace(xa[0], xa[-1], num=num) for xa in self._x_cache]
@@ -1503,8 +1754,19 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
 
     def infer_t_ranges(self, atol=1e-4, rtol=1e-4):
         """
-        Infers suitable ranges for :math:`t` so that it covers, roughly the entire probability mass.
-        The ranges are inferred from the univariat case.
+        Infers suitable ranges for :math:`t` per component so that they cover roughly the
+        entire probability mass. The ranges are inferred from the univariate marginals, see
+        :meth:`UnivariateSaddlePointApprox.infer_t_range`.
+
+        Parameters
+        ----------
+        atol, rtol : float, optional
+            Tolerances for the marginal cdfs to be close to 0 and 1.
+
+        Returns
+        -------
+        list of list of float
+            The ranges ``[lb, ub]`` per component.
         """
         return [
             UnivariateSaddlePointApprox(self.cgf[i]).infer_t_range(atol=atol, rtol=rtol)
@@ -1563,10 +1825,26 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
             for :math:`\sigma\lesssim\delta/4`. For a lattice variable of interest given
             other variables, see :meth:`conditional_cdf`.
 
+        **solver_kwargs
+            Passed on to the solver of the saddle point equation.
+
+        Returns
+        -------
+        float or array_like
+            The approximate :math:`P(\mathbf{X}\leq\mathbf{x})`, a scalar for a single point.
+
         Notes
         -----
         After :meth:`fit_cdf`, points within the fitted grid are interpolated from the
         table, unless another ``backend`` is requested.
+
+        See ``examples/example_Kolassa2003.py``.
+
+        References
+        ----------
+        [1] Kolassa (2003) - Multivariate saddlepoint tail probability approximations
+        [2] Kolassa, Li (2010) - Multivariate saddlepoint approximations in tail probability
+            and conditional inference
         """
         assert x is not None or t is not None
         backend = self._check_cdf_backend(backend)
@@ -2075,22 +2353,43 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
 class BivariateSaddlePointApprox(MultivariateSaddlePointApprox):
     r"""
     Given the cumulant generating function of a bivariate random variable, this class
-    provides the saddle point approximation of the probability density function.
+    provides the saddle point approximation of the probability density function and of
+    the cumulative distribution function. It extends
+    :class:`MultivariateSaddlePointApprox` with bivariate cdf backends.
 
     The bivariate saddle point approximation is given by
 
     .. math::
-        f(\mathbf{x}) \approx \frac{1}{2\pi\sqrt{\left|\det H\right|}}
+        f(\mathbf{x}) \approx \frac{1}{2\pi\sqrt{\det H}}
         \exp\left(K(\mathbf{\tilde t}) - \mathbf{x}\cdot\mathbf{\tilde t}\right)
 
     where :math:`\mathbf{x} = \left[x,y\right]`,
     :math:`H` is the Hessian matrix of the cumulant generating function,
     and :math:`\mathbf{\tilde t}= \left[\tilde s,\tilde t\right]` solves
-    the saddle point equation :math:`K(\mathbf{\tilde t})=x`.
+    the saddle point equation :math:`K'(\mathbf{\tilde t})=\mathbf{x}`.
 
-    The cumulative distribution function is approximated by the method of [6] by
-    default, see :meth:`_kl_cdf`, by the method of [3] as outlined in [4] Section
-    5.2, see :meth:`_wang_cdf`, or by the method of [8], see :meth:`_kolassa_cdf`.
+    The cumulative distribution function, see :meth:`cdf`, is approximated by the method
+    of [6] by default (``backend="KL"``), by the method of [3] as outlined in [4] Section
+    5.2 (``backend="Wang"``), or by the method of [8] (``backend="Kolassa"``).
+
+    Parameters
+    ----------
+    cgf : MultivariateCumulantGeneratingFunction
+        The cumulant generating function of the random vector, of dimension 2.
+    pdf_normalization : float, optional
+        The normalization constant of the probability density function. If not
+        provided, it will be computed using numerical integration.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import spapprox as spa
+    >>> approx = spa.BivariateSaddlePointApprox(spa.bivariate_gamma(a=[1, 1, 1]))
+    >>> x = np.array([2.0, 2.0])
+    >>> round(approx.cdf(x=x, backend="Wang"), 3)
+    0.423
+
+    See ``examples/example_Wang1990.py`` and ``examples/example_Kolassa2003.py``.
 
     References
     ----------
@@ -3124,6 +3423,13 @@ class EstimatingEquationSaddlePointApprox:
         Function of :math:`\tau` returning a point of the lattice of :math:`S(\tau)`.
         Required with ``delta``; set by :meth:`from_resampling`.
 
+    Notes
+    -----
+    See ``examples/example_bootstrap_multinomial.py``,
+    ``examples/example_bootstrap_dirichlet.py``, ``examples/example_bootstrap_lattice.py``,
+    ``examples/example_bootstrap_robust_estimator.py`` and
+    ``examples/example_jackknife_estimating_equation.py``.
+
     References
     ----------
     [1] Daniels (1983) - Saddlepoint approximations for estimating equations
@@ -3493,6 +3799,10 @@ class MultivariateEstimatingEquationSaddlePointApprox:
         For each component of :math:`\tau`, an interval containing (almost all of) the
         distribution. Needed for the normalization and :meth:`fit_pdf`.
 
+    Notes
+    -----
+    See ``examples/example_bootstrap_regression.py``.
+
     References
     ----------
     [1] Skovgaard (1990) - On the density of minimum contrast estimators
@@ -3666,6 +3976,11 @@ class MultivariateEstimatingEquationSaddlePointApprox:
             requires a ``bracket``.
         fillna : float, optional
             The value to replace NaNs with.
+
+        Returns
+        -------
+        float or array_like
+            The approximate density, of shape ``tau.shape[:-1]``.
         """
         tau = np.asarray(tau, dtype=float)
         if tau.ndim == 0:

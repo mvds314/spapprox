@@ -1,3 +1,46 @@
+r"""
+Cumulant generating functions (cgfs) of random variables and random vectors.
+
+The cumulant generating function of a random variable (or vector) :math:`X` is
+
+.. math::
+    K(t) = \log\mathbb{E}\left[e^{\langle t, X\rangle}\right],
+
+finite on a convex domain containing zero. Its derivatives at zero are the cumulants,
+:math:`K'(0)=\mathbb{E}X` and :math:`K''(0)=\operatorname{Cov}X`, and it is additive over
+independent variables. The saddle point approximations in :mod:`spapprox.spa` need
+:math:`K`, :math:`K'`, :math:`K''` and :math:`K'''`, and the solution of the saddle point
+equation :math:`K'(t)=x`.
+
+:class:`UnivariateCumulantGeneratingFunction` and
+:class:`MultivariateCumulantGeneratingFunction` wrap a callable :math:`K` plus, optionally,
+its analytic derivatives, the inverse of :math:`K'`, the cumulants at zero, and a
+:class:`~spapprox.domain.Domain` on which :math:`K` is finite. Whatever is not supplied is
+computed numerically (with ``numdifftools`` by default, or ``findiff``) and cached.
+
+Conventions:
+
+* The callables describe a standardized variable :math:`Z`; the object represents
+  :math:`X=\text{scale}\cdot Z+\text{loc}`, and ``K``, ``dK``, ... apply this transform:
+  :math:`K_X(t)=K_Z(\text{scale}^Tt)+\langle\text{loc},t\rangle`. The domain is that of
+  :math:`K_Z`.
+* Outside the domain, evaluations return ``fillna`` (default NaN); the user callables are
+  not evaluated there.
+* The algebra returns new objects: ``cgf + c`` and ``c * cgf`` transform the variable,
+  ``cgf1 + cgf2`` is the cgf of the sum of independent variables, ``mcgf[i]`` that of a
+  marginal, and ``mcgf.ldot(A)`` that of :math:`AX`.
+
+Concrete distributions are constructed with the factories in :mod:`spapprox.cgfs`. See
+``examples/example_sum_random_variables.py`` and
+``examples/example_permutation_one_sample.py``.
+
+References
+----------
+[1] Butler (2007) - Saddlepoint Approximations with Applications, Chapters 1 and 3
+[2] McCullagh (1987) - Tensor Methods in Statistics
+[3] Kolassa (2006) - Series Approximation Methods in Statistics, Chapter 6
+"""
+
 import warnings
 from abc import ABC, abstractmethod
 
@@ -44,9 +87,11 @@ class CumulantGeneratingFunction(ABC):
     a random variable (or vector) :math:`X` should be provided as callable.
 
     If location and scale parameters are provided, the passed callables should correspond to
-    the standardized random variable (vector) :math`Z`, i.e., :math:`X=\text{scale}\times Z + \text{loc}`.
+    the standardized random variable (vector) :math:`Z`, i.e.,
+    :math:`X=\text{scale}\times Z + \text{loc}`.
 
     The class contains logic to:
+
     * compute and evaluate derivatives
     * compute the inverse of the derivative
     * apply a location and or scale
@@ -65,6 +110,9 @@ class CumulantGeneratingFunction(ABC):
     dK : callable, optional
       Derivative of the cumulant generating function, maps t to K'(t), and is able to handle vector valued input.
       If not provided, numerical differentiation is used.
+    dK_inv : callable, optional
+      Inverse of `dK`, maps x to the solution t of the saddle point equation K'(t)=x.
+      If not provided, the saddle point equation is solved numerically.
     d2K : callable, optional
       Second derivative of the cumulant generating function, maps t to K''(t), and is able to handle vector valued input.
       If not provided, numerical differentiation is used.
@@ -84,7 +132,15 @@ class CumulantGeneratingFunction(ABC):
       It should be provided unscaled and untranslated, i.e., corresponding `d3K` which is also unscaled and untranslated.
       If not provided, it is computed and cached once needed.
     domain : Domain or None, optional
-      If not provided, the domain is assumed to be :math:`(-\infty, \infty)`.
+      Domain on which the cumulant generating function of the standardized variable is
+      finite. If not provided, the domain is assumed to be :math:`(-\infty, \infty)`.
+    numdiff_backend : str, optional
+      Backend for the numerical derivatives that are not provided: ``"numdifftools"``
+      (default) or ``"findiff"``.
+
+    References
+    ----------
+    [1] Butler (2007) - Saddlepoint Approximations with Applications
     """
 
     def __init__(
@@ -122,6 +178,11 @@ class CumulantGeneratingFunction(ABC):
 
     @property
     def loc(self):
+        r"""
+        Location parameter: :math:`X=\text{scale}\cdot Z+\text{loc}`, with :math:`Z` the
+        standardized variable described by the callables. A scalar, or for a random vector
+        also a vector. Setting it clears the cached mean.
+        """
         return self._loc
 
     @loc.setter
@@ -133,6 +194,12 @@ class CumulantGeneratingFunction(ABC):
 
     @property
     def scale(self):
+        r"""
+        Scale parameter: :math:`X=\text{scale}\cdot Z+\text{loc}`, with :math:`Z` the
+        standardized variable described by the callables. A scalar, or for a random vector
+        also a vector of component scales or a matrix. Setting it clears the cached
+        cumulants.
+        """
         return self._scale
 
     @scale.setter
@@ -144,23 +211,42 @@ class CumulantGeneratingFunction(ABC):
 
     @property
     def kappa1(self):
+        r"""
+        First cumulant :math:`\kappa_1=K'(0)=\mathbb{E}X`, evaluated with :meth:`dK` (not
+        cached, see :attr:`dK0` for the cached value).
+        """
         return self.dK(0)
 
     @property
     def mean(self):
+        r"""
+        Mean :math:`\mathbb{E}X=K'(0)`, see :attr:`kappa1`.
+        """
         return self.kappa1
 
     @property
     def kappa2(self):
+        r"""
+        Second cumulant :math:`\kappa_2=K''(0)`, the variance, or for a random vector the
+        covariance matrix, evaluated with :meth:`d2K` (not cached, see :attr:`d2K0`).
+        """
         return self.d2K(0)
 
     @property
     @abstractmethod
     def variance(self):
+        r"""
+        Variance :math:`\operatorname{Var}X`, or for a random vector the vector of the
+        variances of the components.
+        """
         raise NotImplementedError()
 
     @property
     def std(self):
+        """
+        Standard deviation, the square root of :attr:`variance`, or for a random vector the
+        vector of the standard deviations of the components.
+        """
         return np.sqrt(self.variance)
 
     @property
@@ -190,29 +276,39 @@ class CumulantGeneratingFunction(ABC):
     @property
     @abstractmethod
     def dK0(self):
-        """
-        Note this property stores the scaled and translated derivative at zero.
+        r"""
+        First cumulant :math:`K'(0)`, the mean, of the scaled and translated variable.
+
+        Computed once from the unscaled and untranslated derivative at zero (either supplied
+        as ``dK0`` or obtained with :meth:`dK`) and cached.
         """
         return self._dK0_cache
 
     @property
     @abstractmethod
     def d2K0(self):
-        """
-        Note this property stores the scaled and translated second order derivative at zero.
+        r"""
+        Second cumulant :math:`K''(0)`, the variance, or for a random vector the covariance
+        matrix, of the scaled and translated variable. Computed once and cached.
         """
         return self._d2K0_cache
 
     @property
     @abstractmethod
     def d3K0(self):
-        """
-        Note this property stores the scaled and translated third order derivative at zero.
+        r"""
+        Third cumulant :math:`K'''(0)`, or for a random vector the tensor of third order
+        cumulants, of the scaled and translated variable. Computed once and cached. The cdf
+        approximations need it at :math:`t=0`.
         """
         return self._d3K0_cache
 
     @abstractmethod
     def add(self, other, inplace=False):
+        """
+        Add a constant or an independent random variable, also available as
+        ``self + other``. See the subclasses.
+        """
         raise NotImplementedError()
 
     def __add__(self, other):
@@ -231,6 +327,10 @@ class CumulantGeneratingFunction(ABC):
 
     @abstractmethod
     def mul(self, other, inplace=False):
+        """
+        Multiply the random variable by a constant, also available as ``other * self`` and,
+        with the reciprocal, as ``self / other``. See the subclasses.
+        """
         raise NotImplementedError()
 
     def __mul__(self, other):
@@ -244,22 +344,38 @@ class CumulantGeneratingFunction(ABC):
 
     @abstractmethod
     def K(self, t, fillna=np.nan, loc=None, scale=None):
+        r"""
+        The cumulant generating function :math:`K(t)`. See the subclasses.
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def dK(self, t, fillna=np.nan, loc=None, scale=None):
+        r"""
+        The first derivative :math:`K'(t)`. See the subclasses.
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def dK_inv(self, x, loc=None, scale=None, fillna=np.nan):
+        r"""
+        The solution :math:`t` of the saddle point equation :math:`K'(t)=x`. See the
+        subclasses.
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def d2K(self, t, fillna=np.nan, loc=None, scale=None):
+        r"""
+        The second derivative :math:`K''(t)`. See the subclasses.
+        """
         raise NotImplementedError()
 
     @abstractmethod
     def d3K(self, t, fillna=np.nan, loc=None, scale=None):
+        r"""
+        The third derivative :math:`K'''(t)`. See the subclasses.
+        """
         raise NotImplementedError()
 
 
@@ -314,6 +430,31 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         If provided, the second derivative of the cumulant generating function at 0, i.e., :math:`K''(0)`, also unscaled and untranslated.
     d3K0 : float, optional
         If provided, the third derivative of the cumulant generating function at 0, i.e., :math:`K'''(0)`, also unscaled and untranslated.
+    dK_inv : callable, optional
+        Inverse of `dK`, unscaled and untranslated. If not provided, the saddle point
+        equation is solved numerically, see :meth:`dK_inv`.
+    **kwargs
+        Passed on to :class:`CumulantGeneratingFunction`, i.e., ``numdiff_backend``.
+
+    Examples
+    --------
+    The cgf of the sum of a normal and an independent exponential variable:
+
+    >>> import numpy as np
+    >>> import spapprox as spa
+    >>> cgf = spa.norm(loc=1, scale=2) + spa.exponential()
+    >>> float(cgf.dK0), float(cgf.d2K0)
+    (2.0, 5.0)
+
+    A cgf from a callable, with numerical derivatives:
+
+    >>> cgf = spa.UnivariateCumulantGeneratingFunction(
+    ...     lambda t: -np.log(1 - t), domain=spa.Domain(l=1), scale=2
+    ... )
+    >>> round(cgf.dK(0.25), 6)
+    4.0
+
+    See ``examples/example_sum_random_variables.py``.
     """
 
     def __init__(
@@ -362,10 +503,33 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @property
     def variance(self):
+        r"""
+        Variance :math:`K''(0)`, evaluated with :meth:`d2K`.
+        """
         return self.kappa2
 
     @type_wrapper(xloc=1)
     def K(self, t, fillna=np.nan, loc=None, scale=None):
+        r"""
+        The cumulant generating function
+        :math:`K_X(t)=K_Z(\text{scale}\cdot t)+\text{loc}\cdot t`.
+
+        Parameters
+        ----------
+        t : array_like
+            Points at which to evaluate. Pandas input gives pandas output, a scalar a float.
+        fillna : float, optional
+            Value returned where :math:`\text{scale}\cdot t` is outside the domain. Default is
+            NaN.
+        loc, scale : float, optional
+            Override the location and scale of the object for this evaluation, e.g.,
+            ``loc=0, scale=1`` evaluates the cgf of the standardized variable.
+
+        Returns
+        -------
+        float or array_like
+            :math:`K(t)`, of the same shape as ``t``.
+        """
         loc = self.loc if loc is None else loc
         scale = self.scale if scale is None else scale
         if not np.isscalar(loc) or not np.isscalar(scale):
@@ -381,13 +545,32 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @type_wrapper(xloc=1)
     def dK(self, t, loc=None, scale=None, fillna=np.nan):
         r"""
-        Note, the current implementation uses numerical differentiation, but
-        an alternative way would be to use the following result:
+        First derivative of the cumulant generating function,
+        :math:`K_X'(t)=\text{scale}\cdot K_Z'(\text{scale}\cdot t)+\text{loc}`.
+
+        If ``dK`` was not supplied, it is computed by numerical differentiation of
+        :math:`K` with the ``numdiff_backend``. An alternative would be the identity
 
         .. math::
             K'(t)=\frac{\mathbb{E}\left[ Xe^{tX}\right]}{M(t)},
+
         where :math:`K(t)` is the cumulant generating function, and :math:`M(t)`
         is the moment generating function of :math:`X`.
+
+        Parameters
+        ----------
+        t : array_like
+            Points at which to evaluate.
+        loc, scale : float, optional
+            Override the location and scale of the object for this evaluation.
+        fillna : float, optional
+            Value returned outside the domain. Default is NaN.
+
+        Returns
+        -------
+        float or array_like
+            :math:`K'(t)`, of the same shape as ``t``. Given :math:`t`, this is the point
+            :math:`x` at which :math:`t` solves the saddle point equation.
 
         References
         ----------
@@ -418,18 +601,44 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @type_wrapper(xloc=1)
     def dK_inv(self, x, t0=None, loc=None, scale=None, fillna=np.nan, **kwargs):
         r"""
-        Inverse of the derivative of the cumulant generating function.
-        It solves:
+        Inverse of the derivative of the cumulant generating function, i.e., the saddle point
+        :math:`t` that solves
 
         .. math::
             x = K'(t).
 
-        Note that the inverse equals of :math:`K(t)`, and all its
-        derivatives are given by the Legendre-Fenchel transform :math:`K^*(x)`
-        (and all its derivatives):
+        If ``dK_inv`` was supplied it is used. Otherwise the equation is solved per point with
+        :func:`scipy.optimize.root_scalar`, trying in turn the methods ``halley``,
+        ``newton``, ``secant``, ``bisect``, ``brentq``, ``brenth``, ``ridder`` and
+        ``toms748`` (bracketing methods search a valid bracket automatically) until one
+        converges. This is slow for many points; see
+        :meth:`spapprox.UnivariateSaddlePointApprox.fit_saddle_point_eqn` for an interpolating
+        alternative, or pass :math:`t` instead of :math:`x` to the approximations.
+
+        Note that the inverse of :math:`K'(t)` is the derivative of the Legendre-Fenchel
+        transform :math:`K^*(x)`:
 
         .. math::
             K^*(x) = \sup_t \left\{<t,x>-K(t)\right\}
+
+        Parameters
+        ----------
+        x : array_like
+            Points at which to solve the saddle point equation.
+        t0 : float or array_like, optional
+            Starting value(s) for the root finder. Default is 0.
+        loc, scale : float, optional
+            Override the location and scale of the object for this evaluation.
+        fillna : float, optional
+            Value returned where the solution is outside the domain. Default is NaN.
+        **kwargs
+            Passed on to :func:`scipy.optimize.root_scalar`, e.g., ``method`` or
+            ``bracket``.
+
+        Returns
+        -------
+        float or array_like
+            The saddle point :math:`t`, of the same shape as ``x``.
 
         References
         ----------
@@ -573,8 +782,31 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @type_wrapper(xloc=1)
     def d2K(self, t, fillna=np.nan, loc=None, scale=None):
-        """
-        Note that higher order derivatives can sometimes
+        r"""
+        Second derivative of the cumulant generating function,
+        :math:`K_X''(t)=\text{scale}^2 K_Z''(\text{scale}\cdot t)`.
+
+        Computed by numerical differentiation of :math:`K` if ``d2K`` was not supplied.
+
+        Parameters
+        ----------
+        t : array_like
+            Points at which to evaluate.
+        fillna : float, optional
+            Value returned outside the domain. Default is NaN.
+        loc : float, optional
+            Ignored, the second derivative does not depend on the location.
+        scale : float, optional
+            Override the scale of the object for this evaluation.
+
+        Returns
+        -------
+        float or array_like
+            :math:`K''(t)`, of the same shape as ``t``.
+
+        Notes
+        -----
+        Higher order derivatives can sometimes
         be found if a generating polynomial exists, i.e.,
         a polynomial that relatates :math:`K(t)` with its
         derivatives.
@@ -607,6 +839,28 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @type_wrapper(xloc=1)
     def d3K(self, t, fillna=np.nan, loc=None, scale=None):
+        r"""
+        Third derivative of the cumulant generating function,
+        :math:`K_X'''(t)=\text{scale}^3 K_Z'''(\text{scale}\cdot t)`.
+
+        Computed by numerical differentiation of :math:`K` if ``d3K`` was not supplied.
+
+        Parameters
+        ----------
+        t : array_like
+            Points at which to evaluate.
+        fillna : float, optional
+            Value returned outside the domain. Default is NaN.
+        loc : float, optional
+            Ignored, the third derivative does not depend on the location.
+        scale : float, optional
+            Override the scale of the object for this evaluation.
+
+        Returns
+        -------
+        float or array_like
+            :math:`K'''(t)`, of the same shape as ``t``.
+        """
         # Initialize
         if self._d3K is None:
             if self._numdiff_backend == "findiff":
@@ -674,7 +928,10 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         return self._d3K0_raw_cache
 
     def add(self, other, inplace=False):
-        """
+        r"""
+        Add a constant (a shift) or an independent random variable (a convolution), also
+        available as ``self + other``.
+
         We use the following properties of the cumulant generating function
         for independent random variables :math:`X` and :math:`Y`:
 
@@ -684,10 +941,25 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Parameters
         ----------
         other : int, float or UnivariateCumulantGeneratingFunction
-            Object to add
+            Object to add. A cgf is treated as independent of ``self``; the domains are
+            intersected.
         inplace : bool, optional
-            Whether to change the current object or create a new one. Now matter what is chosen,
-            the results is always returned.
+            Whether to change the current object or create a new one. No matter what is chosen,
+            the result is always returned. Only supported when adding a constant.
+
+        Returns
+        -------
+        UnivariateCumulantGeneratingFunction
+            The cgf of the sum.
+
+        Examples
+        --------
+        >>> import spapprox as spa
+        >>> cgf = spa.gamma(a=2) + spa.gamma(a=3)  # gamma(a=5)
+        >>> float(cgf.dK0)
+        5.0
+
+        See ``examples/example_sum_random_variables.py``.
 
         References
         ----------
@@ -762,12 +1034,28 @@ class UnivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             )
 
     def mul(self, other, inplace=False):
-        """
+        r"""
+        Multiply the random variable by a constant, also available as ``other * self`` and,
+        with the reciprocal, as ``self / other``. This multiplies both ``loc`` and ``scale``.
+
         We use the following properties of the cumulant generating function
         for independent random variables :math:`X` and :math:`Y`:
 
         .. math::
             K_{aX+bY+c}(t) = K_X(at)+ K_Y(bt) +ct.
+
+        Parameters
+        ----------
+        other : int or float
+            The constant :math:`a`.
+        inplace : bool, optional
+            Whether to change the current object or create a new one. The result is always
+            returned.
+
+        Returns
+        -------
+        UnivariateCumulantGeneratingFunction
+            The cgf of :math:`aX`.
 
         References
         ----------
@@ -867,6 +1155,39 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Should correspond to the functions :math:`K` as provided above.
         Note that these can be of higher dimension when scale is a projection matrix.
         If not provided, the domain is assumed to be :math:`(-\infty, \infty)` for variables.
+    dK_inv : callable, optional
+        Inverse of `dK`, unscaled and untranslated. If not provided, the saddle point
+        equation is solved numerically, see :meth:`dK_inv`.
+    **kwargs
+        Passed on to :class:`CumulantGeneratingFunction`, i.e., ``numdiff_backend``.
+
+    Notes
+    -----
+    With a matrix ``scale`` :math:`A` of shape ``(dim, domain.dim)`` and vector ``loc``
+    :math:`b`, the object describes :math:`X=AZ+b`, with cumulant generating function
+    :math:`K_X(t)=K_Z(A^Tt)+<b,t>`. A vector ``scale`` stands for the diagonal matrix
+    :math:`\operatorname{diag}(\text{scale})`. When ``dim < domain.dim`` the scale is a
+    projection and is not invertible, in which case :meth:`dK_inv` cannot be used.
+
+    Missing derivatives are computed numerically. Note that the third derivative
+    :meth:`d3K` requires ``findiff`` if ``d3K`` is not supplied.
+
+    Examples
+    --------
+    Stack independent univariate variables into a random vector, and take a linear
+    combination:
+
+    >>> import numpy as np
+    >>> import spapprox as spa
+    >>> mcgf = spa.MultivariateCumulantGeneratingFunction.from_univariate(
+    ...     spa.norm(), spa.gamma(a=2)
+    ... )
+    >>> mcgf.dim, mcgf.dK0.tolist()
+    (2, [0.0, 2.0])
+    >>> mcgf.ldot(np.array([1.0, 1.0])).dK0.tolist()  # vector -> univariate cgf of X1 + X2
+    2.0
+
+    See ``examples/example_Kolassa2003.py`` and ``examples/example_permutation_one_sample.py``.
     """
 
     def __init__(
@@ -913,6 +1234,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @property
     def loc_vect(self):
+        """
+        Location as a vector of length :attr:`dim`, also when :attr:`loc` is a scalar.
+        """
         if not hasattr(self, "_loc_vect_cache"):
             if isinstance(self.loc, np.ndarray) and self.loc.ndim == 1:
                 return self.loc
@@ -926,6 +1250,10 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @property
     def scale_mat(self):
+        """
+        Scale as a matrix of shape ``(dim, domain.dim)``: a scalar becomes a multiple of the
+        identity and a vector a diagonal matrix.
+        """
         if not hasattr(self, "_scale_mat_cache"):
             if isinstance(self.scale, np.ndarray) and self.scale.ndim == 2:
                 self._scale_mat_cache = self.scale
@@ -996,6 +1324,10 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @property
     def scale_is_invertible(self):
+        """
+        Whether the scale is invertible, i.e., nonzero, or a square matrix of full rank. A
+        projection (``dim != domain.dim``) is not invertible.
+        """
         if not hasattr(self, "_scale_is_invertible_cache"):
             self._scale_is_invertible_cache = self._scale_is_invertible(self.scale)
         return self._scale_is_invertible_cache
@@ -1017,6 +1349,10 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @property
     def scale_inv(self):
+        """
+        (Pseudo-)inverse of :attr:`scale` in the same form: the reciprocal of a scalar or
+        vector, or the Moore-Penrose pseudo-inverse of a matrix.
+        """
         if not hasattr(self, "_scale_inv_cache"):
             self._scale_inv_cache = self._get_scale_inv()
         return self._scale_inv_cache
@@ -1058,6 +1394,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @property
     def scale_mat_inv(self):
+        """
+        (Pseudo-)inverse of :attr:`scale` as a matrix, see :attr:`scale_inv`.
+        """
         if not hasattr(self, "_scale_mat_inv_cache"):
             self._scale_mat_inv_cache = self._get_scale_mat_inv()
         return self._scale_mat_inv_cache
@@ -1137,14 +1476,23 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @property
     def cov(self):
+        r"""
+        Covariance matrix :math:`K''(0)`, i.e., :attr:`d2K0`.
+        """
         return self.d2K0
 
     @property
     def cor(self):
+        """
+        Correlation matrix, derived from :attr:`cov`.
+        """
         return sm.stats.moment_helpers.cov2corr(self.cov)
 
     @property
     def variance(self):
+        """
+        Vector of the variances of the components, the diagonal of :attr:`cov`.
+        """
         return np.diag(self.cov)
 
     @property
@@ -1209,8 +1557,26 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     def __getitem__(self, item):
         """
-        Just set the other components to zero
-        See Kolassa (2006) - Series approximation methods in statistics, Chapter 6.8
+        Marginal cumulant generating function of a subset of the components.
+
+        The marginal cgf is obtained by setting the other components of :math:`t` to zero,
+        :math:`K_{X_J}(t_J)=K_X(t_J, 0)`.
+
+        Parameters
+        ----------
+        item : int, list of int, tuple of int or slice
+            Index of the component(s). An integer gives a
+            :class:`UnivariateCumulantGeneratingFunction`, the others a
+            :class:`MultivariateCumulantGeneratingFunction`.
+
+        Returns
+        -------
+        UnivariateCumulantGeneratingFunction or MultivariateCumulantGeneratingFunction
+            The marginal cgf.
+
+        References
+        ----------
+        [1] Kolassa (2006) - Series approximation methods in statistics, Chapter 6.8
         """
         if isinstance(item, int):
             assert item < self.dim, "Index out of bounds"
@@ -1525,11 +1891,28 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         :math:`<.,.>` denotes the inner product.
         In this case, the result is a univariate cumulant generating function.
 
-        We use the following properties of the cumulant generating function
-        for independent random variables :math:`X` and :math:`Y`:
+        We use the following property of the cumulant generating function:
 
-         .. math::
+        .. math::
             K_{AX}(t) = K_X(A^Tt)
+
+        Parameters
+        ----------
+        A : array_like
+            A matrix of shape ``(m, dim)`` or a vector of length ``dim``.
+        inplace : bool, optional
+            Whether to change the current object, only possible for a square matrix. The
+            result is always returned.
+
+        Returns
+        -------
+        MultivariateCumulantGeneratingFunction or UnivariateCumulantGeneratingFunction
+            The cgf of :math:`AX`, or of :math:`<A,X>` if :math:`A` is a vector.
+
+        Examples
+        --------
+        See ``examples/example_permutation_one_sample.py`` and
+        ``examples/example_Kolassa2003.py``.
 
         References
         ----------
@@ -1571,6 +1954,20 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             raise ValueError("Invalid shape")
 
     def stack(self, other):
+        """
+        Stack with an independent random variable or vector into a longer random vector
+        :math:`(X, Y)`, see :meth:`from_cgfs`.
+
+        Parameters
+        ----------
+        other : UnivariateCumulantGeneratingFunction or MultivariateCumulantGeneratingFunction
+            The cgf of :math:`Y`, independent of :math:`X`.
+
+        Returns
+        -------
+        MultivariateCumulantGeneratingFunction
+            The cgf of :math:`(X, Y)`, of dimension ``self.dim + other.dim``.
+        """
         return self.from_cgfs(self, other)
 
     def _validate_points(self, t, scale=None, name="t"):
@@ -1593,6 +1990,25 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @type_wrapper(xloc=1)
     def K(self, t, fillna=np.nan, loc=None, scale=None):
+        r"""
+        The cumulant generating function :math:`K_X(t)=K_Z(A^Tt)+<b,t>`, with :math:`A` the
+        scale and :math:`b` the location.
+
+        Parameters
+        ----------
+        t : array_like
+            A point, i.e., a vector of length :attr:`dim`, or an array of shape
+            ``(n, dim)`` of points. A scalar is broadcast to a point.
+        fillna : float, optional
+            Value returned where the scaled point is outside the domain. Default is NaN.
+        loc, scale : float or array_like, optional
+            Override the location and scale of the object for this evaluation.
+
+        Returns
+        -------
+        float or numpy.ndarray
+            :math:`K(t)`, a scalar for a single point or a vector of length ``n``.
+        """
         # Initialize
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
@@ -1621,13 +2037,32 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @type_wrapper(xloc=1)
     def dK(self, t, loc=None, scale=None, fillna=np.nan):
         r"""
-        Note, the current implementation uses numerical differentiation, but
-        an alternative way would be to use the following result:
+        Gradient of the cumulant generating function,
+        :math:`\nabla K_X(t)=A\nabla K_Z(A^Tt)+b`, with :math:`A` the scale and :math:`b` the
+        location.
+
+        If ``dK`` was not supplied, it is computed by numerical differentiation of
+        :math:`K`. An alternative would be the identity
 
         .. math::
             K'(t)=\frac{E X\exp{<t,X>}}{M(t)},
+
         where :math:`K(t)` is the cumulant generating function, and :math:`M(t)`
         is the moment generating function of :math:`X`.
+
+        Parameters
+        ----------
+        t : array_like
+            A point of length :attr:`dim`, or an array of shape ``(n, dim)`` of points.
+        loc, scale : float or array_like, optional
+            Override the location and scale of the object for this evaluation.
+        fillna : float, optional
+            Value returned outside the domain. Default is NaN.
+
+        Returns
+        -------
+        numpy.ndarray
+            The gradient, of shape ``(dim,)`` or ``(n, dim)``.
 
         References
         ----------
@@ -1722,6 +2157,24 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         In the current implementation, we merely check whether :math:`x-b` is in the
         range of A (if A is not invertible). If it is, we solve
         :math:`A \nabla_{t_U} K_U(A^T t_x) = x - b` numerically
+
+        Parameters
+        ----------
+        x : array_like
+            A point of length :attr:`dim`, or an array of shape ``(n, dim)`` of points.
+        t0 : array_like, optional
+            Starting value(s) for the root finder, a point or an array of points.
+        loc, scale : float or array_like, optional
+            Override the location and scale of the object for this evaluation.
+        fillna : float, optional
+            Value returned where there is no (valid) solution. Default is NaN.
+        **kwargs
+            Passed on to the numerical root finder.
+
+        Returns
+        -------
+        numpy.ndarray
+            The saddle point :math:`t`, of shape ``(dim,)`` or ``(n, dim)``.
         """
         # Handle vectorized evaluation
         x = self._validate_points(x, scale=scale, name="x")
@@ -1825,8 +2278,27 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @type_wrapper(xloc=1)
     def d2K(self, t, loc=None, scale=None, fillna=np.nan):
-        """
-        This is the Hessian, i.e., the matrix with second order partial derivatives.
+        r"""
+        Hessian of the cumulant generating function, i.e., the matrix with second order
+        partial derivatives, :math:`\nabla^2 K_X(t)=A\nabla^2 K_Z(A^Tt)A^T`.
+
+        Computed by numerical differentiation if ``d2K`` was not supplied.
+
+        Parameters
+        ----------
+        t : array_like
+            A point of length :attr:`dim`, or an array of shape ``(n, dim)`` of points.
+        loc : float or array_like, optional
+            Ignored, the Hessian does not depend on the location.
+        scale : float or array_like, optional
+            Override the scale of the object for this evaluation.
+        fillna : float, optional
+            Value returned outside the domain. Default is NaN.
+
+        Returns
+        -------
+        numpy.ndarray
+            The Hessian, of shape ``(dim, dim)`` or ``(n, dim, dim)``.
         """
         # Initialize
         t = self._validate_points(t, scale=scale)
@@ -1897,7 +2369,31 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
     @type_wrapper(xloc=1)
     def d3K(self, t, loc=None, scale=None, fillna=np.nan):
         """
-        See Kolassa 2006, Chapter 6 for some insights
+        Tensor of third order partial derivatives of the cumulant generating function, with
+        the scale pushed through each of the three indices.
+
+        If ``d3K`` was not supplied, it is computed with :class:`spapprox.diff.Tressian`,
+        which requires ``findiff`` (regardless of ``numdiff_backend``).
+
+        Parameters
+        ----------
+        t : array_like
+            A point of length :attr:`dim`, or an array of shape ``(n, dim)`` of points.
+        loc : float or array_like, optional
+            Ignored, the derivative does not depend on the location.
+        scale : float or array_like, optional
+            Override the scale of the object for this evaluation.
+        fillna : float, optional
+            Value returned outside the domain. Default is NaN.
+
+        Returns
+        -------
+        numpy.ndarray
+            The tensor, of shape ``(dim, dim, dim)`` or ``(n, dim, dim, dim)``.
+
+        References
+        ----------
+        [1] Kolassa (2006) - Series approximation methods in statistics, Chapter 6
         """
         # Initialize
         t = self._validate_points(t, scale=scale)
@@ -1965,6 +2461,23 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
             Explicitly set the second order derivatives at zero
         d3K0 : numpy.ndarray
             Explicitly set the third order derivatives at zero
+
+        Returns
+        -------
+        MultivariateCumulantGeneratingFunction
+            The cgf of the random vector :math:`X=(X_1,\dots,X_d)` of independent
+            components.
+
+        Examples
+        --------
+        >>> import spapprox as spa
+        >>> mcgf = spa.MultivariateCumulantGeneratingFunction.from_univariate(
+        ...     spa.poisson(1), spa.poisson(2), spa.poisson(3)
+        ... )
+        >>> mcgf.dim
+        3
+
+        See ``examples/example_Kolassa2003.py``.
         """
         assert len(cgfs) >= 1, (
             "at least 2 Univariate cumulant generating functions should be supplied"
@@ -2033,13 +2546,33 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
 
     @classmethod
     def from_cgfs(cls, *cgfs, dK0=None, d2K0=None, d3K0=None, numdiff_backend=None):
-        """
-        Create a multivariate cgf from a list of univariate cgfs.
+        r"""
+        Create a multivariate cgf by stacking independent random variables and/or vectors.
 
-        Als with the univariate case, the cumulant generating function of
-        independent random vectors :math:`X_i` staced to a vector :math:`X` is
-        the sum of the cumulant generating functions. This follows directly from
-        the definition of the cumulant generating function.
+        As with the univariate case, see :meth:`from_univariate`, the cumulant generating
+        function of independent random vectors :math:`X_i` stacked into a vector :math:`X` is
+        the sum of the cumulant generating functions:
+
+        .. math::
+           K_X(t) = \sum_i K_{X_i}(t_i),
+
+        where :math:`t_i` is the block of :math:`t` belonging to :math:`X_i`. This follows
+        directly from the definition of the cumulant generating function.
+
+        Parameters
+        ----------
+        cgfs : UnivariateCumulantGeneratingFunction or MultivariateCumulantGeneratingFunction
+            The cgfs of the independent blocks, in order.
+        dK0, d2K0, d3K0 : numpy.ndarray, optional
+            Explicitly set the derivatives at zero.
+        numdiff_backend : str, optional
+            Numdiff backend to use for numerical differentiation, one of "numdifftools" or
+            "findiff".
+
+        Returns
+        -------
+        MultivariateCumulantGeneratingFunction
+            The cgf of the stacked random vector, of dimension the sum of the dimensions.
         """
         if not all(isinstance(cgf, CumulantGeneratingFunction) for cgf in cgfs):
             raise AssertionError("All cgfs must be CumulantGeneratingFunction")
