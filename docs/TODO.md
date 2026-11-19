@@ -1046,7 +1046,7 @@ Or into a separate model, e.g., bootstrap.py
     Lattice when all spans are positive. Default stays `"Kolassa"` (cost about 0.7 s per
     point for `d = 3`). Open: direction-dependent limits where two or more saddlepoint
     components vanish, an `n^{-3/2}` slope kink across `t_j = 0` for `d = 3`, and mixed
-    lattice/continuous spans; see "Phase B: outcome" in `docs/multivariate_cdf_plan.md`
+    lattice/continuous spans for `d > 2` (the bivariate `"KL"` supports them); see "Phase B: outcome" in `docs/multivariate_cdf_plan.md`
   - [x] `fit_cdf` for the multivariate case: tabulates the cdf on a tensor grid in `x` and
     interpolates (PCHIP by default), see `docs/multivariate_fit_cdf_plan.md`
   - [x] lattice variables: continuity-corrected version of Kolassa (2003) eq. (13),

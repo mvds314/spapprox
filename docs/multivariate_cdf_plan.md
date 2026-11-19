@@ -378,6 +378,10 @@ Known properties and limitations:
   snapped to its expansion within `1e-7` standard deviations of the minimizer
   (`_snap_width`), and the saddlepoint is polished by Newton steps.
 - Cost: about `0.7 s` per point for `d = 3`, up to `d!` orders and `2^d` subset terms;
-  near-zero tensor interpolation multiplies this. Mixed lattice/continuous spans raise
-  `NotImplementedError` (use `"Kolassa"`).
+  near-zero tensor interpolation multiplies this.
+- Lattice spans go through `_cdf_evaluator` (`"KL"` is in `_lattice_backends`), so
+  `fit_cdf(delta=..., backend="KL")` works too. For `d > 2` all spans must be positive: mixed
+  lattice/continuous spans raise `NotImplementedError` (use `"Kolassa"`). The bivariate class
+  keeps its own mixed-span `"KL"` and `"Wang"` (`_LatticeBivariateApprox`); the
+  `delta[k] == 0` convention of `_rho` / `_kl_marginal_cdf` is shared by both.
 
