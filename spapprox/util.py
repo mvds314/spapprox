@@ -12,7 +12,7 @@ import time
 from functools import reduce
 
 import numpy as np
-from statsmodels.tools.validation import PandasWrapper
+import pandas as pd
 
 
 class Timer:
@@ -61,13 +61,77 @@ def fib(n):
     return reduce(lambda x, n: [x[1], x[0] + x[1]], range(n), [0, 1])[0]
 
 
+class PandasWrapper:
+    """
+    Wrap a result in the pandas type of an original input.
+
+    Parameters
+    ----------
+    orig : array_like
+        The original input. If it is a :class:`pandas.Series` or :class:`pandas.DataFrame`,
+        :meth:`wrap` reuses its index, and its name or columns.
+    """
+
+    def __init__(self, orig):
+        self._orig = orig
+        self._is_pandas = isinstance(orig, (pd.Series, pd.DataFrame))
+
+    def wrap(self, obj):
+        """
+        Wrap ``obj`` like the original input.
+
+        Parameters
+        ----------
+        obj : array_like
+            The result, of dimension 1 or 2 with as many rows as the original input if that
+            was pandas.
+
+        Returns
+        -------
+        pandas.Series, pandas.DataFrame or numpy.ndarray
+            A Series for a 1-d and a DataFrame for a 2-d ``obj`` if the original input was
+            pandas, otherwise ``obj`` as an array.
+        """
+        obj = np.asarray(obj)
+        if not self._is_pandas:
+            return obj
+        if obj.shape[0] != self._orig.shape[0]:
+            raise ValueError("obj must have the same number of elements in axis 0 as orig")
+        if obj.ndim == 1:
+            return pd.Series(obj, name=getattr(self._orig, "name", None), index=self._orig.index)
+        elif obj.ndim == 2:
+            columns = getattr(self._orig, "columns", None)
+            return pd.DataFrame(obj, columns=columns, index=self._orig.index)
+        else:
+            raise ValueError("Can only wrap 1 or 2-d array_like")
+
+
+def cov2corr(cov):
+    r"""
+    Correlation matrix of a covariance matrix.
+
+    Parameters
+    ----------
+    cov : array_like
+        Covariance matrix.
+
+    Returns
+    -------
+    numpy.ndarray
+        The correlation matrix :math:`\Sigma_{ij}/\sqrt{\Sigma_{ii}\Sigma_{jj}}`.
+    """
+    cov = np.asanyarray(cov)
+    std = np.sqrt(np.diag(cov))
+    return cov / np.outer(std, std)
+
+
 def type_wrapper(xloc=0):
     """
     Decorator converting an array-like argument to a numpy array and the result back.
 
     The argument at position ``xloc`` (or passed by its name) is converted with
     :func:`numpy.asanyarray` before calling the function. The result is wrapped with
-    :class:`statsmodels.tools.validation.PandasWrapper`, so pandas input gives pandas output,
+    :class:`PandasWrapper`, so pandas input gives pandas output,
     and a 0-d result is returned as a Python scalar. If the argument is not passed, the
     function is called unchanged.
 

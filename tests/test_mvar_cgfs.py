@@ -7,7 +7,6 @@ import pytest
 import scipy as sp
 import scipy.stats as sps
 from scipy.integrate import quad  # , dblquad
-from statsmodels.stats.moment_helpers import cov2corr
 
 from spapprox import (
     Domain,
@@ -26,7 +25,7 @@ from spapprox import (
 from spapprox.cgf_base import has_numdifftools
 from spapprox.diff import _has_findiff as has_findiff
 from spapprox.diff import block_diag_3d
-from spapprox.util import type_wrapper
+from spapprox.util import cov2corr, type_wrapper
 
 
 @pytest.mark.slow
@@ -408,7 +407,7 @@ def test_multiplication_and_division(mcgf1, mcgf2, ts, dim):
         ),
         pytest.param(
             multivariate_norm(loc=np.zeros(2), scale=1).ldot(
-                np.linalg.cholesky(cov2corr(np.array([[2, 1], [1, 3]]), return_std=False))
+                np.linalg.cholesky(cov2corr(np.array([[2, 1], [1, 3]])))
             )
             * np.sqrt(np.array([2, 3]))
             + np.array([1, 2]),
