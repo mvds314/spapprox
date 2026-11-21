@@ -100,12 +100,14 @@ def test_2d_from_uniform():
         val = mcgf.d3K(t)
         assert pd.api.types.is_array_like(val) and len(val.shape) == 3 and val.shape == (2, 2, 2)
         assert np.allclose(val, mcgf_from_univ.d3K(t))
-        if has_findiff:
-            assert np.allclose(val, mcgf_int.d3K(t), atol=1e-2)
     val = np.array([mcgf.d3K(t) for t in ts])
     assert np.allclose(mcgf.d3K(ts), val)
     assert np.allclose(mcgf_from_univ.d3K(ts), val)
+    # Nested numdifftools differentiation of this quadrature-based K is too slow
     if has_findiff:
+        mcgf_int = MultivariateCumulantGeneratingFunction(K, dim=2, numdiff_backend="findiff")
+        for t in ts:
+            assert np.allclose(mcgf.d3K(t), mcgf_int.d3K(t), atol=1e-2)
         assert np.allclose(mcgf_int.d3K(ts), val, atol=1e-2)
 
 
@@ -1353,3 +1355,34 @@ def test_jensen_multivariate_gamma_domain():
     assert np.isnan(mcgf.K([0.45, 0.9]))
     with pytest.raises(ValueError):
         jensen_multivariate_gamma(1, [[1, 2], [2, 1]])
+
+
+@pytest.mark.parametrize(
+    "backend",
+    [
+        pytest.param(
+            "numdifftools",
+            marks=pytest.mark.skipif(not has_numdifftools, reason="No numdifftools"),
+        ),
+        pytest.param("findiff", marks=pytest.mark.skipif(not has_findiff, reason="No findiff")),
+    ],
+)
+def test_d3K_numerical_backends(backend):
+    exact = bivariate_gamma([1.1, 1.2, 1.3], scale=[2.0, 0.5])
+    mcgf = MultivariateCumulantGeneratingFunction(
+        K=lambda t: exact.K(t, loc=0, scale=1),
+        dim=2,
+        domain=exact.domain,
+        scale=[2.0, 0.5],
+        numdiff_backend=backend,
+    )
+    ts = np.array([[0.0, 0.0], [0.1, -0.3], [-0.2, 0.4]])
+    assert np.allclose(mcgf.d3K(ts[1]), exact.d3K(ts[1]), atol=1e-4)
+    assert np.allclose(mcgf.d3K(ts), exact.d3K(ts), atol=1e-4)
+    assert np.allclose(mcgf.d3K0, exact.d3K0, atol=1e-4)
+
+
+def test_get_scale_mat_inv_uses_argument():
+    mcgf = multivariate_norm(loc=np.zeros(2), scale=np.array([1.0, 2.0]))
+    scale_inv = np.array([4.0, 5.0])
+    assert np.allclose(mcgf._get_scale_mat_inv(scale_inv=scale_inv), np.diag(scale_inv))

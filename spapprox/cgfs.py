@@ -321,8 +321,7 @@ def bivariate_gamma(a=None, loc=0, scale=1):
     References
     ----------
     [1] Butler (2007) - Saddlepoint Approximations with Applications
-    [2] Huzurbazar (2012) - Saddlepoint Approximations with Applications
-    [3] Kotz, Balakrishnan, Johnson (2000) - Continuous Multivariate distributions. Volume 1
+    [2] Kotz, Balakrishnan, Johnson (2000) - Continuous Multivariate distributions. Volume 1
     """
     # Initialize a
     if a is None:
@@ -353,8 +352,6 @@ def bivariate_gamma(a=None, loc=0, scale=1):
             np.array([a[1] / (1 - t.T[0]), a[2] / (1 - t.T[1])]),
             a[0] / (1 - t.T[0] - t.T[1]),
         ).T
-
-        return np.dot(-a, np.log([1 - t.T[0] - t.T[1], 1 - t.T[0], 1 - t.T[1]]))
 
     def d2K(t, a=a):
         t = np.asanyarray(t)

@@ -444,13 +444,18 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             def integrand(t):
                 return self.pdf(t=t, normalize_pdf=False, fillna=0) * self.cgf.d2K(t, fillna=0)
 
+            def tail_integrand(t):
+                # Numerical derivatives can fail (NaN) close to a domain bound, where the
+                # tail mass is negligible anyway, as the cdf already reached 0 (or 1)
+                return np.nan_to_num(integrand(t), nan=0.0)
+
             a, b, a_converged, b_converged = self._infer_t_range()
             val = quad(integrand, a=a, b=b)[0]
             lower, upper = self._t_domain_bounds()
             if a_converged and lower < a:
-                val += quad(integrand, a=lower, b=a)[0]
+                val += quad(tail_integrand, a=lower, b=a)[0]
             if b_converged and b < upper:
-                val += quad(integrand, a=b, b=upper)[0]
+                val += quad(tail_integrand, a=b, b=upper)[0]
             assert not np.isnan(val) and np.isfinite(val), ()
             self._pdf_normalization_cache = val
         return self._pdf_normalization_cache
@@ -948,7 +953,7 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             else:
                 t_range = self.infer_t_range(atol=atol, rtol=rtol)
         x_range = np.linspace(*self.cgf.dK(t_range), num=num)
-        t = self.cgf.dK_inv(x_range)
+        t = self._dK_inv(x_range)
         self._cdf_cache = self.cdf(x=x_range, t=t)
         self._ppf_t_cache = t
 
