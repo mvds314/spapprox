@@ -127,8 +127,8 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
 - `tests/test_examples.py` runs every script with the `Agg` backend (markers `slow` and
   `examples`, so not in PR CI). The Examples workflow (`examples.yml`) runs them after
   each merge into `main`, and on demand.
-- `release.yml` runs when a GitHub release is published, and fails unless the Examples
-  workflow passed on the released commit. The PyPI publish job (item 5) will depend on it.
+- The Release workflow (`release.yml`) requires that the Examples workflow passed on the
+  released commit, see item 5.
 
 ### 5. CI and publishing (later)
 
@@ -136,12 +136,16 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
   the single required status check of the `main` ruleset.
 - Optionally add a job with all extras (`findiff`, `fastnorm`).
 - A `build` job on every PR: `python -m build` plus `twine check`.
-- Later, a PyPI publishing job in `release.yml` (triggered by a manually created GitHub
-  Release), depending on its `check-examples` job. It would use `pypa/gh-action-pypi-publish` with PyPI
-  trusted publishing (OIDC, so no API token is stored) and a protected `pypi`
-  environment, and check that the tag matches the version in `pyproject.toml`.
-- Until then, build locally (`python -m build`) and attach the wheel and sdist to
-  the GitHub Release by hand.
+- [x] Release workflow (`release.yml`), started by hand (Actions > Release > Run workflow
+  on `main`, optionally as a draft). It checks that `pyproject.toml` and `CITATION.cff`
+  agree and that tag `v<version>` does not exist yet, requires a successful Examples run on
+  the commit, builds the wheel and sdist, runs `twine check --strict`, installs the wheel and
+  checks `spapprox.__version__`, and only then creates the tag and the GitHub release (notes
+  generated from the merged PRs) with both files attached. If a step fails, no release is
+  created.
+- Later, a PyPI publishing job at the end of `release.yml`, using
+  `pypa/gh-action-pypi-publish` with PyPI trusted publishing (OIDC, so no API token is
+  stored) and a protected `pypi` environment.
 
 ### 6. Release readiness and cut
 
