@@ -1,23 +1,65 @@
-# Checks a manually published GitHub release. The released commit must have a successful run
-# of the Examples workflow; publishing to PyPI will be added here later, depending on this job.
+# Creates a draft GitHub release, started by hand: Actions > Release > Run workflow (on main).
+# It checks the version, requires a successful Examples run on the commit, builds and checks
+# the wheel and sdist, and only then creates the draft release with both attached. If a step
+# fails, no release is created. Review and edit the draft, then publish it; GitHub creates the
+# tag on publishing. Publishing to PyPI will be added later.
 
 name: Release
 
 on:
-  release:
-    types: [ published ]
+  workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
 
+concurrency:
+  group: release
+
 jobs:
-  check-examples:
+  check:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
-    - name: Check that the examples passed on the released commit
+    - name: Require main
+      if: github.ref != 'refs/heads/main'
+      run: |
+        echo "::error::Run the Release workflow on main, not on $GITHUB_REF."
+        exit 1
+    - uses: actions/checkout@v7
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.11"
+    - name: Check the version
+      id: version
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+      run: |
+        version=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+        citation=$(sed -n 's/^version: *"\{0,1\}\([^"]*\)"\{0,1\} *$/\1/p' CITATION.cff)
+        echo "pyproject.toml: $version, CITATION.cff: $citation"
+        if [ "$citation" != "$version" ]; then
+          echo "::error::CITATION.cff has version '$citation', pyproject.toml has '$version'."
+          exit 1
+        fi
+        if gh api "repos/$REPO/git/ref/tags/v$version" > /dev/null 2>&1; then
+          echo "::error::Tag v$version already exists. Bump the version first."
+          exit 1
+        fi
+        if gh release view "v$version" --repo "$REPO" > /dev/null 2>&1; then
+          echo "::error::A release v$version (possibly a draft) already exists. Delete it or" \
+            "bump the version first."
+          exit 1
+        fi
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+    - name: Check that the examples passed on this commit
       env:
         GH_TOKEN: ${{ github.token }}
         REPO: ${{ github.repository }}
@@ -26,8 +68,8 @@ jobs:
         run_id=$(gh api "repos/$REPO/actions/workflows/examples.yml/runs?head_sha=$SHA" \
           --jq '.workflow_runs | sort_by(.created_at) | last | .id // empty')
         if [ -z "$run_id" ]; then
-          echo "::error::No Examples run for $SHA. Run the Examples workflow on this commit" \
-            "(Actions > Examples > Run workflow), then re-run this job."
+          echo "::error::No Examples run for $SHA. Run the Examples workflow on main" \
+            "(Actions > Examples > Run workflow), then run this workflow again."
           exit 1
         fi
         echo "Examples run: https://github.com/$REPO/actions/runs/$run_id"
@@ -39,3 +81,62 @@ jobs:
           exit 1
         fi
         echo "The examples passed on $SHA."
+
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v7
+    - name: Set up Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.11"
+    - name: Build the wheel and sdist
+      run: |
+        python -m pip install --upgrade pip build twine
+        python -m build
+        ls -l dist
+    - name: Check the metadata and README rendering
+      run: twine check --strict dist/*
+    - name: Install the wheel and check __version__
+      env:
+        VERSION: ${{ needs.check.outputs.version }}
+      run: |
+        python -m venv /tmp/venv
+        /tmp/venv/bin/pip install dist/*.whl
+        cd /tmp
+        /tmp/venv/bin/python -c "
+        import os, spapprox
+        assert spapprox.__version__ == os.environ['VERSION'], (spapprox.__version__, os.environ['VERSION'])
+        print('spapprox', spapprox.__version__)
+        "
+    - uses: actions/upload-artifact@v7
+      with:
+        name: dist
+        path: dist/
+        if-no-files-found: error
+
+  release:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/download-artifact@v8
+      with:
+        name: dist
+        path: dist/
+    - name: Create the draft release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        SHA: ${{ github.sha }}
+        TAG: v${{ needs.check.outputs.version }}
+      run: |
+        gh release create "$TAG" dist/* --repo "$REPO" --target "$SHA" --title "$TAG" \
+          --generate-notes --draft
+        echo "Draft release: https://github.com/$REPO/releases (review, edit and publish it)"
