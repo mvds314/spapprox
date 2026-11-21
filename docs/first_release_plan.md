@@ -145,14 +145,11 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
 
 ### 6. Release readiness and cut
 
-- Go through `docs/TODO.md` and the open `tofix` tests (one per test file).
-  Decide which ones block the release, and document the remaining known
-  limitations in the README (multivariate gaps, quadrature-based cgfs are slow).
-- API review: confirm what is public. For example, should `Timer` be exported,
-  and `fib` in `util.py`? Underscore or remove anything that should not be a
-  compatibility promise.
-- Update `CITATION.cff`: version, date and URL.
-- Close issues #1 and #2.
+- [x] Go through `docs/TODO.md` and the open `tofix` tests. No `tofix` tests were left; the
+  open bugs were fixed (PR #40), and the known limitations are in the README.
+- [x] API review: the public API stays as it is (`Timer` exported, `fib` in `util.py`).
+- [x] Update `CITATION.cff`: version, date and URL.
+- [x] Close issues #1 and #2.
 - Run the full suite locally (`pytest`, ~16 min plus the examples) and `ruff check .`.
 - Build locally, install the wheel into a clean venv, and run the README quick
   start.

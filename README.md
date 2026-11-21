@@ -161,7 +161,8 @@ joint density, and its marginals come from a tabulated grid (`fit_pdf`, `margina
 ### Example scripts
 
 The [`examples`](https://github.com/mvds314/spapprox/tree/main/examples) folder contains
-standalone scripts. They need `matplotlib`.
+standalone scripts. They need `matplotlib`, and `example_nonparametric_bootstrap.py` also
+needs `statsmodels`.
 
 | Script | Shows |
 |---|---|
@@ -184,6 +185,14 @@ standalone scripts. They need `matplotlib`.
   mixed lattice and continuous components.
 - `generalized_normal` and `asymmetric_generalized_normal` evaluate the cgf by quadrature
   unless the shape is 1 or 2, which is slow.
+- The Kolassa and Li bivariate cdf (the default `backend="KL"`) does not factorize exactly
+  for independent components (error up to about 5e-3 in tests). Its extension to more
+  than two dimensions has not been checked against the literature yet.
+- Without analytic derivatives, cgfs are differentiated numerically, which is slower and
+  less accurate, in particular close to the boundary of the domain. The multivariate third
+  derivative with `numdifftools` differentiates numerically twice and is slow.
+- The pdf is normalized by numerical integration by default, which can be expensive. Pass
+  `normalize_pdf=False`, or a known `pdf_normalization` to the constructor, to avoid it.
 - The distribution of a quotient of random variables is not implemented yet.
 
 ## References
