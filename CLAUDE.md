@@ -107,5 +107,7 @@ genuinely better approximation before touching a tolerance.
   run passed on the released commit (`release.yml`). They check that the scripts run,
   not their numbers, so do not treat them as a behavioral reference.
 
-Note: `.github/copilot-instructions.md` is a hard link to this file, so GitHub
-Copilot CLI and Claude Code read the same content. Edit this file, not the link.
+Note: `.github/copilot-instructions.md` is a symlink to this file (`ln -s ../CLAUDE.md
+.github/copilot-instructions.md`, gitignored), so GitHub Copilot CLI and Claude Code read
+the same content. Edit this file, not the link. Do not use a hard link: git replaces this file
+when a pull changes it, which silently breaks a hard link.
