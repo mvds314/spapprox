@@ -1239,7 +1239,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         if not hasattr(self, "_loc_vect_cache"):
             if isinstance(self.loc, np.ndarray) and self.loc.ndim == 1:
-                return self.loc
+                self._loc_vect_cache = self.loc
             elif pd.api.types.is_number(self.loc):
                 self._loc_vect_cache = np.full(self.dim, self.loc)
             elif isinstance(self.loc, np.ndarray) and self.loc.ndim == 0:
@@ -1415,7 +1415,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         if isinstance(scale_inv, np.ndarray) and scale_inv.ndim == 2:
             scale_mat_inv = scale_inv
         elif isinstance(scale_inv, np.ndarray) and scale_inv.ndim == 1:
-            scale_mat_inv = np.diag(self.scale_inv)
+            scale_mat_inv = np.diag(scale_inv)
         elif isinstance(scale_inv, np.ndarray) and scale_inv.ndim == 0:
             scale_mat_inv = np.eye(self.dim) * scale_inv.tolist()
         elif pd.api.types.is_number(scale_inv):
@@ -2372,8 +2372,9 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         Tensor of third order partial derivatives of the cumulant generating function, with
         the scale pushed through each of the three indices.
 
-        If ``d3K`` was not supplied, it is computed with :class:`spapprox.diff.Tressian`,
-        which requires ``findiff`` (regardless of ``numdiff_backend``).
+        If ``d3K`` was not supplied, it is computed by numerical differentiation: with
+        :class:`spapprox.diff.Tressian` for the ``findiff`` backend, and as the Jacobian of
+        :meth:`d2K` for the ``numdifftools`` backend.
 
         Parameters
         ----------
@@ -2398,8 +2399,18 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         # Initialize
         t = self._validate_points(t, scale=scale)
         if self._d3K is None:
-            # TODO: implement also with numdifftools backend?
-            self._d3K = Tressian(lambda tt: self.K(tt, loc=0, scale=1), self.domain.dim)
+            if self._numdiff_backend == "numdifftools":
+                if not has_numdifftools:
+                    raise ValueError("Numdifftools is required if derivatives are not provided")
+                dim = self.domain.dim
+                jac = nd.Jacobian(lambda tt: np.ravel(self.d2K(tt, loc=0, scale=1)))
+                self._d3K = np.vectorize(
+                    lambda tt: jac(tt).reshape(dim, dim, dim), signature="(n)->(n,n,n)"
+                )
+            elif self._numdiff_backend == "findiff":
+                self._d3K = Tressian(lambda tt: self.K(tt, loc=0, scale=1), self.domain.dim)
+            else:
+                raise ValueError("Invalid numdiff backend")
         loc = self.loc if loc is None else np.asanyarray(loc)
         scale = self.scale if scale is None else np.asanyarray(scale)
         assert self._d3K is not None, "d3K must be specified"
@@ -2480,7 +2491,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         See ``examples/example_Kolassa2003.py``.
         """
         assert len(cgfs) >= 1, (
-            "at least 2 Univariate cumulant generating functions should be supplied"
+            "at least 1 univariate cumulant generating function should be supplied"
         )
         assert all(isinstance(cgf, UnivariateCumulantGeneratingFunction) for cgf in cgfs), (
             "All cgfs must be univariate"

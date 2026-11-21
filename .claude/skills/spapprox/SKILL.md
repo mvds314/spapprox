@@ -151,8 +151,8 @@ domain through the matching `Domain` operation):
 The numerical differentiation backend is chosen per object via
 `numdiff_backend="numdifftools"` (default) or `"findiff"`, and the derivative
 object is built lazily on first use. Note that
-`MultivariateCumulantGeneratingFunction.d3K` is **findiff-only** (there is a TODO
-for a numdifftools path).
+`MultivariateCumulantGeneratingFunction.d3K` with numdifftools is the Jacobian of
+`d2K`, i.e. nested numerical differentiation when `d2K` is not supplied (slow).
 
 ### `cgfs.py` -- distributions
 

@@ -14,8 +14,7 @@
   (`backend="KL"`, any dimension), see `docs/multivariate_cdf_plan.md`
 
 - Bootstrap distributions (Booth and Butler): done, see `docs/estimating_equations_plan.md`
-- [ ] Close GitHub issues #1 (transition to pyproject.toml) and #2 (transition to findiff):
-  both look done
+- [x] Close GitHub issues #1 (transition to pyproject.toml) and #2 (transition to findiff)
 
 # Bug backlog
 
@@ -641,7 +640,7 @@ Contract violations and silently wrong results in narrower situations.
 
 ## Low severity / robustness
 
-### [ ] 63. pdf normalization fails for a cgf with only numerical derivatives near a domain bound
+### [x] 63. pdf normalization fails for a cgf with only numerical derivatives near a domain bound
 
 - **Where:** `spapprox/spa.py`, `UnivariateSaddlePointApprox._pdf_normalization`
 - **What:** the tail integral runs up to the domain bound, where numerical derivatives
@@ -649,7 +648,11 @@ Contract violations and silently wrong results in narrower situations.
 - **Repro:** `UnivariateSaddlePointApprox(UnivariateCumulantGeneratingFunction(K=lambda t:
   -np.log1p(-t), domain=Domain(l=1))).pdf(t=0.5)` raises `AssertionError`. With the analytic
   derivatives (`exponential()`) it works.
-- **Workaround:** `normalize_pdf=False`, as in `examples/example_numdiff_backends.py`.
+- **Cause:** numdifftools steps across the bound, so `d2K` is NaN there and the integrand is
+  `0 * NaN`.
+- **Fixed:** the tail integrals (beyond where the cdf reached 0 or 1) treat NaN as 0; the bulk
+  integral stays strict. Regression test:
+  `test_pdf_normalization_numerical_derivatives_near_domain_bound` in `tests/test_spa.py`.
 
 ### [x] 43. `ndarray * Domain` is hijacked by numpy
 
@@ -845,19 +848,25 @@ Contract violations and silently wrong results in narrower situations.
 
 ---
 
-## Findings from the docstring pass (unverified, not fixed)
+## Findings from the docstring pass
 
-Spotted while documenting the public API (first release plan, item 3). Check before fixing.
+Spotted while documenting the public API (first release plan, item 3).
 
-- [ ] `bivariate_gamma.dK` (`cgfs.py`) has unreachable code after a `return`.
-- [ ] The `bivariate_gamma` docstring cites "Huzurbazar (2012)" with the title of Butler's book.
-- [ ] `MultivariateCumulantGeneratingFunction.d3K` is findiff-only, whatever `numdiff_backend` is.
-- [ ] `from_univariate` asserts at least one cgf, but its message says "at least 2".
-- [ ] `loc_vect` does not cache its result when `loc` is a 1-d array.
-- [ ] `_get_scale_mat_inv` uses `self.scale_inv` instead of its `scale_inv` argument in the
-  1-d branch.
-- [ ] Univariate `d2K`/`d3K` accept a `loc` argument and ignore it.
-- [ ] `fit_ppf` solves `dK_inv` on its x grid, where the t grid would avoid root finding.
+- [x] `bivariate_gamma.dK` (`cgfs.py`) has unreachable code after a `return`: removed.
+- [x] The `bivariate_gamma` docstring cites "Huzurbazar (2012)" with the title of Butler's book:
+  reference removed.
+- [x] `MultivariateCumulantGeneratingFunction.d3K` is findiff-only, whatever `numdiff_backend` is:
+  the numdifftools backend now takes the Jacobian of `d2K`. Regression test:
+  `test_d3K_numerical_backends` in `tests/test_mvar_cgfs.py`.
+- [x] `from_univariate` asserts at least one cgf, but its message says "at least 2": message fixed.
+- [x] `loc_vect` does not cache its result when `loc` is a 1-d array: now cached.
+- [x] `_get_scale_mat_inv` uses `self.scale_inv` instead of its `scale_inv` argument in the
+  1-d branch: fixed (latent, the only caller passes no argument). Regression test:
+  `test_get_scale_mat_inv_uses_argument`.
+- [x] Univariate `d2K`/`d3K` accept a `loc` argument and ignore it: not a bug, derivatives of
+  order two and higher do not depend on the location (documented as such).
+- [x] `fit_ppf` solves `dK_inv` on its x grid, where the t grid would avoid root finding: it now
+  uses `_dK_inv`, which reuses a fit of the saddle point equation when there is one.
 
 ## Tooling / packaging
 

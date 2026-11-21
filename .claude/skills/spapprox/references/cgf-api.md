@@ -140,9 +140,9 @@ elif self._numdiff_backend == "numdifftools":
 ```
 
 Multivariate uses `nd.Gradient` / `nd.Hessian` or `diff.Gradient` /
-`diff.Hessian` correspondingly. **`MultivariateCumulantGeneratingFunction.d3K`
-only has a findiff path** (`diff.Tressian`); the numdifftools branch is an
-open TODO. Both multivariate `dK` and `d2K` also zero out any `t` row containing
+`diff.Hessian` correspondingly. `MultivariateCumulantGeneratingFunction.d3K` uses
+`diff.Tressian` for findiff, and for numdifftools an `nd.Jacobian` of `d2K` (nested
+numerical differentiation if `d2K` is not supplied, which is slow). Both multivariate `dK` and `d2K` also zero out any `t` row containing
 NaN before calling the backend, with the comment that numdifftools breaks if any
 entry evaluates to NaN.
 

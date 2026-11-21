@@ -1590,6 +1590,15 @@ def test_marginal_indexing_and_cache():
 # TODO: then go to other applications, discrete correction
 
 
+@pytest.mark.slow
+def test_pdf_normalization_numerical_derivatives_near_domain_bound():
+    # Numerical derivatives fail close to the bound t < 1, where the tail is negligible
+    cgf = UnivariateCumulantGeneratingFunction(K=lambda t: -np.log1p(-t), domain=Domain(l=1))
+    exact = UnivariateSaddlePointApprox(exponential())
+    approx = UnivariateSaddlePointApprox(cgf)
+    assert np.isclose(approx._pdf_normalization, exact._pdf_normalization, rtol=1e-6)
+
+
 if __name__ == "__main__":
     if True:
         pytest.main(
