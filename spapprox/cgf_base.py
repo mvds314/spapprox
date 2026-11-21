@@ -48,7 +48,6 @@ import numpy as np
 import pandas as pd
 import scipy as sp
 import scipy.optimize as spo
-import statsmodels.api as sm
 
 try:
     with warnings.catch_warnings():
@@ -59,7 +58,7 @@ except ImportError:
     has_numdifftools = False
 
 from .domain import Domain
-from .util import fib, type_wrapper
+from .util import cov2corr, fib, type_wrapper
 from .diff import (
     Gradient,
     Hessian,
@@ -1486,7 +1485,7 @@ class MultivariateCumulantGeneratingFunction(CumulantGeneratingFunction):
         """
         Correlation matrix, derived from :attr:`cov`.
         """
-        return sm.stats.moment_helpers.cov2corr(self.cov)
+        return cov2corr(self.cov)
 
     @property
     def variance(self):

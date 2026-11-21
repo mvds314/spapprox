@@ -44,8 +44,10 @@ docstrings plus the `examples/` scripts, and a lean distribution.
    (downstream packagers such as conda-forge run them). `docs/`, `examples/`,
    `.claude/`, `.github/` and `CLAUDE.md` are excluded. The wheel contains only the
    package.
-4. **`statsmodels` dependency.** Open. It is heavy for two helpers (`PandasWrapper`,
-   `cov2corr`), and both are easy to replace. Not a release blocker.
+4. **`statsmodels` dependency: dropped** (decided). It was only used for `PandasWrapper`
+   and `cov2corr`, which now live in `spapprox/util.py`. Only
+   `examples/example_nonparametric_bootstrap.py` still uses it (`ECDF`); the Examples
+   workflow installs it.
 
 ## Work packages
 

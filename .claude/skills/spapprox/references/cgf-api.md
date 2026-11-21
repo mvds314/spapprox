@@ -45,7 +45,7 @@ and the loc/scale transform on top. Do not confuse the two -- assigning to
 Convenience properties: `kappa1`/`mean` (= `dK(0)`), `kappa2` (= `d2K(0)`),
 `variance` (univariate: `kappa2`; multivariate: `np.diag(cov)`), `std`, and --
 multivariate only -- `cov` (= `d2K0`) and `cor` (via
-`statsmodels`' `cov2corr`).
+`util.cov2corr`).
 
 ## The loc/scale contract
 

@@ -15,6 +15,8 @@ EXAMPLES = sorted(EXAMPLES_DIR.glob("*.py"))
 def test_example_runs(script):
     """Smoke test: the example script runs to completion without errors."""
     pytest.importorskip("matplotlib")
+    if "statsmodels" in script.read_text():
+        pytest.importorskip("statsmodels")
     env = {**os.environ, "MPLBACKEND": "Agg"}
     result = subprocess.run(
         [sys.executable, script.name],

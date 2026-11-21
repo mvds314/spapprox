@@ -63,7 +63,6 @@ import scipy.optimize as spo
 import scipy.stats as sps
 from scipy.integrate import nquad, quad, trapezoid
 from scipy.interpolate import RegularGridInterpolator
-from statsmodels.tools.validation import PandasWrapper
 
 from .cgfs import (
     MultivariateCumulantGeneratingFunction,
@@ -73,7 +72,7 @@ from .cgfs import (
 from .domain import Domain
 from .kl import _kl_cdf as _kl_cdf_general
 from .mvn import _kolassa_orthant, _mvn_logtail
-from .util import _lagrange_weights, fib, type_wrapper
+from .util import PandasWrapper, _lagrange_weights, fib, type_wrapper
 
 try:
     import fastnorm
