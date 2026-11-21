@@ -1,17 +1,13 @@
-# Creates a GitHub release, started by hand: Actions > Release > Run workflow (on main).
+# Creates a draft GitHub release, started by hand: Actions > Release > Run workflow (on main).
 # It checks the version, requires a successful Examples run on the commit, builds and checks
-# the wheel and sdist, and only then creates the tag and the release with both attached. If a
-# step fails, no release is created. Publishing to PyPI will be added as a final job.
+# the wheel and sdist, and only then creates the draft release with both attached. If a step
+# fails, no release is created. Review and edit the draft, then publish it; GitHub creates the
+# tag on publishing. Publishing to PyPI will be added later.
 
 name: Release
 
 on:
   workflow_dispatch:
-    inputs:
-      draft:
-        description: "Create the release as a draft"
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -55,6 +51,11 @@ jobs:
         fi
         if gh api "repos/$REPO/git/ref/tags/v$version" > /dev/null 2>&1; then
           echo "::error::Tag v$version already exists. Bump the version first."
+          exit 1
+        fi
+        if gh release view "v$version" --repo "$REPO" > /dev/null 2>&1; then
+          echo "::error::A release v$version (possibly a draft) already exists. Delete it or" \
+            "bump the version first."
           exit 1
         fi
         echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -129,15 +130,13 @@ jobs:
       with:
         name: dist
         path: dist/
-    - name: Create the tag and the release
+    - name: Create the draft release
       env:
         GH_TOKEN: ${{ github.token }}
         REPO: ${{ github.repository }}
         SHA: ${{ github.sha }}
         TAG: v${{ needs.check.outputs.version }}
-        DRAFT: ${{ inputs.draft }}
       run: |
-        draft_flag=""
-        if [ "$DRAFT" = "true" ]; then draft_flag="--draft"; fi
         gh release create "$TAG" dist/* --repo "$REPO" --target "$SHA" --title "$TAG" \
-          --generate-notes $draft_flag
+          --generate-notes --draft
+        echo "Draft release: https://github.com/$REPO/releases (review, edit and publish it)"

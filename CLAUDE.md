@@ -40,7 +40,8 @@ written plan in `docs/` first, and follow-ups are listed in `docs/TODO.md`.
 
 Releases are created by hand with the Release workflow (Actions > Release > Run workflow on
 `main`): it requires a successful Examples run on the commit, builds and checks the wheel and
-sdist, and creates the tag `v<version>` and the GitHub release with both files attached.
+sdist, and creates a draft GitHub release `v<version>` with both files attached. Review and
+edit the draft, then publish it (which creates the tag).
 
 ## Setup
 
