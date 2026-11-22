@@ -195,6 +195,21 @@ needs `statsmodels`.
   `normalize_pdf=False`, or a known `pdf_normalization` to the constructor, to avoid it.
 - The distribution of a quotient of random variables is not implemented yet.
 
+## Related software
+
+- [saddlepoint-expansions](https://github.com/s-broda/saddlepoint-expansions) (Python, also
+  on PyPI) by Broda and Kan, a port of the Julia package
+  [SaddlepointExpansions.jl](https://github.com/s-broda/SaddlepointExpansions.jl). It
+  implements saddle point expansions of arbitrary order for multivariate tail probabilities,
+  densities, conditional distributions, ratios and Studentized means, with derivatives from
+  automatic differentiation.
+- [saddlepoint](https://github.com/godrick/saddlepoint) (R) by Oketch, Fewster and Goodman, a
+  framework for saddle point approximations built on cgf operations, including approximate
+  likelihood inference.
+- [esaddle](https://github.com/mfasiolo/esaddle) (R, on CRAN) by Fasiolo and Wood, the
+  extended empirical saddle point density approximation (Fasiolo et al., 2018), which
+  estimates a density from a sample of (possibly multivariate) simulated statistics.
+
 ## References
 
 - Barndorff-Nielsen, O. E. (1986). Inference on full or partial parameters based on the
@@ -205,6 +220,9 @@ needs `statsmodels`.
   Press.
 - Daniels, H. E. (1983). Saddlepoint approximations for estimating equations. *Biometrika*,
   70, 89-96.
+- Fasiolo, M., Wood, S. N., Hartig, F. and Bravington, M. V. (2018). An extended empirical
+  saddlepoint approximation for intractable likelihoods. *Electronic Journal of Statistics*,
+  12(1), 1544-1578.
 - Kolassa, J. E. (1996). Higher-order approximations to conditional distribution functions.
   *Annals of Statistics*, 24, 353-364.
 - Kolassa, J. E. (2003). Multivariate saddlepoint tail probability approximations. *Annals
