@@ -143,9 +143,13 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
   `spapprox.__version__`, and only then creates a **draft** GitHub release (notes generated
   from the merged PRs) with both files attached. If a step fails, no release is created.
   Review and edit the draft, then publish it; GitHub creates the tag on publishing.
-- Later, a PyPI publishing job at the end of `release.yml`, using
-  `pypa/gh-action-pypi-publish` with PyPI trusted publishing (OIDC, so no API token is
-  stored) and a protected `pypi` environment.
+- [x] PyPI publishing workflow (`publish.yml`), using `pypa/gh-action-pypi-publish` with
+  PyPI trusted publishing (OIDC, so no API token is stored) and a `pypi` environment. It is
+  a separate workflow, triggered when a release is published, rather than a job at the end
+  of `release.yml`, so that the draft is reviewed before anything reaches PyPI. It uploads
+  the wheel and sdist attached to the release, after checking that they match the tag.
+  One-time setup on pypi.org: a pending trusted publisher for owner `mvds314`, repository
+  `spapprox`, workflow `publish.yml` and environment `pypi`.
 
 ### 6. Release readiness and cut
 
@@ -157,8 +161,8 @@ style stays as it is: LaTeX-heavy raw-string reST with a `References` section.
 - Run the full suite locally (`pytest`, ~16 min plus the examples) and `ruff check .`.
 - Build locally, install the wheel into a clean venv, and run the README quick
   start.
-- Create the GitHub Release `vYY.MM.N` by hand, with release notes and the built
-  artifacts attached. Publishing to PyPI comes later (item 5).
+- Create the GitHub Release `vYY.MM.N` with the Release workflow, review the draft and
+  publish it, which uploads it to PyPI (item 5).
 
 ## Out of scope for the first release
 

@@ -19,7 +19,7 @@ Applications*. As he puts it:
 ## Installation
 
 ```bash
-pip install git+https://github.com/mvds314/spapprox.git
+pip install spapprox
 ```
 
 `spapprox` requires Python 3.11 or later. Optional dependencies, installed as extras:
@@ -33,7 +33,7 @@ pip install git+https://github.com/mvds314/spapprox.git
 - `all`: all of the above.
 
 ```bash
-pip install "spapprox[all] @ git+https://github.com/mvds314/spapprox.git"
+pip install "spapprox[all]"
 ```
 
 ## Why cumulant generating functions?

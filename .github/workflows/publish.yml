@@ -1,0 +1,58 @@
+# Publishes a GitHub release to PyPI when it is published (after reviewing the draft that the
+# Release workflow created). It uploads the wheel and sdist attached to the release, i.e. the
+# files that were built and checked by the Release workflow, with PyPI trusted publishing
+# (OIDC, no API token). One-time setup on pypi.org: add a trusted publisher for owner
+# mvds314, repository spapprox, workflow publish.yml and environment pypi.
+
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/project/spapprox/
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - name: Download the release files
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        TAG: ${{ github.event.release.tag_name }}
+      run: |
+        gh release download "$TAG" --repo "$REPO" --dir dist \
+          --pattern '*.whl' --pattern '*.tar.gz'
+        ls -l dist
+    - name: Check the files match the tag
+      env:
+        TAG: ${{ github.event.release.tag_name }}
+      run: |
+        version="${TAG#v}"
+        whl=$(ls dist/*.whl | wc -l)
+        sdist=$(ls dist/*.tar.gz | wc -l)
+        if [ "$whl" != 1 ] || [ "$sdist" != 1 ]; then
+          echo "::error::Expected one wheel and one sdist on release $TAG, found $whl and $sdist."
+          exit 1
+        fi
+        for f in dist/*; do
+          case "$(basename "$f")" in
+            spapprox-"$version"-*.whl|spapprox-"$version".tar.gz) ;;
+            *) echo "::error::$f does not match version $version of tag $TAG."; exit 1 ;;
+          esac
+        done
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
