@@ -4,6 +4,6 @@ authors:
 - family-names: "van der Schans"
   given-names: "Martin"
 title: "Spapprox: a Python library for saddle point approximation of distributions"
-version: 26.11.40
+version: 26.11.41
 date-released: 2026-11-22
 url: "https://github.com/mvds314/spapprox"

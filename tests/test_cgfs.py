@@ -1064,7 +1064,10 @@ def test_univariate_empirical_no_overflow():
     assert np.allclose(cgf.dK(t), w @ x)
     assert np.isclose(cgf.K(1.0), K[2])
     assert np.isclose(cgf.dK(1.0), (w @ x)[2])
-    assert np.isclose(cgf.d2K(1.0), w[2] @ x**2 - (w[2] @ x) ** 2, rtol=1e-4)
+    m = w @ x
+    assert np.allclose(cgf.d2K(t), (w * (x - m[:, None]) ** 2).sum(axis=1), rtol=1e-10)
+    assert np.allclose(cgf.d3K(t), (w * (x - m[:, None]) ** 3).sum(axis=1), rtol=1e-10)
+    assert np.isclose(cgf.d3K(1.0), (w[2] * (x - m[2]) ** 3).sum(), rtol=1e-10)
 
 
 @pytest.mark.parametrize("scale", [1e-2, 1, 50])
