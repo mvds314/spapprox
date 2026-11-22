@@ -1240,6 +1240,30 @@ above. The remark on non-convex support (exclude
 points outside the support when normalizing a multivariate pdf) does not apply yet: no factory
 has a non-convex support.
 
+## Compare with saddlepoint-expansions
+
+[saddlepoint-expansions](https://github.com/s-broda/saddlepoint-expansions) (Broda and Kan;
+Python port of `SaddlepointExpansions.jl`, MIT, on PyPI, first released October 2026) is the
+closest Python package. It implements saddlepoint expansions of arbitrary order, with
+derivatives from Taylor-mode automatic differentiation of a numpy `K`.
+
+- [ ] cross-check accuracy: compare our first-order results with their order-1 output (which
+  should agree) and their higher orders, on shared test cases: univariate pdf/cdf, the
+  multivariate orthant cdf (Kolassa 2003, KL), conditional cdf/pdf (Skovgaard), and lattice
+  variables. Their test suite has Julia reference values (`tests/reference_values.csv`) that
+  we could reuse
+- [ ] compare speed and robustness, e.g. close to the domain boundary and for dependent
+  components, where our numerical derivatives are weakest
+- [ ] features they have and we lack: higher-order expansions, ratios and Studentized means
+  (`ratio_density`, `studentized_tailprob`), quadratic forms in normal variables, noncentral
+  chi-squared and Wishart cgfs, conditional distributions with more tail components
+- [ ] consider automatic differentiation instead of (or alongside) numdifftools/findiff for
+  cgfs without analytic derivatives
+- [ ] features we have and they lack, worth highlighting in the README: estimating equations
+  and resampling (bootstraps, jackknife, permutation tests), the empirical cgf, cgf operators
+  and `Domain` algebra, pandas round-trip
+- [ ] decide whether to mention the package in the README
+
 ## Literature to review
 
 - Find complete version of Alya Omar's master thesis (2015)
