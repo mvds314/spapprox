@@ -976,9 +976,11 @@ def univariate_empirical(x):
 
     The cgf is that of the standardized sample, with ``loc`` and ``scale`` the sample mean and
     standard deviation (``scale`` is 1 for a constant sample), so numerical derivatives do not
-    depend on the scale of the data. :math:`K` and :math:`K'` are exact (evaluated stably with
-    ``logsumexp`` and ``softmax``); the higher derivatives and the inverse of :math:`K'` are
-    numerical. Note that the distribution is discrete, with support in
+    depend on the scale of the data. :math:`K` and its first three derivatives are exact
+    (evaluated stably with ``logsumexp`` and ``softmax``): with the tilted weights
+    :math:`w_i(t)\propto e^{tx_i}`, :math:`K'(t)=\sum_i w_i x_i`, and :math:`K''(t)` and
+    :math:`K'''(t)` are the second and third central moments of the sample under these
+    weights. The inverse of :math:`K'` is numerical. Note that the distribution is discrete, with support in
     :math:`[\min_i x_i, \max_i x_i]`.
 
     Combined with :func:`univariate_sample_mean` it approximates the bootstrap distribution
@@ -1022,13 +1024,34 @@ def univariate_empirical(x):
         y = logsumexp(tx, axis=-1) - np.log(len(x))
         return y.tolist() if t.ndim == 1 else y
 
-    @type_wrapper(xloc=0)
-    def dK(t, x=x):
+    def tilted_weights(t):
         tx = t * x if t.ndim == 0 else np.atleast_2d(t).T.dot(np.atleast_2d(x))
-        y = (softmax(tx, axis=-1) * x).sum(axis=-1)
+        return softmax(tx, axis=-1)
+
+    # The derivatives are the mean and central moments of the exponentially tilted sample
+    def tilted_central_moment(t, k):
+        w = tilted_weights(t)
+        m = (w * x).sum(axis=-1, keepdims=True)
+        return (w * (x - m) ** k).sum(axis=-1)
+
+    @type_wrapper(xloc=0)
+    def dK(t):
+        y = (tilted_weights(t) * x).sum(axis=-1)
         return y.tolist() if t.ndim == 1 else y
 
-    return UnivariateCumulantGeneratingFunction(K, dK=dK, loc=loc, scale=scale)
+    @type_wrapper(xloc=0)
+    def d2K(t):
+        y = tilted_central_moment(t, 2)
+        return y.tolist() if t.ndim == 1 else y
+
+    @type_wrapper(xloc=0)
+    def d3K(t):
+        y = tilted_central_moment(t, 3)
+        return y.tolist() if t.ndim == 1 else y
+
+    return UnivariateCumulantGeneratingFunction(
+        K, dK=dK, d2K=d2K, d3K=d3K, loc=loc, scale=scale
+    )
 
 
 def poisson(mu=1):
