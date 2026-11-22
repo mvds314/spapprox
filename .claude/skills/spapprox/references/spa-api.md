@@ -149,8 +149,10 @@ implemented well" for some heavy-tailed cases.
   within tolerance of 0 and 1. Asserts `lb <= 0 <= ub`.
 - `fit_saddle_point_eqn(t_range=None, atol, rtol, num=1000, **solver_kwargs)` --
   fills `_x_cache = np.linspace(*cgf.dK(t_range), num)` and
-  `_t_cache = cgf.dK_inv(_x_cache)`. Afterwards `_dK_inv` is `np.interp` on those
-  arrays instead of per-point root finding.
+  `_t_cache = cgf.dK_inv(_x_cache)`. Afterwards `_dK_inv` starts from `np.interp` on those
+  arrays and polishes by up to five vectorized Newton steps instead of per-point root
+  finding (near t = 0 the cdf amplifies interpolation error, TODO item 64); outside the grid
+  or without convergence it falls back to the root solver.
 - `fit_ppf(...)` -- fills `_cdf_cache` and `_t_cache` so `ppf` interpolates.
 - `clear_cache()` -- drops all of the above plus the normalization constant.
 

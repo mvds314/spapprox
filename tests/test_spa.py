@@ -1019,6 +1019,16 @@ def test_cdf_at_mean_after_fit_saddle_point_eqn():
     assert np.isclose(spa.cdf(x=3.0), 0.5 + 2 / np.sqrt(3) / 6 / np.sqrt(2 * np.pi), atol=1e-4)
 
 
+def test_fit_saddle_point_eqn_polishes_interpolation_near_mean():
+    # Linearly interpolated saddle points are slightly off, which the cdf amplifies near t=0
+    x = np.linspace(2.8, 3.2, 41)
+    spa = UnivariateSaddlePointApprox(gamma(a=3))
+    expected = spa.cdf(x=x)
+    spa.fit_saddle_point_eqn()
+    assert np.allclose(spa.cdf(x=x), expected, rtol=1e-8)
+    assert np.allclose(spa._dK_inv(x), spa.cgf.dK_inv(x), atol=1e-10)
+
+
 _INFER_T_RANGE_LATTICE_SCRIPT = """
 import warnings
 import numpy as np
