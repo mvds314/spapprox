@@ -2,7 +2,7 @@
 # It checks the version, requires a successful Examples run on the commit, builds and checks
 # the wheel and sdist, and only then creates the draft release with both attached. If a step
 # fails, no release is created. Review and edit the draft, then publish it; GitHub creates the
-# tag on publishing. Publishing to PyPI will be added later.
+# tag on publishing, and publishing it uploads the attached files to PyPI (publish.yml).
 
 name: Release
 
