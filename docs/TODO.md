@@ -1262,7 +1262,7 @@ derivatives from Taylor-mode automatic differentiation of a numpy `K`.
 - [ ] features we have and they lack, worth highlighting in the README: estimating equations
   and resampling (bootstraps, jackknife, permutation tests), the empirical cgf, cgf operators
   and `Domain` algebra, pandas round-trip
-- [ ] decide whether to mention the package in the README
+- [x] mention the package in the README (section "Related software")
 
 ## Literature to review
 
