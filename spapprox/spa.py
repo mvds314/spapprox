@@ -896,10 +896,12 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
     def fit_saddle_point_eqn(self, t_range=None, atol=1e-4, rtol=1e-4, num=1000, **solver_kwargs):
         """
         Solve the saddle point equation on a grid over the given range, and use linear
-        interpolation to solve the saddle point equation from now onwards.
+        interpolation, polished by a few Newton steps, to solve the saddle point equation
+        from now onwards.
 
         This speeds up repeated evaluations of :meth:`pdf` and :meth:`cdf` given ``x``.
-        Outside the grid the numerical solver is used. :meth:`clear_cache` removes the fit.
+        Outside the grid, or where Newton's method does not converge, the numerical solver
+        is used. :meth:`clear_cache` removes the fit.
 
         If t_range is not provided, it will be assumed that the cumulant generating
         function is defined in a neighborhood of zero. The range will be computed
@@ -963,10 +965,25 @@ class UnivariateSaddlePointApprox(SaddlePointApprox):
             t = np.atleast_1d(
                 np.interp(x, self._x_cache, self._t_cache, left=np.nan, right=np.nan)
             )
-            # Outside the fitted grid, fall back to the root solver instead of clamping
-            outside = np.atleast_1d((x < self._x_cache[0]) | (x > self._x_cache[-1]))
-            if np.any(outside):
-                t[outside] = super()._dK_inv(np.atleast_1d(x)[outside], **solver_kwargs)
+            xr = np.atleast_1d(x)
+            # Linear interpolation is only a first guess: close to the mean, where t is small,
+            # the cdf approximations amplify the error in t. Polish it by Newton's method.
+            tol = 1e-10 * (1 + np.abs(xr))
+            with np.errstate(all="ignore"):
+                for _ in range(5):
+                    res = np.asarray(self.cgf.dK(t), dtype=float) - xr
+                    todo = np.isfinite(res) & (np.abs(res) > tol)
+                    if not todo.any():
+                        break
+                    tn = t[todo] - res[todo] / np.asarray(self.cgf.d2K(t[todo]), dtype=float)
+                    ok = np.isfinite(tn) & self.cgf.domain.is_in_domain(tn)
+                    t[np.flatnonzero(todo)[ok]] = tn[ok]
+                res = np.asarray(self.cgf.dK(t), dtype=float) - xr
+            # Outside the fitted grid, or where Newton's method did not converge, fall back to
+            # the root solver instead of clamping
+            missing = ~(np.abs(res) <= tol)
+            if np.any(missing):
+                t[missing] = super()._dK_inv(xr[missing], **solver_kwargs)
             return t.reshape(x.shape)
         else:
             return super()._dK_inv(x, **solver_kwargs)

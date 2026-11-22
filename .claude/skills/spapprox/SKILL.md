@@ -85,7 +85,7 @@ directly. Given `x`, it must invert via `cgf.dK_inv(x)` -- numerical root findin
 per point. So when sweeping a curve, generate `t` and derive `x`. When you
 genuinely need specific `x` values repeatedly, call
 `approx.fit_saddle_point_eqn()` first: it tabulates the mapping over an inferred
-`t` range and switches `_dK_inv` to `np.interp`. `fit_ppf()` does the same for
+`t` range and switches `_dK_inv` to `np.interp` plus a few Newton steps. `fit_ppf()` does the same for
 quantiles, and `clear_cache()` discards all of it.
 
 ## Module reference

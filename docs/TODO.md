@@ -640,6 +640,17 @@ Contract violations and silently wrong results in narrower situations.
 
 ## Low severity / robustness
 
+### [x] 64. Univariate cdf is inaccurate near the mean after `fit_saddle_point_eqn`
+
+- **Where:** `spapprox/spa.py`, `UnivariateSaddlePointApprox._dK_inv`
+- **What:** after `fit_saddle_point_eqn`, the saddle point is linearly interpolated and is
+  slightly off (about 2e-5 for `gamma(a=3)`). Close to the mean, where t is small, the
+  Lugannani-Rice cdf amplifies this: the relative error rose from 6e-5 to 0.13 at `x = 3.025`.
+  Found by a speed comparison with saddlepoint-expansions.
+- **Fixed:** as for the multivariate class (item 60), the interpolated t is polished by up to
+  five Newton steps, and the root solver is used where the residual stays large. Regression
+  test: `test_fit_saddle_point_eqn_polishes_interpolation_near_mean` in `tests/test_spa.py`.
+
 ### [x] 63. pdf normalization fails for a cgf with only numerical derivatives near a domain bound
 
 - **Where:** `spapprox/spa.py`, `UnivariateSaddlePointApprox._pdf_normalization`
