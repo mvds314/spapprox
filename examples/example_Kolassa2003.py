@@ -58,11 +58,11 @@ shape = (grid.size, grid.size)
 with spa.Timer(f"Monte Carlo cdf ({len(pts)} grid points)", decimals=3):
     exact = np.array([np.mean((sim[:, 0] <= t1) & (sim[:, 1] <= t2)) for t1, t2 in pts])
 with spa.Timer("Solving the saddle point equations", decimals=3):
-    ts = [cgf.dK_inv(pt) for pt in pts]
+    ts = cgf.dK_inv(pts)
 with spa.Timer("Saddle point cdf, Kolassa backend", decimals=3):
-    F_q = np.array([approx.cdf(t=t, backend="Kolassa") for t in ts])
+    F_q = approx.cdf(t=ts, backend="Kolassa")
 with spa.Timer("Saddle point cdf, Wang backend", decimals=3):
-    F_w = np.array([approx.cdf(t=t, backend="Wang") for t in ts])
+    F_w = approx.cdf(t=ts, backend="Wang")
 err_q, err_w = np.abs(F_q - exact), np.abs(F_w - exact)
 ratio = (err_q / (err_q + err_w)).reshape(shape)
 
