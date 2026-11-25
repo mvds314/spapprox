@@ -3,13 +3,40 @@
 """
 One-sample permutation (sign-flip) test, Booth and Butler (1990), Example 2.
 
-Under the null hypothesis of symmetry about zero, the statistic S = sum_i d_i Z_i, with
-independent signs Z_i = +-1 with probability 1/2, has cgf sum_i log cosh(t d_i). No
-conditioning is involved, so this is a plain linear combination of independent variables,
-built from the existing cgf algebra, and approximated with Lugannani-Rice, as in Davison and
-Hinkley (1988). As all d_i are integers, S lies on a lattice of span 2, so the continuity
-corrected version (``delta=2``, Daniels, 1987) is shown as well. The data are Darwin's Zea mays differences (Fisher, 1935), for which the exact
-one-sided significance level is 863 / 32768.
+The data
+--------
+Darwin's Zea mays experiment (Fisher, 1935): 15 pairs of plants, each pair grown in the same
+pot, one plant cross-fertilised and one self-fertilised. For each pair we know which plant is
+which, and d_i = height(cross) - height(self). The observed total is sum_i d_i = 314. Is that
+evidence that cross-fertilisation makes plants taller?
+
+The test
+--------
+Suppose fertilisation has no effect. Then each plant would have reached the same height under
+the other label, and swapping the labels within pair i merely flips the sign of d_i. So under
+this null hypothesis, all 2^15 sign patterns +-d_1, ..., +-d_15 are equally likely, and the
+p-value is the fraction of them whose sum is at least the observed 314. Enumerating them
+gives exactly 863 / 32768 = 0.0263. With n pairs this takes 2^n sums, which is infeasible
+for larger n.
+
+The saddle point approximation
+------------------------------
+Under the null hypothesis, the sum is S = sum_i d_i Z_i, with independent random signs
+Z_i = +-1, each with probability 1/2. So S is a sum of independent variables, and its cgf is
+the sum of theirs: K(t) = sum_i log cosh(t d_i). The code builds it from the cgf algebra: a
++-1 variable is 2 * Bernoulli(1/2) - 1, ``from_univariate`` stacks 15 independent copies
+into a vector, and ``ldot(d)`` takes the weighted sum. The ordinary univariate approximation
+(Lugannani-Rice, as in Davison and Hinkley, 1988) then gives P(S >= 314) without
+enumeration. No conditioning is needed, unlike in the two-sample test of
+``example_permutation_two_sample.py``.
+
+S is discrete: all d_i are integers, and flipping a sign changes S by 2 d_i, so S takes
+values on a grid with step 2. The plain approximation treats S as continuous and slightly
+underestimates the tail. Passing the step, ``delta=2``, applies the continuity correction
+(Daniels, 1987), which removes most of that error.
+
+The output compares exact, saddle point and continuity corrected p-values and cdf values,
+and plots the three cdfs.
 """
 
 from itertools import product
