@@ -3,21 +3,53 @@
 """
 Two-sample permutation test, Booth and Butler (1990), Example 2 and Table 1.
 
-Pool the two samples into z_1, ..., z_n and select m of them as the first sample. With
-independent Bernoulli(1/2) indicators Y_i, the permutation distribution of the sum of the
-first sample, T2 = sum_i z_i Y_i, is its distribution conditional on T1 = sum_i Y_i = m. The
-cgf of (T1, T2) follows from the existing algebra, and T1 does not induce a cut, so the
-double saddle point approximation of Skovgaard (1987) is used.
+The test
+--------
+Two independent samples A (size m) and B, e.g. scores of two treatment groups. Is A shifted
+upwards relative to B? We know which observation belongs to which sample. Suppose the group
+labels have no effect. Then each observation would have the same value in either group, so
+which m of the n pooled observations z_1, ..., z_n ended up in A was arbitrary: all
+C(n, m) choices are equally likely. The p-value is the fraction of choices whose sum is at
+least the observed sum of A. For the pain relief data, with 8 + 8 observations, this means
+C(16, 8) = 12870 sums, and the count grows quickly with n.
 
-Confidence intervals for a shift Delta (A ~ B + Delta) follow by test inversion: Delta is in
-the interval if the permutation test of A - Delta against B does not reject at level 2.5% in
-either direction.
+The saddle point approximation
+------------------------------
+Unlike in the sign-flip test of ``example_permutation_one_sample.py``, the choices are not
+independent: once m observations are in A, the rest must be in B. The trick is to start from
+independent pieces anyway. Give each observation an independent fair coin
+Y_i ~ Bernoulli(1/2), meaning "z_i is in A", and track two sums:
 
-The data lie on a lattice of span 0.1. The paper calls the continuity correction negligible
-(less than 1e-4), but for the pain relief data it moves the one-sided significance level from
-0.0486 to 0.0502, closer to the exact 0.0507: the atom at the observed sum is about 0.003. The
-correction matters even more for rank statistics, such as the Wilcoxon rank sum test at the
-end, on a lattice of span 1.
+- T1 = sum_i Y_i, the size of A, and
+- T2 = sum_i z_i Y_i, the sum of A.
+
+Every set of m observations is equally likely to be the one with Y_i = 1, so conditional
+on T1 = m, T2 has exactly the permutation distribution. The p-value is
+P(T2 >= observed sum | T1 = m).
+
+The pair (T1, T2) is a sum of independent vectors (1, z_i) Y_i, so its cgf follows from the
+cgf algebra: ``from_univariate`` stacks n independent coins, and ``ldot`` with the rows
+(1, ..., 1) and (z_1, ..., z_n) gives (T1, T2). The conditional probability needs the
+conditional approximation, the double saddle point approximation of Skovgaard (1987),
+``BivariateSaddlePointApprox.conditional_cdf``. It solves one saddle point equation for
+(T1, T2) jointly, and one for T1 alone, and combines them. There is no shortcut: every Y_i
+enters both T1 and T2, so T2 has no part independent of T1 (T1 does not induce a cut).
+
+Confidence interval
+-------------------
+To estimate the size of the effect, assume A ~ B + Delta, i.e. A is B shifted by Delta. A
+value Delta is plausible if the test of A - Delta against B does not reject at level 2.5% in
+either direction. The 95% interval is the set of plausible values, and its endpoints are
+found by root finding.
+
+Continuity correction
+---------------------
+The data have one decimal, so T2 takes values on a grid with step 0.1. The paper calls the
+continuity correction negligible (less than 1e-4), but for the pain relief data it moves the
+one-sided p-value from 0.0486 to 0.0502, closer to the exact 0.0507: the probability of the
+observed sum itself is about 0.003. The correction matters even more for rank statistics,
+such as the Wilcoxon rank sum test at the end: the same test applied to the ranks
+1, ..., n, a grid with step 1.
 
 Note: our exact significance level for the analgesia data (0.044 one-sided) does not match
 the 0.012 of the paper (reproduced from Robinson, 1982), probably due to a transcription
