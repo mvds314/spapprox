@@ -40,13 +40,13 @@ cells = np.array([[x, y] for y in ys for x in xs[xs <= y]])
 with spa.Timer(f"Monte Carlo cdf ({len(cells)} cells)", decimals=3):
     F_mc = [np.mean((sim[:, 0] <= x) & (sim[:, 1] <= y)) for x, y in cells]
 with spa.Timer("Solving the saddle point equations", decimals=3):
-    ts = [cgf.dK_inv(pt) for pt in cells]  # solve K'(t) = (x, y)
+    ts = cgf.dK_inv(cells)  # solve K'(t) = (x, y)
 F = {}
 for backend in ["Wang", "KL", "Kolassa"]:
     with spa.Timer(f"Saddle point cdf, {backend} backend", decimals=3):
-        F[backend] = [approx.cdf(t=t, backend=backend) for t in ts]
+        F[backend] = approx.cdf(t=ts, backend=backend)
 with spa.Timer("Normal approximation cdf", decimals=3):
-    F_normal = [normal.cdf(pt) for pt in cells]
+    F_normal = normal.cdf(cells)
 
 print(f"\n{'y':>5} {'x':>5} {'MC':>9} {'Wang':>9} {'KL':>9} {'Kolassa':>9} {'normal':>9}")
 for (x, y), *row in zip(cells, F_mc, F["Wang"], F["KL"], F["Kolassa"], F_normal):
