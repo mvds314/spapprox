@@ -24,6 +24,7 @@ from spapprox import (
     chi2,
     exponential,
     gamma,
+    inverse_gaussian,
     laplace,
     multivariate_norm,
     norm,
@@ -125,6 +126,19 @@ def test_normalization(cgf, trange):
         1,
         atol=5e-4,
     )
+
+
+@pytest.mark.parametrize("mu,scale", [(1, 1), (2, 3), (0.5, 2)])
+def test_inverse_gaussian(mu, scale):
+    # Barndorff-Nielsen and Cox (1979), (3.23): the normalized saddle point pdf is exact
+    cgf = inverse_gaussian(mu=mu, scale=scale)
+    dist = sps.invgauss(mu, scale=scale)
+    mean, var, skew = dist.stats(moments="mvs")
+    assert np.allclose([cgf.dK0, cgf.d2K0, cgf.d3K0], [mean, var, skew * var**1.5])
+    t = np.linspace(-2, 0.99 / (2 * mu**2 * scale), 7)
+    x = cgf.dK(t)
+    assert np.allclose(cgf.dK_inv(x), t)
+    assert np.allclose(UnivariateSaddlePointApprox(cgf).pdf(t=t), dist.pdf(x), rtol=1e-8)
 
 
 @pytest.mark.parametrize(
@@ -624,6 +638,22 @@ def test_conditional_lattice_binomial():
     assert errors["Kolassa"][1] < errors["Kolassa"][0] / 20
     # Without the lattice correction the approximation is bad
     assert np.max(np.abs(spa.conditional_cdf(n, [s]) - sps.binom.cdf(n, s, 0.4))) > 0.05
+
+
+def test_conditional_support_boundary():
+    # Barndorff-Nielsen and Cox (1979), Table 2: on the boundary of the support the joint
+    # saddlepoint diverges and the approximation is undefined, also outside the support
+    p = 1 / (1 + np.exp([-1.0, 0.0, 1.0]))
+    cgf = MultivariateCumulantGeneratingFunction.from_univariate(
+        *[binomial(16, pd) for pd in p]
+    ).ldot([[1, 1, 1], [-1, 0, 1]])
+    spa = BivariateSaddlePointApprox(cgf)
+    for r, s in [(24, -16), (32, -16), (24, 20)]:
+        assert np.isnan(spa.conditional_pdf(s, [r], i=1, normalize_pdf=False))
+        assert np.isnan(spa.conditional_cdf(s, [r], i=1))
+    # Next to the boundary, the paper's values are unaffected
+    assert spa.conditional_pdf(-15, [32], i=1, normalize_pdf=False) == pytest.approx(1.3e-5, rel=0.05)
+    assert spa.conditional_pdf(0, [24], i=1, normalize_pdf=False) == pytest.approx(0.002797, rel=1e-3)
 
 
 def test_conditional_lattice_first_correction():

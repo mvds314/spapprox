@@ -278,6 +278,59 @@ def gamma(a=1, scale=1):
     )
 
 
+def inverse_gaussian(mu=1, scale=1):
+    r"""
+    Inverse Gaussian distribution, as ``scipy.stats.invgauss(mu, scale=scale)``, i.e., with
+    mean :math:`\mu\cdot\text{scale}` and shape parameter :math:`\lambda=\text{scale}`.
+
+    With unit scale, the cgf is exact and in closed form,
+
+    .. math::
+        K(t) = \frac{1-\sqrt{1-2\mu^2t}}{\mu}, \qquad t<\frac{1}{2\mu^2}.
+
+    :math:`K` is finite at the boundary of its domain, but its derivatives are not, so the
+    domain is taken open. As for the gamma distribution there is no ``loc`` parameter, and
+    the saddle point density is exact up to normalization. The standard form
+    :math:`\pi^{-1/2}u^{-3/2}e^{2-u-1/u}` of Barndorff-Nielsen and Cox (1979) is
+    ``inverse_gaussian(mu=0.5, scale=2)``.
+
+    Parameters
+    ----------
+    mu : float, optional
+        Mean of the unscaled variable, positive. Default is 1.
+    scale : float, optional
+        Scale parameter, positive. Default is 1.
+
+    Returns
+    -------
+    UnivariateCumulantGeneratingFunction
+        The cgf, with analytic derivatives and ``dK_inv``.
+
+    Examples
+    --------
+    >>> import spapprox as spa
+    >>> cgf = spa.inverse_gaussian(mu=2, scale=3)
+    >>> float(cgf.dK0), float(cgf.d2K0)
+    (6.0, 72.0)
+
+    References
+    ----------
+    [1] Barndorff-Nielsen, Cox (1979) - Edgeworth and saddle-point approximations with
+    statistical applications, Section 3.4
+
+    [2] Butler (2007) - Saddlepoint Approximations with Applications, Section 1.1
+    """
+    return UnivariateCumulantGeneratingFunction(
+        K=lambda t, mu=mu: (1 - np.sqrt(1 - 2 * mu**2 * t)) / mu,
+        dK=lambda t, mu=mu: mu / np.sqrt(1 - 2 * mu**2 * t),
+        dK_inv=lambda x, mu=mu: 1 / (2 * mu**2) - 1 / (2 * np.asanyarray(x) ** 2),
+        d2K=lambda t, mu=mu: mu**3 / (1 - 2 * mu**2 * t) ** 1.5,
+        d3K=lambda t, mu=mu: 3 * mu**5 / (1 - 2 * mu**2 * t) ** 2.5,
+        domain=Domain(l=1 / (2 * mu**2)),
+        scale=scale,
+    )
+
+
 def bivariate_gamma(a=None, loc=0, scale=1):
     r"""
     Bivariate gamma distribution with shape parameter `a` and scale parameter `scale`.

@@ -1032,6 +1032,7 @@ These would go into cgfs.py
 - also see Butler 2007, page 90 for higher order expansions
 - add multinomial bootstrap of the mean
 - [x] negative binomial distribution: `negative_binomial`
+- [x] inverse Gaussian distribution: `inverse_gaussian`, as `scipy.stats.invgauss`
 - see the exercise in Butler for the multivariate logistic distribution
 
 ## Applications
@@ -1250,6 +1251,34 @@ smoothers for discrete data (Davison and Wang 2002); these are listed under "App
 above. The remark on non-convex support (exclude
 points outside the support when normalizing a multivariate pdf) does not apply yet: no factory
 has a non-convex support.
+
+## Review: Barndorff-Nielsen and Cox (1979)
+
+"Edgeworth and saddle-point approximations with statistical applications", J. R. Statist.
+Soc. B 41(3), 279-312. Reproduced in `examples/example_BarndorffNielsenCox1979.py`: the
+inverse Gaussian density (3.21), exact after normalization (`inverse_gaussian`), the
+bioassay Table 2 to all printed digits (double saddle point, `conditional_pdf`), and the
+conditional MLE for Fisher's twins (Section 6.2, Figure 1). The boundary points of Table 2,
+where the approximation is undefined, now give NaN instead of garbage.
+
+- [ ] Lake Constance freezes (Section 5.2), the time-dependent Poisson process: given the
+  number of events, the event times are iid with density proportional to `exp(beta t)` on
+  [0, 1], and the trend test conditions on `r = sum t_i` to test `s = sum t_i^2`. The paper
+  uses a single saddle point expansion (p-values 0.008594 for its normal leading term,
+  0.008370 and 0.008180 with one and two correction terms). Reproduce it with the double
+  saddle point, with the cgf of (t, t^2) by quadrature. Planned as a follow-up PR
+- [ ] second-order correction of the (conditional) density, the `O(1/n)` term
+  `(rho_4 / 8 - 5 rho_3^2 / 24)` and the correction terms of the double saddle point (3.15). The ingredients
+  `_d4K_central` and `_conditional_invariants` exist for the Kolassa (1996) conditional cdf.
+  It would improve the unnormalized density, but normalizing achieves most of that already
+  (Table 2: relative error 6.5% to 3.7% for r = 24), so it is deferred
+- not planned: direct and indirect Edgeworth expansions (outside the scope of the package;
+  the saddle point approximation is the leading term of the indirect expansion), and the
+  Bartlett adjustment of the likelihood ratio statistic (Section 6.3)
+- not planned: the circular normal test (Section 5.3), with the cgf of
+  (cos A, sin A, cos 2A, sin 2A) for the von Mises distribution, and the gamma dispersion
+  test (Section 5.4), with the cgf of (U, log U, U^2). The paper only uses the normal leading
+  term of the single saddle point expansion for both. Revisit if a user needs them
 
 ## Compare with saddlepoint-expansions
 

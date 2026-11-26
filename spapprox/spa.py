@@ -1194,11 +1194,26 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         denominator saddlepoint.
         """
         tau = np.asarray(self.cgf.dK_inv(xfull, **solver_kwargs), dtype=float)
+        with np.errstate(all="ignore"):
+            res = np.asarray(self.cgf.dK(tau), dtype=float) - xfull
+        # Outside the support, the solver may return a point that is no solution
+        if not np.all(np.abs(res) <= 1e-6 * (1 + np.abs(xfull))):
+            return np.nan, np.nan, np.nan
         return self._conditional_terms_at(tau, xfull, i, J, tau0)
+
+    # Below this smallest eigenvalue of d2K(0)^-1 d2K(tau), the saddlepoint tau is taken to
+    # have diverged: x lies on the boundary of the convex hull of the support, where dK is
+    # saturated in floating point and the approximation is undefined.
+    _boundary_eigenvalue = 1e-12
 
     def _conditional_terms_at(self, tau, xfull, i, J, tau0):
         """:meth:`_conditional_terms` with the joint saddlepoint ``tau`` at ``xfull`` given."""
         H = np.asarray(self.cgf.d2K(tau))
+        if not np.isfinite(H).all():
+            return np.nan, np.nan, np.nan
+        V = np.asarray(self.cgf.d2K0, dtype=float)
+        if np.linalg.eigvals(np.linalg.solve(V, H)).real.min() < self._boundary_eigenvalue:
+            return np.nan, np.nan, np.nan
         H0 = np.asarray(self.cgf.d2K(tau0))
         w2 = 2 * (tau @ xfull - self.cgf.K(tau) - tau0 @ xfull + self.cgf.K(tau0))
         sign, logdet = np.linalg.slogdet(H)
