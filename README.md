@@ -105,6 +105,11 @@ repeatedly, call `approx.fit_saddle_point_eqn()` first to tabulate the solution.
   resampling, by combining `univariate_empirical` and `univariate_sample_mean`; for a vector
   mean, also conditionally on some of its components (Booth, Hall and Wood, 1992), with
   `multivariate_empirical` and `multivariate_sample_mean`.
+- **Monte Carlo conditional bootstrap** (`ConditionalBootstrap`, in `spapprox/bootstrap.py`):
+  the kernel-smoothed conditional bootstrap of Booth, Hall and Wood (1992) for smooth functions
+  of means, nonpivotal or pivotal (Studentized, error O(n^{-1}) instead of O(n^{-1/2})), with
+  importance resampling by exponential tilting (`optimal_tilt`), a plug-in bandwidth
+  (`conditional_bootstrap_bandwidth`) and conditional confidence intervals. No cgf needed.
 - **Estimating equations and resampling** (`EstimatingEquationSaddlePointApprox`,
   `MultivariateEstimatingEquationSaddlePointApprox`): the distribution of the root of a
   randomly weighted estimating equation (Daniels, 1983; Booth and Butler, 1990). This covers
@@ -176,6 +181,8 @@ needs `statsmodels`.
 | [`example_bootstrap_lattice.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_bootstrap_lattice.py) | continuity-corrected resampling of integer data |
 | [`example_bootstrap_robust_estimator.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_bootstrap_robust_estimator.py) | bootstrap of Huber's M-estimator |
 | [`example_bootstrap_regression.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_bootstrap_regression.py) | bootstrap of regression coefficients (vector estimating equation) |
+| [`example_bootstrap_conditional.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_bootstrap_conditional.py) | saddle point conditional bootstrap of a vector mean (Booth, Hall and Wood, 1992, Table 3) |
+| [`example_bootstrap_conditional_coverage.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_bootstrap_conditional_coverage.py) | coverage of Monte Carlo (pivotal, nonpivotal), saddle point and normal conditional intervals (Booth, Hall and Wood, 1992, Table 2) |
 | [`example_jackknife_estimating_equation.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_jackknife_estimating_equation.py) | delete-m jackknife |
 | [`example_permutation_one_sample.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_permutation_one_sample.py), [`example_permutation_two_sample.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_permutation_two_sample.py) | permutation tests |
 | [`example_numdiff_backends.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_numdiff_backends.py) | numerical derivatives of a cgf with `numdifftools` and `findiff` |

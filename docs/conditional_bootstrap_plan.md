@@ -1,7 +1,10 @@
 # Monte Carlo conditional bootstrap
 
-Status: planned (branch `feature/conditional-bootstrap`, stacked on
-`feature/multivariate-empirical`, #56). Source: Booth, Hall and Wood (1992), "Bootstrap
+Status: done (#57). Deviations from the plan below: `cdf`/`ppf` take `given` (default 0 for
+the pivot, `hat theta_2` otherwise) instead of `w`; `default_B` is clamped to at least 1000;
+a uniform kernel is offered next to the Gaussian and Epanechnikov ones; the nonpivotal
+interval is the basic interval `2 hat theta_1 - x_q`. The coverage example reproduces BHW
+Table 2 on fewer samples and sizes, `examples/example_bootstrap_conditional_coverage.py`. Source: Booth, Hall and Wood (1992), "Bootstrap
 estimation of conditional distributions", Annals of Statistics 20, 1594-1610 (BHW).
 
 ## Idea
