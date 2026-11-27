@@ -1277,6 +1277,15 @@ where the approximation is undefined, now give NaN instead of garbage.
   `_d4K_central` and `_conditional_invariants` exist for the Kolassa (1996) conditional cdf.
   It would improve the unnormalized density, but normalizing achieves most of that already
   (Table 2: relative error 6.5% to 3.7% for r = 24), so it is deferred
+- [ ] optional, low priority: second-order Lugannani-Rice cdf for the univariate
+  approximation (Daniels, 1987), with relative error
+  `O(n^{-5/2})` instead of `O(n^{-3/2})`. It adds a bracket with the standardized cumulants
+  `rho_3`, `rho_4` at the saddle point, the univariate counterpart of
+  `conditional_cdf(backend="Kolassa")`; a `backend` or `order` option of `cdf`. Needs `d4K`,
+  as a finite difference of `d3K` (cf. `_d4K_central`), and care near `t = 0`. The
+  univariate density does not need a second-order term: the `1/n` factor is constant in `x`
+  to leading order, so the default normalization already removes it. Low priority, since
+  Lugannani-Rice is already accurate in all examples
 - [ ] test the exact case (3.19)-(3.20): for a normal sample, the double saddle point
   approximation of the conditional density of `sum V_i` given `sum V_i^2 = r` is exact after
   normalization (the ratio to the exact numerator `exp(s mu / sigma^2) (r - s^2/n)^((n-3)/2)` is
