@@ -1022,6 +1022,8 @@ These would go into cgfs.py
 - [x] add asymmetric generalized normal distribution: `asymmetric_generalized_normal`, the
   asymmetric exponential power version (shape and scale per side). Hosking's log-normal-type
   skewed version is not possible: its cgf is infinite on one side of zero
+- [x] faster (asymmetric) generalized normal cgf: fixed double exponential quadrature,
+  vectorized over `t`, see `docs/asym_gen_norm_speed.md`
 - add Cheriyan and Ramabhadran's multivariate gamma distribution (Kotz 2000)
 - [x] add Jensen's multivariate Gamma (See Butler 2007, page 77): `jensen_multivariate_gamma`;
   the domain is declared as the linear outer bound `t_i < 1/sigma_ii`, K is NaN beyond the

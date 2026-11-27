@@ -1192,6 +1192,17 @@ def test_asymmetric_generalized_normal(beta, sigma, ts):
         assert np.isnan(cgf.K(1.01 / (2 * sr)))
 
 
+@pytest.mark.parametrize("beta, sigma", [(1.05, 1), (1.5, 1), (10, 1), ((1.2, 6), (1, 0.3))])
+def test_asymmetric_generalized_normal_small_t(beta, sigma):
+    # Close to zero, where the mode of the tilted density is tiny compared to its width, the
+    # cgf is its cumulant expansion
+    cgf = asymmetric_generalized_normal(beta=beta, sigma=sigma)
+    t = np.array([-1e-3, -1e-6, 1e-6, 1e-3])
+    expansion = cgf.dK0 * t + cgf.d2K0 * t**2 / 2 + cgf.d3K0 * t**3 / 6
+    assert np.allclose(cgf.K(t), expansion, rtol=1e-6, atol=1e-10)
+    assert np.allclose(cgf.dK(t), cgf.dK0 + cgf.d2K0 * t + cgf.d3K0 * t**2 / 2, rtol=1e-5)
+
+
 def test_asymmetric_generalized_normal_special_cases():
     cgf = asymmetric_generalized_normal(beta=3)
     assert np.isclose(cgf.K(1.2), generalized_normal(beta=3).K(1.2))

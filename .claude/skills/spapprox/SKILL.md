@@ -63,7 +63,7 @@ approximation classes, `Timer`, `ConditionalBootstrap`, `optimal_tilt`,
 `generalized_normal`, `asymmetric_generalized_normal`, `poisson`, `bernoulli`, `binomial`, `negative_binomial`,
 `multinomial`, `bivariate_poisson`, `univariate_empirical`,
 `univariate_sample_mean`, `multivariate_empirical`, `multivariate_sample_mean`. The (asymmetric) generalized normal has no closed-form cgf except for
-shapes 1 and 2, and otherwise evaluates it by quadrature (slow per point); `jensen_multivariate_gamma` has a non-linear
+shapes 1 and 2, and otherwise evaluates it by a fixed double exponential quadrature, vectorized over `t` (`_gn_half_line`, `_gn_tilted`); `jensen_multivariate_gamma` has a non-linear
 domain, declared as its linear outer bound with `K` NaN beyond it.
 
 ## The typical flow

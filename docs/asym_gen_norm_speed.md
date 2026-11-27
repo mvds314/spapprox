@@ -1,6 +1,6 @@
 # Plan: faster cgf of the (asymmetric) generalized normal
 
-Status: option A in progress. Branch `feature/gn-speed`.
+Status: option A done (PR #58).
 
 Goal: make `generalized_normal` and `asymmetric_generalized_normal` (in `spapprox/cgfs.py`)
 fast enough for routine use, with an accuracy of about `1e-8` in `K`, `dK`, `d2K`, `d3K`,
@@ -124,6 +124,51 @@ option A elsewhere. Faster and more exact where it applies, but more code than A
 Do A, measure it against the current implementation (speed, and accuracy for `beta` in about
 `[1.05, 10]`, small and large `t`, asymmetric `sigma`). Consider D or B only if A is still too
 slow.
+
+## Implementation (option A)
+
+`_gn_half_line` in `spapprox/cgfs.py` builds the nodes per side of zero (a half line with
+tilt `t` on the right and `-t` on the left), `_gn_tilted` combines them into `K`, `dK`, `d2K`,
+`d3K`. Two refinements of the sketch above:
+
+- Instead of one tanh-sinh rule over `v`, each half line is split at the mode `y*`. Beyond the
+  mode an exp-sinh rule `delta = d exp(pi sinh(tau_j) / 2)`, with `d` the distance where the
+  log density dropped by one (bisection in `log(delta)`; the log density is concave). Before
+  the mode `delta = y* expit(pi sinh(tau_j) / 2 - log(y* / d_L))`, which starts as the same
+  exp-sinh rule and clusters double exponentially at the kink `y = 0`. A plain tanh-sinh rule
+  on `[0, y*]` was too coarse at the mode when `y* >> d`.
+- The step is `h = 1 / (8 ceil(max(2, beta)))` over `tau_j` in `[-3.5, 3.5]`: the integrand
+  `exp(-(delta / d)^beta)` is analytic in a strip of width proportional to `1 / beta` in
+  `log(delta)`, so large shapes need smaller steps (113 nodes per piece for `beta <= 2`, 449
+  for `beta = 8`). `h = 1 / (4 ceil(max(2, beta)))` only reached about `1e-6` in `d3K`.
+
+The drop from the mode is computed as `A (beta r - (1 + r)^beta + 1)`, `r = delta / y*`, as
+before, so the large terms `t y` and `(y / sigma)^beta` do not cancel. `K(t)`, `dK(t)`, ...
+with the same `t` share one evaluation (cache of the last call).
+
+## Results
+
+Accuracy against the old adaptive quadrature, on 12 configurations (`beta` from 1.05 to 10,
+asymmetric shapes and scales, shape one on one side) and `t` in `[-4, 4]` plus `+-1e-3`,
+`1e-6`: worst error `7e-12` in `K`, `1.6e-10` in `dK`, `d2K`, `d3K` (relative to the width of
+the tilted density, at `beta = 1.05`), about `1e-12` elsewhere. At `t = 1e-6` the old code was
+wrong: `K = -40.5` for `beta = 1.05` and `-2.4` for `beta = 10` instead of about zero (the
+mode is then tiny and its width estimate breaks down); this is now a regression test.
+Finite difference checks of `dK`, `d2K`, `d3K` pass to about `1e-8` (the finite difference
+error) for `beta` up to 60 and down to 1.01.
+
+Timings on `generalized_normal(beta=1.5)`, same machine and session:
+
+| Operation | Before | After |
+| --------- | ------ | ----- |
+| `K` at 50 points | 4.7 s | 0.014 s |
+| `pdf(t=...)` at 50 points (normalized) | 92 s | 1.0 s |
+| `cdf(x=...)` at 2 points | 3.4 s | 0.055 s |
+| `cdf(t=...)` of the sample mean, `n = 10`, at 50 points | 13 s | 0.05 s |
+
+(The "before" timings are slower than in the table above because the machine was loaded.)
+The normalized pdf is now dominated by the normalization integral, which evaluates the cgf at
+scalar points. Options B to D are not needed.
 
 ## Validation
 

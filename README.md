@@ -193,8 +193,6 @@ needs `statsmodels`.
 
 - Multivariate support is not complete. For example, the Kolassa and Li cdf does not support
   mixed lattice and continuous components.
-- `generalized_normal` and `asymmetric_generalized_normal` evaluate the cgf by quadrature
-  unless the shape is 1 or 2, which is slow.
 - The Kolassa and Li bivariate cdf (the default `backend="KL"`) does not factorize exactly
   for independent components (error up to about 5e-3 in tests). Its extension to more
   than two dimensions has not been checked against the literature yet.
