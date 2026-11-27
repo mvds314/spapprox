@@ -198,12 +198,15 @@ Independent of the CGF machinery (numpy/scipy only). `ConditionalBootstrap(x, g1
 grad1=None, grad2=None, kernel="gaussian", rng=None)` for smooth functions of means
 `theta_k = g_k(mean)`, gradients numerical if not given. `cdf(u, given, B, h, importance,
 pivotal)`, `ppf`, `ci(level, sided)`. Pivotal (default) conditions the Studentized pivot
-`U* = (V* - rho* W*)/sqrt(1 - rho*^2)` on `W*` near `given` (default 0); nonpivotal conditions
+`U* = (V* - rho* w)/sqrt(1 - rho*^2)` (fixed `w = given`, BHW (2.5); `pivot_centering="resample"` uses `W*` instead: less
+smoothing bias, better importance gains) on `W*` near `w` (default 0); nonpivotal conditions
 `theta_1*` on `theta_2*` near `given` (default `hat theta_2`), which is what the saddle point
 `conditional_cdf` approximates in the limit `h -> 0`, `B -> inf` (the tests use this as
 reference). The bandwidth `h` is on the W scale; resamples are drawn with exponential tilting
 (`optimal_tilt(u)`, BHW Table 1) and reweighted. Simulating BHW Table 2 requires conditioning
-on the *true* `theta_2`, see `examples/example_bootstrap_conditional_coverage.py`.
+on the *true* `theta_2`, see `examples/example_bootstrap_conditional_coverage.py`. The
+plug-in `h` (~0.13) gives ~8% left misses there vs BHW's 5-6%; `h = 0.5` reproduces BHW via the
+smoothing bias (2.14), so the paper's numbers include a favourable bias, not a bug here.
 
 ### `spa.py` -- the approximations
 

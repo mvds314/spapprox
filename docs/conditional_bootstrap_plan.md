@@ -4,7 +4,14 @@ Status: done (#57). Deviations from the plan below: `cdf`/`ppf` take `given` (de
 the pivot, `hat theta_2` otherwise) instead of `w`; `default_B` is clamped to at least 1000;
 a uniform kernel is offered next to the Gaussian and Epanechnikov ones; the nonpivotal
 interval is the basic interval `2 hat theta_1 - x_q`. The coverage example reproduces BHW
-Table 2 on fewer samples and sizes, `examples/example_bootstrap_conditional_coverage.py`. Source: Booth, Hall and Wood (1992), "Bootstrap
+Table 2 on fewer samples and sizes, `examples/example_bootstrap_conditional_coverage.py`.
+The pivot uses the fixed `w`, `U* = (V* - rho* w)/sqrt(1 - rho*^2)` as in BHW (2.5), not `W*`
+as written below; `pivot_centering="resample"` gives the `W*` version, which has almost no
+smoothing bias and keeps the importance resampling efficient in both tails (the fixed version
+gains only 1.1-1.3x in the upper tail), at the same coverage for the plug-in bandwidth. A 2000-sample run gives left misses of about 8% at n = 30-50 with the plug-in
+bandwidth (h about 0.13), against 5-6% in BHW Table 2; the h -> 0 limit gives the same, and
+h = 0.5 reproduces BHW (L 4.9%, U 97.7% at n = 50) through the smoothing bias (2.14), which a
+test checks against its leading term. Source: Booth, Hall and Wood (1992), "Bootstrap
 estimation of conditional distributions", Annals of Statistics 20, 1594-1610 (BHW).
 
 ## Idea

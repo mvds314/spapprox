@@ -9,7 +9,8 @@ the samples are simulated conditional on the mean of Y being equal to its expect
 intervals are
 
 - the pivotal (Studentized) conditional bootstrap, ``ConditionalBootstrap`` with importance
-  resampling and the plug-in bandwidth, for B = 200, 500 and 1000 resamples,
+  resampling and the plug-in bandwidth, for B = 200, 500 and 1000 resamples, and with a fixed
+  bandwidth h = 0.5,
 - the nonpivotal conditional bootstrap, ``ConditionalBootstrap(..., pivotal=False)``,
 - the saddle point approximation of the nonpivotal conditional bootstrap,
   ``MultivariateSaddlePointApprox.conditional_cdf`` of the mean of ``multivariate_empirical``,
@@ -20,6 +21,11 @@ Columns L (U) give the proportion of samples where theta_1 is smaller than the l
 limit, nominally 5% (95%). The pivotal bootstrap is much better on the left; the saddle point
 approximation is as accurate as the nonpivotal bootstrap it approximates, and as bad. BHW use
 1000 samples; increase ``n_samples`` to reproduce their table more closely.
+
+With the plug-in bandwidth (h of about 0.13 for B = 1000), the left misses stay near 8% for
+n = 30 to 50 (2000 samples), above the 5-6% BHW report; the h -> 0 limit gives the same, so this
+is the O(1/n) error of the pivotal bootstrap itself. With h = 0.5, the smoothing bias of BHW
+(2.14) widens the intervals, and the coverage matches BHW Table 2 (L 4.9%, U 97.7% at n = 50).
 """
 
 import matplotlib.pyplot as plt
@@ -84,7 +90,7 @@ def normal_ci(cb, n):
     return cb.theta1 - half, cb.theta1 + half
 
 
-methods = ["B(200)", "B(500)", "B(1000)", "Nonpivotal B(1000)", "SP", "Normal"]
+methods = ["B(200)", "B(500)", "B(1000)", "B(1000), h=0.5", "Nonpivotal B(1000)", "SP", "Normal"]
 limits = {(m, n): [] for m in methods for n in sizes}
 with spa.Timer(f"Coverage, {n_samples} samples"):
     for s, y in enumerate(data):
@@ -96,6 +102,7 @@ with spa.Timer(f"Coverage, {n_samples} samples"):
             cb = spa.ConditionalBootstrap(x, rng=s)
             for B in [200, 500, 1000]:
                 limits["B(%d)" % B, n].append(cb.ci(level, B=B))
+            limits["B(1000), h=0.5", n].append(cb.ci(level, B=1000, h=0.5))
             limits["Nonpivotal B(1000)", n].append(cb.ci(level, B=1000, pivotal=False))
             limits["SP", n].append(sp_ci(x))
             limits["Normal", n].append(normal_ci(cb, n))

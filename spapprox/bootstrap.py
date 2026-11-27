@@ -213,10 +213,13 @@ class ConditionalBootstrap:
 
     On every resample, :math:`\hat\sigma_k^*` and :math:`\hat\rho^*` are recomputed in the same
     way, which gives :math:`V^*=(\hat\theta_1^*-\hat\theta_1)/\hat\sigma_1^*`,
-    :math:`W^*=(\hat\theta_2^*-\hat\theta_2)/\hat\sigma_2^*` and the pivot
+    :math:`W^*=(\hat\theta_2^*-\hat\theta_2)/\hat\sigma_2^*` and, (2.5), the pivot
 
     .. math::
-        U^* = (1-\hat\rho^{*2})^{-1/2}(V^*-\hat\rho^*W^*).
+        U^* = (1-\hat\rho^{*2})^{-1/2}(V^*-\hat\rho^*w),
+
+    with the conditioning value :math:`w`, not :math:`W^*` (``pivot_centering="fixed"``;
+    ``"resample"`` uses :math:`W^*`).
 
     The pivotal estimate of :math:`P(U\leq u\mid W=w)` is, (2.7),
 
@@ -229,6 +232,12 @@ class ConditionalBootstrap:
     nonpivotal estimate of :math:`P(\hat\theta_1\leq x\mid\hat\theta_2=y)`, (2.3), replaces
     :math:`U^*\leq u` by :math:`\hat\theta_1^*\leq x` and the kernel argument by
     :math:`(y-\hat\theta_2^*)/(h\hat\sigma_2)`.
+
+    The window adds the bias :math:`-h^2\kappa_1\psi(u,w)`, (2.14), which the plug-in bandwidth
+    balances against the Monte Carlo variance. It need not be harmful: in the setting of BHW
+    Table 2, the ideal (:math:`h\to0`) pivotal bootstrap gives too short 90% intervals on the left
+    (8% instead of 5% misses at :math:`n=50`), and a larger :math:`h\approx0.5` widens them to
+    the coverage reported by BHW, see ``examples/example_bootstrap_conditional_coverage.py``.
 
     The pivotal version estimates the conditional distribution with error
     :math:`O_p\{n^{-1}+h^2+(Bh)^{-1/2}\}`, which is :math:`O_p(n^{-1})` for :math:`h\asymp
@@ -313,7 +322,7 @@ class ConditionalBootstrap:
         return eta - logsumexp(eta)
 
     def _resample(self, B, log_pi=None):
-        """Statistics of ``B`` resamples: theta1*, theta2*, U*, W* and log importance weights."""
+        """Statistics of ``B`` resamples: theta1*, theta2*, V*, W*, rho* and log importance weights."""
         n, x = self.n, self.x
         pi = None if log_pi is None else np.exp(log_pi)
         chunk = max(1, 2_000_000 // n)
@@ -331,12 +340,13 @@ class ConditionalBootstrap:
                 V = (t1 - self.theta1) / np.sqrt(c11 / n)
                 W = (t2 - self.theta2) / np.sqrt(c22 / n)
                 r = c12 / np.sqrt(c11 * c22)
-                U = (V - r * W) / np.sqrt(1 - r**2)
             logw = np.zeros(len(M)) if log_pi is None else -M @ (np.log(n) + log_pi)
-            out.append(np.stack([t1, t2, U, W, logw]))
+            out.append(np.stack([t1, t2, V, W, r, logw]))
         return np.concatenate(out, axis=1)
 
-    def _setup(self, u, given, B, h, importance, pivotal):
+    def _setup(self, u, given, B, h, importance, pivotal, pivot_centering):
+        if pivot_centering not in ("fixed", "resample"):
+            raise ValueError("pivot_centering must be 'fixed' or 'resample'")
         if given is None:
             given = 0.0 if pivotal else self.theta2
         B = self.default_B() if B is None else int(B)
@@ -351,9 +361,11 @@ class ConditionalBootstrap:
                 us, self.rho, B, w=ws, kernel=self.kernel, importance=importance
             )
         log_pi = self._log_pi(us, ws) if importance else None
-        t1, t2, U, W, logw = self._resample(B, log_pi)
+        t1, t2, V, W, r, logw = self._resample(B, log_pi)
         if pivotal:
-            stat, arg = U, (given - W) / h
+            with np.errstate(invalid="ignore"):
+                stat = (V - r * (given if pivot_centering == "fixed" else W)) / np.sqrt(1 - r**2)
+            arg = (given - W) / h
         else:
             stat, arg = t1, (given - t2) / (h * self.sigma2)
         weights = self._kernel(arg) * np.exp(logw - logw.max())
@@ -368,7 +380,14 @@ class ConditionalBootstrap:
         """
         return int(min(max(np.ceil(self.n**2.5), 1000), 10**6))
 
-    def cdf(self, u, given=None, B=None, h=None, importance=True, pivotal=True):
+    def cdf(self, u,
+        given=None,
+        B=None,
+        h=None,
+        importance=True,
+        pivotal=True,
+        pivot_centering="fixed",
+    ):
         r"""
         Conditional bootstrap estimate of the cdf.
 
@@ -393,6 +412,13 @@ class ConditionalBootstrap:
             Importance resampling with the tilt of :func:`optimal_tilt`, default ``True``.
         pivotal : bool, optional
             Pivotal (default) or nonpivotal estimate.
+        pivot_centering : str, optional
+            What multiplies :math:`\hat\rho^*` in the pivot :math:`U^*`: ``"fixed"`` (default)
+            the conditioning value :math:`w`, as in Booth, Hall and Wood (1992), (2.5);
+            ``"resample"`` the resample's own :math:`W^*`. With ``"resample"``, :math:`U^*` is
+            to first order independent of :math:`W^*`, which removes most of the smoothing bias
+            (2.14) and keeps the importance resampling efficient for larger :math:`h`; the
+            plug-in bandwidth, derived for ``"fixed"``, is then conservative (too small).
 
         Returns
         -------
@@ -402,12 +428,19 @@ class ConditionalBootstrap:
         u = np.asanyarray(u, dtype=float)
         res = np.empty(u.shape)
         for idx, v in np.ndenumerate(u):
-            stat, weights = self._setup(v, given, B, h, importance, pivotal)
+            stat, weights = self._setup(v, given, B, h, importance, pivotal, pivot_centering)
             total = weights.sum()
             res[idx] = weights[stat <= v].sum() / total if total > 0 else np.nan
         return float(res) if res.ndim == 0 else res
 
-    def ppf(self, q, given=None, B=None, h=None, importance=True, pivotal=True):
+    def ppf(self, q,
+        given=None,
+        B=None,
+        h=None,
+        importance=True,
+        pivotal=True,
+        pivot_centering="fixed",
+    ):
         r"""
         Conditional bootstrap estimate of the quantile function,
         :math:`\hat u_\alpha=\inf\{u:\hat p(u,w)\geq\alpha\}`, Booth, Hall and Wood (1992),
@@ -429,7 +462,7 @@ class ConditionalBootstrap:
                 y = self.theta2 if given is None else given
                 w = (y - self.theta2) / self.sigma2
                 u0 = self.theta1 + self.sigma1 * (np.sqrt(1 - self.rho**2) * u0 + self.rho * w)
-            stat, weights = self._setup(u0, given, B, h, importance, pivotal)
+            stat, weights = self._setup(u0, given, B, h, importance, pivotal, pivot_centering)
             order = np.argsort(stat)
             cum = np.cumsum(weights[order])
             if cum[-1] <= 0:
@@ -439,7 +472,16 @@ class ConditionalBootstrap:
             res[idx] = stat[order][j]
         return float(res) if res.ndim == 0 else res
 
-    def ci(self, level=0.9, sided="two", B=None, h=None, importance=True, pivotal=True):
+    def ci(
+        self,
+        level=0.9,
+        sided="two",
+        B=None,
+        h=None,
+        importance=True,
+        pivotal=True,
+        pivot_centering="fixed",
+    ):
         r"""
         Confidence interval for :math:`\theta_1`, conditional on the observed
         :math:`\hat\theta_2`, Booth, Hall and Wood (1992), Section 2.7.
@@ -461,7 +503,7 @@ class ConditionalBootstrap:
         sided : str, optional
             ``"two"`` (default), ``"lower"`` for :math:`(\text{lower}, \infty)`, or ``"upper"``
             for :math:`(-\infty, \text{upper})`.
-        B, h, importance, pivotal
+        B, h, importance, pivotal, pivot_centering
             As for :meth:`cdf`.
 
         Returns
@@ -473,7 +515,7 @@ class ConditionalBootstrap:
             raise ValueError("level must lie in (0, 1)")
         if sided not in ("two", "lower", "upper"):
             raise ValueError("sided must be 'two', 'lower' or 'upper'")
-        kw = dict(B=B, h=h, importance=importance, pivotal=pivotal)
+        kw = dict(B=B, h=h, importance=importance, pivotal=pivotal, pivot_centering=pivot_centering)
 
         def limit(a):
             if pivotal:

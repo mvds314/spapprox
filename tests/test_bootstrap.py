@@ -84,12 +84,17 @@ def test_nonpivotal_matches_saddle_point(importance):
     assert np.allclose(est, expected, atol=0.02)
 
 
-def test_importance_reduces_variance():
+@pytest.mark.parametrize(
+    "u, pivot_centering, h, gain",
+    [(-1.645, "fixed", None, 1.5), (-1.645, "resample", 0.3, 2), (1.645, "resample", 0.3, 1.3)],
+)
+def test_importance_reduces_variance(u, pivot_centering, h, gain):
     cb = ConditionalBootstrap(_sample(), rng=2)
-    uniform = [cb.cdf(-1.645, B=1000, h=0.3, importance=False) for _ in range(100)]
-    tilted = [cb.cdf(-1.645, B=1000, h=0.3) for _ in range(100)]
+    kw = dict(B=1000, h=h, pivot_centering=pivot_centering)
+    uniform = [cb.cdf(u, importance=False, **kw) for _ in range(100)]
+    tilted = [cb.cdf(u, **kw) for _ in range(100)]
     assert abs(np.mean(uniform) - np.mean(tilted)) < 0.01
-    assert np.var(uniform) > 2 * np.var(tilted)
+    assert np.var(uniform) > gain * np.var(tilted)
 
 
 def test_pivotal_against_exact():
@@ -111,6 +116,22 @@ def test_pivotal_against_exact():
     assert abs(est[1] - 0.5) < abs(sps.norm.cdf(uq[1]) - 0.5)
 
 
+def test_pivotal_smoothing_bias():
+    # Booth, Hall and Wood (1992), (2.14): the window adds the bias
+    # -h^2 kappa_1 rho^2 / (1 - rho^2) u phi(u), as the pivot uses the fixed w and not W*
+    cb = ConditionalBootstrap(_sample(50), rng=0)
+    p = {h: cb.cdf(1.645, B=200_000, h=h, importance=False) for h in [0.1, 0.6]}
+    c = cb.rho**2 / (1 - cb.rho**2)
+    predicted = (0.6**2 - 0.1**2) * 0.5 * c * 1.645 * sps.norm.pdf(1.645)
+    assert 0.5 * predicted < p[0.1] - p[0.6] < 1.2 * predicted
+    # with W* in the pivot, the leading bias term vanishes
+    p = {
+        h: cb.cdf(1.645, B=200_000, h=h, importance=False, pivot_centering="resample")
+        for h in [0.1, 0.6]
+    }
+    assert abs(p[0.1] - p[0.6]) < 0.3 * predicted
+
+
 @pytest.mark.parametrize("pivotal", [True, False])
 def test_ppf_and_ci(pivotal):
     cb = ConditionalBootstrap(_sample(), rng=3)
@@ -125,3 +146,5 @@ def test_ppf_and_ci(pivotal):
         cb.ppf(1.0)
     with pytest.raises(ValueError):
         cb.ci(sided="both")
+    with pytest.raises(ValueError):
+        cb.cdf(0.0, pivot_centering="W")
