@@ -1360,6 +1360,16 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         within ``_conditional_singular_width`` conditional standard deviations of this
         point the approximation is replaced by a cubic interpolation.
 
+        Applied to the bootstrap distribution of a vector mean, i.e., to
+        :func:`~spapprox.multivariate_sample_mean` of :func:`~spapprox.multivariate_empirical`,
+        this approximates the conditional bootstrap distribution
+        :math:`P^*(\bar X_i^*\leq x\mid\bar X_J^*=x_J)` without resampling (Booth, Hall and
+        Wood, 1992, Section 4). It then approximates the *nonpivotal* conditional bootstrap,
+        which estimates the conditional distribution of a statistic with error
+        :math:`O_p(n^{-1/2})`. Confidence intervals based on it are first order accurate
+        only; the second order (:math:`O_p(n^{-1})`) accuracy of the bootstrap requires a
+        Studentized (pivotal) statistic, see [6], Sections 2.4 and 5.1, and
+        ``examples/example_bootstrap_conditional.py``.
         Parameters
         ----------
         x : array_like
@@ -1405,6 +1415,7 @@ class MultivariateSaddlePointApprox(SaddlePointApprox):
         [4] Kolassa (1996) - Higher-order approximations to conditional distribution functions
         [5] Kolassa and Li (2010) - Multivariate saddlepoint approximations in tail
             probability and conditional inference
+        [6] Booth, Hall and Wood (1992) - Bootstrap estimation of conditional distributions
         """
         if isinstance(i, (list, tuple, np.ndarray)):
             if len(i) > 1 and _check_correction(correction, delta) == 1:

@@ -15,7 +15,10 @@ transformation. The parametrizations follow ``scipy.stats`` where possible.
 Two factories are transformations rather than distributions: :func:`univariate_empirical`,
 the cgf of drawing uniformly from a sample, and :func:`univariate_sample_mean`, the cgf of the
 mean of i.i.d. copies. Composed, they give the bootstrap distribution of a sample mean, see
-``examples/example_nonparametric_bootstrap.py``.
+``examples/example_nonparametric_bootstrap.py``. Their multivariate analogues
+:func:`multivariate_empirical` and :func:`multivariate_sample_mean` give the bootstrap
+distribution of a vector mean, also conditionally, see
+``examples/example_bootstrap_conditional.py``.
 
 Examples
 --------
@@ -1104,6 +1107,161 @@ def univariate_empirical(x):
 
     return UnivariateCumulantGeneratingFunction(
         K, dK=dK, d2K=d2K, d3K=d3K, loc=loc, scale=scale
+    )
+
+
+def multivariate_sample_mean(cgf, sample_size):
+    r"""
+    Cumulant generating function of the sample mean of i.i.d. copies of a random vector.
+
+    Given :math:`n` i.i.d. random vectors with cumulant generating function :math:`K`, the
+    cumulant generating function of the sample mean :math:`\bar{X}` is
+
+    .. math::
+        K_{\bar{X}}(t) = n K(t/n),
+
+    the multivariate analogue of :func:`univariate_sample_mean`. With :math:`X=AZ+b`, as
+    described by the ``loc`` :math:`b` and ``scale`` :math:`A` of ``cgf``,
+    :math:`K_{\bar{X}}(t)=nK_Z(A^Tt/n)+<b,t>`. The result is therefore built from the
+    standardized functions of ``cgf`` multiplied by :math:`n`, with scale :math:`A/n`, so the
+    domain of ``cgf`` carries over unchanged. Supplied derivatives, ``dK_inv`` and cached
+    cumulants are transformed accordingly; missing derivatives are computed numerically.
+
+    Parameters
+    ----------
+    cgf : MultivariateCumulantGeneratingFunction
+        The cgf :math:`K` of a single observation.
+    sample_size : int
+        The sample size :math:`n`, a positive integer.
+
+    Returns
+    -------
+    MultivariateCumulantGeneratingFunction
+        The cgf of :math:`\bar{X}`.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import spapprox as spa
+    >>> cgf = spa.multivariate_sample_mean(spa.multivariate_norm(cov=np.eye(2)), 4)
+    >>> cgf.cov.tolist()
+    [[0.25, 0.0], [0.0, 0.25]]
+
+    See :func:`multivariate_empirical` and ``examples/example_bootstrap_conditional.py``.
+
+    References
+    ----------
+    [1] Butler (2007) - Saddlepoint Approximations with Applications, Section 3.1
+    """
+    if not isinstance(cgf, MultivariateCumulantGeneratingFunction):
+        raise TypeError("cgf must be a MultivariateCumulantGeneratingFunction")
+    if not (isinstance(sample_size, (int, np.integer)) and sample_size > 0):
+        raise ValueError("sample_size must be a positive integer")
+    n = int(sample_size)
+
+    def times_n(f):
+        return None if f is None else (lambda t, f=f: n * np.asanyarray(f(t)))
+
+    def cache_times_n(c):
+        return None if c is None else n * np.asanyarray(c)
+
+    dK_inv = cgf._dK_inv
+    return MultivariateCumulantGeneratingFunction(
+        times_n(cgf._K),
+        dim=cgf.dim,
+        loc=cgf.loc,
+        scale=np.asanyarray(cgf.scale) / n,
+        dK=times_n(cgf._dK),
+        dK_inv=None if dK_inv is None else (lambda x, f=dK_inv: f(np.asanyarray(x) / n)),
+        d2K=times_n(cgf._d2K),
+        d3K=times_n(cgf._d3K),
+        dK0=cache_times_n(cgf._dK0_raw_cache),
+        d2K0=cache_times_n(cgf._d2K0_raw_cache),
+        d3K0=cache_times_n(cgf._d3K0_raw_cache),
+        domain=cgf.domain,
+        numdiff_backend=cgf._numdiff_backend,
+    )
+
+
+def multivariate_empirical(x):
+    r"""
+    Empirical distribution of a multivariate sample: the cgf of drawing one of the
+    observations :math:`x_1,\ldots,x_n\in\mathbb{R}^d` with equal probability,
+
+    .. math::
+        K(t) = \log\frac{1}{n}\sum_{i=1}^n e^{<t,x_i>}, \qquad t\in\mathbb{R}^d,
+
+    the multivariate analogue of :func:`univariate_empirical`. The cgf is that of the
+    standardized sample, with ``loc`` the sample mean and ``scale`` the vector of sample
+    standard deviations (1 for a constant column). :math:`K` and its first three derivatives
+    are exact, evaluated stably with ``logsumexp`` and ``softmax``: with the tilted weights
+    :math:`w_i(t)\propto e^{<t,x_i>}`, :math:`K'(t)=\sum_i w_ix_i`, and :math:`K''(t)` and
+    :math:`K'''(t)` are the second and third central moment tensors of the sample under these
+    weights. The inverse of :math:`K'` is numerical, and exists in the interior of the convex
+    hull of the sample.
+
+    Combined with :func:`multivariate_sample_mean` it gives the bootstrap distribution of a
+    vector mean without resampling, and with
+    :meth:`~spapprox.MultivariateSaddlePointApprox.conditional_cdf` the conditional
+    bootstrap distribution of one component of the mean given the others (Davison and
+    Hinkley, 1988; Booth, Hall and Wood, 1992, Section 4).
+
+    Parameters
+    ----------
+    x : array_like
+        The observations, of shape ``(n, d)`` with ``d >= 2``.
+
+    Returns
+    -------
+    MultivariateCumulantGeneratingFunction
+        The cgf of the empirical distribution.
+
+    Examples
+    --------
+    >>> import spapprox as spa
+    >>> cgf = spa.multivariate_empirical([[1.0, 0.0], [2.0, 1.0], [6.0, 5.0]])
+    >>> cgf.dK0.tolist()
+    [3.0, 2.0]
+
+    See ``examples/example_bootstrap_conditional.py``.
+
+    References
+    ----------
+    [1] Davison, Hinkley (1988) - Saddlepoint approximations in resampling methods
+    [2] Booth, Hall, Wood (1992) - Bootstrap estimation of conditional distributions
+    [3] Butler (2007) - Saddlepoint Approximations with Applications, Section 3.4
+    """
+    x = np.asanyarray(x, dtype=float)
+    if x.ndim != 2 or x.shape[1] < 2 or x.shape[0] < 1:
+        raise ValueError("x must have shape (n, d) with n >= 1 and d >= 2")
+    loc = x.mean(axis=0)
+    scale = x.std(axis=0)
+    scale = np.where(scale > 0, scale, 1.0)
+    z = (x - loc) / scale
+    n = len(z)
+
+    # Use logsumexp and softmax to prevent overflow for large <t, x>
+    def K(t):
+        return logsumexp(np.asanyarray(t, float) @ z.T, axis=-1) - np.log(n)
+
+    def tilted(t):
+        w = softmax(np.asanyarray(t, float) @ z.T, axis=-1)
+        return w, z - (w @ z)[..., None, :]
+
+    def dK(t):
+        return softmax(np.asanyarray(t, float) @ z.T, axis=-1) @ z
+
+    # The derivatives are the central moment tensors of the exponentially tilted sample
+    def d2K(t):
+        w, c = tilted(t)
+        return np.einsum("...i,...ij,...ik->...jk", w, c, c)
+
+    def d3K(t):
+        w, c = tilted(t)
+        return np.einsum("...i,...ij,...ik,...il->...jkl", w, c, c, c)
+
+    return MultivariateCumulantGeneratingFunction(
+        K, dim=z.shape[1], dK=dK, d2K=d2K, d3K=d3K, loc=loc, scale=scale
     )
 
 

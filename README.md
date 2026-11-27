@@ -102,7 +102,9 @@ repeatedly, call `approx.fit_saddle_point_eqn()` first to tabulate the solution.
   approximation of Skovgaard (1987), or Kolassa (1996) with `backend="Kolassa"`. Two
   variables of interest are supported too (Kolassa and Li, 2010).
 - **Transform-domain bootstrap:** the bootstrap distribution of a sample mean without
-  resampling, by combining `univariate_empirical` and `univariate_sample_mean`.
+  resampling, by combining `univariate_empirical` and `univariate_sample_mean`; for a vector
+  mean, also conditionally on some of its components (Booth, Hall and Wood, 1992), with
+  `multivariate_empirical` and `multivariate_sample_mean`.
 - **Estimating equations and resampling** (`EstimatingEquationSaddlePointApprox`,
   `MultivariateEstimatingEquationSaddlePointApprox`): the distribution of the root of a
   randomly weighted estimating equation (Daniels, 1983; Booth and Butler, 1990). This covers
@@ -112,7 +114,7 @@ repeatedly, call `approx.fit_saddle_point_eqn()` first to tabulate the solution.
 
 | Univariate | Multivariate | Transformations |
 |---|---|---|
-| `norm`, `exponential`, `gamma`, `inverse_gaussian`, `chi2`, `laplace`, `asymmetric_laplace`, `generalized_normal`, `asymmetric_generalized_normal`, `poisson`, `bernoulli`, `binomial`, `negative_binomial` | `multivariate_norm`, `bivariate_gamma`, `jensen_multivariate_gamma`, `multinomial`, `bivariate_poisson` | `univariate_empirical` (the empirical distribution of a sample), `univariate_sample_mean` |
+| `norm`, `exponential`, `gamma`, `inverse_gaussian`, `chi2`, `laplace`, `asymmetric_laplace`, `generalized_normal`, `asymmetric_generalized_normal`, `poisson`, `bernoulli`, `binomial`, `negative_binomial` | `multivariate_norm`, `bivariate_gamma`, `jensen_multivariate_gamma`, `multinomial`, `bivariate_poisson` | `univariate_empirical`, `multivariate_empirical` (the empirical distribution of a sample), `univariate_sample_mean`, `multivariate_sample_mean` |
 
 Any other cgf can be supplied directly with `UnivariateCumulantGeneratingFunction` or
 `MultivariateCumulantGeneratingFunction`. Derivatives you do not supply are computed
