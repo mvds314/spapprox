@@ -1272,6 +1272,15 @@ where the approximation is undefined, now give NaN instead of garbage.
   `_d4K_central` and `_conditional_invariants` exist for the Kolassa (1996) conditional cdf.
   It would improve the unnormalized density, but normalizing achieves most of that already
   (Table 2: relative error 6.5% to 3.7% for r = 24), so it is deferred
+- [ ] test the exact case (3.19)-(3.20): for a normal sample, the double saddle point
+  approximation of the conditional density of `sum V_i` given `sum V_i^2 = r` is exact after
+  normalization (the ratio to the exact numerator `exp(s mu / sigma^2) (r - s^2/n)^((n-3)/2)` is
+  constant in `s`). A cheap exactness test for `conditional_pdf`, with the joint cgf of
+  `(V, V^2)` built from `norm`
+- not planned: the single (mixed) saddle point (3.16)-(3.18), the normal leading term with
+  Edgeworth corrections at the restricted MLE. The paper uses it where the extended cgf has
+  no usable form; the double saddle point backends (Skovgaard, Kolassa) are more accurate per
+  term and cover the cases where the cgf is available, also numerically
 - not planned: direct and indirect Edgeworth expansions (outside the scope of the package;
   the saddle point approximation is the leading term of the indirect expansion), and the
   Bartlett adjustment of the likelihood ratio statistic (Section 6.3)
