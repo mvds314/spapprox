@@ -178,7 +178,7 @@ needs `statsmodels`.
 | [`example_permutation_one_sample.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_permutation_one_sample.py), [`example_permutation_two_sample.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_permutation_two_sample.py) | permutation tests |
 | [`example_numdiff_backends.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_numdiff_backends.py) | numerical derivatives of a cgf with `numdifftools` and `findiff` |
 | [`example_Wang1990.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_Wang1990.py), [`example_Kolassa2003.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_Kolassa2003.py) | bivariate and multivariate cdf, reproducing published tables |
-| [`example_BarndorffNielsenCox1979.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_BarndorffNielsenCox1979.py) | double saddle point conditional pmf and conditional likelihood, reproducing published tables |
+| [`example_BarndorffNielsenCox1979.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_BarndorffNielsenCox1979.py) | double saddle point conditional pmf and cdf (with a cgf by quadrature) and conditional likelihood, reproducing published tables |
 
 ## Limitations and future work
 
