@@ -1258,15 +1258,20 @@ has a non-convex support.
 Soc. B 41(3), 279-312. Reproduced in `examples/example_BarndorffNielsenCox1979.py`: the
 inverse Gaussian density (3.21), exact after normalization (`inverse_gaussian`), the
 bioassay Table 2 to all printed digits (double saddle point, `conditional_pdf`), and the
-conditional MLE for Fisher's twins (Section 6.2, Figure 1). The boundary points of Table 2,
+conditional MLE for Fisher's twins (Section 6.2, Figure 1), and the Lake Constance trend test
+(Section 5.2, double saddle point `conditional_cdf`). The boundary points of Table 2,
 where the approximation is undefined, now give NaN instead of garbage.
 
-- [ ] Lake Constance freezes (Section 5.2), the time-dependent Poisson process: given the
+- [x] Lake Constance freezes (Section 5.2), the time-dependent Poisson process: given the
   number of events, the event times are iid with density proportional to `exp(beta t)` on
-  [0, 1], and the trend test conditions on `r = sum t_i` to test `s = sum t_i^2`. The paper
-  uses a single saddle point expansion (p-values 0.008594 for its normal leading term,
-  0.008370 and 0.008180 with one and two correction terms). Reproduce it with the double
-  saddle point, with the cgf of (t, t^2) by quadrature. Planned as a follow-up PR
+  [0, 1], and the trend test conditions on `r = sum t_i` to test `s = sum t_i^2`. Added to the
+  example, with the cgf of (t, t^2) by Gauss-Legendre quadrature and `conditional_cdf`. The
+  double saddle point gives 0.00799 (Kolassa: 0.00799), against an exact Monte Carlo value of
+  0.00790 (standard error 0.0001). The paper's single saddle point gives 0.008594 for the
+  normal leading term, and 0.008370 and 0.008180 with one and two correction terms; it uses
+  the rounded r/n = 0.5394 and s/n = 0.3443, from which the double saddle point gives 0.00810.
+  The paper's normal term is reproduced exactly from those rounded values (0.008485 from the
+  data)
 - [ ] second-order correction of the (conditional) density, the `O(1/n)` term
   `(rho_4 / 8 - 5 rho_3^2 / 24)` and the correction terms of the double saddle point (3.15). The ingredients
   `_d4K_central` and `_conditional_invariants` exist for the Kolassa (1996) conditional cdf.
