@@ -1030,7 +1030,8 @@ These would go into cgfs.py
 - [x] add bivariate poisson distribution (see Butler 2007, page 81): `bivariate_poisson`
 - add multivariate exponential as special case of gamma
 - also see Butler 2007, page 90 for higher order expansions
-- add multinomial bootstrap of the mean
+- [x] add multinomial bootstrap of the mean: `multivariate_empirical` with
+  `multivariate_sample_mean`, the vector analogues of the univariate factories
 - [x] negative binomial distribution: `negative_binomial`
 - [x] inverse Gaussian distribution: `inverse_gaussian`, as `scipy.stats.invgauss`
 - see the exercise in Butler for the multivariate logistic distribution
@@ -1070,6 +1071,14 @@ Or into a separate model, e.g., bootstrap.py
     `_bvn_tail_derivatives` now uses the log-scale tail whenever `A^{-1} b >= 0`, the normal
     cdfs lost relative accuracy in small tails
   - non-linear conditioning `Z = g(X, Y)`: phase G, Wang (1993). Lower priority
+- conditional bootstrap, Booth, Hall and Wood (1992):
+  - [x] saddle point approximation of the nonpivotal conditional bootstrap of a vector mean,
+    their Section 4: `multivariate_empirical`, `multivariate_sample_mean` and
+    `conditional_cdf`, see `examples/example_bootstrap_conditional.py` (Table 3)
+  - Monte Carlo conditional bootstrap, e.g. in `spapprox/bootstrap.py`: the kernel-smoothed
+    (windowed) conditional bootstrap, nonpivotal and pivotal (Studentized, which has error
+    O(n^{-1}) instead of O(n^{-1/2})), importance resampling with exponential tilting
+    (Section 2.5), the plug-in bandwidth of Section 2.4 and conditional confidence intervals
 - resampling distributions, Booth and Butler (1990): done with
   `EstimatingEquationSaddlePointApprox` (scalar estimating equations, multinomial and Dirichlet
   bootstrap, delete-m jackknife) plus examples for the permutation tests using the existing

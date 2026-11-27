@@ -19,8 +19,12 @@ from spapprox import (
     gamma,
     jensen_multivariate_gamma,
     multinomial,
+    multivariate_empirical,
     multivariate_norm,
+    multivariate_sample_mean,
     norm,
+    univariate_empirical,
+    univariate_sample_mean,
 )
 from spapprox.cgf_base import has_numdifftools
 from spapprox.diff import _has_findiff as has_findiff
@@ -1385,3 +1389,65 @@ def test_get_scale_mat_inv_uses_argument():
     mcgf = multivariate_norm(loc=np.zeros(2), scale=np.array([1.0, 2.0]))
     scale_inv = np.array([4.0, 5.0])
     assert np.allclose(mcgf._get_scale_mat_inv(scale_inv=scale_inv), np.diag(scale_inv))
+
+
+def _empirical_sample(n=20, seed=3):
+    y = np.random.default_rng(seed).exponential(size=n)
+    return np.column_stack([np.log(y), y])
+
+
+def test_multivariate_empirical():
+    x = _empirical_sample()
+    mcgf = multivariate_empirical(x)
+    t = np.array([[0.3, -0.7], [1.0, 2.0], [0.0, 0.0]])
+    w = np.exp(t @ x.T)
+    w /= w.sum(axis=1, keepdims=True)
+    assert np.allclose(mcgf.K(t), np.log(np.exp(t @ x.T).mean(axis=1)))
+    assert np.allclose(mcgf.dK(t), w @ x)
+    assert np.allclose(mcgf.dK0, x.mean(axis=0))
+    assert np.allclose(mcgf.cov, np.cov(x.T, bias=True))
+    # Analytic derivatives against numerical ones
+    num = MultivariateCumulantGeneratingFunction(K=lambda t: mcgf.K(t), dim=2)
+    assert np.allclose(mcgf.d2K(t[1]), num.d2K(t[1]), atol=1e-5)
+    assert np.allclose(mcgf.d3K(t[1]), num.d3K(t[1]), atol=1e-3)
+    assert mcgf.d3K(t).shape == (3, 2, 2, 2)
+    assert np.allclose(mcgf.dK_inv(mcgf.dK(t[1])), t[1], atol=1e-6)
+    # Marginals are the univariate empirical cgfs
+    assert np.isclose(mcgf[0].K(0.4), univariate_empirical(x[:, 0]).K(0.4))
+    # Large arguments do not overflow
+    assert np.all(np.isfinite(mcgf.K(np.array([[500.0, 500.0]]))))
+    with pytest.raises(ValueError):
+        multivariate_empirical(x[:, 0])
+
+
+def test_multivariate_sample_mean():
+    cov = np.array([[2.0, 0.5], [0.5, 1.0]])
+    mcgf = multivariate_sample_mean(multivariate_norm(loc=[1.0, -1.0], cov=cov), 4)
+    assert np.allclose(mcgf.dK0, [1.0, -1.0])
+    assert np.allclose(mcgf.cov, cov / 4)
+    t = np.array([0.3, -0.2])
+    assert np.isclose(mcgf.K(t), t @ [1.0, -1.0] + t @ cov @ t / 8)
+    # Consistent with the univariate version
+    x = _empirical_sample()
+    mcgf = multivariate_sample_mean(multivariate_empirical(x), len(x))
+    ucgf = univariate_sample_mean(univariate_empirical(x[:, 1]), len(x))
+    for s in [-3.0, 0.5, 4.0]:
+        assert np.isclose(mcgf[1].K(s), ucgf.K(s))
+        assert np.isclose(mcgf[1].dK(s), ucgf.dK(s))
+    assert np.allclose(mcgf.dK_inv(mcgf.dK(np.array([1.0, -2.0]))), [1.0, -2.0], atol=1e-6)
+    with pytest.raises(ValueError):
+        multivariate_sample_mean(mcgf, 0)
+
+
+def test_conditional_bootstrap_of_mean():
+    # Booth, Hall and Wood (1992), Section 4: the saddle point approximation of the conditional
+    # bootstrap distribution agrees with a narrowly windowed Monte Carlo bootstrap
+    x = _empirical_sample()
+    n = len(x)
+    rng = np.random.default_rng(0)
+    sim = x[rng.integers(0, n, size=(200000, n))].mean(axis=1)
+    given = x[:, 1].mean()
+    inside = sim[np.abs(sim[:, 1] - given) < 0.05 * x[:, 1].std() / np.sqrt(n), 0]
+    spa = MultivariateSaddlePointApprox(multivariate_sample_mean(multivariate_empirical(x), n))
+    q = np.quantile(inside, [0.05, 0.5, 0.95])
+    assert np.allclose(spa.conditional_cdf(q, [given], i=0), [0.05, 0.5, 0.95], atol=0.01)

@@ -60,7 +60,7 @@ approximation classes, `Timer`, and the distribution factories `norm`,
 `jensen_multivariate_gamma`, `chi2`, `laplace`, `asymmetric_laplace`,
 `generalized_normal`, `asymmetric_generalized_normal`, `poisson`, `bernoulli`, `binomial`, `negative_binomial`,
 `multinomial`, `bivariate_poisson`, `univariate_empirical`,
-`univariate_sample_mean`. The (asymmetric) generalized normal has no closed-form cgf except for
+`univariate_sample_mean`, `multivariate_empirical`, `multivariate_sample_mean`. The (asymmetric) generalized normal has no closed-form cgf except for
 shapes 1 and 2, and otherwise evaluates it by quadrature (slow per point); `jensen_multivariate_gamma` has a non-linear
 domain, declared as its linear outer bound with `K` NaN beyond it.
 
@@ -181,6 +181,14 @@ uniformly from a sample (standardized internally: `loc`/`scale` are the sample m
 std), and `univariate_sample_mean(cgf, n)` maps
 $K \mapsto nK(t/n)$. Composed, they give the bootstrap distribution of a sample
 mean *without bootstrapping* -- see `examples/example_nonparametric_bootstrap.py`.
+`multivariate_empirical(x)` (rows are observations, columns standardized; analytic `dK`,
+`d2K`, `d3K` as tilted moments, numerical `dK_inv`, domain all of R^d) and
+`multivariate_sample_mean(cgf, n)` are the vector analogues. Fed to
+`MultivariateSaddlePointApprox.conditional_cdf`, they give the conditional bootstrap
+distribution of Booth, Hall and Wood (1992), Section 4 -- see
+`examples/example_bootstrap_conditional.py`. This is the *nonpivotal* conditional bootstrap
+(error O(n^{-1/2})). The saddle point only exists inside the convex hull of the data, and
+evaluating outside it is slow (~0.35 s per point) before returning NaN.
 
 ### `spa.py` -- the approximations
 

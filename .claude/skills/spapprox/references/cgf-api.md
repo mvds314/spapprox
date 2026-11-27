@@ -199,6 +199,9 @@ mutated in place, and the derived CGF must keep the values it was built with.
 - `from_univariate(*cgfs)` (classmethod) -- stack **independent** univariate CGFs,
   using $K_X(t) = \sum_i K_{X_i}(t_i)$.
 - `from_cgfs(*cgfs)` (classmethod) -- the general version accepting a mix.
+- `cgfs.multivariate_sample_mean(cgf, n)` -- the mean of `n` i.i.d. copies: multiplies the raw
+  callables and raw cumulant caches by `n`, maps `dK_inv` to `dK_inv(x / n)`, and divides
+  `scale` by `n`; `loc` and the (standardized) domain are unchanged.
 
 All of these propagate the domain through the corresponding `Domain` method
 (`ldot`, `intersect`, `stack`, `from_domains`), which is why `domain.py` carries
