@@ -1,7 +1,7 @@
 [project]
 name = "spapprox"
 description = "Saddle point approximations of distributions from their cumulant generating functions"
-version = "26.11.45"
+version = "26.11.46"
 authors = [{ name = "Martin van der Schans" }]
 readme = "README.md"
 license = "BSD-3-Clause"

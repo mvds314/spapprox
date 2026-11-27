@@ -112,7 +112,7 @@ repeatedly, call `approx.fit_saddle_point_eqn()` first to tabulate the solution.
 
 | Univariate | Multivariate | Transformations |
 |---|---|---|
-| `norm`, `exponential`, `gamma`, `chi2`, `laplace`, `asymmetric_laplace`, `generalized_normal`, `asymmetric_generalized_normal`, `poisson`, `bernoulli`, `binomial`, `negative_binomial` | `multivariate_norm`, `bivariate_gamma`, `jensen_multivariate_gamma`, `multinomial`, `bivariate_poisson` | `univariate_empirical` (the empirical distribution of a sample), `univariate_sample_mean` |
+| `norm`, `exponential`, `gamma`, `inverse_gaussian`, `chi2`, `laplace`, `asymmetric_laplace`, `generalized_normal`, `asymmetric_generalized_normal`, `poisson`, `bernoulli`, `binomial`, `negative_binomial` | `multivariate_norm`, `bivariate_gamma`, `jensen_multivariate_gamma`, `multinomial`, `bivariate_poisson` | `univariate_empirical` (the empirical distribution of a sample), `univariate_sample_mean` |
 
 Any other cgf can be supplied directly with `UnivariateCumulantGeneratingFunction` or
 `MultivariateCumulantGeneratingFunction`. Derivatives you do not supply are computed
@@ -178,6 +178,7 @@ needs `statsmodels`.
 | [`example_permutation_one_sample.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_permutation_one_sample.py), [`example_permutation_two_sample.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_permutation_two_sample.py) | permutation tests |
 | [`example_numdiff_backends.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_numdiff_backends.py) | numerical derivatives of a cgf with `numdifftools` and `findiff` |
 | [`example_Wang1990.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_Wang1990.py), [`example_Kolassa2003.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_Kolassa2003.py) | bivariate and multivariate cdf, reproducing published tables |
+| [`example_BarndorffNielsenCox1979.py`](https://github.com/mvds314/spapprox/blob/main/examples/example_BarndorffNielsenCox1979.py) | double saddle point conditional pmf and conditional likelihood, reproducing published tables |
 
 ## Limitations and future work
 
