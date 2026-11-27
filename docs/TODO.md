@@ -1278,7 +1278,7 @@ where the approximation is undefined, now give NaN instead of garbage.
   It would improve the unnormalized density, but normalizing achieves most of that already
   (Table 2: relative error 6.5% to 3.7% for r = 24), so it is deferred
 - [ ] optional, low priority: second-order Lugannani-Rice cdf for the univariate
-  approximation (Daniels, 1987; Butler, 2007, Section 2.3.3), with relative error
+  approximation (Daniels, 1987), with relative error
   `O(n^{-5/2})` instead of `O(n^{-3/2})`. It adds a bracket with the standardized cumulants
   `rho_3`, `rho_4` at the saddle point, the univariate counterpart of
   `conditional_cdf(backend="Kolassa")`; a `backend` or `order` option of `cdf`. Needs `d4K`,
