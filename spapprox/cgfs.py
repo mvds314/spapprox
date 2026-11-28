@@ -34,8 +34,7 @@ References
 """
 
 import numpy as np
-from scipy.integrate import quad_vec
-from scipy.special import gammaln, log_ndtr, logsumexp, softmax
+from scipy.special import expit, gammaln, log_expit, log_ndtr, logsumexp, softmax
 
 from .cgf_base import (
     MultivariateCumulantGeneratingFunction,
@@ -806,7 +805,9 @@ def asymmetric_generalized_normal(beta=2, sigma=1, loc=0, scale=1):
 
     In general, the cgf has no closed form and is evaluated by quadrature of the exponentially
     tilted density; its derivatives are the mean, variance and third central moment of that
-    density. With both shapes two (the split normal), the tilted density is a mixture of two
+    density. The quadrature is a fixed double exponential rule around the mode of the tilted
+    density, vectorized over :math:`t`, accurate to about :math:`10^{-10}`, see
+    :func:`_gn_half_line`. With both shapes two (the split normal), the tilted density is a mixture of two
     half normals, with :math:`N(t\sigma_R^2/2,\sigma_R^2/2)` truncated to :math:`x\geq 0` and
     :math:`N(t\sigma_L^2/2,\sigma_L^2/2)` truncated to :math:`x<0`, which gives the exact cgf
 
@@ -848,66 +849,20 @@ def asymmetric_generalized_normal(beta=2, sigma=1, loc=0, scale=1):
     if bl == 2 and br == 2:
         return _split_normal(sl, sr, lognorm, cumulants, loc=loc, scale=scale)
 
-    # Generalized binomial coefficients C(b, k), k = 2, ..., 9, for the series of
-    # (1 + r)^b - 1 - b r
-    binom_coefs = {
-        b: np.cumprod([b - j for j in range(9)])[1:] / np.cumprod(np.arange(1, 10))[1:]
-        for b in {bl, br}
-    }
-
-    def h(t, x):
-        # Log of the unnormalized tilted density
-        return t * x - (x / sr) ** br if x >= 0 else t * x - (-x / sl) ** bl
+    last = {}
 
     def tilted(t):
-        # Integrate in v = (x - mode) / w, with w the width of the tilted density at its mode
-        # and the exponent max subtracted, splitting at the mode and at the kink in x = 0
-        if t > 0 and br > 1:
-            mode = sr * (t * sr / br) ** (1 / (br - 1))
-            w = np.sqrt(sr**br / (br * (br - 1) * mode ** (br - 2)))
-        elif t < 0 and bl > 1:
-            mode = -sl * (-t * sl / bl) ** (1 / (bl - 1))
-            w = np.sqrt(sl**bl / (bl * (bl - 1) * (-mode) ** (bl - 2)))
-        else:
-            mode, w = 0.0, 1.0
-        c = h(t, mode)
-
-        def f(v):
-            u = w * v
-            if mode != 0 and u / mode > -1:
-                # On the side of the mode, h(mode + u) - c = A (beta r - (1 + r)^beta + 1) with
-                # r = u / mode and A = |mode / sigma|^beta, avoiding the cancellation of the
-                # large terms t x and |x / sigma|^beta
-                b, sig = (br, sr) if mode > 0 else (bl, sl)
-                r = u / mode
-                if abs(r) < 1e-2:
-                    # Series, as the closed form cancels for small r
-                    phi = -np.polyval(binom_coefs[b][::-1], r) * r**2
-                else:
-                    phi = b * r - np.expm1(b * np.log1p(r))
-                logf = np.abs(mode / sig) ** b * phi
-            else:
-                logf = h(t, mode + u) - c
-            return np.exp(logf) * v ** np.arange(4)
-
-        # After rescaling the integrals are of order one, so an absolute tolerance is safe; it
-        # is needed for pieces where the integrand underflows, which never converge otherwise.
-        # Breakpoints a few widths from the mode keep long pieces, e.g., up to a far away kink,
-        # from missing the mass when all their initial nodes underflow
-        edges = [-np.inf, *sorted({-40.0, -10.0, 0.0, 10.0, 40.0, -mode / w}), np.inf]
-        mom = sum(
-            quad_vec(f, lo, hi, epsabs=1e-14, epsrel=1e-12)[0] for lo, hi in zip(edges, edges[1:])
-        )
-        m1, m2, m3 = mom[1:] / mom[0] * w ** np.arange(1, 4)
-        return (
-            lognorm + c + np.log(w * mom[0]),
-            mode + m1,
-            m2 - m1**2,
-            m3 - 3 * m1 * m2 + 2 * m1**3,
-        )
+        # K, dK, d2K, d3K at once, as the log mass, mean, variance and third central moment of
+        # the tilted density; the last call is cached as K, dK, ... are called with the same t
+        t = np.asanyarray(t, float)
+        key = (t.shape, t.tobytes())
+        if last.get("key") != key:
+            val = _gn_tilted(t.ravel(), bl, br, sl, sr)
+            last.update(key=key, val=[v.reshape(t.shape) for v in val])
+        return last["val"]
 
     def moment(i):
-        return np.vectorize(lambda t: tilted(t)[i], otypes=[float])
+        return lambda t: tilted(t)[i] + (lognorm if i == 0 else 0)
 
     return UnivariateCumulantGeneratingFunction(
         K=moment(0),
@@ -918,6 +873,121 @@ def asymmetric_generalized_normal(beta=2, sigma=1, loc=0, scale=1):
         domain=Domain(g=-1 / sl if bl == 1 else None, l=1 / sr if br == 1 else None),
         loc=loc,
         scale=scale,
+    )
+
+
+def _gn_half_line(tau, b, s):
+    r"""
+    Nodes for the integrals of :math:`y^k e^{f(y)}` over :math:`y\geq 0`, with the log of the
+    tilted generalized normal density :math:`f(y)=\tau y-(y/s)^b`, :math:`b\geq 1`, for an array
+    of tilts :math:`\tau`, see :func:`_gn_tilted`.
+
+    The integral is split at the mode :math:`y^*` of :math:`f`. Beyond the mode, the distance
+    :math:`\delta=y-y^*` runs over an exp-sinh rule, :math:`\delta=d e^{\pi\sinh(\tau_j)/2}`,
+    with :math:`d` where :math:`f` dropped by one from its maximum. Before the mode,
+    :math:`\delta=y^*-y=y^*\operatorname{expit}(\pi\sinh(\tau_j)/2-\log(y^*/d))`, which
+    starts as the same exp-sinh rule and clusters double exponentially at the kink
+    :math:`y=0`. Both are trapezoidal rules in :math:`\tau_j`, with the step decreasing in
+    :math:`b`, as :math:`e^{-(\delta/d)^b}` is analytic in a strip of width
+    :math:`\propto 1/b` in :math:`\log\delta`.
+
+    Returns the mode :math:`y^*`, the maximum :math:`f(y^*)`, the scale :math:`d`, and per
+    tilt (rows) and node (columns) the offset :math:`y-y^*`, :math:`f(y)-f(y^*)` and the weight.
+    """
+    with np.errstate(over="ignore", divide="ignore", invalid="ignore"):
+        if b == 1:
+            ystar = np.zeros_like(tau)
+        else:
+            ystar = np.where(tau > 0, s * (np.maximum(tau, 0) * s / b) ** (1 / (b - 1)), 0.0)
+        inner = ystar > 0
+        A = (ystar / s) ** b
+        c = tau * ystar - A
+
+        def drop(delta, r, log1pr):
+            # f(y*) - f(y* + delta) >= 0, with r = delta / y* on the interior mode rows,
+            # as A (b r - (1 + r)^b + 1) avoids cancelling the large terms tau y and (y / s)^b
+            interior = -A[:, None] * (b * r - np.expm1(b * log1pr))
+            boundary = -tau[:, None] * delta + (np.abs(delta) / s) ** b
+            return np.where(inner[:, None], interior, boundary)
+
+        def drop_right(delta):
+            r = delta / ystar[:, None]
+            return drop(delta, r, np.log1p(r))
+
+        def drop_left(delta):
+            r = -delta / ystar[:, None]
+            return drop(delta, r, np.log1p(r))
+
+        def scale(dropfun, hi):
+            # Bisection in log(delta) for drop(delta) = 1, between hi e^-60 and hi; drop is
+            # monotone on each side of the mode, as f is concave
+            lo_, hi_ = np.log(hi) - 60, np.log(hi)
+            for _ in range(14):
+                mid = (lo_ + hi_) / 2
+                big = dropfun(np.exp(mid)[:, None])[:, 0] > 1
+                hi_, lo_ = np.where(big, mid, hi_), np.where(big, lo_, mid)
+            return np.exp(hi_)
+
+        if b == 1:
+            dr = 1 / (1 / s - tau)
+        else:
+            dr = scale(drop_right, 1e13 * (s + ystar))
+        dl = np.where(inner, np.minimum(scale(drop_left, ystar), ystar), 1.0)
+
+        h = 1 / (8 * np.ceil(max(2, b)))
+        tj = np.arange(-3.5, 3.5 + h / 2, h)
+        z = np.pi / 2 * np.sinh(tj)
+        dz = np.pi / 2 * np.cosh(tj) * h
+        # Right of the mode
+        dright = dr[:, None] * np.exp(z)
+        wright = dright * dz
+        lright = -drop_right(dright)
+        # Left of the mode, with p = delta / y* and 1 - p = y / y*
+        q = z - np.log(ystar / dl)[:, None]
+        p = expit(q)
+        dleft = ystar[:, None] * p
+        wleft = ystar[:, None] * p * expit(-q) * dz
+        lleft = A[:, None] * (-b * p - np.expm1(b * log_expit(-q)))
+        wleft = np.where(inner[:, None], wleft, 0.0)
+        lleft = np.where(inner[:, None], lleft, -np.inf)
+    return (
+        ystar,
+        c,
+        dr,
+        np.hstack([dright, -dleft]),
+        np.hstack([lright, lleft]),
+        np.hstack([wright, wleft]),
+    )
+
+
+def _gn_tilted(t, bl, br, sl, sr):
+    r"""
+    Log mass (without the normalizing constant), mean, variance and third central moment of
+    the tilted asymmetric generalized normal density, see
+    :func:`asymmetric_generalized_normal`, for a 1-d array ``t``, by fixed double exponential
+    quadrature, see :func:`_gn_half_line`. The two sides of zero are half lines with tilts
+    :math:`t` and :math:`-t`. The moments are taken about the mode and in units of the width of
+    the tilted density, to keep them of order one.
+    """
+    yr, cr, dr, ur, lr, wr = _gn_half_line(t, br, sr)
+    yl, cl, dl, ul, ll, wl = _gn_half_line(-t, bl, sl)
+    C = np.maximum(cr, cl)
+    xref = np.where(yr > 0, yr, -yl)
+    D = np.where(yr > 0, dr, np.where(yl > 0, dl, np.maximum(dr, dl)))[:, None]
+    # x - xref, exact on the side of the mode
+    zr = np.where((yr > 0)[:, None], ur, (yr - xref)[:, None] + ur) / D
+    zl = np.where((yl > 0)[:, None], -ul, -(yl + xref)[:, None] - ul) / D
+    with np.errstate(over="ignore", invalid="ignore"):
+        er = np.where(wr > 0, wr * np.exp(lr + (cr - C)[:, None]), 0.0)
+        el = np.where(wl > 0, wl * np.exp(ll + (cl - C)[:, None]), 0.0)
+    mom = np.array([(er * zr**k).sum(1) + (el * zl**k).sum(1) for k in range(4)])
+    m1, m2, m3 = mom[1:] / mom[0]
+    D = D[:, 0]
+    return (
+        C + np.log(mom[0]),
+        xref + D * m1,
+        D**2 * (m2 - m1**2),
+        D**3 * (m3 - 3 * m1 * m2 + 2 * m1**3),
     )
 
 

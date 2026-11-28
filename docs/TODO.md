@@ -1052,6 +1052,8 @@ These would go into cgfs.py
 - [x] add asymmetric generalized normal distribution: `asymmetric_generalized_normal`, the
       asymmetric exponential power version (shape and scale per side). Hosking's log-normal-type
       skewed version is not possible: its cgf is infinite on one side of zero
+- [x] faster (asymmetric) generalized normal cgf: fixed double exponential quadrature,
+      vectorized over `t`, see `docs/asym_gen_norm_speed.md`
 - add Cheriyan and Ramabhadran's multivariate gamma distribution (Kotz 2000)
 - [x] add Jensen's multivariate Gamma (See Butler 2007, page 77): `jensen_multivariate_gamma`;
       the domain is declared as the linear outer bound `t_i < 1/sigma_ii`, K is NaN beyond the
@@ -1105,7 +1107,10 @@ delta=...)`, on the general-`d` engine of phase B (`spapprox/kl.py`)
   - [x] saddle point approximation of the nonpivotal conditional bootstrap of a vector mean,
         their Section 4: `multivariate_empirical`, `multivariate_sample_mean` and
         `conditional_cdf`, see `examples/example_bootstrap_conditional.py` (Table 3)
-  - Monte Carlo conditional bootstrap, e.g. in `spapprox/bootstrap.py`: the kernel-smoothed
+  - [x] Monte Carlo conditional bootstrap in `spapprox/bootstrap.py` (`ConditionalBootstrap`,
+        `optimal_tilt`, `conditional_bootstrap_bandwidth`), see
+        `examples/example_bootstrap_conditional_coverage.py` (Table 2) and
+        `docs/conditional_bootstrap_plan.md`: the kernel-smoothed
     (windowed) conditional bootstrap, nonpivotal and pivotal (Studentized, which has error
     O(n^{-1}) instead of O(n^{-1/2})), importance resampling with exponential tilting
     (Section 2.5), the plug-in bandwidth of Section 2.4 and conditional confidence intervals

@@ -40,6 +40,7 @@ from .spa import (
     UnivariateSaddlePointApprox,
     UnivariateSaddlePointApproxMean,
 )
+from .bootstrap import ConditionalBootstrap, conditional_bootstrap_bandwidth, optimal_tilt
 from .util import Timer
 
 try:
@@ -56,6 +57,8 @@ __all__ = [
     "bivariate_poisson",
     "BivariateSaddlePointApprox",
     "chi2",
+    "conditional_bootstrap_bandwidth",
+    "ConditionalBootstrap",
     "Domain",
     "EstimatingEquationSaddlePointApprox",
     "exponential",
@@ -73,6 +76,7 @@ __all__ = [
     "MultivariateSaddlePointApprox",
     "negative_binomial",
     "norm",
+    "optimal_tilt",
     "poisson",
     "Timer",
     "univariate_empirical",

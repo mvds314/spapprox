@@ -45,6 +45,7 @@ spapprox/
 +-- cgf_base.py  (1919 loc)   CGF base + Univariate/Multivariate classes  <- the heart
 +-- cgfs.py       (830 loc)   concrete distribution factories
 +-- spa.py        (799 loc)   the saddle point approximation classes
++-- bootstrap.py  (487 loc)   Monte Carlo conditional bootstrap, Booth, Hall & Wood (1992)
 `-- __init__.py               public API re-exports
 tests/            test_cgfs, test_mvar_cgfs, test_diff, test_domain, test_spa
 examples/         standalone matplotlib demo scripts, smoke tested by test_examples
@@ -55,13 +56,14 @@ Dependencies run strictly one way:
 `domain.py` knows about CGFs; keep it that way when adding code.
 
 Public API (`spapprox/__init__.py`): the two CGF classes, `Domain`, the five
-approximation classes, `Timer`, and the distribution factories `norm`,
+approximation classes, `Timer`, `ConditionalBootstrap`, `optimal_tilt`,
+`conditional_bootstrap_bandwidth`, and the distribution factories `norm`,
 `multivariate_norm`, `exponential`, `gamma`, `inverse_gaussian`, `bivariate_gamma`,
 `jensen_multivariate_gamma`, `chi2`, `laplace`, `asymmetric_laplace`,
 `generalized_normal`, `asymmetric_generalized_normal`, `poisson`, `bernoulli`, `binomial`, `negative_binomial`,
 `multinomial`, `bivariate_poisson`, `univariate_empirical`,
 `univariate_sample_mean`, `multivariate_empirical`, `multivariate_sample_mean`. The (asymmetric) generalized normal has no closed-form cgf except for
-shapes 1 and 2, and otherwise evaluates it by quadrature (slow per point); `jensen_multivariate_gamma` has a non-linear
+shapes 1 and 2, and otherwise evaluates it by a fixed double exponential quadrature, vectorized over `t` (`_gn_half_line`, `_gn_tilted`); `jensen_multivariate_gamma` has a non-linear
 domain, declared as its linear outer bound with `K` NaN beyond it.
 
 ## The typical flow
@@ -189,6 +191,22 @@ distribution of Booth, Hall and Wood (1992), Section 4 -- see
 `examples/example_bootstrap_conditional.py`. This is the *nonpivotal* conditional bootstrap
 (error O(n^{-1/2})). The saddle point only exists inside the convex hull of the data, and
 evaluating outside it is slow (~0.35 s per point) before returning NaN.
+
+### `bootstrap.py` -- Monte Carlo conditional bootstrap
+
+Independent of the CGF machinery (numpy/scipy only). `ConditionalBootstrap(x, g1, g2,
+grad1=None, grad2=None, kernel="gaussian", rng=None)` for smooth functions of means
+`theta_k = g_k(mean)`, gradients numerical if not given. `cdf(u, given, B, h, importance,
+pivotal)`, `ppf`, `ci(level, sided)`. Pivotal (default) conditions the Studentized pivot
+`U* = (V* - rho* w)/sqrt(1 - rho*^2)` (fixed `w = given`, BHW (2.5); `pivot_centering="resample"` uses `W*` instead: less
+smoothing bias, better importance gains) on `W*` near `w` (default 0); nonpivotal conditions
+`theta_1*` on `theta_2*` near `given` (default `hat theta_2`), which is what the saddle point
+`conditional_cdf` approximates in the limit `h -> 0`, `B -> inf` (the tests use this as
+reference). The bandwidth `h` is on the W scale; resamples are drawn with exponential tilting
+(`optimal_tilt(u)`, BHW Table 1) and reweighted. Simulating BHW Table 2 requires conditioning
+on the *true* `theta_2`, see `examples/example_bootstrap_conditional_coverage.py`. The
+plug-in `h` (~0.13) gives ~8% left misses there vs BHW's 5-6%; `h = 0.5` reproduces BHW via the
+smoothing bias (2.14), so the paper's numbers include a favourable bias, not a bug here.
 
 ### `spa.py` -- the approximations
 
