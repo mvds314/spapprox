@@ -3,10 +3,10 @@
 - [ ] First official PyPI release: see `docs/first_release_plan.md`
 
 - [x] Go through bug backlog: all items fixed. The two `tofix` cases of `test_dKinv` (univariate
-  gamma sliced from a bivariate gamma) pass since the domain fixes; markers removed
+      gamma sliced from a bivariate gamma) pass since the domain fixes; markers removed
 - [x] Review implementation against Alhejaili, AlGhamedi (2025) - A review of saddlepoint
-  approximation: done, see "Review: Alhejaili and AlGhamedi (2025)" below. Follow-ups: bug 62 (fixed),
-  `Pr1` (done), and the lattice item unconditional bivariate cdf (done)
+      approximation: done, see "Review: Alhejaili and AlGhamedi (2025)" below. Follow-ups: bug 62 (fixed),
+      `Pr1` (done), and the lattice item unconditional bivariate cdf (done)
 - Finish bivariate approximation:
   - [x] basically this case: test_bvar_cdf_near_zero (passes, no longer `tofix`)
   - are there more edge cases?
@@ -15,6 +15,34 @@
 
 - Bootstrap distributions (Booth and Butler): done, see `docs/estimating_equations_plan.md`
 - [x] Close GitHub issues #1 (transition to pyproject.toml) and #2 (transition to findiff)
+
+- [ ] Smaller items:
+  - [ ] pff for multivariate
+  - [ ] ppf after conditioning in multivariate or bivariate case
+  - [ ] endless divide by zero warnings in example_bootstrap_conditional.py
+  - [ ] Conditioning syntax unclear, what do we condition on what
+  - [ ] Broda, Paolella (2011)
+    - [ ] Check the partial expectations in Broda, Paolella (2011)
+    - [ ] check student t exmaple 3
+    - [ ] Check the quadratic forms (in Gaussian variables)
+    - [ ] Reproduce risk factors example
+  - [ ] Sort out extended empirical saddlepoint approximation
+    - [ ] How does it work?
+    - [ ] What is the relation with Bayesian statistics?
+  - [ ] Check Gatto, Jammalamadaka (2019) for M statst and more bootstraps applications
+  - [ ] Check Gatto, Jammalamadaka (2006) for approximating the distribution of spacing
+  - [ ] Check out Holcbat, Sowell (2022) on the empirical saddlepoint estimator -> reformat pdf first
+  - [ ] Reproduce some examples from Kwok (credit risk, VaR, CVaR, copulas)
+  - [ ] Work on distributions of quotients
+  - [ ] Add some examples and or exercises from Paolella (2007), also look at their Mixture example, and chapter 10
+  - [ ] Butler, Wood (2004): look into truncated distributions
+  - [ ] check out the Bayesian application in Davison, Mastropietro (2009)
+  - [ ] Use Ohman-Stricland, Casella (2002) for the cgf of the Gumbel distribution
+  - [ ] Chekc Kuonen 2005 for more advanced bootstrapping
+  - [ ] Check Schennach (2005) for another Bayesian application
+  - [ ] Sort out: Holcblat (2018) - On the empirical saddlepoint approximation with application to asset pricing
+  - [ ] Sort out: Broda, Kan - On the distribution of ratios
+  - [ ] Reproduce Kuonen 2001 with package
 
 # Bug backlog
 
@@ -657,7 +685,7 @@ Contract violations and silently wrong results in narrower situations.
 - **What:** the tail integral runs up to the domain bound, where numerical derivatives
   (both backends) break down, so the integral is not finite and the assertion fails.
 - **Repro:** `UnivariateSaddlePointApprox(UnivariateCumulantGeneratingFunction(K=lambda t:
-  -np.log1p(-t), domain=Domain(l=1))).pdf(t=0.5)` raises `AssertionError`. With the analytic
+-np.log1p(-t), domain=Domain(l=1))).pdf(t=0.5)` raises `AssertionError`. With the analytic
   derivatives (`exponential()`) it works.
 - **Cause:** numdifftools steps across the bound, so `d2K` is NaN there and the integrand is
   `0 * NaN`.
@@ -865,19 +893,19 @@ Spotted while documenting the public API (first release plan, item 3).
 
 - [x] `bivariate_gamma.dK` (`cgfs.py`) has unreachable code after a `return`: removed.
 - [x] The `bivariate_gamma` docstring cites "Huzurbazar (2012)" with the title of Butler's book:
-  reference removed.
+      reference removed.
 - [x] `MultivariateCumulantGeneratingFunction.d3K` is findiff-only, whatever `numdiff_backend` is:
-  the numdifftools backend now takes the Jacobian of `d2K`. Regression test:
-  `test_d3K_numerical_backends` in `tests/test_mvar_cgfs.py`.
+      the numdifftools backend now takes the Jacobian of `d2K`. Regression test:
+      `test_d3K_numerical_backends` in `tests/test_mvar_cgfs.py`.
 - [x] `from_univariate` asserts at least one cgf, but its message says "at least 2": message fixed.
 - [x] `loc_vect` does not cache its result when `loc` is a 1-d array: now cached.
 - [x] `_get_scale_mat_inv` uses `self.scale_inv` instead of its `scale_inv` argument in the
-  1-d branch: fixed (latent, the only caller passes no argument). Regression test:
-  `test_get_scale_mat_inv_uses_argument`.
+      1-d branch: fixed (latent, the only caller passes no argument). Regression test:
+      `test_get_scale_mat_inv_uses_argument`.
 - [x] Univariate `d2K`/`d3K` accept a `loc` argument and ignore it: not a bug, derivatives of
-  order two and higher do not depend on the location (documented as such).
+      order two and higher do not depend on the location (documented as such).
 - [x] `fit_ppf` solves `dK_inv` on its x grid, where the t grid would avoid root finding: it now
-  uses `_dK_inv`, which reuses a fit of the saddle point equation when there is one.
+      uses `_dK_inv`, which reuses a fit of the saddle point equation when there is one.
 
 ## Tooling / packaging
 
@@ -929,6 +957,7 @@ Spotted while documenting the public API (first release plan, item 3).
 
   Regression tests: `test_bvar_cdf_wang_1990_table_1`, `test_bvar_cdf_dependent_accuracy`,
   `test_bvar_cdf_invariant_to_relabeling`.
+
 - **Limitation of Wang's method:** the error still shrinks like `n^(-1/2)` at fixed
   standardized points.
   This is intrinsic to Wang's formula (Wang's own table has errors of ~0.009 at n=10;
@@ -977,6 +1006,7 @@ Spotted while documenting the public API (first release plan, item 3).
   Regression tests: `test_bvar_cdf_dependent_accuracy` (both backends),
   `test_bvar_cdf_kl_continuous_near_singularities`, `test_bvar_cdf_invariant_to_relabeling`
   (both backends), KL checks in the independence and near-axis tests.
+
 - **Remaining findings (not fixed):**
   - KL does not factorize exactly under independence: max error 4.6e-3 for
     `gamma(3) x gamma(5)`, versus 1.3e-4 for the product of the Lugannani--Rice marginals
@@ -1018,22 +1048,22 @@ These would go into cgfs.py
 
 - [x] add asymmetric laplace: `asymmetric_laplace`
 - [x] add generalized normal distribution: `generalized_normal`, the cgf by quadrature, `beta >= 1`;
-  exact for `beta` 1 (Laplace) and 2 (normal, split normal in the asymmetric version)
+      exact for `beta` 1 (Laplace) and 2 (normal, split normal in the asymmetric version)
 - [x] add asymmetric generalized normal distribution: `asymmetric_generalized_normal`, the
-  asymmetric exponential power version (shape and scale per side). Hosking's log-normal-type
-  skewed version is not possible: its cgf is infinite on one side of zero
+      asymmetric exponential power version (shape and scale per side). Hosking's log-normal-type
+      skewed version is not possible: its cgf is infinite on one side of zero
 - [x] faster (asymmetric) generalized normal cgf: fixed double exponential quadrature,
-  vectorized over `t`, see `docs/asym_gen_norm_speed.md`
+      vectorized over `t`, see `docs/asym_gen_norm_speed.md`
 - add Cheriyan and Ramabhadran's multivariate gamma distribution (Kotz 2000)
 - [x] add Jensen's multivariate Gamma (See Butler 2007, page 77): `jensen_multivariate_gamma`;
-  the domain is declared as the linear outer bound `t_i < 1/sigma_ii`, K is NaN beyond the
-  positive definiteness boundary
+      the domain is declared as the linear outer bound `t_i < 1/sigma_ii`, K is NaN beyond the
+      positive definiteness boundary
 - [x] multinomial distribution (see Butler 2007, page 80): `multinomial`, cgf of the first k-1 counts
 - [x] add bivariate poisson distribution (see Butler 2007, page 81): `bivariate_poisson`
 - add multivariate exponential as special case of gamma
 - also see Butler 2007, page 90 for higher order expansions
 - [x] add multinomial bootstrap of the mean: `multivariate_empirical` with
-  `multivariate_sample_mean`, the vector analogues of the univariate factories
+      `multivariate_sample_mean`, the vector analogues of the univariate factories
 - [x] negative binomial distribution: `negative_binomial`
 - [x] inverse Gaussian distribution: `inverse_gaussian`, as `scipy.stats.invgauss`
 - see the exercise in Butler for the multivariate logistic distribution
@@ -1050,37 +1080,37 @@ Or into a separate model, e.g., bootstrap.py
   `backend="Kolassa"` for second order, `delta=` for a lattice `X_i`) and `conditional_pdf`.
   Marginal approximations are available as `spa[i]`, `spa[[i, j]]`. Follow ups, in order:
   - [x] normalize `conditional_pdf`: `normalize_pdf=True` by default, quadrature in `tau_i`
-    along the profile saddle path. The second-order pdf correction is still open
+        along the profile saddle path. The second-order pdf correction is still open
   - [x] the `condition()` stub was removed, use `conditional_cdf` / `conditional_pdf`
   - [x] `P1`, the first continuity correction of Butler (4.15)-(4.16), for comparison with `P2`:
-    `conditional_cdf(..., delta=..., correction=1)`, Skovgaard backend and one variable of
-    interest only. On the binomial test it is ~4x less accurate than `P2`
+        `conditional_cdf(..., delta=..., correction=1)`, Skovgaard backend and one variable of
+        interest only. On the binomial test it is ~4x less accurate than `P2`
   - vector of interest, `P(X_I >= x_I | X_J = x_J)`: phase F, Kolassa & Li (2010) section 4,
     see `docs/conditional_vector_plan.md`. F1, two variables of interest, is done:
     `conditional_cdf(x, given, i=[a, b], delta=...)`, continuous and lattice. F2, three or
     more variables of interest, is done too: `conditional_cdf(x, given, i=[a, b, c, ...],
-    delta=...)`, on the general-`d` engine of phase B (`spapprox/kl.py`)
+delta=...)`, on the general-`d` engine of phase B (`spapprox/kl.py`)
   - [x] the bivariate `"KL"` cdf, also conditional, dropped the `I^{1,2}` term of Kolassa & Li
-    (2010), so its relative error did not vanish at a fixed large deviation point (-2.4%,
-    -1.2%, -0.85% for two independent gamma(n) means at (1.3, 1.25), n = 10, 40, 160). Added,
-    together with the remainder of `I^{2}`, which evaluates `H^{2}` at `w1 = 0`. Now equal
-    to the product of the Lugannani-Rice marginals for independent components, and O(1/n) at
-    large deviations for dependent ones. Dirichlet Table 3 errors: -1.1/-12.8/-12/-12% ->
-    +1.0/+3.5/+3.4/+3.4%. On the conditional lattice multinomial test the error at s = 12 is
-    -1.5% at (1, 2), was +0.5%: it is now about the sum of the errors of the conditional
-    marginals (-1.4%), which the old version partly cancelled by accident. It converges at
-    O(1/s), the old one did not (+1.7% at s = 192).
-    `_bvn_tail_derivatives` now uses the log-scale tail whenever `A^{-1} b >= 0`, the normal
-    cdfs lost relative accuracy in small tails
+        (2010), so its relative error did not vanish at a fixed large deviation point (-2.4%,
+        -1.2%, -0.85% for two independent gamma(n) means at (1.3, 1.25), n = 10, 40, 160). Added,
+        together with the remainder of `I^{2}`, which evaluates `H^{2}` at `w1 = 0`. Now equal
+        to the product of the Lugannani-Rice marginals for independent components, and O(1/n) at
+        large deviations for dependent ones. Dirichlet Table 3 errors: -1.1/-12.8/-12/-12% ->
+        +1.0/+3.5/+3.4/+3.4%. On the conditional lattice multinomial test the error at s = 12 is
+        -1.5% at (1, 2), was +0.5%: it is now about the sum of the errors of the conditional
+        marginals (-1.4%), which the old version partly cancelled by accident. It converges at
+        O(1/s), the old one did not (+1.7% at s = 192).
+        `_bvn_tail_derivatives` now uses the log-scale tail whenever `A^{-1} b >= 0`, the normal
+        cdfs lost relative accuracy in small tails
   - non-linear conditioning `Z = g(X, Y)`: phase G, Wang (1993). Lower priority
 - conditional bootstrap, Booth, Hall and Wood (1992):
   - [x] saddle point approximation of the nonpivotal conditional bootstrap of a vector mean,
-    their Section 4: `multivariate_empirical`, `multivariate_sample_mean` and
-    `conditional_cdf`, see `examples/example_bootstrap_conditional.py` (Table 3)
+        their Section 4: `multivariate_empirical`, `multivariate_sample_mean` and
+        `conditional_cdf`, see `examples/example_bootstrap_conditional.py` (Table 3)
   - [x] Monte Carlo conditional bootstrap in `spapprox/bootstrap.py` (`ConditionalBootstrap`,
-    `optimal_tilt`, `conditional_bootstrap_bandwidth`), see
-    `examples/example_bootstrap_conditional_coverage.py` (Table 2) and
-    `docs/conditional_bootstrap_plan.md`: the kernel-smoothed
+        `optimal_tilt`, `conditional_bootstrap_bandwidth`), see
+        `examples/example_bootstrap_conditional_coverage.py` (Table 2) and
+        `docs/conditional_bootstrap_plan.md`: the kernel-smoothed
     (windowed) conditional bootstrap, nonpivotal and pivotal (Studentized, which has error
     O(n^{-1}) instead of O(n^{-1/2})), importance resampling with exponential tilting
     (Section 2.5), the plug-in bandwidth of Section 2.4 and conditional confidence intervals
@@ -1089,15 +1119,15 @@ Or into a separate model, e.g., bootstrap.py
   bootstrap, delete-m jackknife) plus examples for the permutation tests using the existing
   algebra, see `docs/estimating_equations_plan.md`. Follow ups:
   - [x] vector-valued estimating equations (several parameters):
-    `MultivariateEstimatingEquationSaddlePointApprox`, see
-    `docs/vector_estimating_equations_plan.md` and `examples/example_bootstrap_regression.py`.
-    Follow up: marginal tail approximations (Jensen & Wood) instead of the tabulated grid
+        `MultivariateEstimatingEquationSaddlePointApprox`, see
+        `docs/vector_estimating_equations_plan.md` and `examples/example_bootstrap_regression.py`.
+        Follow up: marginal tail approximations (Jensen & Wood) instead of the tabulated grid
   - [x] continuity correction for the permutation and jackknife distributions:
-    `EstimatingEquationSaddlePointApprox(..., delta=span)`, for a lattice `S(tau)`, e.g. a
-    mean of integer data, see `examples/example_bootstrap_lattice.py`; Wilcoxon rank sum test
-    in `examples/example_permutation_two_sample.py`. The paper calls the correction for its
-    Table 1 negligible, but for the pain relief data it moves the one-sided level from 0.0486
-    to 0.0502 (exact 0.0507)
+        `EstimatingEquationSaddlePointApprox(..., delta=span)`, for a lattice `S(tau)`, e.g. a
+        mean of integer data, see `examples/example_bootstrap_lattice.py`; Wilcoxon rank sum test
+        in `examples/example_permutation_two_sample.py`. The paper calls the correction for its
+        Table 1 negligible, but for the pain relief data it moves the one-sided level from 0.0486
+        to 0.0502 (exact 0.0507)
   - the analgesia data of Booth and Butler (1990), Table 1 (b), do not reproduce the published
     exact significance level (0.012; we get 0.044 one-sided); find Robinson (1982), Lehmann
     (1975) p. 92 to check the data
@@ -1107,57 +1137,57 @@ Or into a separate model, e.g., bootstrap.py
     `O(1/n)`, about 1.5x that of `"KL"` in 2-D; exact for the normal; continuous;
     symmetric
   - [x] phase B: `MultivariateSaddlePointApprox.cdf(backend="KL")`, Kolassa & Li (2010) for
-    any `d` (`spapprox/kl.py`), with the general-`d` cubic term of `I^∅`, all `2^d` subset
-    terms, reflection and inclusion-exclusion, and a recursive blend over the `d!` orders.
-    `d = 2` reproduces the bivariate `"KL"`; for a 3-D gamma it is 1.7-2.6x more accurate
-    than `"Kolassa"` in absolute error and up to 10x in relative tail error, `O(1/n)`.
-    Lattice when all spans are positive. Default stays `"Kolassa"` (cost about 0.7 s per
-    point for `d = 3`). Open: direction-dependent limits where two or more saddlepoint
-    components vanish, an `n^{-3/2}` slope kink across `t_j = 0` for `d = 3`, and mixed
-    lattice/continuous spans for `d > 2` (the bivariate `"KL"` supports them); see "Phase B: outcome" in `docs/multivariate_cdf_plan.md`
+        any `d` (`spapprox/kl.py`), with the general-`d` cubic term of `I^∅`, all `2^d` subset
+        terms, reflection and inclusion-exclusion, and a recursive blend over the `d!` orders.
+        `d = 2` reproduces the bivariate `"KL"`; for a 3-D gamma it is 1.7-2.6x more accurate
+        than `"Kolassa"` in absolute error and up to 10x in relative tail error, `O(1/n)`.
+        Lattice when all spans are positive. Default stays `"Kolassa"` (cost about 0.7 s per
+        point for `d = 3`). Open: direction-dependent limits where two or more saddlepoint
+        components vanish, an `n^{-3/2}` slope kink across `t_j = 0` for `d = 3`, and mixed
+        lattice/continuous spans for `d > 2` (the bivariate `"KL"` supports them); see "Phase B: outcome" in `docs/multivariate_cdf_plan.md`
   - [x] `fit_cdf` for the multivariate case: tabulates the cdf on a tensor grid in `x` and
-    interpolates (PCHIP by default), see `docs/multivariate_fit_cdf_plan.md`
+        interpolates (PCHIP by default), see `docs/multivariate_fit_cdf_plan.md`
   - [x] lattice variables: continuity-corrected version of Kolassa (2003) eq. (13),
-    `MultivariateSaddlePointApprox.cdf(x, delta=...)`, any dimension, also mixed lattice and
-    continuous components, see `docs/multivariate_lattice_cdf_plan.md`
+        `MultivariateSaddlePointApprox.cdf(x, delta=...)`, any dimension, also mixed lattice and
+        continuous components, see `docs/multivariate_lattice_cdf_plan.md`
   - [x] bivariate `"KL"` and `"Wang"` cdf returned NaN, plus `invalid value in sqrt` warnings,
-    in `examples/example_Wang1990.py`, e.g. cells (x=0, y=1.0) and (x=-1.0, y=0.0). Cause: `x`
-    at a marginal mean up to roundoff, so the *marginal* saddlepoint is ~1e-15 and
-    `2 (t x - K(t))` came out slightly negative. Fixed by clipping these arguments at zero
-    (`_signed_root`); regression test `test_bvar_cdf_at_marginal_mean_from_t`
+        in `examples/example_Wang1990.py`, e.g. cells (x=0, y=1.0) and (x=-1.0, y=0.0). Cause: `x`
+        at a marginal mean up to roundoff, so the _marginal_ saddlepoint is ~1e-15 and
+        `2 (t x - K(t))` came out slightly negative. Fixed by clipping these arguments at zero
+        (`_signed_root`); regression test `test_bvar_cdf_at_marginal_mean_from_t`
 - implement other bootstraps
 - conditional distributions
 - approximation for discrete distributions (lattice variables). Open items:
   - [x] univariate cdf continuity correction (Daniels, 1987; Butler ch. 1.2.3):
-    `cdf(..., delta=span)`, LR and BN. `infer_t_range` still excludes lattice tails
+        `cdf(..., delta=span)`, LR and BN. `infer_t_range` still excludes lattice tails
   - [x] univariate lattice pmf: `pdf(..., delta=span)` returns `delta * f(x)`, not
-    normalized by default (integrating the density is a poor normalization for a lattice,
-    e.g. 41% relative error for `poisson(0.5)` vs 8% unnormalized). Possible refinement:
-    normalize by summing over the lattice, and Daniels' second-order terms
+        normalized by default (integrating the density is a poor normalization for a lattice,
+        e.g. 41% relative error for `poisson(0.5)` vs 8% unnormalized). Possible refinement:
+        normalize by summing over the lattice, and Daniels' second-order terms
   - [x] univariate first continuity correction `Pr1` (Daniels 1987; Butler (1.27)-(1.29)):
-    `u1 = (1 - exp(-t)) sqrt(K''(t))` at the uncorrected saddlepoint of `k`, and
-    `F(k - 1) = 1 - Pr1(X >= k)`. Butler 1.2.6 recommends computing both `Pr1` and `Pr2`,
-    as neither dominates (Pr1 often slightly better, e.g. Poisson/binomial left tails,
-    Tables 1.12-1.13). Done: `cdf(..., delta=..., correction=1)` reproduces Butler Tables 1.7
-    and 1.12; the default `correction=2` is `Pr2`.
-    `Pr3` and the alternative left tail `F1a` are not competitors, skip them
+        `u1 = (1 - exp(-t)) sqrt(K''(t))` at the uncorrected saddlepoint of `k`, and
+        `F(k - 1) = 1 - Pr1(X >= k)`. Butler 1.2.6 recommends computing both `Pr1` and `Pr2`,
+        as neither dominates (Pr1 often slightly better, e.g. Poisson/binomial left tails,
+        Tables 1.12-1.13). Done: `cdf(..., delta=..., correction=1)` reproduces Butler Tables 1.7
+        and 1.12; the default `correction=2` is `Pr2`.
+        `Pr3` and the alternative left tail `F1a` are not competitors, skip them
   - [x] unconditional bivariate cdf for lattice variables:
-    `BivariateSaddlePointApprox.cdf(x, delta=...)`, `"KL"` only, Kolassa & Li (2010) Section 3
-    at `x + delta/2` with `rho(tau) = 2 sinh(tau delta / 2) / delta` (`_LatticeBivariateApprox`;
-    plan: `docs/bivariate_lattice_cdf_plan.md`). Two independent Poissons (3, 4) at (2, 3):
-    0.181 vs exact 0.183 (uncorrected 0.102); reproduces the paper's Table 2 to within 0.7%.
-    Done: `"Kolassa"`, any `d`, also mixed (Kolassa (2003) eq. (13)); `"Wang"` (Wang (1990)
-    Theorems 2-3: `t0` replaced by `(1 - exp(-t0 delta)) / delta` in the factors, evaluated at
-    `x + delta`, as the univariate `correction=1`; the review's `1 - e^{t0}` at `x`, the
-    reflected version, is less accurate and fails at the lower support boundary). Poissons
-    (3, 4): within 0.24% of exact (product of the univariate `Pr1`); Table 2 binomial sums:
-    within 4.2% (`"KL"` 0.1%, uncorrected `"Wang"` 26%). Mixed lattice/continuous components
-    for `"KL"` and `"Wang"` (`delta=[1, None]`, same convention as `"Kolassa"`): Poisson(3) and
-    independent gamma(4) give the product of the marginals, KL within 5% (at x1 = 0) / Wang
-    0.6%; dependent `(N0 + N1, N0 + G)`: KL 0.8% -> 0.2% for 4 times the means, Wang 3.7%.
-    `fit_cdf(delta=)`: tabulates the smooth corrected approximation `cdf(x, delta=)` on the
-    usual grid (no lattice origin needed), used only for the same backend and `delta`
-    (plan: `docs/bivariate_lattice_cdf_plan.md`, follow-ups)
+        `BivariateSaddlePointApprox.cdf(x, delta=...)`, `"KL"` only, Kolassa & Li (2010) Section 3
+        at `x + delta/2` with `rho(tau) = 2 sinh(tau delta / 2) / delta` (`_LatticeBivariateApprox`;
+        plan: `docs/bivariate_lattice_cdf_plan.md`). Two independent Poissons (3, 4) at (2, 3):
+        0.181 vs exact 0.183 (uncorrected 0.102); reproduces the paper's Table 2 to within 0.7%.
+        Done: `"Kolassa"`, any `d`, also mixed (Kolassa (2003) eq. (13)); `"Wang"` (Wang (1990)
+        Theorems 2-3: `t0` replaced by `(1 - exp(-t0 delta)) / delta` in the factors, evaluated at
+        `x + delta`, as the univariate `correction=1`; the review's `1 - e^{t0}` at `x`, the
+        reflected version, is less accurate and fails at the lower support boundary). Poissons
+        (3, 4): within 0.24% of exact (product of the univariate `Pr1`); Table 2 binomial sums:
+        within 4.2% (`"KL"` 0.1%, uncorrected `"Wang"` 26%). Mixed lattice/continuous components
+        for `"KL"` and `"Wang"` (`delta=[1, None]`, same convention as `"Kolassa"`): Poisson(3) and
+        independent gamma(4) give the product of the marginals, KL within 5% (at x1 = 0) / Wang
+        0.6%; dependent `(N0 + N1, N0 + G)`: KL 0.8% -> 0.2% for 4 times the means, Wang 3.7%.
+        `fit_cdf(delta=)`: tabulates the smooth corrected approximation `cdf(x, delta=)` on the
+        usual grid (no lattice origin needed), used only for the same backend and `delta`
+        (plan: `docs/bivariate_lattice_cdf_plan.md`, follow-ups)
   - near-lattice variables: for `N + G`, with `N` on a lattice with span `delta` and a small
     independent continuous `G`, neither the continuous nor the lattice approximation is
     accurate. Add the alias saddlepoints `tau + 2 pi i k / delta`, `k != 0`, to the inversion,
@@ -1168,11 +1198,11 @@ Or into a separate model, e.g., bootstrap.py
     lattice: phase F above (Kolassa & Li, 2010, section 4). Done for two variables of
     interest, `conditional_cdf(i=[a, b], delta=...)`, and for three or more (F2)
   - [x] `bernoulli(p)` factory in `cgfs.py` (wraps `binomial(n=1, p)`). Example 2 of
-    `examples/example_Kolassa2003.py` now builds its null CGF as
-    `from_univariate(*[binomial(n=m_j, p=0.5)]).ldot(Z.T)` and shows the first and second
-    continuity corrections side by side. Bonferroni sums: 0.01756 (first), 0.01727 (second).
-    Explained with the lattice `"Kolassa"` cdf: the paper's 0.01709 is Boole's law with the
-    pair and triple orthants (eq. (13)), which the example now reproduces; exact 0.01713
+        `examples/example_Kolassa2003.py` now builds its null CGF as
+        `from_univariate(*[binomial(n=m_j, p=0.5)]).ldot(Z.T)` and shows the first and second
+        continuity corrections side by side. Bonferroni sums: 0.01756 (first), 0.01727 (second).
+        Explained with the lattice `"Kolassa"` cdf: the paper's 0.01709 is Boole's law with the
+        pair and triple orthants (eq. (13)), which the example now reproduces; exact 0.01713
 - bootstrap for robust estimators (Kuonen, 1998): `EstimatingEquationSaddlePointApprox` with
   Poisson weights covers monotone M-estimators. Done: Huber location estimate in
   `examples/example_bootstrap_robust_estimator.py`
@@ -1182,54 +1212,54 @@ Or into a separate model, e.g., bootstrap.py
   approximation of the EDF"; its sections 5.1 and 5.3 (bootstrap of the mean, estimating
   equations, Huber M-estimates) are covered by `EstimatingEquationSaddlePointApprox`. Open:
   - [ ] quadratic forms in normal variables (chapter 3; Kuonen 1999, Biometrika):
-    `Q = x^T A x`, `x ~ N(mu, Sigma)`, is a weighted sum of noncentral chi2 variables with a
-    closed-form cgf `K(t) = sum_i [-log(1 - 2 t l_i) / 2 + t l_i d_i^2 / (1 - 2 t l_i)]`, domain
-    `t < 1 / (2 max l_i)` (and the mirror bound for negative `l_i`). Mostly a factory
-    (`quadratic_form(A, mu, Sigma)`, plus `noncentral_chi2`). Applications: Durbin-Watson,
-    Box-Pierce / Ljung-Box, variance component tests, Cramer-von Mises / Anderson-Darling
-    (infinite weighted chi2 sums, truncated), delta-gamma VaR, and the nonparametric
-    regression tests of section 3.5. Ratios `P(Q1 / Q2 <= r) = P(Q1 - r Q2 <= 0)` give the
-    first quotient of random variables (README future work)
+        `Q = x^T A x`, `x ~ N(mu, Sigma)`, is a weighted sum of noncentral chi2 variables with a
+        closed-form cgf `K(t) = sum_i [-log(1 - 2 t l_i) / 2 + t l_i d_i^2 / (1 - 2 t l_i)]`, domain
+        `t < 1 / (2 max l_i)` (and the mirror bound for negative `l_i`). Mostly a factory
+        (`quadratic_form(A, mu, Sigma)`, plus `noncentral_chi2`). Applications: Durbin-Watson,
+        Box-Pierce / Ljung-Box, variance component tests, Cramer-von Mises / Anderson-Darling
+        (infinite weighted chi2 sums, truncated), delta-gamma VaR, and the nonparametric
+        regression tests of section 3.5. Ratios `P(Q1 / Q2 <= r) = P(Q1 - r Q2 <= 0)` give the
+        first quotient of random variables (README future work)
   - [ ] saddlepoint mixture approximation for bootstrap distributions with an outlier
-    (section 5.2): with an outlier `x_j` the bootstrap mean is multi-modal (one mode per
-    resample count `r` of `x_j`), the plain saddle point approximation is unimodal. Use
-    `P(X* <= x) = sum_r F_s(x | f_j* = r) Binom(r; n, 1/n)`, truncated at `r ~ 4`, with `F_s` the
-    saddle point cdf given `f_j* = r`. Benchmark: Daniels and Young (1991) data,
-    `-0.4621, -0.4608, -0.4492, -0.3830, -0.3109, -0.2282, -0.0896, 0.0927, 0.2183, 2.0723`.
-    Natural on top of a generic mixture combinator (below). Kuonen's rule of thumb: the plain
-    approximation fails beyond the boxplot fence at about 3 IQR
+        (section 5.2): with an outlier `x_j` the bootstrap mean is multi-modal (one mode per
+        resample count `r` of `x_j`), the plain saddle point approximation is unimodal. Use
+        `P(X* <= x) = sum_r F_s(x | f_j* = r) Binom(r; n, 1/n)`, truncated at `r ~ 4`, with `F_s` the
+        saddle point cdf given `f_j* = r`. Benchmark: Daniels and Young (1991) data,
+        `-0.4621, -0.4608, -0.4492, -0.3830, -0.3109, -0.2282, -0.0896, 0.0927, 0.2183, 2.0723`.
+        Natural on top of a generic mixture combinator (below). Kuonen's rule of thumb: the plain
+        approximation fails beyond the boxplot fence at about 3 IQR
   - [ ] studentized bootstrap distributions (chapter 6; Daniels and Young 1991; Kuonen 2001,
-    Statistics and Computing; Davison and Hinkley 1997, section 9.5): the bootstrap
-    distribution of `(t* - t) / v*^(1/2)` for the mean and for (studentized) Huber M-estimates,
-    including Huber's proposal 2. Needs a joint saddle point for `(t*, v*)` and integration
-    over the studentization (section 6.5.2), cf. the conditional / multivariate machinery
-    already in `spa.py`. Gives bootstrap-t confidence intervals without resampling (chapter 7
-    has the simulation study). The main open item of the thesis; write a plan in `docs/` first
+        Statistics and Computing; Davison and Hinkley 1997, section 9.5): the bootstrap
+        distribution of `(t* - t) / v*^(1/2)` for the mean and for (studentized) Huber M-estimates,
+        including Huber's proposal 2. Needs a joint saddle point for `(t*, v*)` and integration
+        over the studentization (section 6.5.2), cf. the conditional / multivariate machinery
+        already in `spa.py`. Gives bootstrap-t confidence intervals without resampling (chapter 7
+        has the simulation study). The main open item of the thesis; write a plan in `docs/` first
   - [ ] coupon collector's problem (chapter 4): saddle point approximation of the number of
-    draws needed, a sum of independent geometric variables. Small, possibly an example plus a
-    `geometric` factory
+        draws needed, a sum of independent geometric variables. Small, possibly an example plus a
+        `geometric` factory
 - mixture models, `K(t) = log sum_i p_i exp(K_i(t))`: not expressible with the current algebra,
   needs a combinator in `cgf_base.py` next to `+` and `ldot`. Cases:
   - [ ] finite mixtures (scale mixtures of normals, regime models)
   - [ ] compound / random sums, `K(t) = K_N(K_Y(t))`, e.g. compound Poisson
-    `lambda (M_Y(t) - 1)`: aggregate losses in insurance and operational risk
+        `lambda (M_Y(t) - 1)`: aggregate losses in insurance and operational risk
 - [ ] extended empirical saddlepoint (Feuerverger 1989; Fasiolo, Wood, Hartig and Bravington
-  2018, Electron. J. Stat. 12(1), R package `esaddle`). The empirical cgf
-  `K_m(l) = log (1/m) sum_i exp(l^T s_i)` (`univariate_empirical` is the 1-d version) only has a
-  saddle point inside the convex hull of the sample and loses accuracy in the tails. EES mixes
-  it with a normal cgf: `g(s, gamma) K_m(l) + (1 - g(s, gamma)) (l^T mu + l^T Sigma l / 2)`,
-  with `g -> 0` as the Mahalanobis distance of `s` to the sample mean grows (their eq. (10)),
-  and `gamma` chosen by cross-validation. Note the cgf depends on the evaluation point `s`, so
-  it does not fit the plain CGF object. Use: density of non-normal summary statistics in
-  synthetic likelihood for models that can only be simulated. Needs a multivariate empirical
-  cgf factory first
+      2018, Electron. J. Stat. 12(1), R package `esaddle`). The empirical cgf
+      `K_m(l) = log (1/m) sum_i exp(l^T s_i)` (`univariate_empirical` is the 1-d version) only has a
+      saddle point inside the convex hull of the sample and loses accuracy in the tails. EES mixes
+      it with a normal cgf: `g(s, gamma) K_m(l) + (1 - g(s, gamma)) (l^T mu + l^T Sigma l / 2)`,
+      with `g -> 0` as the Mahalanobis distance of `s` to the sample mean grows (their eq. (10)),
+      and `gamma` chosen by cross-validation. Note the cgf depends on the evaluation point `s`, so
+      it does not fit the plain CGF object. Use: density of non-normal summary statistics in
+      synthetic likelihood for models that can only be simulated. Needs a multivariate empirical
+      cgf factory first
 - [ ] truncated cgf for general statistics (Easton and Ronchetti 1986; Gatto and Ronchetti
-  1996; Wang 1992): build an approximate cgf from the first 3-4 cumulants of a statistic
-  (e.g. from its von Mises expansion) and apply the saddle point approximation, for
-  statistics without a tractable cgf (correlation coefficient, variance ratios)
+      1996; Wang 1992): build an approximate cgf from the first 3-4 cumulants of a statistic
+      (e.g. from its von Mises expansion) and apply the saddle point approximation, for
+      statistics without a tractable cgf (correlation coefficient, variance ratios)
 - [ ] saddlepoint smoothers for discrete data (Davison and Wang 2002, Biometrika): saddle point
-  approximation as a smoother of discrete distributions, e.g. p-values of exact conditional
-  tests. Read the paper before scoping
+      approximation as a smoother of discrete distributions, e.g. p-values of exact conditional
+      tests. Read the paper before scoping
 
 ## Review: Alhejaili and AlGhamedi (2025)
 
@@ -1237,20 +1267,20 @@ Or into a separate model, e.g., bootstrap.py
 343-390. Sections 1-2 and 4 are a literature survey; section 3 states the formulas. Coverage of
 section 3 by the package, checked against the primary sources (Butler 2007, Wang 1990):
 
-| Review | Formula | Status |
-|---|---|---|
-| (4)-(5) | univariate pdf/pmf | `pdf`, `pdf(delta=)` |
-| (6)-(7) | Lugannani-Rice, limit at the mean | `cdf(backend="LR")`, interpolated near `t=0` |
-| (8)-(9) | first continuity correction `Pr1` | `cdf(..., delta=, correction=1)` |
-| (10)-(12) | second continuity correction `Pr2` | `cdf(delta=)`, matches Butler Table 1.7 |
-| (13) | third approximation `Pr3` | missing, by choice (Butler: not a competitor) |
-| (14)-(21) | Wang (1990) bivariate cdf | `cdf(backend="Wang")`, plus `"KL"` and `"Kolassa"` |
-| (22)-(23) | Wang (1990) discrete versions | `cdf(backend="Wang", delta=)`, at `x + delta` |
-| (24)-(25) | multivariate pdf | `MultivariateSaddlePointApprox.pdf` |
-| (27)-(33) | double saddlepoint pdf | `conditional_pdf` (normalized) |
-| (39)-(41) | Skovgaard conditional cdf | `conditional_cdf`, plus Kolassa (1996) second order |
-| (42)-(44) | conditional `Pr1` | `conditional_cdf(..., delta=, correction=1)` |
-| (45)-(48) | conditional `Pr2` | `conditional_cdf(delta=)` |
+| Review    | Formula                            | Status                                              |
+| --------- | ---------------------------------- | --------------------------------------------------- |
+| (4)-(5)   | univariate pdf/pmf                 | `pdf`, `pdf(delta=)`                                |
+| (6)-(7)   | Lugannani-Rice, limit at the mean  | `cdf(backend="LR")`, interpolated near `t=0`        |
+| (8)-(9)   | first continuity correction `Pr1`  | `cdf(..., delta=, correction=1)`                    |
+| (10)-(12) | second continuity correction `Pr2` | `cdf(delta=)`, matches Butler Table 1.7             |
+| (13)      | third approximation `Pr3`          | missing, by choice (Butler: not a competitor)       |
+| (14)-(21) | Wang (1990) bivariate cdf          | `cdf(backend="Wang")`, plus `"KL"` and `"Kolassa"`  |
+| (22)-(23) | Wang (1990) discrete versions      | `cdf(backend="Wang", delta=)`, at `x + delta`       |
+| (24)-(25) | multivariate pdf                   | `MultivariateSaddlePointApprox.pdf`                 |
+| (27)-(33) | double saddlepoint pdf             | `conditional_pdf` (normalized)                      |
+| (39)-(41) | Skovgaard conditional cdf          | `conditional_cdf`, plus Kolassa (1996) second order |
+| (42)-(44) | conditional `Pr1`                  | `conditional_cdf(..., delta=, correction=1)`        |
+| (45)-(48) | conditional `Pr2`                  | `conditional_cdf(delta=)`                           |
 
 Typos in the review, do not implement from it: in (6) the roles of `phi` and `Phi` are swapped
 in the text; Theorem 3.2 has `1 - e^{t0}`, Wang (1990) has `1 - e^{-t0}`; (44) should read
@@ -1277,34 +1307,34 @@ conditional MLE for Fisher's twins (Section 6.2, Figure 1), and the Lake Constan
 where the approximation is undefined, now give NaN instead of garbage.
 
 - [x] Lake Constance freezes (Section 5.2), the time-dependent Poisson process: given the
-  number of events, the event times are iid with density proportional to `exp(beta t)` on
-  [0, 1], and the trend test conditions on `r = sum t_i` to test `s = sum t_i^2`. Added to the
-  example, with the cgf of (t, t^2) by Gauss-Legendre quadrature and `conditional_cdf`. The
-  double saddle point gives 0.00799 (Kolassa: 0.00799), against an exact Monte Carlo value of
-  0.00790 (standard error 0.0001). The paper's single saddle point gives 0.008594 for the
-  normal leading term, and 0.008370 and 0.008180 with one and two correction terms; it uses
-  the rounded r/n = 0.5394 and s/n = 0.3443, from which the double saddle point gives 0.00810.
-  The paper's normal term is reproduced exactly from those rounded values (0.008485 from the
-  data)
+      number of events, the event times are iid with density proportional to `exp(beta t)` on
+      [0, 1], and the trend test conditions on `r = sum t_i` to test `s = sum t_i^2`. Added to the
+      example, with the cgf of (t, t^2) by Gauss-Legendre quadrature and `conditional_cdf`. The
+      double saddle point gives 0.00799 (Kolassa: 0.00799), against an exact Monte Carlo value of
+      0.00790 (standard error 0.0001). The paper's single saddle point gives 0.008594 for the
+      normal leading term, and 0.008370 and 0.008180 with one and two correction terms; it uses
+      the rounded r/n = 0.5394 and s/n = 0.3443, from which the double saddle point gives 0.00810.
+      The paper's normal term is reproduced exactly from those rounded values (0.008485 from the
+      data)
 - [ ] second-order correction of the (conditional) density, the `O(1/n)` term
-  `(rho_4 / 8 - 5 rho_3^2 / 24)` and the correction terms of the double saddle point (3.15). The ingredients
-  `_d4K_central` and `_conditional_invariants` exist for the Kolassa (1996) conditional cdf.
-  It would improve the unnormalized density, but normalizing achieves most of that already
-  (Table 2: relative error 6.5% to 3.7% for r = 24), so it is deferred
+      `(rho_4 / 8 - 5 rho_3^2 / 24)` and the correction terms of the double saddle point (3.15). The ingredients
+      `_d4K_central` and `_conditional_invariants` exist for the Kolassa (1996) conditional cdf.
+      It would improve the unnormalized density, but normalizing achieves most of that already
+      (Table 2: relative error 6.5% to 3.7% for r = 24), so it is deferred
 - [ ] optional, low priority: second-order Lugannani-Rice cdf for the univariate
-  approximation (Daniels, 1987), with relative error
-  `O(n^{-5/2})` instead of `O(n^{-3/2})`. It adds a bracket with the standardized cumulants
-  `rho_3`, `rho_4` at the saddle point, the univariate counterpart of
-  `conditional_cdf(backend="Kolassa")`; a `backend` or `order` option of `cdf`. Needs `d4K`,
-  as a finite difference of `d3K` (cf. `_d4K_central`), and care near `t = 0`. The
-  univariate density does not need a second-order term: the `1/n` factor is constant in `x`
-  to leading order, so the default normalization already removes it. Low priority, since
-  Lugannani-Rice is already accurate in all examples
+      approximation (Daniels, 1987), with relative error
+      `O(n^{-5/2})` instead of `O(n^{-3/2})`. It adds a bracket with the standardized cumulants
+      `rho_3`, `rho_4` at the saddle point, the univariate counterpart of
+      `conditional_cdf(backend="Kolassa")`; a `backend` or `order` option of `cdf`. Needs `d4K`,
+      as a finite difference of `d3K` (cf. `_d4K_central`), and care near `t = 0`. The
+      univariate density does not need a second-order term: the `1/n` factor is constant in `x`
+      to leading order, so the default normalization already removes it. Low priority, since
+      Lugannani-Rice is already accurate in all examples
 - [ ] test the exact case (3.19)-(3.20): for a normal sample, the double saddle point
-  approximation of the conditional density of `sum V_i` given `sum V_i^2 = r` is exact after
-  normalization (the ratio to the exact numerator `exp(s mu / sigma^2) (r - s^2/n)^((n-3)/2)` is
-  constant in `s`). A cheap exactness test for `conditional_pdf`, with the joint cgf of
-  `(V, V^2)` built from `norm`
+      approximation of the conditional density of `sum V_i` given `sum V_i^2 = r` is exact after
+      normalization (the ratio to the exact numerator `exp(s mu / sigma^2) (r - s^2/n)^((n-3)/2)` is
+      constant in `s`). A cheap exactness test for `conditional_pdf`, with the joint cgf of
+      `(V, V^2)` built from `norm`
 - not planned: the single (mixed) saddle point (3.16)-(3.18), the normal leading term with
   Edgeworth corrections at the restricted MLE. The paper uses it where the extended cgf has
   no usable form; the double saddle point backends (Skovgaard, Kolassa) are more accurate per
@@ -1325,20 +1355,20 @@ closest Python package. It implements saddlepoint expansions of arbitrary order,
 derivatives from Taylor-mode automatic differentiation of a numpy `K`.
 
 - [ ] cross-check accuracy: compare our first-order results with their order-1 output (which
-  should agree) and their higher orders, on shared test cases: univariate pdf/cdf, the
-  multivariate orthant cdf (Kolassa 2003, KL), conditional cdf/pdf (Skovgaard), and lattice
-  variables. Their test suite has Julia reference values (`tests/reference_values.csv`) that
-  we could reuse
+      should agree) and their higher orders, on shared test cases: univariate pdf/cdf, the
+      multivariate orthant cdf (Kolassa 2003, KL), conditional cdf/pdf (Skovgaard), and lattice
+      variables. Their test suite has Julia reference values (`tests/reference_values.csv`) that
+      we could reuse
 - [ ] compare speed and robustness, e.g. close to the domain boundary and for dependent
-  components, where our numerical derivatives are weakest
+      components, where our numerical derivatives are weakest
 - [ ] features they have and we lack: higher-order expansions, ratios and Studentized means
-  (`ratio_density`, `studentized_tailprob`), quadratic forms in normal variables, noncentral
-  chi-squared and Wishart cgfs, conditional distributions with more tail components
+      (`ratio_density`, `studentized_tailprob`), quadratic forms in normal variables, noncentral
+      chi-squared and Wishart cgfs, conditional distributions with more tail components
 - [ ] consider automatic differentiation instead of (or alongside) numdifftools/findiff for
-  cgfs without analytic derivatives
+      cgfs without analytic derivatives
 - [ ] features we have and they lack, worth highlighting in the README: estimating equations
-  and resampling (bootstraps, jackknife, permutation tests), the empirical cgf, cgf operators
-  and `Domain` algebra, pandas round-trip
+      and resampling (bootstraps, jackknife, permutation tests), the empirical cgf, cgf operators
+      and `Domain` algebra, pandas round-trip
 - [x] mention the package in the README (section "Related software")
 
 ## Literature to review
