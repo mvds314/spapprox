@@ -1075,7 +1075,10 @@ Or into a separate model, e.g., bootstrap.py
   - [x] saddle point approximation of the nonpivotal conditional bootstrap of a vector mean,
     their Section 4: `multivariate_empirical`, `multivariate_sample_mean` and
     `conditional_cdf`, see `examples/example_bootstrap_conditional.py` (Table 3)
-  - Monte Carlo conditional bootstrap, e.g. in `spapprox/bootstrap.py`: the kernel-smoothed
+  - [x] Monte Carlo conditional bootstrap in `spapprox/bootstrap.py` (`ConditionalBootstrap`,
+    `optimal_tilt`, `conditional_bootstrap_bandwidth`), see
+    `examples/example_bootstrap_conditional_coverage.py` (Table 2) and
+    `docs/conditional_bootstrap_plan.md`: the kernel-smoothed
     (windowed) conditional bootstrap, nonpivotal and pivotal (Studentized, which has error
     O(n^{-1}) instead of O(n^{-1/2})), importance resampling with exponential tilting
     (Section 2.5), the plug-in bandwidth of Section 2.4 and conditional confidence intervals
